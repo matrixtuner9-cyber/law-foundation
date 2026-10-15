@@ -2,43 +2,52 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// الهوية الفخمة لميثاق: كحلي وأسود وفحمي مع لمسات ذهبية ونحاسية
-/// (أسماء الثوابت القديمة محفوظة كي تنتقل كل الشاشات للهوية الجديدة دفعة واحدة)
+/// هوية ميثاق المعتمدة (نفس واجهة المحامي «prestige»):
+/// خلفية عاجية، كحلي للعناصر الأساسية والأشرطة، ذهبي هادئ للمسات، برونزي للنصوص الذهبية، وخط Cairo
+/// (أسماء الثوابت القديمة محفوظة كي تنتقل كل الشاشات للهوية دفعة واحدة)
 class MQ {
-  static const forest = Color(0xFF0F1B33); // كحلي ملكي
-  static const forestDeep = Color(0xFF050709); // أسود
-  static const navy2 = Color(0xFF16264A);
-  static const pine = Color(0xFFC9A24B); // ذهبي (اللون الأساسي)
-  static const pineSoft = Color(0xFF2A2315); // ذهبي خافت
-  static const goldLo = Color(0xFFB8923A);
-  static const mint = Color(0xFF4CB38A);
-  static const brass = Color(0xFFC77B43); // نحاسي
-  static const brassHi = Color(0xFFE6C77A); // ذهبي لامع
-  static const brassSoft = Color(0xFF2B2415);
-  static const ivory = Color(0xFF090D16); // خلفية التطبيق
-  static const surface = Color(0xFF121926);
-  static const surfaceAlt = Color(0xFF1A2335);
-  static const ink = Color(0xFFF3EEE2);
-  static const muted = Color(0xFF8D96A8);
-  static const soft = Color(0xFFA9B3C6);
-  static const line = Color(0xFF252F45);
-  static const mine = Color(0xFF1F3A6B); // فقاعة الموكل
-  static const onGold = Color(0xFF0A0E17);
-  static const danger = Color(0xFFE5605A);
-  static const dangerSoft = Color(0xFF2D1718);
-  static const ok = Color(0xFF4CB38A);
-  static const okSoft = Color(0xFF12291F);
-  static const warn = Color(0xFFE6C77A);
-  static const warnSoft = Color(0xFF2B2415);
-  static const docBlue = Color(0xFF6B93F0);
+  // الكحلي: الأشرطة والرؤوس الداكنة (مثل الشريط الجانبي في واجهة المحامي)
+  static const forest = Color(0xFF0B1B2B); // navy
+  static const forestDeep = Color(0xFF07131F);
+  static const navy2 = Color(0xFF1F2D3D); // navy2
+  // اللون الأساسي للأزرار والروابط والتحديد (accent في واجهة المحامي)
+  static const pine = Color(0xFF1F2D3D);
+  static const pineSoft = Color(0xFFE8E9EA);
+  static const onGold = Color(0xFFF9F6EF); // النص فوق اللون الأساسي
+  // الذهبي والبرونزي
+  static const gold = Color(0xFFB9965A);
+  static const goldLo = Color(0xFF8B6F3D);
+  static const brass = Color(0xFF8B6F3D); // bronze: نص ذهبي مقروء على العاجي
+  static const brassHi = Color(0xFFB9965A); // ذهبي على الخلفيات الكحلية
+  static const brassSoft = Color(0xFFF1E8D7);
+  // الأسطح والنصوص
+  static const ivory = Color(0xFFF9F6EF); // خلفية التطبيق
+  static const surface = Color(0xFFFFFDF8); // البطاقات
+  static const surfaceAlt = Color(0xFFF4EEE3); // الحقول
+  static const sunk = Color(0xFFF1E9DB); // شارات داخل البطاقات
+  static const ink = Color(0xFF111B27);
+  static const muted = Color(0xFF6B7280);
+  static const soft = Color(0xFFBEC3C9); // نص ثانوي فوق الكحلي
+  static const line = Color(0xFFEADCC6); // beige
+  static const mine = Color(0xFF1F2D3D); // فقاعة الموكل
+  // الحالات
+  static const mint = Color(0xFF3FA57C);
+  static const danger = Color(0xFFDC2626);
+  static const dangerSoft = Color(0xFFFBE5E2);
+  static const ok = Color(0xFF15803D);
+  static const okSoft = Color(0xFFE4F2E8);
+  static const warn = Color(0xFFB45309);
+  static const warnSoft = Color(0xFFFBEFD6);
+  static const docBlue = Color(0xFF2563EB);
 
-  static const goldGradient = LinearGradient(begin: Alignment.centerRight, end: Alignment.centerLeft, colors: [brassHi, goldLo]);
-  static const navyGradient = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [navy2, forestDeep]);
+  static const goldGradient = LinearGradient(begin: Alignment.centerRight, end: Alignment.centerLeft, colors: [gold, goldLo]);
+  static const navyGradient = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [navy2, forest]);
 
-  static const bodyFont = 'IBM Plex Sans Arabic';
+  static const bodyFont = 'Cairo';
 
-  static TextStyle display(double size, {Color color = ink, FontWeight weight = FontWeight.w700}) =>
-      GoogleFonts.getFont('Amiri', fontSize: size, fontWeight: weight, color: color, height: 1.3);
+  /// العناوين بخط Cairo العريض كما في واجهة المحامي (المقاسات معايرة على العناوين السابقة)
+  static TextStyle display(double size, {Color color = ink, FontWeight weight = FontWeight.w800}) =>
+      GoogleFonts.getFont('Cairo', fontSize: size * .84, fontWeight: weight, color: color, height: 1.4);
   static TextStyle body(double size, {Color color = ink, FontWeight weight = FontWeight.w400, double height = 1.55}) =>
       GoogleFonts.getFont(bodyFont, fontSize: size, fontWeight: weight, color: color, height: height);
   static TextStyle mono(double size, {Color color = ink, FontWeight weight = FontWeight.w500, double spacing = 0}) =>
@@ -46,35 +55,43 @@ class MQ {
           fontFeatures: const [FontFeature.tabularFigures()]);
 
   static ThemeData theme() {
-    final scheme = ColorScheme.fromSeed(seedColor: pine, brightness: Brightness.dark).copyWith(
+    final scheme = ColorScheme.fromSeed(seedColor: forest, brightness: Brightness.light).copyWith(
       primary: pine,
       onPrimary: onGold,
-      secondary: brass,
+      secondary: gold,
+      onSecondary: forest,
       surface: surface,
       onSurface: ink,
+      onSurfaceVariant: muted,
+      surfaceContainerLowest: surface,
+      surfaceContainerLow: surface,
+      surfaceContainer: surface,
+      surfaceContainerHigh: surface,
       surfaceContainerHighest: surfaceAlt,
       outline: line,
+      outlineVariant: line,
       error: danger,
     );
-    final base = ThemeData(useMaterial3: true, brightness: Brightness.dark, colorScheme: scheme, scaffoldBackgroundColor: ivory);
+    final base = ThemeData(useMaterial3: true, brightness: Brightness.light, colorScheme: scheme, scaffoldBackgroundColor: ivory);
     OutlineInputBorder border(Color c, [double w = 1]) =>
         OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: c, width: w));
     return base.copyWith(
       textTheme: base.textTheme.apply(fontFamily: GoogleFonts.getFont(bodyFont).fontFamily, bodyColor: ink, displayColor: ink),
       appBarTheme: AppBarTheme(
           backgroundColor: ivory, surfaceTintColor: Colors.transparent, elevation: 0, foregroundColor: ink,
-          systemOverlayStyle: SystemUiOverlayStyle.light,
-          centerTitle: false, titleTextStyle: display(26, color: brassHi)),
+          systemOverlayStyle: SystemUiOverlayStyle.dark,
+          centerTitle: false, titleTextStyle: display(26, color: forest)),
+      // شريط التنقل كحلي بلمسة ذهبية مثل الشريط الجانبي في واجهة المحامي
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: surface,
-        indicatorColor: pineSoft,
+        backgroundColor: forest,
+        indicatorColor: navy2,
         surfaceTintColor: Colors.transparent,
         height: 70,
         labelTextStyle: WidgetStateProperty.resolveWith((s) => body(12,
             weight: s.contains(WidgetState.selected) ? FontWeight.w700 : FontWeight.w500,
-            color: s.contains(WidgetState.selected) ? pine : muted)),
+            color: s.contains(WidgetState.selected) ? gold : soft)),
         iconTheme: WidgetStateProperty.resolveWith(
-            (s) => IconThemeData(color: s.contains(WidgetState.selected) ? pine : muted, size: 24)),
+            (s) => IconThemeData(color: s.contains(WidgetState.selected) ? gold : soft, size: 24)),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
@@ -104,9 +121,11 @@ class MQ {
       textButtonTheme: TextButtonThemeData(style: TextButton.styleFrom(foregroundColor: pine)),
       snackBarTheme: SnackBarThemeData(
           behavior: SnackBarBehavior.floating,
-          backgroundColor: surfaceAlt,
-          contentTextStyle: body(14, color: ink),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: const BorderSide(color: line))),
+          backgroundColor: forest,
+          contentTextStyle: body(14, color: onGold),
+          actionTextColor: gold,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14), side: BorderSide(color: gold.withValues(alpha: .35)))),
       dialogTheme: DialogThemeData(backgroundColor: surface, surfaceTintColor: Colors.transparent),
       dividerColor: line,
       bottomSheetTheme: const BottomSheetThemeData(backgroundColor: surface, surfaceTintColor: Colors.transparent),
@@ -114,7 +133,7 @@ class MQ {
   }
 }
 
-/// بطاقة داكنة بحافة رفيعة
+/// بطاقة عاجية بحافة بيج وظل خفيف (مثل .panel في واجهة المحامي)
 class Panel extends StatelessWidget {
   const Panel({super.key, required this.child, this.padding = const EdgeInsets.all(16), this.color, this.onTap});
   final Widget child;
@@ -129,7 +148,10 @@ class Panel extends StatelessWidget {
           color: color ?? MQ.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: MQ.line),
-          boxShadow: const [BoxShadow(color: Color(0x66000000), blurRadius: 18, offset: Offset(0, 6))]),
+          boxShadow: const [
+            BoxShadow(color: Color(0x080B1B2B), blurRadius: 0, offset: Offset(0, 1)),
+            BoxShadow(color: Color(0x0F0B1B2B), blurRadius: 24, offset: Offset(0, 8)),
+          ]),
       child: child,
     );
     if (onTap == null) return box;

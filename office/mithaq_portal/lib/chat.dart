@@ -183,7 +183,7 @@ class ChatTabState extends State<ChatTab> {
 
   Widget _header(BuildContext context) {
     final top = MediaQuery.of(context).padding.top;
-    return Container(
+    return AnnotatedRegion<SystemUiOverlayStyle>(value: SystemUiOverlayStyle.dark, child: Container(
       padding: EdgeInsets.fromLTRB(16, top + 10, 16, 12),
       decoration: const BoxDecoration(color: MQ.surface, border: Border(bottom: BorderSide(color: MQ.line))),
       child: Row(children: [
@@ -213,7 +213,7 @@ class ChatTabState extends State<ChatTab> {
           icon: const Icon(Icons.note_add_outlined, color: MQ.pine),
         ),
       ]),
-    );
+    ));
   }
 
   Widget _empty() => Center(
@@ -614,7 +614,7 @@ class _VoiceBubbleState extends State<VoiceBubble> {
       width: 236,
       child: Row(children: [
         Material(
-          color: MQ.pine,
+          color: widget.mine ? MQ.gold : MQ.pine,
           shape: const CircleBorder(),
           child: InkWell(
             customBorder: const CircleBorder(),
@@ -625,9 +625,9 @@ class _VoiceBubbleState extends State<VoiceBubble> {
               child: widget.m.pending
                   ? Padding(
                       padding: const EdgeInsets.all(11),
-                      child: CircularProgressIndicator(strokeWidth: 2, color: MQ.onGold))
+                      child: CircularProgressIndicator(strokeWidth: 2, color: widget.mine ? MQ.forest : MQ.onGold))
                   : Icon(playing ? Icons.pause_rounded : Icons.play_arrow_rounded,
-                      color: MQ.onGold, size: 26),
+                      color: widget.mine ? MQ.forest : MQ.onGold, size: 26),
             ),
           ),
         ),

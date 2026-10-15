@@ -45,7 +45,7 @@ class _CaseCardState extends State<_CaseCard> {
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Wrap(spacing: 6, runSpacing: 6, children: [
-              Chip2('${k['no']}', bg: MQ.ivory, fg: MQ.ink, mono: true),
+              Chip2('${k['no']}', bg: MQ.sunk, fg: MQ.ink, mono: true),
               Chip2('${k['type']}', bg: MQ.brassSoft, fg: MQ.brass),
               Chip2('${k['status']}', bg: MQ.pineSoft, fg: MQ.pine),
             ]),
@@ -135,7 +135,7 @@ class _HearingRow extends StatelessWidget {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Wrap(spacing: 6, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
                 Text(fmtDate(t), style: MQ.body(13.5, weight: FontWeight.w700)),
-                Chip2('${h['time']}', bg: MQ.ivory, fg: MQ.ink, mono: true),
+                Chip2('${h['time']}', bg: MQ.sunk, fg: MQ.ink, mono: true),
                 if (isNext) Chip2(relDay(t), bg: MQ.pine, fg: MQ.onGold),
                 if (!past && h['attend'] == true) const Chip2('حضورك مطلوب', bg: MQ.warnSoft, fg: MQ.warn),
               ]),

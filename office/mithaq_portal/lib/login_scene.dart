@@ -45,15 +45,15 @@ class _BasePainter extends CustomPainter {
         r,
         Paint()
           ..shader = const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [
-            Color(0xFF16264A),
-            Color(0xFF0B1224),
+            MQ.navy2,
+            MQ.forest,
             MQ.forestDeep,
           ]).createShader(r));
     final c = Offset(s.width * (.5 + .22 * math.sin(2 * math.pi * t)), s.height * (.2 + .04 * math.cos(2 * math.pi * t)));
     canvas.drawRect(
         r,
         Paint()
-          ..shader = RadialGradient(colors: [MQ.pine.withValues(alpha: .26), MQ.pine.withValues(alpha: .06), Colors.transparent], stops: const [0, .45, 1])
+          ..shader = RadialGradient(colors: [MQ.gold.withValues(alpha: .22), MQ.gold.withValues(alpha: .05), Colors.transparent], stops: const [0, .45, 1])
               .createShader(Rect.fromCircle(center: c, radius: s.height * .6)));
   }
 
@@ -152,13 +152,13 @@ class _ScalesPainter extends CustomPainter {
     final pivot = Offset(cx, h * .2);
     final whole = Offset.zero & s;
     final gold = Paint()
-      ..shader = const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFFF6E3A6), MQ.brassHi, MQ.pine, MQ.goldLo]).createShader(whole);
+      ..shader = const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [Color(0xFFEAD7A6), MQ.gold, Color(0xFFA5824A), MQ.goldLo]).createShader(whole);
     final glowC = Offset(cx, h * .5);
     canvas.drawCircle(
         glowC,
         w * .55,
         Paint()
-          ..shader = RadialGradient(colors: [MQ.pine.withValues(alpha: .30 + .06 * math.sin(2 * math.pi * t)), Colors.transparent]).createShader(Rect.fromCircle(center: glowC, radius: w * .55)));
+          ..shader = RadialGradient(colors: [MQ.gold.withValues(alpha: .26 + .06 * math.sin(2 * math.pi * t)), Colors.transparent]).createShader(Rect.fromCircle(center: glowC, radius: w * .55)));
     /* القاعدة والعمود */
     canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(cx, h * .955), width: w * .46, height: h * .05), const Radius.circular(6)), gold);
     canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromCenter(center: Offset(cx, h * .91), width: w * .32, height: h * .045), const Radius.circular(5)), gold);

@@ -214,7 +214,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                     padding: const EdgeInsets.all(22),
                     decoration: BoxDecoration(
                         color: MQ.surface.withValues(alpha: .9),
-                        border: Border.all(color: MQ.pine.withValues(alpha: .35)),
+                        border: Border.all(color: MQ.gold.withValues(alpha: .5)),
                         borderRadius: BorderRadius.circular(26),
                         boxShadow: const [BoxShadow(color: Color(0x55000000), blurRadius: 40, offset: Offset(0, 18))]),
                     child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -226,7 +226,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                         textDirection: TextDirection.ltr,
                         textCapitalization: TextCapitalization.characters,
                         style: MQ.mono(24, spacing: 3),
-                        decoration: const InputDecoration(hintText: 'MQ-0000'),
+                        decoration: const InputDecoration(hintText: 'MQ-XXXXXXXXXX'),
                         onSubmitted: (_) => _go(),
                       ),
                       AnimatedSize(
@@ -265,8 +265,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                   Wrap(spacing: 8, runSpacing: 8, alignment: WrapAlignment.center, children: [
                     for (final d in const [('MQ-2051', 'شركة الزيتون'), ('MQ-7714', 'أحمد الشكعة'), ('MQ-6640', 'ريم النابلسي')])
                       Material(
-                        color: MQ.surfaceAlt,
-                        shape: const StadiumBorder(side: BorderSide(color: MQ.line)),
+                        color: Colors.white.withValues(alpha: .08),
+                        shape: StadiumBorder(side: BorderSide(color: MQ.gold.withValues(alpha: .4))),
                         child: InkWell(
                           customBorder: const StadiumBorder(),
                           onTap: () {
@@ -380,7 +380,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
       bottomNavigationBar: ListenableBuilder(
         listenable: store,
         builder: (context, _) => DecoratedBox(
-          decoration: const BoxDecoration(border: Border(top: BorderSide(color: MQ.line))),
+          decoration: BoxDecoration(border: Border(top: BorderSide(color: MQ.gold.withValues(alpha: .3)))),
           child: NavigationBar(
             selectedIndex: idx,
             onDestinationSelected: go,

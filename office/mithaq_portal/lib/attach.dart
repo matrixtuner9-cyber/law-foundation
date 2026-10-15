@@ -173,7 +173,7 @@ class FileTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-          color: dark ? Colors.white.withValues(alpha: .1) : MQ.ivory, borderRadius: BorderRadius.circular(14)),
+          color: dark ? Colors.white.withValues(alpha: .1) : MQ.sunk, borderRadius: BorderRadius.circular(14)),
       child: Row(children: [
         Container(
           width: 42,

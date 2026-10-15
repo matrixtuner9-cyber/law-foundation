@@ -126,7 +126,7 @@ Future<void> _poll(FlutterLocalNotificationsPlugin n) async {
             playSound: true,
             sound: const RawResourceAndroidNotificationSound('chime'),
             styleInformation: BigTextStyleInformation(body),
-            color: const Color(0xFFC9A24B),
+            color: const Color(0xFFB9965A),
             category: AndroidNotificationCategory.message,
             visibility: NotificationVisibility.private,
           ),
@@ -190,7 +190,7 @@ Future<void> testNotify() async {
           priority: Priority.high,
           playSound: true,
           sound: const RawResourceAndroidNotificationSound('chime'),
-          color: const Color(0xFFC9A24B)),
+          color: const Color(0xFFB9965A)),
     ),
   );
 }

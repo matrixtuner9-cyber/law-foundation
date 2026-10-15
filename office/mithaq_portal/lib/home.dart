@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'store.dart';
 import 'push.dart';
 import 'theme.dart';
@@ -108,7 +109,7 @@ class _Hero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final top = MediaQuery.of(context).padding.top;
-    return Container(
+    return AnnotatedRegion<SystemUiOverlayStyle>(value: SystemUiOverlayStyle.light, child: Container(
       clipBehavior: Clip.antiAlias,
       decoration: const BoxDecoration(
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
@@ -149,13 +150,13 @@ class _Hero extends StatelessWidget {
                 Text('${next!.kase['court']} · القضية ${next!.kase['no']}', style: MQ.body(12.5, color: MQ.soft)),
                 const SizedBox(height: 10),
                 next!.h['attend'] == true
-                    ? const Chip2('حضورك شخصياً مطلوب', bg: MQ.brassHi, fg: Color(0xFF2B1E0E), icon: Icons.priority_high)
+                    ? const Chip2('حضورك شخصياً مطلوب', bg: MQ.gold, fg: MQ.forest, icon: Icons.priority_high)
                     : Chip2('يحضر المحامي نيابة عنك', bg: MQ.mint.withValues(alpha: .2), fg: MQ.mint, icon: Icons.check),
               ])),
           ]),
         ),
       ]),
-    );
+    ));
   }
 
   Widget _glass(Widget child) => Container(
@@ -278,7 +279,7 @@ class CaseSummary extends StatelessWidget {
       onTap: onTap,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Chip2('${kase['no']}', bg: MQ.ivory, fg: MQ.ink, mono: true),
+          Chip2('${kase['no']}', bg: MQ.sunk, fg: MQ.ink, mono: true),
           const SizedBox(width: 6),
           Chip2('${kase['type']}', bg: MQ.brassSoft, fg: MQ.brass),
           const Spacer(),
