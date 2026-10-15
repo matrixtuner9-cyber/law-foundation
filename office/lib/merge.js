@@ -4,7 +4,7 @@
 //  2) كل سجل يحمل رقم إصدار _v. تعديلٌ مبني على إصدار قديم يُرفض كتعارض، ويُعاد للمتصفح أحدث نسخة من الخادم.
 //  3) رمز دخول بوابة الموكل يولّده الخادم: قوي (10 رموز من 32 ≈ 50 بت) وفريد، ولا يتغير إلا بعملية «تجديد» صريحة.
 'use strict';
-const COLL = ['clients', 'opponents', 'cases', 'hearings', 'deadlines', 'docs'];
+const COLL = ['clients', 'opponents', 'cases', 'hearings', 'deadlines', 'docs', 'rulings'];
 const ALPH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // بلا 0/O و1/I لتجنب الالتباس عند الكتابة اليدوية
 const STRONG = /^MQ-[A-HJ-NP-Z2-9]{10}$/;
 const isStrong = c => STRONG.test(String(c || ''));

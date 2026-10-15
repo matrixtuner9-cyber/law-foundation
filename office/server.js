@@ -465,6 +465,7 @@ async function api(req, res, u) {
   }
   if (p === '/api/admin/voice' && M === 'POST') { if (!need('write')) return; return voice(req, res, u, u.searchParams.get('client'), 'lawyer', who) }
   if (p === '/api/admin/file' && M === 'POST') { if (!need('write')) return; return attach(req, res, u, u.searchParams.get('client'), 'lawyer', who) }
+  if (p === '/api/admin/ruling-file' && M === 'POST') { if (!need('write')) return; return rulingFile(req, res, u, who) }
   if (p === '/api/admin/read' && M === 'POST') {
     const { client } = await jbody(req);
     if (!canSeeClient(me, client)) return json(res, 403, { error: 'لا تملك صلاحية لهذا الموكل.' });
@@ -510,8 +511,21 @@ async function attach(req, res, u, client, from, who) {
   return json(res, 201, pub(m));
 }
 
+// نص حكم قضائي (PDF أو Word أو صورة) لمكتبة الاجتهادات: يُحفظ كملف فقط دون رسالة لأي موكل
+async function rulingFile(req, res, u, who) {
+  const name = String(u.searchParams.get('name') || 'حكم').replace(/[\\/:*?"<>|]/g, '_').slice(0, 120);
+  const type = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+  let ext = (path.extname(name).slice(1) || FILE_EXT[type] || '').toLowerCase(); if (ext === 'jpeg') ext = 'jpg';
+  if (!EXT_OK.has(ext)) return json(res, 415, { error: 'نوع الملف غير مدعوم. المسموح: PDF وWord والصور والنصوص.' });
+  let buf; try { buf = await body(req, 25 * 1024 * 1024) } catch (e) { return json(res, 413, { error: 'الملف أكبر من المسموح (25 ميغابايت).' }) }
+  if (!buf.length) return json(res, 400, { error: 'الملف فارغ.' });
+  const id = rid(), file = `${id}.${ext}`; fs.writeFileSync(path.join(MEDIA, file), buf);
+  audit({ ...who, action: 'ruling.file', entity: 'rulings', entity_id: id, detail: { name, size: buf.length, sha256: crypto.createHash('sha256').update(buf).digest('hex') } });
+  return json(res, 201, { file: '/api/media/' + file, name, size: buf.length, ext });
+}
+
 /* ملفات شاشة المكتب: قائمة محددة فقط، وكلها تتطلب تسجيل الدخول عدا صفحة الدخول */
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'print.js', 'intake.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'print.js', 'intake.js', 'rulings.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css']);
 
 http.createServer((req, res) => {

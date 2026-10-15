@@ -16,15 +16,16 @@ function assignState(st){
  if(!st)return;
  const rep=(arr,val)=>{if(Array.isArray(val))arr.splice(0,arr.length,...val)};
  rep(clients,st.clients);rep(opponents,st.opponents);rep(cases,st.cases);
- if(st.hearings)hearings=st.hearings; if(st.deadlines)deadlines=st.deadlines; if(st.docs)docs=st.docs; if(st.mzLog)mzLog=st.mzLog;
+ if(st.hearings)hearings=st.hearings; if(st.deadlines)deadlines=st.deadlines; if(st.docs)docs=st.docs; if(st.mzLog)mzLog=st.mzLog; if(st.rulings)rulings=st.rulings;
 }
 
 /* ── الحفظ الآمن ──
    يُرسل للخادم ما تغيّر فقط، ومع كل سجل رقم إصداره (_v). إن عدّل زميلٌ السجلَ نفسه قبلك يرفض الخادم تعديلك
    ويعيد أحدث نسخة فتظهر لك رسالة. لا يُحذف شيء لأنه غاب عن طلبك. وأي فشل في الحفظ يظهر أعلى الشاشة ويُعاد تلقائياً. */
-const KINDS=['clients','opponents','cases','hearings','deadlines','docs'];
-const ARR=k=>({clients,opponents,cases,hearings,deadlines,docs})[k];
+const KINDS=['clients','opponents','cases','hearings','deadlines','docs','rulings'];
+const ARR=k=>({clients,opponents,cases,hearings,deadlines,docs,rulings})[k];
 const saved=new Map();let savedMz='[]';
+const dels={}; /* حذف صريح بانتظار الإرسال: {kind:Set(ids)} */
 const TAB=Math.random().toString(36).slice(2,12); /* معرّف هذه النافذة: يتجاهل صدى تعديلاتها هي فقط، لا تعديلات نفس المستخدم في نافذة أخرى */
 const key=(k,id)=>k+':'+id;
 const newId=k=>k[0]+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
@@ -33,7 +34,8 @@ function collect(){
  const changes={};let n=0;
  KINDS.forEach(k=>ARR(k).forEach(r=>{if(!r||typeof r!=='object')return;if(r.id==null||r.id==='')r.id=newId(k);const js=JSON.stringify(r);if(saved.get(key(k,r.id))!==js){(changes[k]=changes[k]||[]).push(r);n++}}));
  const mz=JSON.stringify(mzLog||[]);
- return {n,changes,mz:mz!==savedMz?mz:null};
+ const deleted={};Object.entries(dels).forEach(([k,s])=>{if(s.size){deleted[k]=[...s];n+=s.size}});
+ return {n,changes,mz:mz!==savedMz?mz:null,deleted:Object.keys(deleted).length?deleted:null};
 }
 function saveBar(msg,kind){let b=document.getElementById('saveBar');
  if(!msg){if(b)b.remove();return}
@@ -46,7 +48,7 @@ async function flush(){
  const c=collect();if(!c.n&&!c.mz){if(fails){fails=0;saveBar(null)}return}
  inflight=true;const sent=new Map();Object.entries(c.changes).forEach(([k,list])=>list.forEach(r=>sent.set(key(k,r.id),JSON.stringify(r))));
  try{
-  const r=await fetch('/api/admin/state',{method:'POST',headers:{'content-type':'application/json','x-mq-tab':TAB},body:JSON.stringify({v:2,changes:c.changes,...(c.mz?{mzLog:mzLog}:{})})});
+  const r=await fetch('/api/admin/state',{method:'POST',headers:{'content-type':'application/json','x-mq-tab':TAB},body:JSON.stringify({v:2,changes:c.changes,...(c.deleted?{deleted:c.deleted}:{}),...(c.mz?{mzLog:mzLog}:{})})});
   if(r.status===401){location.replace('/login.html');return}
   const j=await r.json().catch(()=>({}));
   if(!r.ok)throw new Error(j.error||('HTTP '+r.status));
@@ -59,6 +61,7 @@ async function flush(){
   if((j.conflicts||[]).length){j.conflicts.forEach(({kind,id,rec})=>{const a=ARR(kind),i=a.findIndex(o=>String(o.id)===String(id));if(i>=0)a[i]=rec;else a.push(rec);saved.set(key(kind,id),JSON.stringify(rec))});
    toast('عدّل زميل '+(j.conflicts.length===1?'هذا السجل':j.conflicts.length+' سجلات')+' قبلك، فحُمّلت أحدث نسخة. راجعها ثم أعد تعديلك إن لزم.');redraw=true}
   if(c.mz)savedMz=c.mz;
+  if(c.deleted)Object.entries(c.deleted).forEach(([k,ids])=>ids.forEach(id=>{dels[k]&&dels[k].delete(id);saved.delete(key(k,id))}));
   fails=0;clearTimeout(retryT);saveBar(null);
   if(redraw)r0();
  }catch(e){
@@ -67,6 +70,7 @@ async function flush(){
   clearTimeout(retryT);retryT=setTimeout(flush,wait*1000);
  }finally{inflight=false;if(again){again=false;saveState()}}
 }
+MQ.deleted=(k,id)=>{(dels[k]=dels[k]||new Set()).add(String(id));saved.delete(key(k,id));saveState()};
 MQ.saveState=saveState;MQ.flush=flush;MQ.pending=()=>collect().n>0||fails>0;
 addEventListener('beforeunload',e=>{if(MQ.ready&&!MQ.readOnly&&(inflight||MQ.pending())){e.preventDefault();e.returnValue=''}});
 /* تعديلات الزملاء تصل فوراً: تُطبق إلا إن كان لديك تعديل غير محفوظ على السجل نفسه (فيحسمه الخادم عند الحفظ) */

@@ -18,7 +18,7 @@ const pad = n => String(n).padStart(2, '0');
 const local = (d = new Date()) => { const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Hebron', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).formatToParts(d).map(x => [x.type, x.value])); return p };
 const stamp = (d = new Date()) => { const p = local(d); return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}` };
 const stampS = (d = new Date()) => stamp(d) + ':' + local(d).second;
-const EMPTY = () => ({ clients: [], opponents: [], cases: [], hearings: [], deadlines: [], docs: [], mzLog: [] });
+const EMPTY = () => ({ clients: [], opponents: [], cases: [], hearings: [], deadlines: [], docs: [], rulings: [], mzLog: [] });
 
 const DEFAULT_RULES = [
   { id: 'civ-appeal', name: 'استئناف حكم حقوقي', nature: 'civil', to: 'استئناف', from: ['صلح', 'بداية'], urgent: false, days: 30, start: 'judgment', ref: 'م205/1 وم193 من قانون أصول المحاكمات المدنية والتجارية رقم 2 لسنة 2001', verified: true },
@@ -195,7 +195,8 @@ export class Office extends DurableObject {
       const okSig = e > Date.now() / 1000 && s.length === 32 && crypto.timingSafeEqual(Buffer.from(s), Buffer.from(this.sign(file, e)));
       if (!okSig) {
         const me = this.auth.fromReq(req), m = this.msgs.find(x => x.file === file);
-        if (!me || !m || !this.canSeeClient(me, m.client)) return new Response('Forbidden', { status: 403, headers: CORS });
+        const ruling = !m && !!me && (this.cur().rulings || []).some(r => r.file === '/api/media/' + file);
+        if (!me || (!ruling && (!m || !this.canSeeClient(me, m.client)))) return new Response('Forbidden', { status: 403, headers: CORS });
       }
       return this.media(req, file);
     }
@@ -409,6 +410,7 @@ export class Office extends DurableObject {
     }
     if (p === '/api/admin/voice' && M === 'POST') { if ((d = deny('write'))) return d; return this.voice(req, u, u.searchParams.get('client'), 'lawyer', who) }
     if (p === '/api/admin/file' && M === 'POST') { if ((d = deny('write'))) return d; return this.attach(req, u, u.searchParams.get('client'), 'lawyer', who) }
+    if (p === '/api/admin/ruling-file' && M === 'POST') { if ((d = deny('write'))) return d; return this.rulingFile(req, u, who) }
     if (p === '/api/admin/read' && M === 'POST') {
       const { client } = await jbody();
       if (!this.canSeeClient(me, client)) return json(403, { error: 'لا تملك صلاحية لهذا الموكل.' });
@@ -469,6 +471,20 @@ export class Office extends DurableObject {
     const m = this.addMsg({ id, client, from, type: isImg ? 'image' : 'file', file, name, size: buf.length, ext, text: caption, ch: 'البوابة', ...(from === 'lawyer' ? { by: who.username } : {}) });
     this.audit({ ...who, action: from === 'lawyer' ? 'message.send' : 'message.receive', entity: 'messages', entity_id: id, detail: { client, type: m.type, name, size: buf.length, sha256: crypto.createHash('sha256').update(buf).digest('hex') } });
     return json(201, from === 'lawyer' ? this.pubAdmin(m) : this.pub(m));
+  }
+
+  // نص حكم قضائي لمكتبة الاجتهادات: ملف فقط دون رسالة لأي موكل
+  async rulingFile(req, u, who) {
+    const name = String(u.searchParams.get('name') || 'حكم').replace(/[\\/:*?"<>|]/g, '_').slice(0, 120);
+    const type = String(req.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+    const dot = name.lastIndexOf('.');
+    let ext = ((dot > 0 ? name.slice(dot + 1) : '') || FILE_EXT[type] || '').toLowerCase(); if (ext === 'jpeg') ext = 'jpg';
+    if (!EXT_OK.has(ext)) return json(415, { error: 'نوع الملف غير مدعوم. المسموح: PDF وWord والصور والنصوص.' });
+    let buf; try { buf = await this.readBody(req, 25 * 1024 * 1024) } catch (e) { return json(413, { error: 'الملف أكبر من المسموح (25 ميغابايت).' }) }
+    if (!buf.length) return json(400, { error: 'الملف فارغ.' });
+    const id = rid(), file = `${id}.${ext}`; await this.env.MEDIA.put(this.slug() + '/' + file, buf, { httpMetadata: { contentType: TYPES[ext] || 'application/octet-stream' } });
+    this.audit({ ...who, action: 'ruling.file', entity: 'rulings', entity_id: id, detail: { name, size: buf.length, sha256: crypto.createHash('sha256').update(buf).digest('hex') } });
+    return json(201, { file: '/api/media/' + file, name, size: buf.length, ext });
   }
 
   async backup() {

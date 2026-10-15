@@ -62,6 +62,7 @@
       "!dist/**",
       "print.js",
       "intake.js",
+      "rulings.js",
       "hdr-banner.jpg",
       "hdr-side.jpg",
       "hdr-side.webp",
