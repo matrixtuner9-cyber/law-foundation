@@ -29,7 +29,7 @@ const statusPill=s=>({'نشطة':'acc','تنفيذ':'mz','محكوم':'warn','م
 /* ── الملاحة ── */
 const NAV=[
  ['dash','الرئيسية'],['cases','الملفات والقضايا'],['clients','العملاء'],['agenda','المواعيد والجلسات'],['docs','المستندات'],['tpls','العقود والنماذج'],['finance','المالية والفواتير'],['tasks','المهام'],['reports','التقارير'],
- ['أدوات'],['portal','بوابة الموكل'],['opps','الخصوم وتضارب المصالح'],['courts','المحاكم'],['mizan','الربط مع ميزان']];
+ ['أدوات'],['portal','بوابة الموكل'],['opps','الخصومة وتعارض المصالح'],['courts','المحاكم'],['mizan','الربط مع ميزان']];
 function navCount(v){
  if(v==='cases')return cases.filter(k=>k.status!=='منتهية').length;
  if(v==='agenda'){const n=hearings.filter(h=>{const d=diff(h.date);return d>=0&&d<=7}).length;return n}
