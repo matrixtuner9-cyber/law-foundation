@@ -5,7 +5,7 @@ const fs = require('fs'), path = require('path'), crypto = require('crypto');
 process.removeAllListeners('warning'); // تحذير "experimental" في إصدارات Node الأقدم
 const { DatabaseSync } = require('node:sqlite');
 
-const COLL = ['clients', 'opponents', 'cases', 'hearings', 'deadlines', 'docs', 'rulings'];
+const COLL = ['clients', 'opponents', 'cases', 'hearings', 'deadlines', 'docs', 'rulings', 'lawforms'];
 
 function open(DATA) {
   fs.mkdirSync(DATA, { recursive: true });

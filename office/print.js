@@ -69,8 +69,8 @@ function shell(d,o){
 <body class="${OPT.eco?'eco':''} ${OPT.paper==='A5'?'a5':''}" style="--fs:${OPT.paper==='A5'?OPT.size-1.5:OPT.size}pt">
 <div id="src">${d.noTitle?'':titleBlock(d)}${d.blocks.join('')}${OPT.sign&&d.sign&&d.sign.length?signBlock(d):''}</div>
 <div id="pages"></div>
-<template id="tFirst"><section class="sheet">${OPT.head?headFull(o,d):'<div class="blank-head"></div>'}<div class="pbody"></div>${foot(o,d)}${OPT.mark?`<div class="wm">${e(OPT.mark)}</div>`:''}</section></template>
-<template id="tNext"><section class="sheet">${OPT.head?headMini(o,d):'<div class="blank-head mini"></div>'}<div class="pbody"></div>${foot(o,d)}${OPT.mark?`<div class="wm">${e(OPT.mark)}</div>`:''}</section></template>
+<template id="tFirst"><section class="sheet">${OPT.head?headFull(o,d):'<div class="blank-head"></div>'}<div class="pbody"></div>${foot(o,d)}${(d.mark||OPT.mark)?`<div class="wm">${e(d.mark||OPT.mark)}</div>`:''}</section></template>
+<template id="tNext"><section class="sheet">${OPT.head?headMini(o,d):'<div class="blank-head mini"></div>'}<div class="pbody"></div>${foot(o,d)}${(d.mark||OPT.mark)?`<div class="wm">${e(d.mark||OPT.mark)}</div>`:''}</section></template>
 </body></html>`}
 function foot(o,d){return `<footer class="pf"><span>${e(o.name)}${o.phone?' · <span dir="ltr">'+e(o.phone)+'</span>':''}</span><span class="pg">صفحة <b class="pn">1</b> من <b class="pt2">1</b></span><span>بصمة <b dir="ltr" class="fpr"></b> · طُبع ${nowS()}${window.MQ&&MQ.user?' · '+e(MQ.user.name||MQ.user.username):''}</span></footer>`}
 

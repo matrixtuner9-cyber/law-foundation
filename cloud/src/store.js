@@ -2,7 +2,7 @@
 // نفس مخطط قاعدة جهاز المكتب (mithaq.db) لتسهيل النقل، مع سجل تدقيق متسلسل بسلسلة HMAC لا يقبل التعديل أو الحذف.
 import crypto from 'node:crypto';
 
-export const COLL = ['clients', 'opponents', 'cases', 'hearings', 'deadlines', 'docs', 'rulings'];
+export const COLL = ['clients', 'opponents', 'cases', 'hearings', 'deadlines', 'docs', 'rulings', 'lawforms'];
 
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS records(kind TEXT NOT NULL, id TEXT NOT NULL, data TEXT NOT NULL, updated_at TEXT, updated_by TEXT, PRIMARY KEY(kind, id));

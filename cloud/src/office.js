@@ -6,7 +6,7 @@ import crypto from 'node:crypto';
 import { openStore, COLL, diffFields } from './store.js';
 import { createAuth } from './auth.js';
 import { courts, STEPS } from './seed.js';
-import { plan, rotate } from './merge.js';
+import { plan, rotate, lawformsGuard } from './merge.js';
 
 /* توقيع داخلي يثبت أن طلب /_ops وصل من الـ Worker بعد التحقق من رمز المشغّل (لا يمكن للزائر إرساله) */
 export const opsSig = env => env.OPS_TOKEN ? crypto.createHash('sha256').update('mq-ops|' + env.OPS_TOKEN).digest('hex') : null;
@@ -18,7 +18,7 @@ const pad = n => String(n).padStart(2, '0');
 const local = (d = new Date()) => { const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Hebron', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).formatToParts(d).map(x => [x.type, x.value])); return p };
 const stamp = (d = new Date()) => { const p = local(d); return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}` };
 const stampS = (d = new Date()) => stamp(d) + ':' + local(d).second;
-const EMPTY = () => ({ clients: [], opponents: [], cases: [], hearings: [], deadlines: [], docs: [], rulings: [], mzLog: [] });
+const EMPTY = () => ({ clients: [], opponents: [], cases: [], hearings: [], deadlines: [], docs: [], rulings: [], lawforms: [], mzLog: [] });
 
 const DEFAULT_RULES = [
   { id: 'civ-appeal', name: 'استئناف حكم حقوقي', nature: 'civil', to: 'استئناف', from: ['صلح', 'بداية'], urgent: false, days: 30, start: 'judgment', ref: 'م205/1 وم193 من قانون أصول المحاكمات المدنية والتجارية رقم 2 لسنة 2001', verified: true },
@@ -85,7 +85,7 @@ export class Office extends DurableObject {
     const ids = new Set(u.cases || []), cases = S.cases.filter(k => ids.has(k.id));
     const cl = new Set(cases.map(k => k.client)), op = new Set(cases.flatMap(k => k.opps || []));
     return { clients: S.clients.filter(c => cl.has(c.id)), opponents: S.opponents.filter(o => op.has(o.id)), cases,
-      hearings: S.hearings.filter(h => ids.has(h.k)), deadlines: S.deadlines.filter(d => ids.has(d.k)), docs: S.docs.filter(d => ids.has(d.k)), mzLog: (S.mzLog || []).filter(l => ids.has(l.k)) };
+      hearings: S.hearings.filter(h => ids.has(h.k)), deadlines: S.deadlines.filter(d => ids.has(d.k)), docs: S.docs.filter(d => ids.has(d.k)), mzLog: (S.mzLog || []).filter(l => ids.has(l.k)), rulings: S.rulings || [], lawforms: S.lawforms || [] };
   }
 
   /* ── البث المباشر لشاشة المكتب (SSE) ── */
@@ -195,7 +195,7 @@ export class Office extends DurableObject {
       const okSig = e > Date.now() / 1000 && s.length === 32 && crypto.timingSafeEqual(Buffer.from(s), Buffer.from(this.sign(file, e)));
       if (!okSig) {
         const me = this.auth.fromReq(req), m = this.msgs.find(x => x.file === file);
-        const ruling = !m && !!me && (this.cur().rulings || []).some(r => r.file === '/api/media/' + file);
+        const ref = '/api/media/' + file, ruling = !m && !!me && ((this.cur().rulings || []).some(r => r.file === ref) || (this.cur().lawforms || []).some(r => r.official && r.official.file === ref));
         if (!me || (!ruling && (!m || !this.canSeeClient(me, m.client)))) return new Response('Forbidden', { status: 403, headers: CORS });
       }
       return this.media(req, file);
@@ -366,6 +366,7 @@ export class Office extends DurableObject {
       const first = !this.state, at = stampS();
       const r = plan(this.state, b, { randomBytes: n => crypto.randomBytes(n), hashId: (k, x) => 'a' + crypto.createHash('sha1').update(k + JSON.stringify(x)).digest('hex').slice(0, 10) });
       if (!r) return json(400, { error: 'طلب حفظ غير صالح' });
+      const lg = lawformsGuard(this.state, r.writes, this.auth.can(me, 'manage')); if (lg) return json(403, { error: lg });
       this.store.applyWrites(r.writes, r.next.mzLog, me.username, at); this.state = r.next;
       if (first) this.audit({ ...who, action: 'state.init', detail: { records: r.writes.length } });
       else r.writes.forEach(c => this.audit({ ...who, action: 'record.' + c.op, entity: c.kind, entity_id: c.id, detail: { label: this.labelOf(c.rec), ...(c.fields ? { fields: c.fields } : {}) } }));

@@ -122,7 +122,7 @@ function scope(u, S) {
   const ids = new Set(u.cases || []), cases = S.cases.filter(k => ids.has(k.id));
   const cl = new Set(cases.map(k => k.client)), op = new Set(cases.flatMap(k => k.opps || []));
   return { clients: S.clients.filter(c => cl.has(c.id)), opponents: S.opponents.filter(o => op.has(o.id)), cases,
-    hearings: S.hearings.filter(h => ids.has(h.k)), deadlines: S.deadlines.filter(d => ids.has(d.k)), docs: S.docs.filter(d => ids.has(d.k)), mzLog: (S.mzLog || []).filter(l => ids.has(l.k)) };
+    hearings: S.hearings.filter(h => ids.has(h.k)), deadlines: S.deadlines.filter(d => ids.has(d.k)), docs: S.docs.filter(d => ids.has(d.k)), mzLog: (S.mzLog || []).filter(l => ids.has(l.k)), rulings: S.rulings || [], lawforms: S.lawforms || [] };
 }
 const canSeeClient = (u, cid) => auth.can(u, 'all') || cur().cases.some(k => k.client === cid && (u.cases || []).includes(k.id));
 
@@ -435,6 +435,7 @@ async function api(req, res, u) {
     const first = !state, at = stampS();
     const r = Merge.plan(state, b, { randomBytes: n => crypto.randomBytes(n), hashId: (k, x) => 'a' + crypto.createHash('sha1').update(k + JSON.stringify(x)).digest('hex').slice(0, 10) });
     if (!r) return json(res, 400, { error: 'طلب حفظ غير صالح' });
+    const lg = Merge.lawformsGuard(state, r.writes, auth.can(me, 'manage')); if (lg) return json(res, 403, { error: lg });
     store.applyWrites(r.writes, r.next.mzLog, me.username, at); state = r.next;
     if (first) audit({ ...who, action: 'state.init', detail: { records: r.writes.length } });
     else r.writes.forEach(c => audit({ ...who, action: 'record.' + c.op, entity: c.kind, entity_id: c.id, detail: { label: labelOf(c.rec), ...(c.fields ? { fields: c.fields } : {}) } }));
@@ -525,7 +526,7 @@ async function rulingFile(req, res, u, who) {
 }
 
 /* ملفات شاشة المكتب: قائمة محددة فقط، وكلها تتطلب تسجيل الدخول عدا صفحة الدخول */
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'print.js', 'intake.js', 'rulings.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'print.js', 'intake.js', 'rulings.js', 'lawlib-data.js', 'lawlib.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css']);
 
 http.createServer((req, res) => {

@@ -4,7 +4,7 @@
 //  2) كل سجل يحمل رقم إصدار _v. تعديلٌ مبني على إصدار قديم يُرفض كتعارض، ويُعاد للمتصفح أحدث نسخة من الخادم.
 //  3) رمز دخول بوابة الموكل يولّده الخادم: قوي (10 رموز من 32 ≈ 50 بت) وفريد، ولا يتغير إلا بعملية «تجديد» صريحة.
 'use strict';
-const COLL = ['clients', 'opponents', 'cases', 'hearings', 'deadlines', 'docs', 'rulings'];
+const COLL = ['clients', 'opponents', 'cases', 'hearings', 'deadlines', 'docs', 'rulings', 'lawforms'];
 const ALPH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // بلا 0/O و1/I لتجنب الالتباس عند الكتابة اليدوية
 const STRONG = /^MQ-[A-HJ-NP-Z2-9]{10}$/;
 const isStrong = c => STRONG.test(String(c || ''));
@@ -102,4 +102,24 @@ function rotate(state, ids, deps) {
   return out;
 }
 
-module.exports = { COLL, plan, rotate, isStrong, makeCode, diffFields, normalize, STRONG };
+
+/* اعتماد النماذج القانونية: «معتمد داخلياً» و«نموذج رسمي محقق» لا يمنحهما إلا مدير المكتب، وبشروطهما كاملة.
+   يعيد رسالة خطأ إن خالف الطلب ذلك، وإلا null */
+const APPROVED = ['internal', 'official'];
+function lawformsGuard(prev, writes, canManage) {
+  const old = new Map(((prev && prev.lawforms) || []).map(r => [String(r.id), r]));
+  for (const w of writes) {
+    if (w.kind !== 'lawforms' || w.op === 'delete') continue;
+    const r = w.rec, o = old.get(String(w.id));
+    if (!APPROVED.includes(r.status)) continue;
+    const same = o && o.status === r.status && JSON.stringify([o.body, o.version, o.jur, o.approvedBy, o.barNo, o.official]) === JSON.stringify([r.body, r.version, r.jur, r.approvedBy, r.barNo, r.official]);
+    if (same) continue;
+    if (!canManage) return 'اعتماد النماذج القانونية من صلاحية مدير المكتب فقط.';
+    if (!r.version || !Array.isArray(r.jur) || !r.jur.length) return 'الاعتماد يتطلب رقم الإصدار ونطاق الاختصاص.';
+    if (r.status === 'internal' && (!r.approvedBy || !r.barNo)) return 'الاعتماد الداخلي يتطلب اسم المحامي المعتمِد ورقم مزاولته.';
+    if (r.status === 'official' && (r.kind !== 'A' || !r.official || !r.official.file || !r.official.src || !r.official.retrieved)) return '«نموذج رسمي محقق» يتطلب نسخة الجهة الأصلية ومصدرها وتاريخ الحصول عليها.';
+  }
+  return null;
+}
+
+module.exports = { COLL, lawformsGuard, plan, rotate, isStrong, makeCode, diffFields, normalize, STRONG };

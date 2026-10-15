@@ -42,5 +42,11 @@ ok(r.status === 403, 'دون جلسة لا يُفتح الملف');
 ok(((await req(H, 'GET', '/api/admin/bootstrap', { headers: C })).json.messages || []).length === 0, 'رفع الحكم لا ينشئ رسالة لأي موكل');
 r = await req(H, 'POST', '/api/admin/ruling-file?name=x.exe', { headers: { ...C, 'content-type': 'application/octet-stream' }, body: Buffer.from('MZ'), raw: true });
 ok(r.status === 415, 'رفض أنواع الملفات غير المسموحة');
+// ── اعتماد النماذج القانونية ──
+const LF = { id: 'MQ-PS-002', kind: 'B', body: 'نص', version: '1.0', jur: ['WB'], status: 'internal' };
+r = await req(H, 'POST', '/api/admin/state', { headers: C, body: { v: 2, changes: { lawforms: [LF] } } });
+ok(r.status === 403, 'لا اعتماد داخلي دون المعتمِد ورقم المزاولة');
+r = await req(H, 'POST', '/api/admin/state', { headers: C, body: { v: 2, changes: { lawforms: [{ ...LF, approvedBy: 'المدير', barNo: '77' }] } } });
+ok(r.status === 200 && (await boot()).lawforms[0].status === 'internal', 'المدير يعتمد بالشروط الكاملة');
 console.log(`\n${passes} PASS · ${fails} FAIL`);
 process.exit(fails ? 1 : 0);
