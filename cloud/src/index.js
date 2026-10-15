@@ -1,7 +1,7 @@
 // الواجهة الأمامية: يحدد المكتب من النطاق الفرعي (<مكتب>.palgaz.net) ويمرر الطلب لـ Durable Object الخاص به.
 // عمليات مزود الخدمة (/_ops) محمية برمز سري، ولا تمر لأي مكتب إلا عبرها.
 import crypto from 'node:crypto';
-import { norm } from './office.js';
+import { norm, opsSig } from './office.js';
 export { Office } from './office.js';
 
 const RESERVED = new Set(['www', 'admin', 'ops', 'api', 'app', 'portal', 'mail', 'static', 'office', 'support', 'status']);
@@ -25,10 +25,14 @@ async function office(env, slug) {
   cache.set(slug, { at: Date.now(), v }); return v;
 }
 const stub = (env, slug) => env.OFFICE.get(env.OFFICE.idFromName(slug));
-const forward = (env, slug, req, path) => {
+const forward = (env, slug, req, path, asOps = false) => {
   const u = new URL(req.url); if (path) u.pathname = path;
-  const r = new Request(u, req); r.headers.set('x-mq-office', slug); return stub(env, slug).fetch(r);
+  const r = new Request(u, req); r.headers.set('x-mq-office', slug);
+  r.headers.delete('x-mq-ops'); if (asOps) r.headers.set('x-mq-ops', opsSig(env)); // لا يستطيع الزائر انتحال طلب مشغّل
+  return stub(env, slug).fetch(r);
 };
+/* عمليات المشغّل تُقبل فقط على نطاقات الإدارة المحددة، لا على نطاقات المكاتب */
+const opsHost = (req, u, env) => String(env.OPS_HOSTS || 'test.palgaz.net').toLowerCase().split(',').map(x => x.trim()).includes(String(req.headers.get('host') || u.host).toLowerCase().split(':')[0]);
 
 function opsAuthorized(req, env) {
   if (!env.OPS_TOKEN) return false;
@@ -47,7 +51,7 @@ async function ops(req, env, u) {
     if (await env.DB.prepare('SELECT 1 FROM offices WHERE slug = ?').bind(slug).first()) return json(409, { error: 'exists' });
     await env.DB.prepare("INSERT INTO offices(slug, name, status, created_at) VALUES(?, ?, 'active', datetime('now'))").bind(slug, String(b.name || slug).slice(0, 120)).run();
     cache.delete(slug);
-    const r = await forward(env, slug, new Request(new URL('/_ops/init', u), { method: 'POST', body: JSON.stringify(b) }));
+    const r = await forward(env, slug, new Request(new URL('/_ops/init', u), { method: 'POST', body: JSON.stringify(b) }), null, true);
     return json(201, { slug, init: await r.json() });
   }
   const m = /^\/_ops\/offices\/([a-z0-9-]+)(\/.*)$/.exec(p);
@@ -60,9 +64,9 @@ async function ops(req, env, u) {
       await env.DB.prepare('UPDATE offices SET status = ? WHERE slug = ?').bind(status, slug).run(); cache.delete(slug);
       return json(200, { ok: true, slug, status });
     }
-    const map = { '/info': '/_ops/info', '/setup-link': '/_ops/setup-link', '/import': '/_ops/import', '/media': '/_ops/media', '/export': '/_ops/export' };
+    const map = { '/info': '/_ops/info', '/setup-link': '/_ops/setup-link', '/import': '/_ops/import', '/media': '/_ops/media', '/export': '/_ops/export', '/backup': '/_ops/backup' };
     if (!map[rest]) return json(404, { error: 'unknown op' });
-    const r = await forward(env, slug, req, map[rest]);
+    const r = await forward(env, slug, req, map[rest], true);
     if (rest === '/setup-link' && r.ok) { const j = await r.json(); return json(200, { ...j, url: `https://${slug}.${String(env.BASE_DOMAINS || 'palgaz.net').split(',')[0].trim()}/login.html?setup=${j.token}` }) }
     return r;
   }
@@ -86,11 +90,23 @@ async function ops(req, env, u) {
   return json(404, { error: 'unknown op' });
 }
 
+/* نسخ احتياطي يومي مشفّر لكل مكتب نشط إلى R2 (يتطلب السر BACKUP_KEY) */
+async function backupAll(env) {
+  const rows = (await env.DB.prepare("SELECT slug FROM offices WHERE status = 'active'").all()).results || [], out = [];
+  for (const { slug } of rows) {
+    try { const r = await forward(env, slug, new Request('https://internal/_ops/backup', { method: 'POST' }), null, true); out.push({ slug, ...(await r.json()) }) }
+    catch (e) { out.push({ slug, ok: false, error: String(e.message || e) }) }
+  }
+  console.log('[backup]', JSON.stringify(out));
+  return out;
+}
+
 export default {
+  async scheduled(event, env, ctx) { ctx.waitUntil(backupAll(env)) },
   async fetch(req, env) {
     const u = new URL(req.url), h = hostInfo(req.headers.get('host') || u.host, env);
     const secure = r => { if (u.protocol !== 'https:') return r; const x = new Response(r.body, r); x.headers.set('Strict-Transport-Security', 'max-age=31536000'); return x };
-    if (u.pathname.startsWith('/_ops/')) return ops(req, env, u);
+    if (u.pathname.startsWith('/_ops/')) return opsHost(req, u, env) ? ops(req, env, u) : json(404, { error: 'not found' });
     if (!h.base) return page('غير موجود', 'هذا العنوان غير مرتبط بأي مكتب.');
     if (h.root) {
       const r = await env.ASSETS.fetch(new Request(new URL('/site/index.html', u)));

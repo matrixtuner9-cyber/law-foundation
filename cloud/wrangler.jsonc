@@ -10,10 +10,12 @@
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Office"] }],
   "d1_databases": [{ "binding": "DB", "database_name": "mithaq-central", "database_id": "2563959c-dd27-47d0-b5b7-da2570e44c5f", "migrations_dir": "schema" }],
   "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "mithaq-media" }],
-  "vars": { "BASE_DOMAINS": "palgaz.net" },
+  "vars": { "BASE_DOMAINS": "palgaz.net", "OPS_HOSTS": "test.palgaz.net" },
+  // نسخة احتياطية مشفّرة يومياً الساعة 03:30 بتوقيت فلسطين (00:30 UTC). تتطلب السر BACKUP_KEY
+  "triggers": { "crons": ["30 0 * * *"] },
   // كل مكتب نطاق مخصص (Custom Domain) يُنشئ سجل DNS وشهادة تلقائياً
   "routes": [{ "pattern": "test.palgaz.net", "custom_domain": true }, { "pattern": "demo.palgaz.net", "custom_domain": true }],
   "workers_dev": false,
   "observability": { "enabled": true }
-  // الأسرار (لا تُكتب هنا): OPS_TOKEN عبر: wrangler secret put OPS_TOKEN
+  // الأسرار (لا تُكتب هنا): OPS_TOKEN وBACKUP_KEY عبر: wrangler secret put <الاسم>
 }

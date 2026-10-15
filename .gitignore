@@ -26,3 +26,4 @@ cloud/probe/
 *.log
 *.err
 *.bak*
+node_modules

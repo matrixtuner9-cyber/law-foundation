@@ -18,10 +18,66 @@ function assignState(st){
  rep(clients,st.clients);rep(opponents,st.opponents);rep(cases,st.cases);
  if(st.hearings)hearings=st.hearings; if(st.deadlines)deadlines=st.deadlines; if(st.docs)docs=st.docs; if(st.mzLog)mzLog=st.mzLog;
 }
-let saveT=null;
-function saveState(){if(!MQ.ready||MQ.readOnly)return;clearTimeout(saveT);saveT=setTimeout(()=>{
- fetch('/api/admin/state',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({clients,opponents,cases,hearings,deadlines,docs,mzLog})}).catch(()=>{})},400)}
-MQ.saveState=saveState;
+
+/* ── الحفظ الآمن ──
+   يُرسل للخادم ما تغيّر فقط، ومع كل سجل رقم إصداره (_v). إن عدّل زميلٌ السجلَ نفسه قبلك يرفض الخادم تعديلك
+   ويعيد أحدث نسخة فتظهر لك رسالة. لا يُحذف شيء لأنه غاب عن طلبك. وأي فشل في الحفظ يظهر أعلى الشاشة ويُعاد تلقائياً. */
+const KINDS=['clients','opponents','cases','hearings','deadlines','docs'];
+const ARR=k=>({clients,opponents,cases,hearings,deadlines,docs})[k];
+const saved=new Map();let savedMz='[]';
+const TAB=Math.random().toString(36).slice(2,12); /* معرّف هذه النافذة: يتجاهل صدى تعديلاتها هي فقط، لا تعديلات نفس المستخدم في نافذة أخرى */
+const key=(k,id)=>k+':'+id;
+const newId=k=>k[0]+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+function markSaved(){saved.clear();KINDS.forEach(k=>ARR(k).forEach(r=>{if(r&&r.id!=null)saved.set(key(k,r.id),JSON.stringify(r))}));savedMz=JSON.stringify(mzLog||[])}
+function collect(){
+ const changes={};let n=0;
+ KINDS.forEach(k=>ARR(k).forEach(r=>{if(!r||typeof r!=='object')return;if(r.id==null||r.id==='')r.id=newId(k);const js=JSON.stringify(r);if(saved.get(key(k,r.id))!==js){(changes[k]=changes[k]||[]).push(r);n++}}));
+ const mz=JSON.stringify(mzLog||[]);
+ return {n,changes,mz:mz!==savedMz?mz:null};
+}
+function saveBar(msg,kind){let b=document.getElementById('saveBar');
+ if(!msg){if(b)b.remove();return}
+ if(!b){b=document.createElement('div');b.id='saveBar';b.setAttribute('role','status');document.body.appendChild(b)}
+ b.className='save-bar '+(kind||'warn');b.textContent=msg}
+let saveT=null,inflight=false,again=false,fails=0,retryT=null;
+function saveState(){if(!MQ.ready||MQ.readOnly)return;clearTimeout(saveT);saveT=setTimeout(flush,400)}
+async function flush(){
+ if(inflight){again=true;return}
+ const c=collect();if(!c.n&&!c.mz){if(fails){fails=0;saveBar(null)}return}
+ inflight=true;const sent=new Map();Object.entries(c.changes).forEach(([k,list])=>list.forEach(r=>sent.set(key(k,r.id),JSON.stringify(r))));
+ try{
+  const r=await fetch('/api/admin/state',{method:'POST',headers:{'content-type':'application/json','x-mq-tab':TAB},body:JSON.stringify({v:2,changes:c.changes,...(c.mz?{mzLog:mzLog}:{})})});
+  if(r.status===401){location.replace('/login.html');return}
+  const j=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(j.error||('HTTP '+r.status));
+  let redraw=false;
+  (j.codes||[]).forEach(([id,code])=>{const x=clients.find(o=>o.id===id);if(x&&x.code!==code){x.code=code;redraw=true}});
+  (j.versions||[]).forEach(([k,id,v])=>{const x=ARR(k).find(o=>String(o.id)===String(id));if(!x)return;const was=sent.get(key(k,id));x._v=v;
+   /* لم يتغير السجل أثناء الإرسال؟ نعتبره محفوظاً بنسخته الجديدة */
+   const cur=JSON.parse(JSON.stringify(x));delete cur._v;const w=was?JSON.parse(was):null;if(w)delete w._v;
+   if(w&&JSON.stringify(cur)===JSON.stringify(w))saved.set(key(k,id),JSON.stringify(x))});
+  if((j.conflicts||[]).length){j.conflicts.forEach(({kind,id,rec})=>{const a=ARR(kind),i=a.findIndex(o=>String(o.id)===String(id));if(i>=0)a[i]=rec;else a.push(rec);saved.set(key(kind,id),JSON.stringify(rec))});
+   toast('عدّل زميل '+(j.conflicts.length===1?'هذا السجل':j.conflicts.length+' سجلات')+' قبلك، فحُمّلت أحدث نسخة. راجعها ثم أعد تعديلك إن لزم.');redraw=true}
+  if(c.mz)savedMz=c.mz;
+  fails=0;clearTimeout(retryT);saveBar(null);
+  if(redraw)r0();
+ }catch(e){
+  fails++;const wait=Math.min(60,5*fails);
+  saveBar('لم تُحفظ آخر التعديلات بعد ('+(e.message||'تعذّر الاتصال')+'). ستُعاد المحاولة تلقائياً خلال '+wait+' ثانية.','bad');
+  clearTimeout(retryT);retryT=setTimeout(flush,wait*1000);
+ }finally{inflight=false;if(again){again=false;saveState()}}
+}
+MQ.saveState=saveState;MQ.flush=flush;MQ.pending=()=>collect().n>0||fails>0;
+addEventListener('beforeunload',e=>{if(MQ.ready&&!MQ.readOnly&&(inflight||MQ.pending())){e.preventDefault();e.returnValue=''}});
+/* تعديلات الزملاء تصل فوراً: تُطبق إلا إن كان لديك تعديل غير محفوظ على السجل نفسه (فيحسمه الخادم عند الحفظ) */
+function applyRemote(d){
+ if(!d||(d.by&&d.by===TAB))return;let touched=false;
+ (d.recs||[]).forEach(({kind,rec})=>{const a=ARR(kind);if(!a||!rec)return;const i=a.findIndex(o=>String(o.id)===String(rec.id));
+  if(i>=0){const dirty=saved.get(key(kind,rec.id))!==JSON.stringify(a[i]);if(dirty)return;a[i]=rec}else a.push(rec);
+  saved.set(key(kind,rec.id),JSON.stringify(rec));touched=true});
+ (d.del||[]).forEach(({kind,id})=>{const a=ARR(kind),i=a?a.findIndex(o=>String(o.id)===String(id)):-1;if(i>=0){a.splice(i,1);saved.delete(key(kind,id));touched=true}});
+ if(touched&&!document.querySelector('#modal .modal'))r0();
+}
 const r0=render;render=function(){r0();saveState()};
 
 const post=(url,obj)=>fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(obj)}).then(async r=>{if(r.status===401)location.replace('/login.html');const j=await r.json();if(!r.ok)throw new Error(j.error||'تعذّر الإرسال');return j});
@@ -50,6 +106,7 @@ function connect(){
  es.addEventListener('read',ev=>{const {client}=JSON.parse(ev.data);(messages[client]||[]).forEach(x=>{if(x.f==='them')x.unread=false});drawNav()});
  es.addEventListener('push',ev=>{MQ.push=JSON.parse(ev.data);const el=document.getElementById('bagPush');if(el&&window.MQ_pushLabel)el.innerHTML=MQ_pushLabel(S.clientId)});
  es.addEventListener('profile',ev=>{const d=JSON.parse(ev.data),c=C(d.client);if(!c)return;Object.assign(c,{phone:d.phone,phone2:d.phone2,whatsapp:d.whatsapp});toast('حدّث '+c.name+' أرقام التواصل من البوابة');if(S.view==='client'&&S.clientId===d.client&&S.bagTab==='acct')render()});
+ es.addEventListener('records',ev=>{try{applyRemote(JSON.parse(ev.data))}catch(e){}});
  es.addEventListener('seen',ev=>{const {client}=JSON.parse(ev.data);(messages[client]||[]).forEach(x=>{if(x.f==='me')x.seen=true});if(window.MQ_onMsg)MQ_onMsg({client,seen:true})});
 }
 (async function boot(){
@@ -57,7 +114,7 @@ function connect(){
   const r=await fetch('/api/admin/bootstrap');if(r.status===401){location.replace('/login.html');return}
   const b=await r.json();
   if(window.MQ_applyUser)MQ_applyUser(b.user,b.settings);
-  assignState(b.state);
+  assignState(b.state);if(b.state)markSaved();
   Object.keys(messages).forEach(k=>delete messages[k]);
   b.messages.forEach(putMsg);
   MQ.push=b.push||{};MQ.pushReady=!!b.pushReady;

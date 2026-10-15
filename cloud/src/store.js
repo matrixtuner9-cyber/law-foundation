@@ -87,6 +87,14 @@ export function openStore(ctx) {
       });
       return changes;
     },
+    /* يكتب نتيجة الدمج الآمن (merge.js) في معاملة واحدة */
+    applyWrites(writes, mzLog, by, at) {
+      tx(() => {
+        for (const w of writes) { if (w.op === 'delete') run('DELETE FROM records WHERE kind = ? AND id = ?', w.kind, w.id); else recPut(w.kind, w.id, JSON.stringify(w.rec), at, by) }
+        if (mzLog !== undefined) kv.set('mzLog', mzLog);
+        kv.set('state_saved', true);
+      });
+    },
     putRecord(kind, rec, by, at) { recPut(kind, String(rec.id), JSON.stringify(rec), at, by); kv.set('state_saved', true) },
     resetState() { tx(() => { run('DELETE FROM records'); kv.set('state_saved', false); kv.set('mzLog', []) }) },
 

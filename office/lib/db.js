@@ -98,6 +98,17 @@ function open(DATA) {
       });
       return changes;
     },
+    /* يكتب نتيجة الدمج الآمن (lib/merge.js) في معاملة واحدة */
+    applyWrites(writes, mzLog, by, at) {
+      tx(() => {
+        for (const w of writes) {
+          if (w.op === 'delete') q.recDel.run(w.kind, w.id);
+          else q.recPut.run(w.kind, w.id, JSON.stringify(w.rec), at, by);
+        }
+        if (mzLog !== undefined) api.kv.set('mzLog', mzLog);
+        api.kv.set('state_saved', true);
+      });
+    },
     putRecord(kind, rec, by, at) { q.recPut.run(kind, String(rec.id), JSON.stringify(rec), at, by); api.kv.set('state_saved', true) },
     resetState() { tx(() => { q.recWipe.run(); api.kv.set('state_saved', false); api.kv.set('mzLog', []) }) },
 

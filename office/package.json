@@ -59,7 +59,14 @@
       "!data/**",
       "!mithaq_portal/**",
       "!tools/**",
-      "!dist/**"
+      "!dist/**",
+      "print.js",
+      "intake.js",
+      "hdr-banner.jpg",
+      "hdr-side.jpg",
+      "hdr-side.webp",
+      "hdr-emblem.jpg",
+      "hdr-logo.jpg"
     ],
     "win": {
       "target": [

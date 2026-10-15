@@ -6,7 +6,7 @@ const DATA = process.env.MQ_DATA || path.join(ROOT, 'data'), MEDIA = path.join(D
 fs.mkdirSync(MEDIA, { recursive: true });
 
 const SEED = require('./data.js');
-const Store = require('./lib/db'), Auth = require('./lib/auth');
+const Store = require('./lib/db'), Auth = require('./lib/auth'), Merge = require('./lib/merge');
 const OFFICE = { name: 'مكتب الميثاق للمحاماة والاستشارات القانونية', lawyer: 'المحامي سامر عبد الله', city: 'نابلس', phone: '09-233-0000', hours: 'الأحد – الخميس · 8:30 – 16:00' };
 const STATE_F = path.join(DATA, 'state.json'), MSG_F = path.join(DATA, 'messages.json');
 const VAPID_F = path.join(DATA, 'vapid.json'), PUSH_F = path.join(DATA, 'push.json');
@@ -98,6 +98,8 @@ function mzStart(mode, show) {
   ch.on('exit', () => { mzRun = null; if (!done) { mz.last = { ok: false, mode, at: stamp(), error: 'توقف الموصل بشكل غير متوقع.' }; save(MZ_STATUS_F, mz); broadcast('mizan', { done: true, ok: false, error: mz.last.error }) } broadcast('mizan', { stage: 'exit', status: mzStatus() }) });
   return true;
 }
+const backup = require('./lib/backup').create({ store, DATA, audit: e => audit(e), stampS });
+if (process.env.MQ_BACKUP !== 'off') backup.schedule();
 const bar = require('./lib/bar').create({ store, DATA, ROOT, audit: e => audit(e), broadcast: (t, p) => broadcast(t, p), stampS });
 const isLocal = req => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress) && !req.headers['cf-connecting-ip'];
 /* نطاق المكتب عبر الإنترنت (بموافقة المالك): يفتح شاشة المحامي فقط إذا مرّ الطلب عبر Cloudflare Access،
@@ -106,7 +108,9 @@ const OFFICE_HOSTS = String(process.env.MQ_OFFICE_HOSTS || 'office.palgaz.net').
 const viaTunnel = req => !!(req.headers['cf-connecting-ip'] || req.headers['cf-ray']);
 const officeHost = req => OFFICE_HOSTS.includes(String(req.headers.host || '').toLowerCase().split(':')[0]);
 const sec = (req, c) => viaTunnel(req) ? c + '; Secure' : c;
-const ipOf = req => req.headers['cf-connecting-ip'] || String(req.socket.remoteAddress || '').replace('::ffff:', '');
+const sockIp = req => String(req.socket.remoteAddress || '').replace('::ffff:', '');
+/* عنوان الزائر: نثق بترويسة Cloudflare فقط إن جاء الطلب من النفق على الجهاز نفسه، وإلا يمكن لأي جهاز في الشبكة تزويرها */
+const ipOf = req => (['127.0.0.1', '::1'].includes(sockIp(req)) && req.headers['cf-connecting-ip']) || sockIp(req);
 
 const cur = () => state || { clients: SEED.clients, opponents: SEED.opponents, cases: SEED.cases, hearings: SEED.hearings, deadlines: SEED.deadlines, docs: SEED.docs, mzLog: SEED.mzLog };
 const pub = m => ({ ...m, file: m.file ? '/api/media/' + m.file : null });
@@ -133,6 +137,12 @@ function broadcast(type, payload) {
   });
 }
 setInterval(() => streams.forEach((u, r) => r.write(': ping\n\n')), 25000);
+/* بث السجلات المعدّلة لزملاء المكتب فوراً، فلا يعمل أحد على نسخة قديمة (المحامي الخارجي يراها عند إعادة التحميل) */
+function broadcastRecords(recs, byId, del = []) {
+  if (!recs.length && !del.length) return;
+  const s = `event: records\ndata: ${JSON.stringify({ by: byId, recs, del })}\n\n`;
+  streams.forEach((u, r) => { if (auth.can(u, 'all')) r.write(s) });
+}
 
 function addMsg(m) {
   const msg = { id: rid(), at: stamp(), read: m.from === 'lawyer', seen: m.from === 'client', ...m }; msgs.push(msg); store.putMessage(msg); broadcast('message', pub(msg));
@@ -153,7 +163,7 @@ function body(req, limit = 15 * 1024 * 1024) {
     req.on('data', c => { n += c.length; if (n > limit) { bad(new Error('too large')); req.destroy() } else chunks.push(c) });
     req.on('end', () => ok(Buffer.concat(chunks))); req.on('error', bad) });
 }
-const jbody = async req => { try { return JSON.parse((await body(req, 4 * 1024 * 1024)).toString('utf8') || '{}') } catch (e) { return {} } };
+const jbody = async (req, limit = 4 * 1024 * 1024) => { try { return JSON.parse((await body(req, limit)).toString('utf8') || '{}') } catch (e) { return {} } };
 function sendFile(req, res, file) {
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) { res.writeHead(404, CORS); return res.end('Not found') }
@@ -161,6 +171,7 @@ function sendFile(req, res, file) {
     const range = req.headers.range && /bytes=(\d*)-(\d*)/.exec(req.headers.range);
     if (range) {
       const start = range[1] ? +range[1] : 0, end = range[2] ? Math.min(+range[2], st.size - 1) : st.size - 1;
+      if (!st.size || start > end || start >= st.size) { res.writeHead(416, { 'Content-Range': `bytes */${st.size}`, ...CORS }); return res.end() } // نطاق خاطئ كان يُسقط الخادم
       res.writeHead(206, { 'Content-Type': type, 'Content-Range': `bytes ${start}-${end}/${st.size}`, 'Accept-Ranges': 'bytes', 'Content-Length': end - start + 1, ...CORS });
       return fs.createReadStream(file, { start, end }).pipe(res);
     }
@@ -195,7 +206,12 @@ function portalHome(cl) {
   return { client: { id: cl.id, name: cl.name, code: cl.code, type: cl.type, fee: cl.fee, paid: cl.paid, ch: cl.ch, phone: cl.phone || '', phone2: cl.phone2 || '', whatsapp: cl.whatsapp || '' }, office: officeInfo(), steps: SEED.STEPS, cases, docs };
 }
 function ensureState() { if (!state) { state = JSON.parse(JSON.stringify(cur())); store.saveState(null, state, 'system', stampS()) } }
-function touchClient(cl) { if (!state) return; const c = state.clients.find(x => x.id === cl.id); if (c) { c.last = stamp().slice(0, 10); store.putRecord('clients', c, 'portal:' + cl.code, stampS()) } }
+function touchClient(cl) { if (!state) return; const c = state.clients.find(x => x.id === cl.id); if (c) { c.last = stamp().slice(0, 10); c._v = (c._v || 0) + 1; store.putRecord('clients', c, 'portal:' + cl.code, stampS()); broadcastRecords([{ kind: 'clients', rec: c }], null) } }
+
+/* محاولات فاشلة على البوابة لكل عنوان IP: 20 خطأ خلال 15 دقيقة توقف العنوان (يشمل كل مسارات البوابة، لا الدخول فقط) */
+const pfails = new Map();
+const pBlocked = ip => { const t = pfails.get(ip); return !!t && Date.now() - t.at < 15 * 60e3 && t.n >= 20 };
+const pFail = ip => { const now = Date.now(), t = pfails.get(ip); if (!t || now - t.at > 15 * 60e3) pfails.set(ip, { n: 1, at: now }); else t.n++; if (pfails.size > 5000) for (const [k, v] of pfails) if (now - v.at > 15 * 60e3) pfails.delete(k) };
 
 /* محاولات الدخول لكل عنوان IP (حماية من التخمين) */
 const tries = new Map();
@@ -212,17 +228,18 @@ async function api(req, res, u) {
   if (p.startsWith('/api/media/')) { const f = path.basename(p); return sendFile(req, res, path.join(MEDIA, f)) }
 
   /* ── بوابة الموكل ── */
+  if (p.startsWith('/api/portal/') && pBlocked(ip)) return json(res, 429, { error: 'محاولات كثيرة. حاول بعد قليل.' });
   if (p === '/api/portal/login' && M === 'POST') {
     if (throttled(ip)) return json(res, 429, { error: 'محاولات كثيرة. حاول بعد قليل.' });
     const { code } = await jbody(req); const cl = clientByCode(code);
-    if (!cl) return json(res, 401, { error: 'رمز الدخول غير صحيح. تأكد من الرمز الذي وصلك من المكتب.' });
+    if (!cl) { pFail(ip); return json(res, 401, { error: 'رمز الدخول غير صحيح. تأكد من الرمز الذي وصلك من المكتب.' }) }
     if (!cl.portal) return json(res, 403, { error: 'البوابة غير مفعّلة لحسابك بعد. تواصل مع المكتب لتفعيلها.' });
     touchClient(cl); audit({ username: 'portal:' + cl.code, action: 'portal.login', entity: 'clients', entity_id: cl.id, detail: { label: cl.name }, ip });
     return json(res, 200, { ok: true, name: cl.name, code: cl.code });
   }
   if (p.startsWith('/api/portal/')) {
     const cl = clientByCode(req.headers['x-client'] || u.searchParams.get('code'));
-    if (!cl || !cl.portal) return json(res, 401, { error: 'انتهت الجلسة، يرجى الدخول من جديد.' });
+    if (!cl || !cl.portal) { if (!cl) pFail(ip); return json(res, 401, { error: 'انتهت الجلسة، يرجى الدخول من جديد.' }) }
     const who = { username: 'portal:' + cl.code, ip };
     if (p === '/api/portal/home') return json(res, 200, portalHome(cl));
     if (p === '/api/portal/profile' && M === 'POST') {
@@ -230,7 +247,7 @@ async function api(req, res, u) {
       const upd = { phone: clean(b.phone), phone2: clean(b.phone2), whatsapp: clean(b.whatsapp) };
       if (Object.values(upd).some(v => v && !ok(v))) return json(res, 400, { error: 'تحقق من الأرقام: أرقام فقط، ويمكن أن تبدأ بـ +' });
       ensureState();
-      const c = state.clients.find(x => x.id === cl.id), before = { ...c }; Object.assign(c, upd); store.putRecord('clients', c, who.username, stampS());
+      const c = state.clients.find(x => x.id === cl.id), before = { ...c }; Object.assign(c, upd); c._v = (c._v || 0) + 1; store.putRecord('clients', c, who.username, stampS()); broadcastRecords([{ kind: 'clients', rec: c }], null);
       audit({ ...who, action: 'record.update', entity: 'clients', entity_id: c.id, detail: { label: c.name, fields: Store.diffFields(before, c), via: 'portal' } });
       broadcast('profile', { client: cl.id, ...upd });
       return json(res, 200, upd);
@@ -308,6 +325,9 @@ async function api(req, res, u) {
 
   /* الإعدادات */
   if (p === '/api/settings' && M === 'GET') return json(res, 200, settings());
+  /* النسخ الاحتياطي: حالة آخر نسخة، وتشغيل يدوي */
+  if (p === '/api/backup/status') { if (!need('manage')) return; return json(res, 200, backup.status()) }
+  if (p === '/api/backup/run' && M === 'POST') { if (!need('manage')) return; const r = backup.run('manual:' + me.username); return json(res, r.ok ? 200 : 500, r.ok ? r : { error: 'تعذّر النسخ الاحتياطي: ' + r.error }) }
   if (p === '/api/settings' && M === 'POST') {
     if (!need('manage')) return;
     const b = await jbody(req), before = settings();
@@ -408,16 +428,32 @@ async function api(req, res, u) {
     const st = auth.can(me, 'all') ? state : scope(me, cur());
     return json(res, 200, { state: st, messages: msgs.filter(m => canSeeClient(me, m.client)).map(pub), push: pushCount(), pushReady: !!webpush, user: { ...me, token: undefined }, settings: settings() });
   }
+  /* الحفظ الآمن: المتصفح يرسل السجلات المتغيرة فقط مع رقم إصدار كل سجل (lib/merge.js) */
   if (p === '/api/admin/state' && M === 'POST') {
     if (!need('write')) return;
-    const b = await jbody(req);
-    if (!Array.isArray(b.clients) || !Array.isArray(b.cases)) return json(res, 400, { error: 'bad state' });
-    const next = { clients: b.clients, opponents: b.opponents || [], cases: b.cases, hearings: b.hearings || [], deadlines: b.deadlines || [], docs: b.docs || [], mzLog: b.mzLog || [] };
+    const b = await jbody(req, 25 * 1024 * 1024);
     const first = !state, at = stampS();
-    const changes = store.saveState(state, next, me.username, at); state = next;
-    if (first) audit({ ...who, action: 'state.init', detail: { records: changes.length } });
-    else changes.forEach(c => audit({ ...who, action: 'record.' + c.op, entity: c.kind, entity_id: c.id, detail: { label: labelOf(c.rec), ...(c.fields ? { fields: c.fields } : {}) } }));
-    return json(res, 200, { ok: true, changed: changes.length });
+    const r = Merge.plan(state, b, { randomBytes: n => crypto.randomBytes(n), hashId: (k, x) => 'a' + crypto.createHash('sha1').update(k + JSON.stringify(x)).digest('hex').slice(0, 10) });
+    if (!r) return json(res, 400, { error: 'طلب حفظ غير صالح' });
+    store.applyWrites(r.writes, r.next.mzLog, me.username, at); state = r.next;
+    if (first) audit({ ...who, action: 'state.init', detail: { records: r.writes.length } });
+    else r.writes.forEach(c => audit({ ...who, action: 'record.' + c.op, entity: c.kind, entity_id: c.id, detail: { label: labelOf(c.rec), ...(c.fields ? { fields: c.fields } : {}) } }));
+    r.codes.filter(([id]) => r.writes.some(w => w.op === 'create' && w.id === id)).forEach(([id]) => audit({ ...who, action: 'portal.code_issue', entity: 'clients', entity_id: id }));
+    if (r.conflicts.length) audit({ ...who, action: 'state.conflict', detail: { n: r.conflicts.length, ids: r.conflicts.slice(0, 20).map(c => c.kind + ':' + c.id) } });
+    broadcastRecords(r.writes.filter(w => w.op !== 'delete').map(w => ({ kind: w.kind, rec: w.rec })), String(req.headers['x-mq-tab'] || '').slice(0, 16) || null, r.writes.filter(w => w.op === 'delete').map(w => ({ kind: w.kind, id: w.id })));
+    return json(res, 200, { ok: true, changed: r.writes.length, versions: r.versions, conflicts: r.conflicts, codes: r.codes });
+  }
+  /* تجديد رمز دخول موكل (عند الشك بتسريبه)، أو كل الرموز القديمة الضعيفة دفعة واحدة */
+  if ((p === '/api/admin/client-code' || p === '/api/admin/rotate-weak') && M === 'POST') {
+    if (!need(p.endsWith('weak') ? 'manage' : 'write')) return;
+    if (!state) return json(res, 409, { error: 'لا توجد بيانات محفوظة بعد.' });
+    const { client } = p.endsWith('weak') ? {} : await jbody(req);
+    if (!p.endsWith('weak') && !state.clients.some(c => c.id === client)) return json(res, 404, { error: 'الموكل غير موجود' });
+    const done = Merge.rotate(state, p.endsWith('weak') ? 'weak' : [client], { randomBytes: n => crypto.randomBytes(n) }), at = stampS();
+    store.applyWrites(done.map(d => ({ op: 'update', kind: 'clients', id: d.rec.id, rec: d.rec })), undefined, me.username, at);
+    done.forEach(d => audit({ ...who, action: 'portal.code_rotate', entity: 'clients', entity_id: d.rec.id, detail: { label: d.rec.name } }));
+    broadcastRecords(done.map(d => ({ kind: 'clients', rec: d.rec })), null);
+    return json(res, 200, { ok: true, n: done.length, clients: done.map(d => ({ id: d.rec.id, code: d.rec.code, _v: d.rec._v })) });
   }
   if (p === '/api/admin/messages' && M === 'POST') {
     if (!need('write')) return;
@@ -475,7 +511,7 @@ async function attach(req, res, u, client, from, who) {
 }
 
 /* ملفات شاشة المكتب: قائمة محددة فقط، وكلها تتطلب تسجيل الدخول عدا صفحة الدخول */
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'print.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'print.js', 'intake.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css']);
 
 http.createServer((req, res) => {

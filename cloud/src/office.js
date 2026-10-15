@@ -6,6 +6,11 @@ import crypto from 'node:crypto';
 import { openStore, COLL, diffFields } from './store.js';
 import { createAuth } from './auth.js';
 import { courts, STEPS } from './seed.js';
+import { plan, rotate } from './merge.js';
+
+/* توقيع داخلي يثبت أن طلب /_ops وصل من الـ Worker بعد التحقق من رمز المشغّل (لا يمكن للزائر إرساله) */
+export const opsSig = env => env.OPS_TOKEN ? crypto.createHash('sha256').update('mq-ops|' + env.OPS_TOKEN).digest('hex') : null;
+const BACKUP_KEEP = 30;
 
 const rid = () => crypto.randomBytes(6).toString('hex');
 const pad = n => String(n).padStart(2, '0');
@@ -32,7 +37,7 @@ const SEC = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-orig
 const json = (code, obj, extra = {}) => new Response(JSON.stringify(obj), { status: code, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...CORS, ...SEC, ...extra } });
 const MEDIA_TTL = 7 * 24 * 3600; // صلاحية رابط الملف الموقّع (ثوانٍ)
 
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'print.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'print.js', 'intake.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css']);
 
 /* توحيد الكتابة العربية للبحث في دليل المحامين */
@@ -64,7 +69,7 @@ export class Office extends DurableObject {
   /* ── أدوات ── */
   slug() { return this.store.kv.get('slug') }
   audit(e) { try { this.store.audit({ at: stampS(), ...e }) } catch (err) { console.error('[audit]', err.message) } }
-  settings() { const s = this.store.kv.get('settings', {}); return { edition: 'office', officeName: '', lawyerName: '', city: '', phone: '', hours: '', ...s } }
+  settings() { const s = this.store.kv.get('settings', {}); const g = this.store.kv.get('support_grant'); const b = this.store.kv.get('backup_last'); return { edition: 'office', officeName: '', lawyerName: '', city: '', phone: '', hours: '', ...s, cloud: true, supportUntil: g && g.until > Date.now() ? g.until : null, backupLast: b || null } }
   officeInfo() { const s = this.settings(); return { name: s.officeName, lawyer: s.lawyerName, city: s.city, phone: s.phone, hours: s.hours } }
   rules() { const saved = this.store.kv.get('appeal_rules', {}); return DEFAULT_RULES.map(r => ({ ...r, ...(saved[r.id] || {}) })) }
   cur() { return this.state || EMPTY() }
@@ -125,8 +130,14 @@ export class Office extends DurableObject {
       .map(d => ({ title: d.title, kind: d.kind, date: d.date, pages: d.pages, caseNo: (S.cases.find(k => k.id === d.k) || {}).no }));
     return { client: { id: cl.id, name: cl.name, code: cl.code, type: cl.type, fee: cl.fee, paid: cl.paid, ch: cl.ch, phone: cl.phone || '', phone2: cl.phone2 || '', whatsapp: cl.whatsapp || '' }, office: this.officeInfo(), steps: STEPS, cases, docs };
   }
+  /* بث السجلات المعدّلة لزملاء المكتب فوراً (المحامي الخارجي يراها عند إعادة التحميل) */
+  broadcastRecords(recs, byId, del = []) {
+    if (!recs.length && !del.length) return;
+    const s = this.enc.encode(`event: records\ndata: ${JSON.stringify({ by: byId, recs, del })}\n\n`);
+    for (const [w, u] of this.streams) if (this.auth.can(u, 'all')) w.write(s).catch(() => this.streams.delete(w));
+  }
   ensureState() { if (!this.state) { this.state = EMPTY(); this.store.saveState(null, this.state, 'system', stampS()) } }
-  touchClient(cl) { if (!this.state) return; const c = this.state.clients.find(x => x.id === cl.id); if (c) { c.last = stamp().slice(0, 10); this.store.putRecord('clients', c, 'portal:' + cl.code, stampS()) } }
+  touchClient(cl) { if (!this.state) return; const c = this.state.clients.find(x => x.id === cl.id); if (c) { c.last = stamp().slice(0, 10); c._v = (c._v || 0) + 1; this.store.putRecord('clients', c, 'portal:' + cl.code, stampS()); this.broadcastRecords([{ kind: 'clients', rec: c }], null) } }
 
   /* ── نقطة الدخول: الطلب يصل من الـ Worker ومعه اسم المكتب ── */
   async fetch(req) {
@@ -171,7 +182,7 @@ export class Office extends DurableObject {
   async api(req, u) {
     const p = u.pathname, M = req.method, ip = req.headers.get('cf-connecting-ip') || '127.0.0.1';
     const secure = u.protocol === 'https:';
-    const jbody = async () => { try { const t = await req.text(); return t.length > 4 * 1024 * 1024 ? {} : JSON.parse(t || '{}') } catch (e) { return {} } };
+    const jbody = async (limit = 4 * 1024 * 1024) => { try { const t = await req.text(); return t.length > limit ? {} : JSON.parse(t || '{}') } catch (e) { return {} } };
     if (M === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
     if (p === '/api/health') return json(200, { ok: true, at: stamp() });
     if (p === '/api/portal/push-key') return json(200, { enabled: false, key: null });
@@ -209,7 +220,7 @@ export class Office extends DurableObject {
         const upd = { phone: clean(b.phone), phone2: clean(b.phone2), whatsapp: clean(b.whatsapp) };
         if (Object.values(upd).some(v => v && !ok(v))) return json(400, { error: 'تحقق من الأرقام: أرقام فقط، ويمكن أن تبدأ بـ +' });
         this.ensureState();
-        const c = this.state.clients.find(x => x.id === cl.id), before = { ...c }; Object.assign(c, upd); this.store.putRecord('clients', c, who.username, stampS());
+        const c = this.state.clients.find(x => x.id === cl.id), before = { ...c }; Object.assign(c, upd); c._v = (c._v || 0) + 1; this.store.putRecord('clients', c, who.username, stampS()); this.broadcastRecords([{ kind: 'clients', rec: c }], null);
         this.audit({ ...who, action: 'record.update', entity: 'clients', entity_id: c.id, detail: { label: c.name, fields: diffFields(before, c), via: 'portal' } });
         this.broadcast('profile', { client: cl.id, ...upd });
         return json(200, upd);
@@ -347,16 +358,46 @@ export class Office extends DurableObject {
       const st = this.auth.can(me, 'all') ? this.state : this.scope(me, this.cur());
       return json(200, { state: st, messages: this.msgs.filter(m => this.canSeeClient(me, m.client)).map(m => this.pubAdmin(m)), push: {}, pushReady: false, user: { ...me, token: undefined }, settings: this.settings() });
     }
+    /* الحفظ الآمن: السجلات المتغيرة فقط مع رقم إصدار كل سجل (merge.js) */
     if (p === '/api/admin/state' && M === 'POST') {
       if ((d = deny('write'))) return d;
-      const b = await jbody();
-      if (!Array.isArray(b.clients) || !Array.isArray(b.cases)) return json(400, { error: 'bad state' });
-      const next = { clients: b.clients, opponents: b.opponents || [], cases: b.cases, hearings: b.hearings || [], deadlines: b.deadlines || [], docs: b.docs || [], mzLog: b.mzLog || [] };
+      const b = await jbody(25 * 1024 * 1024);
       const first = !this.state, at = stampS();
-      const changes = this.store.saveState(this.state, next, me.username, at); this.state = next;
-      if (first) this.audit({ ...who, action: 'state.init', detail: { records: changes.length } });
-      else changes.forEach(c => this.audit({ ...who, action: 'record.' + c.op, entity: c.kind, entity_id: c.id, detail: { label: this.labelOf(c.rec), ...(c.fields ? { fields: c.fields } : {}) } }));
-      return json(200, { ok: true, changed: changes.length });
+      const r = plan(this.state, b, { randomBytes: n => crypto.randomBytes(n), hashId: (k, x) => 'a' + crypto.createHash('sha1').update(k + JSON.stringify(x)).digest('hex').slice(0, 10) });
+      if (!r) return json(400, { error: 'طلب حفظ غير صالح' });
+      this.store.applyWrites(r.writes, r.next.mzLog, me.username, at); this.state = r.next;
+      if (first) this.audit({ ...who, action: 'state.init', detail: { records: r.writes.length } });
+      else r.writes.forEach(c => this.audit({ ...who, action: 'record.' + c.op, entity: c.kind, entity_id: c.id, detail: { label: this.labelOf(c.rec), ...(c.fields ? { fields: c.fields } : {}) } }));
+      r.codes.filter(([id]) => r.writes.some(w => w.op === 'create' && w.id === id)).forEach(([id]) => this.audit({ ...who, action: 'portal.code_issue', entity: 'clients', entity_id: id }));
+      if (r.conflicts.length) this.audit({ ...who, action: 'state.conflict', detail: { n: r.conflicts.length, ids: r.conflicts.slice(0, 20).map(c => c.kind + ':' + c.id) } });
+      this.broadcastRecords(r.writes.filter(w => w.op !== 'delete').map(w => ({ kind: w.kind, rec: w.rec })), String(req.headers.get('x-mq-tab') || '').slice(0, 16) || null, r.writes.filter(w => w.op === 'delete').map(w => ({ kind: w.kind, id: w.id })));
+      return json(200, { ok: true, changed: r.writes.length, versions: r.versions, conflicts: r.conflicts, codes: r.codes });
+    }
+    if ((p === '/api/admin/client-code' || p === '/api/admin/rotate-weak') && M === 'POST') {
+      const weak = p.endsWith('weak');
+      if ((d = deny(weak ? 'manage' : 'write'))) return d;
+      if (!this.state) return json(409, { error: 'لا توجد بيانات محفوظة بعد.' });
+      const { client } = weak ? {} : await jbody();
+      if (!weak && !this.state.clients.some(c => c.id === client)) return json(404, { error: 'الموكل غير موجود' });
+      const done = rotate(this.state, weak ? 'weak' : [client], { randomBytes: n => crypto.randomBytes(n) });
+      this.store.applyWrites(done.map(x => ({ op: 'update', kind: 'clients', id: x.rec.id, rec: x.rec })), undefined, me.username, stampS());
+      done.forEach(x => this.audit({ ...who, action: 'portal.code_rotate', entity: 'clients', entity_id: x.rec.id, detail: { label: x.rec.name } }));
+      this.broadcastRecords(done.map(x => ({ kind: 'clients', rec: x.rec })), null);
+      return json(200, { ok: true, n: done.length, clients: done.map(x => ({ id: x.rec.id, code: x.rec.code, _v: x.rec._v })) });
+    }
+    /* وصول الدعم الفني: لا يستطيع مزود الخدمة تصدير بيانات المكتب إلا بإذن مؤقت يمنحه مدير المكتب ويُسجّل */
+    if (p === '/api/support' && M === 'GET') { if ((d = deny('manage'))) return d; const g = this.store.kv.get('support_grant'); return json(200, { until: g && g.until > Date.now() ? g.until : null, by: g && g.by }) }
+    if (p === '/api/support/grant' && M === 'POST') {
+      if ((d = deny('manage'))) return d;
+      const { hours } = await jbody(); const h = Math.min(72, Math.max(1, Math.round(+hours || 24)));
+      const g = { until: Date.now() + h * 3600e3, by: me.username, at: stampS() }; this.store.kv.set('support_grant', g);
+      this.audit({ ...who, action: 'support.grant', detail: { hours: h } });
+      return json(200, { until: g.until });
+    }
+    if (p === '/api/support/revoke' && M === 'POST') {
+      if ((d = deny('manage'))) return d;
+      this.store.kv.set('support_grant', null); this.audit({ ...who, action: 'support.revoke' });
+      return json(200, { until: null });
     }
     if (p === '/api/admin/messages' && M === 'POST') {
       if ((d = deny('write'))) return d;
@@ -430,6 +471,27 @@ export class Office extends DurableObject {
     return json(201, from === 'lawyer' ? this.pubAdmin(m) : this.pub(m));
   }
 
+  async backup() {
+    const keyB64 = this.env.BACKUP_KEY;
+    if (!keyB64) return { ok: false, skipped: 'BACKUP_KEY غير معرّف' };
+    try {
+      const S = this.store, slug = this.slug();
+      const dump = { v: 1, slug, at: stampS(), records: S.all('SELECT * FROM records'), kv: S.all('SELECT * FROM kv').filter(k => !['setup'].includes(k.key)), messages: S.all('SELECT * FROM messages'), users: S.all('SELECT * FROM users'), audit: S.all('SELECT * FROM audit ORDER BY seq') };
+      const plain = Buffer.from(JSON.stringify(dump));
+      const key = crypto.createHash('sha256').update(String(keyB64)).digest(), iv = crypto.randomBytes(12);
+      const c = crypto.createCipheriv('aes-256-gcm', key, iv), enc = Buffer.concat([c.update(plain), c.final()]), tag = c.getAuthTag();
+      const body = Buffer.concat([Buffer.from('MQBK1'), iv, tag, enc]);
+      const name = `_backups/${slug}/${new Date().toISOString().slice(0, 10)}.mqbk`;
+      await this.env.MEDIA.put(name, body, { httpMetadata: { contentType: 'application/octet-stream' }, customMetadata: { sha256: crypto.createHash('sha256').update(plain).digest('hex'), records: String(dump.records.length) } });
+      const list = await this.env.MEDIA.list({ prefix: `_backups/${slug}/` });
+      const old = list.objects.map(o => o.key).sort(); let pruned = 0;
+      while (old.length > BACKUP_KEEP) { await this.env.MEDIA.delete(old.shift()); pruned++ }
+      const res = { ok: true, at: dump.at, key: name, bytes: body.length, records: dump.records.length, messages: dump.messages.length, pruned };
+      S.kv.set('backup_last', res); this.audit({ action: 'system.backup', detail: { records: res.records, messages: res.messages, bytes: res.bytes } });
+      return res;
+    } catch (e) { this.audit({ action: 'system.backup_failed', detail: { error: String(e.message || e) } }); return { ok: false, error: String(e.message || e) } }
+  }
+
   /* ── دليل المحامين (D1 مشتركة، للقراءة فقط من المكاتب) ── */
   async barMeta() { const r = await this.env.DB.prepare("SELECT value FROM meta WHERE key = 'bar_meta'").first(); return r ? JSON.parse(r.value) : null }
   async barSearch(s) {
@@ -455,7 +517,10 @@ export class Office extends DurableObject {
 
   /* ── عمليات مزود الخدمة (تصل فقط عبر الـ Worker بعد التحقق من رمز العمليات) ── */
   async ops(req, u) {
+    const sig = opsSig(this.env), got = req.headers.get('x-mq-ops') || '';
+    if (!sig || got.length !== sig.length || !crypto.timingSafeEqual(Buffer.from(got), Buffer.from(sig))) return json(404, { error: 'not found' });
     const p = u.pathname, b = req.method === 'POST' ? await req.json().catch(() => ({})) : {};
+    const granted = () => { const g = this.store.kv.get('support_grant'); return !!(g && g.until > Date.now()) };
     if (p === '/_ops/init') {
       if (!this.store.kv.get('created')) {
         this.store.kv.set('created', stampS());
@@ -476,6 +541,7 @@ export class Office extends DurableObject {
     }
     if (p === '/_ops/info') {
       const g = q => this.store.get(q);
+      this.audit({ username: 'ops', action: 'ops.info' });
       return json(200, { slug: this.slug(), created: this.store.kv.get('created'), settings: this.settings(), users: g('SELECT COUNT(*) n FROM users').n, records: g('SELECT COUNT(*) n FROM records').n, messages: g('SELECT COUNT(*) n FROM messages').n, audit: g('SELECT COUNT(*) n FROM audit').n, verify: this.store.auditVerify() });
     }
     /* نقل مكتب من جهاز المكتب: لمرة واحدة، فقط إذا كان المكتب فارغاً */
@@ -501,14 +567,23 @@ export class Office extends DurableObject {
     if (p === '/_ops/media' && req.method === 'PUT') {
       const file = u.searchParams.get('file') || '';
       if (!/^[a-f0-9]{12}\.[a-z0-9]{2,5}$/.test(file)) return json(400, { error: 'bad name' });
+      /* لا استبدال صامت لملف موجود (سلامة الأدلة): الاستبدال فقط بإذن الدعم وطلب صريح، ويُسجّل */
+      const exists = await this.env.MEDIA.head(this.slug() + '/' + file);
+      if (exists && !(u.searchParams.get('replace') === '1' && granted())) return json(409, { error: 'الملف موجود؛ لا يُستبدل دون إذن المكتب' });
       await this.env.MEDIA.put(this.slug() + '/' + file, req.body, { httpMetadata: { contentType: TYPES[file.split('.').pop()] || 'application/octet-stream' } });
+      this.audit({ username: 'ops', action: exists ? 'ops.media_replace' : 'ops.media_upload', detail: { file } });
       return json(200, { ok: true });
     }
     /* تصدير كامل لبيانات المكتب (نسخ احتياطي / مغادرة العميل) */
+    /* تصدير بيانات المكتب لمزود الخدمة: فقط بإذن مؤقت من مدير المكتب، ودون أسرار (كلمات المرور ومفاتيح التدقيق والتوقيع)، ويُسجّل في سجل المكتب */
     if (p === '/_ops/export') {
-      const S = this.store;
-      return json(200, { slug: this.slug(), at: stampS(), records: S.all('SELECT * FROM records'), kv: S.all('SELECT * FROM kv').filter(k => !['setup', 'media_key'].includes(k.key)), messages: S.all('SELECT * FROM messages'), users: S.all('SELECT * FROM users'), audit: S.all('SELECT * FROM audit ORDER BY seq') });
+      if (!granted()) { this.audit({ username: 'ops', action: 'ops.export_denied' }); return json(403, { error: 'لم يمنح المكتب إذن وصول للدعم الفني. يمنحه مدير المكتب من الإعدادات.' }) }
+      const S = this.store, SECRET = ['setup', 'media_key', 'audit_key', 'support_grant'];
+      this.audit({ username: 'ops', action: 'ops.export' });
+      return json(200, { slug: this.slug(), at: stampS(), records: S.all('SELECT * FROM records'), kv: S.all('SELECT * FROM kv').filter(k => !SECRET.includes(k.key)), messages: S.all('SELECT * FROM messages'), users: S.all('SELECT id, username, name, role, active, must_change, cases, created_at, last_login FROM users'), audit: S.all('SELECT * FROM audit ORDER BY seq') });
     }
+    /* نسخة احتياطية مشفّرة يومية إلى R2 (يستدعيها الـ Worker المجدول). المحتوى كامل لأنه للاستعادة، ومشفّر بمفتاح لا يملكه إلا الخادم */
+    if (p === '/_ops/backup') return json(200, await this.backup());
     return json(404, { error: 'unknown op' });
   }
 }
