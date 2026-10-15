@@ -178,20 +178,36 @@ function feedItem(f,fresh){const who=f.c?C(f.c).name:'القضية '+K(f.k).no;
  return `<button class="fi ${f.kind} ${fresh?'fresh':''}" ${act}><span class="fic">${I[f.kind]||I.msg}</span><span class="fit"><b>${FTITLE[f.kind]||KIND[f.kind]}</b><span>${esc(who)}${f.t?' · '+esc(f.t):''}</span></span><time data-at="${f.at}">${since(f.at)}</time></button>`}
 function feedCard(){return `<section class="card reveal" style="animation-delay:.4s"><header><h2>النشاطات الأخيرة</h2></header><div class="feedlive" id="feed">${S.feed.length?S.feed.slice(0,4).map(f=>feedItem(f)).join(''):'<div class="empty">لا نشاط بعد</div>'}</div></section>`}
 
-/* الصف العلوي: الترحيب والإحصاءات + اللافتة */
-function hero(){
- const t=iso(TODAY),today=hearings.filter(h=>h.date===t).length+deadlines.filter(x=>x.due===t).length;
- const tasks=deadlines.filter(x=>{const n=diff(x.due);return n>=0&&n<=7}).length;
+/* الصف العلوي (هوية 2026): لافتة الترحيب + خمس بطاقات مؤشرات حية */
+const KI={files:'<svg viewBox="0 0 24 24"><path d="M3 7h6l2 2h10v11H3z"/></svg>',users:I.portal,docs:I.doc,
+ tpl:'<svg viewBox="0 0 24 24"><path d="M6 3h12v18H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>',up:'<svg viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg>'};
+const ago_d=d=>d?Math.round((TODAY-pd(d))/864e5):9999;
+const inWin=(d,from,to)=>{const n=ago_d(d);return n>=from&&n<to};
+function trend(cur,prev,unit){
+ /* اتجاه حقيقي من بيانات المكتب: الفترة الأخيرة (30 يوماً) مقابل التي قبلها */
+ if(!cur&&!prev)return `<span class="kt flat">${unit}</span>`;
+ const d=cur-prev;
+ return `<span class="kt ${d>0?'up':d<0?'down':'flat'}">${d>0?KI.up:d<0?'<i class="dn">'+KI.up+'</i>':''}<b>${d>0?'+'+d:d<0?String(d):'0'}</b> <small>${unit}</small></span>`}
+function kpis(){
+ const act=active().filter(k=>k.status!=='محكوم');
  const soon=hearings.filter(h=>{const n=diff(h.date);return n>=0&&n<=14}).length;
- const review=docs.filter(d=>!d.shared).length;
- const st=[[today,'مواعيد اليوم','agenda',I.cal],[tasks,'مهام مستحقة','tasks',I.task],[soon,'جلسات قادمة','agenda',I.gavel],[review,'مستندات تحتاج مراجعة','docs',I.review]];
- const q=(MQ.settings&&MQ.settings.motto)||'العدل أساس الملك ..',q2=(MQ.settings&&MQ.settings.motto2)||'إدارة قانونية أكثر تنظيماً .. لعدالة أكثر قرباً ..';
- return `<div class="hero-row reveal">
-  <section class="welcome"><div class="w-top"><div class="w-txt"><h1>مرحباً ${esc(firstName())}</h1><p>إليك أهم ما يحدث في مكتبك اليوم</p></div><div class="w-emblem" aria-hidden="true">${I.scales}</div></div>
-   <div class="w-stats">${st.map(([n,l,v,ic])=>`<button class="ws" data-act="nav" data-v="${v}"><span class="wi">${ic}</span><span class="wt"><b data-key="${l}" data-count="${n}">${n}</b><small>${l}</small></span></button>`).join('')}</div>
-  </section>
-  <section class="verse" aria-label="شعار المكتب"><div class="v-txt"><p class="quote">" ${esc(q)}</p><small>${esc(q2)}</small></div></section>
- </div>`}
+ const nCl=clients.filter(c=>inWin(c.since,0,30)).length,pCl=clients.filter(c=>inWin(c.since,30,60)).length;
+ const nDo=docs.filter(d=>inWin(d.date,0,30)).length,pDo=docs.filter(d=>inWin(d.date,30,60)).length;
+ const nCa=cases.filter(k=>inWin(k.opened,0,30)).length,pCa=cases.filter(k=>inWin(k.opened,30,60)).length;
+ const nTpl=Object.keys(TPL).length+((window.MQ_LAWLIB&&MQ_LAWLIB.items)?MQ_LAWLIB.items.length:0);
+ const st=[
+  ['gold',KI.files,act.length,'الملفات النشطة','cases',trend(nCa,pCa,'هذا الشهر')],
+  ['orange',I.gavel,soon,'جلسات قادمة','agenda',`<span class="kt flat"><small>خلال 14 يوماً</small></span>`],
+  ['green',KI.users,nCl,'عملاء جدد','clients',trend(nCl,pCl,'هذا الشهر')],
+  ['blue',KI.docs,docs.length,'المستندات','docs',trend(nDo,pDo,'هذا الشهر')],
+  ['brown',KI.tpl,nTpl,'العقود والنماذج','lawlib',`<span class="kt flat"><small>نموذج متاح</small></span>`]];
+ return `<div class="kpis reveal">${st.map(([c,ic,n,l,v,t])=>`<button class="kpi ${c}" data-act="nav" data-v="${v}"><span class="kico">${ic}</span><span class="kbody"><small>${l}</small><b data-key="k-${v}" data-count="${n}">${n}</b>${t}</span></button>`).join('')}</div>`}
+function hero(){
+ const q=(MQ.settings&&MQ.settings.motto)||'العدل أساس الملك ..',slogan=(MQ.settings&&MQ.settings.slogan)||'خبرة قانونية نحو مجتمع أكثر عدلاً';
+ const nm=String(OFFICE.name||'').replace(/\s+للمحاماة.*$/,' للمحاماة');
+ return `<section class="banner reveal" aria-label="لافتة المكتب"><div class="bn-art" aria-hidden="true"></div><div class="bn-emblem" aria-hidden="true"></div>
+  <div class="bn-txt"><p class="bn-hi">${greet()}، ${esc(firstName())} <span>· إليك أهم ما يحدث في مكتبك اليوم</span></p>
+   <h1>${esc(nm)} <i>..</i> <em>${esc(slogan)}</em></h1><p class="bn-q">" ${esc(q)}</p></div></section>${kpis()}`}
 
 V.dash=()=>`${hero()}
  <div class="dgrid">
