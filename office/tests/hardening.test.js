@@ -31,7 +31,11 @@ before(async () => {
   assert.equal(s.status, 200, JSON.stringify(s.j));
   cookie = (s.r.headers.get('set-cookie') || '').split(';')[0];
 });
-after(() => { if (srv) srv.kill(); fs.rmSync(TMP, { recursive: true, force: true }) });
+after(async () => {
+  if (srv && srv.exitCode === null) { const gone = new Promise(r => srv.once('exit', r)); srv.kill(); await gone }
+  // في Windows قد يبقى ملف القاعدة مقفلاً لحظات بعد إغلاق الخادم
+  try { fs.rmSync(TMP, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }) } catch (e) { console.warn('تعذّر حذف المجلد المؤقت:', e.message) }
+});
 
 test('أول حفظ (صيغة قديمة كاملة) ينشئ السجلات ويستبدل رموز البذرة الضعيفة برموز قوية فريدة', async () => {
   const SEED = require(path.join(ROOT, 'data.js'));
