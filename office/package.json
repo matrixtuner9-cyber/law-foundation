@@ -1,6 +1,6 @@
 {
   "name": "mithaq",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "private": true,
   "description": "ميثاق - نظام إدارة مكتب المحاماة",
   "main": "electron/main.js",
@@ -84,10 +84,10 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "ميثاق",
-      "artifactName": "Mithaq-Setup-${version}.${ext}"
+      "artifactName": "methaq-found-ver2.0-Setup.${ext}"
     },
     "portable": {
-      "artifactName": "Mithaq-Portable-${version}.${ext}"
+      "artifactName": "methaq-found-ver2.0-Portable.${ext}"
     }
   },
   "devDependencies": {
