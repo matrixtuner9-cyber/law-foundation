@@ -85,3 +85,9 @@ test('المطّلع لا يضيف أحكاماً ولا يرفع ملفات', a
     assert.equal((await boot()).rulings.length, 1, 'المطّلع يرى المكتبة');
   } finally { cookie = keep }
 });
+
+test('استيراد حكم برابطه: رابط غير صالح يُرفض دون اتصال بالخارج، والمطّلع لا يستورد', async () => {
+  const r = await req('/api/admin/ruling-import', { method: 'POST', body: { url: 'https://example.com/judgments/1/' } });
+  assert.equal(r.status, 400);
+  assert.match(r.j.error, /مقام/);
+});

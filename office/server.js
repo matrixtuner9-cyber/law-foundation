@@ -6,7 +6,7 @@ const DATA = process.env.MQ_DATA || path.join(ROOT, 'data'), MEDIA = path.join(D
 fs.mkdirSync(MEDIA, { recursive: true });
 
 const SEED = require('./data.js');
-const Store = require('./lib/db'), Auth = require('./lib/auth'), Merge = require('./lib/merge');
+const Store = require('./lib/db'), Auth = require('./lib/auth'), Merge = require('./lib/merge'), Maqam = require('./lib/maqam');
 const OFFICE = { name: 'مكتب الميثاق للمحاماة والاستشارات القانونية', lawyer: 'المحامي سامر عبد الله', city: 'نابلس', phone: '09-233-0000', hours: 'الأحد – الخميس · 8:30 – 16:00' };
 const STATE_F = path.join(DATA, 'state.json'), MSG_F = path.join(DATA, 'messages.json');
 const VAPID_F = path.join(DATA, 'vapid.json'), PUSH_F = path.join(DATA, 'push.json');
@@ -466,6 +466,18 @@ async function api(req, res, u) {
   }
   if (p === '/api/admin/voice' && M === 'POST') { if (!need('write')) return; return voice(req, res, u, u.searchParams.get('client'), 'lawyer', who) }
   if (p === '/api/admin/file' && M === 'POST') { if (!need('write')) return; return attach(req, res, u, u.searchParams.get('client'), 'lawyer', who) }
+  if (p === '/api/admin/ruling-import' && M === 'POST') {
+    if (!need('write')) return;
+    const b = await jbody(req, 4096), now = Date.now();
+    importLog.splice(0, importLog.length, ...importLog.filter(t => now - t < 3600e3));
+    if (importBusy || importLog.length >= 60) return json(res, 429, { error: 'استيراد كثير خلال ساعة. حاول بعد قليل.' });
+    importBusy = true; importLog.push(now);
+    try {
+      const r = await Maqam.fetchJudgment(b.url, fetch);
+      audit({ ...who, action: r.ok ? 'ruling.import' : 'ruling.import_failed', entity: 'rulings', detail: { url: String(b.url || '').slice(0, 200), ...(r.ok ? { no: r.ruling.no } : { error: r.error }) } });
+      return r.ok ? json(res, 200, r) : json(res, r.status || 400, { error: r.error });
+    } finally { importBusy = false }
+  }
   if (p === '/api/admin/ruling-file' && M === 'POST') { if (!need('write')) return; return rulingFile(req, res, u, who) }
   if (p === '/api/admin/read' && M === 'POST') {
     const { client } = await jbody(req);
@@ -511,6 +523,9 @@ async function attach(req, res, u, client, from, who) {
   audit({ ...who, action: from === 'lawyer' ? 'message.send' : 'message.receive', entity: 'messages', entity_id: id, detail: { client, type: m.type, name, size: buf.length, sha256: crypto.createHash('sha256').update(buf).digest('hex') } });
   return json(res, 201, pub(m));
 }
+
+/* استيراد حكم برابطه: طلب واحد في كل مرة، وبحد 60 في الساعة للمكتب (ليس أداة جمع جماعي) */
+const importLog = []; let importBusy = false;
 
 // نص حكم قضائي (PDF أو Word أو صورة) لمكتبة الاجتهادات: يُحفظ كملف فقط دون رسالة لأي موكل
 async function rulingFile(req, res, u, who) {

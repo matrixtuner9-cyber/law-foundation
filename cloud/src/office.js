@@ -7,6 +7,7 @@ import { openStore, COLL, diffFields } from './store.js';
 import { createAuth } from './auth.js';
 import { courts, STEPS } from './seed.js';
 import { plan, rotate, lawformsGuard } from './merge.js';
+import { fetchJudgment } from './maqam.js';
 
 /* توقيع داخلي يثبت أن طلب /_ops وصل من الـ Worker بعد التحقق من رمز المشغّل (لا يمكن للزائر إرساله) */
 export const opsSig = env => env.OPS_TOKEN ? crypto.createHash('sha256').update('mq-ops|' + env.OPS_TOKEN).digest('hex') : null;
@@ -411,6 +412,18 @@ export class Office extends DurableObject {
     }
     if (p === '/api/admin/voice' && M === 'POST') { if ((d = deny('write'))) return d; return this.voice(req, u, u.searchParams.get('client'), 'lawyer', who) }
     if (p === '/api/admin/file' && M === 'POST') { if ((d = deny('write'))) return d; return this.attach(req, u, u.searchParams.get('client'), 'lawyer', who) }
+    if (p === '/api/admin/ruling-import' && M === 'POST') {
+      if ((d = deny('write'))) return d;
+      const b = await jbody(4096), now = Date.now();
+      this.importLog = (this.importLog || []).filter(t => now - t < 3600e3);
+      if (this.importBusy || this.importLog.length >= 60) return json(429, { error: 'استيراد كثير خلال ساعة. حاول بعد قليل.' });
+      this.importBusy = true; this.importLog.push(now);
+      try {
+        const r = await fetchJudgment(b.url, fetch);
+        this.audit({ ...who, action: r.ok ? 'ruling.import' : 'ruling.import_failed', entity: 'rulings', detail: { url: String(b.url || '').slice(0, 200), ...(r.ok ? { no: r.ruling.no } : { error: r.error }) } });
+        return r.ok ? json(200, r) : json(r.status || 400, { error: r.error });
+      } finally { this.importBusy = false }
+    }
     if (p === '/api/admin/ruling-file' && M === 'POST') { if ((d = deny('write'))) return d; return this.rulingFile(req, u, who) }
     if (p === '/api/admin/read' && M === 'POST') {
       const { client } = await jbody();
