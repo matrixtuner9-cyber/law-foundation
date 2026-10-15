@@ -1,0 +1,16 @@
+status {"setup":true,"local":true}
+admin page (no login) -> 302 /login.html
+bootstrap (no login) -> 401
+server.js -> 404
+db file -> 404
+login page -> 200
+tunnel admin -> 404
+tunnel login page -> 404
+tunnel portal -> 200
+tunnel portal login -> 200
+MQ-2051 messages via tunnel: 27, last: 2026-10-14 03:51 ٨٨٨
+records: "cases=7 clients=6 deadlines=5 docs=12 hearings=11 opponents=6"
+messages: 37, users: 0
+audit: [{"seq":1,"action":"system.migrate","detail":"{\"state\":true,\"records\":47,\"messages\":37}"},{"seq":2,"action":"system.start","detail":"{\"pid\":29540,\"electron\":null}"},{"seq":3,"action":"portal.login","detail":"{\"label\":\"شركة الزيتون للتجارة العامة\"}"},{"seq":4,"action":"system.repair","detail":"{\"records\":5,\"note\":\"سجلات بلا معرّف (المهل)\"}"},{"seq":5,"action":"system.start","detail":"{\"pid\":19816,\"electron\":null}"},{"seq":6,"action":"portal.login","detail":"{\"label\":\"شركة الزيتون للتجارة العامة\"}"}]
+old messages.json count: 37
+old state: clients=6 opponents=6 cases=7 hearings=11 deadlines=5 docs=12

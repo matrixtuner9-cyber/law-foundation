@@ -1,0 +1,14 @@
+{
+ "n": 50,
+ "withPhone": "<div class=\"person_card\"> <div class=\"person_card__header\"> <div class=\"person_card__avatar\" aria-hidden=\"true\">ن</div> <div class=\"person_card__title\"> <h3>نبيل اندريا بندلي مشحور</h3> <div class=\"person_card__meta\"><span class=\"person_card__badge\">محامي مزاول</span><span class=\"person_card__id\">رقم العضوية: L00001</span></div> </div> </div> <ul class=\"person_card__list\"> <li> <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 21s-7-6.2-7-11a7 7 0 1 1 14 0c0 4.8-7 11-7 11z\"></path><circle cx=\"12\" cy=\"10\" r=\"2.5\"></circle></svg> <div><span class=\"label\">المدينة</span><span class=\"value\">القدس</span></div> </li> <li> <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M3 21h18M5 21V7l7-4 7 4v14M9 21v-6h6v6M9 10h.01M15 10h.01\"></path></svg> <div><span class=\"label\">اسم المكتب</span><span class=\"value\">مكتب المحامي نبيل مشحور</span></div> </li> <li> <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 21s-7-6.2-7-11a7 7 0 1 1 14 0c0 4.8-7 11-7 11z\"></path><path d=\"M9 10h6\"></path></svg> <div><span class=\"label\">عنوان المكتب</span><span class=\"value\">رام الله، شارع البريد، عمارة المالكي</span></div> </li></ul> <div class=\"person_card__actions\"> <a class=\"btn btn--primary\" href=\"tel:+970599369032\"> <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z\"></path></svg> <span dir=\"ltr\">0599369032</span> </a> <a class=\"btn btn--ghost\" href=\"mailto:info@mushahwarlaw.com\"> <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"2\"></rect><path d=\"m3 7 9 6 9-6\"></path></svg> <span dir=\"ltr\">info@mushahwarlaw.com</span> </a></div> </div>",
+ "noPhone": "<div class=\"person_card\"> <div class=\"person_card__header\"> <div class=\"person_card__avatar\" aria-hidden=\"true\">ط</div> <div class=\"person_card__title\"> <h3>طارق فتوح سليم المحتسب</h3> <div class=\"person_card__meta\"><span class=\"person_card__badge\">محامي غير مزاول</span><span class=\"person_card__id\">رقم العضوية: L00002</span></div> </div> </div> </div>",
+ "pages": [
+  "0:السابق",
+  "1:1",
+  "2:2",
+  "3:3",
+  "378:378",
+  "2:التالي"
+ ],
+ "pag": "<div id=\"pagination\" class=\"pagination\"><button type=\"button\" class=\"pagination__btn\" data-page=\"0\" disabled=\"\">السابق</button><button type=\"button\" class=\"pagination__btn is-active\" data-page=\"1\">1</button><button type=\"button\" class=\"pagination__btn \" data-page=\"2\">2</button><button type=\"button\" class=\"pagination__btn \" data-page=\"3\">3</button><span class=\"pagination__dots\">…</span><button type=\"button\" class=\"pagination__btn \" data-page=\"378\">378</button><button type=\"button\" class=\"pagination__btn\" data-page=\"2\">التالي</button></div>"
+}

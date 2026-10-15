@@ -1,0 +1,55 @@
+/* المستخدم الحالي */
+.who{position:relative}
+.me{all:unset;display:flex;align-items:center;gap:10px;cursor:pointer;padding:4px 6px 4px 4px;border-radius:12px}
+.me:hover,.me:focus-visible{background:var(--sunk)}
+.me-t{display:flex;flex-direction:column;line-height:1.25;text-align:start}
+.me-t b{font-size:14px;font-weight:700}.me-t small{font-size:11.5px;color:var(--brass);font-weight:600}
+.me-menu{position:absolute;inset-inline-end:0;top:calc(100% + 6px);background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 16px 40px rgb(15 27 51 / .16);padding:6px;min-width:200px;z-index:40;display:flex;flex-direction:column}
+.me-menu button{all:unset;cursor:pointer;padding:9px 12px;border-radius:8px;font-size:14px}
+.me-menu button:hover,.me-menu button:focus-visible{background:var(--sunk)}
+.me-menu .danger{color:var(--danger)}
+.ro-banner{background:linear-gradient(90deg,#F2E6C6,#F5F0E6);color:#5A410F;border-bottom:1px solid var(--line);padding:8px 24px;font-size:13.5px;font-weight:600}
+
+/* الأدوار */
+.roles{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:16px}
+.role-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:4px;border-top:3px solid var(--line)}
+.role-card b{font-size:15px}.role-card span{font-size:12.5px;color:var(--muted);line-height:1.6}.role-card small{margin-top:auto;padding-top:6px;color:var(--brass);font-weight:700;font-size:12px}
+.role-card.r-admin{border-top-color:#C9A24B}.role-card.r-lawyer{border-top-color:#16264A}.role-card.r-external{border-top-color:#B26B37}.role-card.r-viewer{border-top-color:#8D96A8}
+.pill.role-admin{background:#F2E6C6;color:#6B4E12}.pill.role-lawyer{background:#E4E8F1;color:#16264A}.pill.role-external{background:#F3E1D2;color:#7A4220}.pill.role-viewer{background:#ECEDF1;color:#4A5163}
+
+/* النوافذ */
+.modal.wide{max-width:720px}
+.err-box{margin-top:12px;background:var(--danger-soft);color:var(--danger);border-radius:10px;padding:10px 12px;font-size:14px;font-weight:600}
+.pwgen{display:flex;gap:8px;align-items:center}.pwgen .field{flex:1}
+.cases-pick{border:1px solid var(--line);border-radius:12px;padding:10px 12px;max-height:240px;overflow:auto;margin:0}
+.cases-pick legend{font-size:13px;color:var(--muted);padding:0 6px}
+.ck{display:flex!important;flex-direction:row!important;align-items:center;gap:8px;padding:5px 0;color:var(--ink)!important;font-size:13.5px}
+.secret{font-size:26px;letter-spacing:2px;text-align:center;background:var(--sunk);border:1px dashed var(--brass);border-radius:12px;padding:16px;margin:12px 0;user-select:all}
+
+/* سجل التدقيق */
+.audit{display:flex;flex-direction:column}
+.au{display:grid;grid-template-columns:54px 150px 130px auto minmax(0,1fr) 110px;gap:12px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);font-size:13.5px}
+.au:last-child{border-bottom:0}.au:hover{background:var(--sunk)}
+.au-n{color:var(--muted);font-size:12px}.au time{font-size:12.5px;color:var(--muted)}
+.au-who{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.au-d{min-width:0;line-height:1.7}.au-ip{font-size:11.5px;color:var(--muted);text-align:end}
+.chg{display:inline-flex;gap:4px;align-items:baseline;background:var(--sunk);border-radius:6px;padding:1px 7px;margin:2px 0 2px 6px;font-size:12.5px}
+.chg i{font-style:normal;color:var(--muted)}.chg del{color:var(--danger);text-decoration:line-through;opacity:.8}.chg ins{color:var(--ok);text-decoration:none;font-weight:600}
+@media (max-width:1100px){.au{grid-template-columns:48px 1fr auto;grid-auto-rows:auto}.au time,.au-ip{display:none}.au-d{grid-column:1/-1}}
+
+/* الإعدادات */
+.editions{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.edition{display:flex;flex-direction:column;gap:6px;border:1.5px solid var(--line);border-radius:14px;padding:16px;cursor:pointer;background:var(--surface);position:relative}
+.edition input{position:absolute;opacity:0;pointer-events:none}
+.edition b{font-size:16px}.edition span{font-size:13px;color:var(--muted);line-height:1.7}
+.edition.on{border-color:var(--gold,#C9A24B);box-shadow:0 0 0 4px rgb(201 162 75 / .15);background:#FFFCF3}
+.edition:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+
+/* لا تظهر الشاشة قبل تحميل بيانات المستخدم */
+body:not(.ready) .app{opacity:0}
+.app{transition:opacity .25s}
+/* وضع الاطلاع: إخفاء أدوات التعديل */
+.ro [data-act="newCase"],.ro #fH,.ro #fPay,.ro #fBag,.ro #fMsg,.ro [data-act="saveTpl"],.ro [data-act="applyU"],.ro [data-act="dropU"],.ro [data-act="togglePortal"],.ro [data-act="share"]{display:none!important}
+
+.preview-msg{display:flex;flex-direction:column;gap:2px;background:var(--sunk);border-radius:12px;padding:10px 14px;border-inline-start:4px solid var(--gold,#C9A24B)}
+.preview-msg small{color:var(--muted)}

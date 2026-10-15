@@ -1,0 +1,5 @@
+package ps.mithaq.mithaq_portal
+
+import io.flutter.embedding.android.FlutterFragmentActivity
+
+class MainActivity : FlutterFragmentActivity()

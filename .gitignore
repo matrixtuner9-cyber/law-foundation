@@ -1,0 +1,28 @@
+node_modules/
+package-lock.json
+# runtime data and secrets: never commit
+office/data/
+**/.ops_token
+**/.dev.vars
+**/credentials.json
+**/vapid.json
+**/*.key
+**/.key
+**/*.db
+**/*.db-*
+**/*.sqlite*
+**/.env
+**/.env.*
+cloud/.wrangler/
+cloud/public/app/
+cloud/probe/
+# builds and logs
+**/build/
+**/.dart_tool/
+**/dist/
+*.apk
+*.aab
+*.exe
+*.log
+*.err
+*.bak*

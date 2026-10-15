@@ -1,0 +1,36 @@
+/* درجات التقاضي */
+.lvls{display:flex;align-items:flex-start;gap:0;margin:4px 0 18px;flex-wrap:wrap}
+.lv{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:74px;text-align:center}
+.lv i{font-style:normal;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:14px;background:var(--sunk);color:var(--muted);border:2px solid var(--line)}
+.lv b{font-size:13.5px;font-weight:700;color:var(--muted)}.lv small{font-size:11.5px;color:var(--muted);min-height:16px}
+.lv.done i{background:#16264A;color:#F5F0E6;border-color:#16264A}.lv.done b{color:var(--ink)}
+.lv.cur i{background:linear-gradient(135deg,#E6C77A,#B8923A);color:#0F1B33;border-color:#B8923A;box-shadow:0 0 0 5px rgb(201 162 75 / .2)}
+.lv.cur b{color:var(--brass)}
+.lv.skip i{border-style:dashed}
+.lv.settle i{background:var(--ok);border-color:var(--ok);color:#fff}
+.lv-line{flex:1 1 20px;height:2px;background:var(--line);margin-top:17px;min-width:14px}
+.tr-list{display:flex;flex-direction:column;gap:8px}
+.tr-row{display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.tr-row.now{border-color:#C9A24B;background:#FFFCF3}
+.pill.lvl{background:#E4E8F1;color:#16264A;font-weight:700}
+.pill.lvl-1{background:#E4E8F1}.pill.lvl-2{background:#F2E6C6;color:#6B4E12}.pill.lvl-3{background:#16264A;color:#F5F0E6}.pill.lvl-4{background:#F3E1D2;color:#7A4220}
+.pill.cat{background:#ECE5D6;color:#3A3220}.pill.cat-bodily,.pill.cat-property,.pill.cat-policy,.pill.cat-recovery{background:#E6EEF5;color:#1D3361}
+.pill.ref{background:var(--surface);border:1px solid var(--line);color:var(--ink)}
+
+/* الأحكام ومواعيد الطعن */
+.decs{display:flex;flex-direction:column;gap:10px}
+.dec{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--surface);display:flex;flex-direction:column;gap:6px}
+.dec-h{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.dec-t{font-family:var(--f-doc,serif);font-size:17px;line-height:1.7}
+.dec-due{display:flex;justify-content:space-between;align-items:center;gap:8px;border-radius:10px;padding:8px 10px;background:var(--sunk)}
+.dec-due.bad{background:var(--danger-soft)}.dec-due.warn{background:var(--warn-soft)}.dec-due.ok{background:var(--ok-soft)}.dec-due.gone{opacity:.65}
+.p2-forms .form{grid-template-columns:1fr 1fr}
+.startf{border:1px solid var(--line);border-radius:12px;padding:8px 12px;margin:0;display:flex;flex-direction:column;gap:2px}
+.startf legend{font-size:13px;color:var(--muted);padding:0 6px}
+.prev:empty{display:none}
+.prev-box{border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;background:var(--sunk);border-inline-start:4px solid var(--line)}
+.prev-box.ok{background:var(--ok-soft);border-color:var(--ok)}.prev-box.warn{background:var(--warn-soft);border-color:var(--warn)}.prev-box.bad{background:var(--danger-soft);border-color:var(--danger)}
+.prev-box b{font-size:16px}.prev-box small{color:var(--muted)}.prev-box em{font-style:normal;font-size:12.5px;color:var(--warn)}
+.rules td{vertical-align:middle}.rules .field{width:100%}
+.ro .p2-forms{display:none}
+#catF{max-width:220px}

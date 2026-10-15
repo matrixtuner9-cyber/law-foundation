@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ar" dir="rtl" data-theme="prestige">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>ميثاق · الدخول</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="login.css">
+</head>
+<body>
+<main class="lg">
+  <section class="scene" aria-hidden="true">
+    <canvas id="scene"></canvas>
+    <div class="scene-copy">
+      <b>ميثاق</b>
+      <span id="sceneLawyer">العدالة تبدأ من ملف منظّم</span>
+    </div>
+  </section>
+  <section class="pane">
+    <div class="card neon-card">
+      <div class="mark"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M12 3v17M7 20h10M4 7h16M6 7l-3 6a3 3 0 0 0 6 0L6 7zm12 0l-3 6a3 3 0 0 0 6 0l-3-6z"/></svg></div>
+      <h1 id="title">الدخول إلى شاشة المكتب</h1>
+      <p class="sub"><b id="lawyer"></b><span id="office">نظام ميثاق لإدارة القضايا</span></p>
+
+      <form id="fLogin" autocomplete="on" hidden>
+        <label>اسم المستخدم<span class="nf"><input id="lu" name="username" autocomplete="username" required dir="ltr" autofocus></span></label>
+        <label>كلمة المرور
+          <span class="pw nf"><input id="lp" name="password" type="password" autocomplete="current-password" required dir="ltr"><button type="button" class="eye" data-for="lp" aria-label="إظهار كلمة المرور">إظهار</button></span>
+        </label>
+        <p class="caps" id="caps" hidden>مفتاح الأحرف الكبيرة (Caps Lock) مفعّل</p>
+        <button class="go" id="goL">دخول</button>
+      </form>
+
+      <form id="fSetup" hidden>
+        <p class="intro">أهلاً بك. هذا أول تشغيل للنظام، أنشئ حساب <b>مدير النظام</b> الذي يدير المستخدمين والصلاحيات وسجل التدقيق.</p>
+        <label>الاسم الكامل<span class="nf"><input id="sn" required placeholder="المحامي سامر عبد الله"></span></label>
+        <label>اسم المستخدم<span class="nf"><input id="su" required dir="ltr" placeholder="samer" autocomplete="username"></span></label>
+        <label>كلمة المرور<span class="nf"><input id="sp" type="password" required dir="ltr" autocomplete="new-password" placeholder="8 أحرف على الأقل، حروف وأرقام"></span></label>
+        <label>تأكيد كلمة المرور<span class="nf"><input id="sp2" type="password" required dir="ltr" autocomplete="new-password"></span></label>
+        <button class="go">إنشاء الحساب والدخول</button>
+      </form>
+
+      <div class="err" id="err" role="alert" hidden></div>
+      <p class="foot">كل عمليات الدخول والتعديل مسجّلة في سجل التدقيق.</p>
+    </div>
+  </section>
+</main>
+<script src="scales.js"></script>
+<script src="login.js"></script>
+</body>
+</html>

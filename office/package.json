@@ -1,0 +1,87 @@
+{
+  "name": "mithaq",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ميثاق - نظام إدارة مكتب المحاماة",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "node server.js",
+    "app": "electron .",
+    "icon": "node electron/make-icon.js",
+    "dist": "electron-builder --win nsis portable"
+  },
+  "dependencies": {
+    "playwright-core": "^1.48.2",
+    "web-push": "^3.6.7"
+  },
+  "productName": "Mithaq",
+  "author": "Mithaq Law Office",
+  "build": {
+    "appId": "ps.mithaq.desktop",
+    "productName": "Mithaq",
+    "asar": false,
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron/**",
+      "server.js",
+      "data.js",
+      "index.html",
+      "app.js",
+      "dash.js",
+      "briefcase.js",
+      "sync.js",
+      "mizan-ui.js",
+      "style.css",
+      "dash.css",
+      "briefcase.css",
+      "mizan.css",
+      "mizan/**",
+      "portal/**",
+      "lib/**",
+      "admin.js",
+      "admin.css",
+      "prestige.css",
+      "login.html",
+      "login.css",
+      "login.js",
+      "scales.js",
+      "phase2.js",
+      "phase2.css",
+      "bar/**",
+      "bar.js",
+      "bar.css",
+      "responsive.js",
+      "responsive.css",
+      "package.json",
+      "node_modules/**",
+      "!data/**",
+      "!mithaq_portal/**",
+      "!tools/**",
+      "!dist/**"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "electron/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "ميثاق",
+      "artifactName": "Mithaq-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "Mithaq-Portable-${version}.${ext}"
+    }
+  },
+  "devDependencies": {
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3"
+  }
+}

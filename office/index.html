@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ar" dir="rtl" data-theme="prestige">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>نظام ميثاق للمحاماة</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700;800&family=Amiri:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="dash.css">
+<link rel="stylesheet" href="briefcase.css">
+<link rel="stylesheet" href="mizan.css">
+<link rel="stylesheet" href="admin.css">
+<link rel="stylesheet" href="phase2.css">
+<link rel="stylesheet" href="bar.css">
+<link rel="stylesheet" href="prestige.css">
+<link rel="stylesheet" href="responsive.css">
+</head>
+<body>
+
+<div class="app" id="app">
+  <aside class="rail">
+    <div class="brand">
+      <div class="seal" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#E6C77A" stroke-width="1.5" stroke-linecap="round"><path d="M12 3v17M7 20h10M4 7h16M6 7l-3 6a3 3 0 0 0 6 0L6 7zm12 0l-3 6a3 3 0 0 0 6 0l-3-6z"/></svg></div>
+      <div><b>ميثاق</b><small>مكتب المحاماة · نابلس</small></div>
+    </div>
+    <nav class="nav" id="nav"></nav>
+    <div class="rail-foot"><span><span class="dot"></span>متصل بميزان</span><span id="railSync"></span></div>
+  </aside>
+  <div class="main">
+    <div class="top">
+      <div class="search">
+        <input id="gq" type="search" placeholder="ابحث برقم القضية، اسم الموكل أو الخصم…" autocomplete="off" aria-label="بحث شامل">
+        <div class="results" id="gres" hidden></div>
+      </div>
+      <div class="who"></div>
+    </div>
+    <main class="page" id="page"></main>
+  </div>
+</div>
+<div id="modal"></div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="data.js"></script>
+<script src="app.js"></script>
+<script src="dash.js"></script>
+<script src="briefcase.js"></script>
+<script src="admin.js"></script>
+<script src="phase2.js"></script>
+<script src="bar.js"></script>
+<script src="responsive.js"></script>
+<script src="print.js"></script>
+<script src="sync.js"></script>
+<script src="mizan-ui.js"></script>
+</body>
+</html>

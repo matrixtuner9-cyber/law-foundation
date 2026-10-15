@@ -1,0 +1,149 @@
+/* هوية ميثاق المعتمدة: أرضية عاجية صخرية #F9F6EF للنصوص، كحلي ملكي للهيكل، ذهبي ونحاسي للمسات
+   خط Cairo للتطبيق، وTraditional Arabic لنصوص الوثائق */
+:root[data-theme="prestige"]{
+  /* لوحة الألوان المعتمدة لواجهة المحامي — لا تُستخدم ألوان خارجها */
+  --navy:#0B1B2B; --navy2:#1F2D3D; --gold:#B9965A; --bronze:#8B6F3D; --ivory:#F9F6EF; --beige:#EADCC6;
+  --bg:var(--ivory); --surface:var(--ivory); --sunk:rgb(234 220 198 / .45); --paper:var(--ivory);
+  --ink:#111B27; --muted:#6B7280; --line:var(--beige);
+  --accent:var(--navy2); --accent-ink:var(--ivory); --accent-soft:rgb(31 45 61 / .08);
+  --brass:var(--bronze); --brass-soft:rgb(185 150 90 / .14); --gold-hi:var(--gold); --copper:var(--bronze);
+  --ok:#22C55E; --ok-soft:rgb(34 197 94 / .12); --warn:#F59E0B; --warn-soft:rgb(245 158 11 / .14);
+  --danger:#EF4444; --danger-soft:rgb(239 68 68 / .12); --info:#3B82F6; --info-soft:rgb(59 130 246 / .12);
+  --paper-ink:var(--ink); --paper-line:var(--beige);
+  --rail:var(--navy); --rail-ink:var(--ivory); --rail-muted:rgb(249 246 239 / .6); --rail-active:var(--navy2);
+  --f-display:'Cairo','Segoe UI',Tahoma,sans-serif;
+  --f-body:'Cairo','Segoe UI',Tahoma,sans-serif;
+  --f-doc:'Traditional Arabic','Amiri','Noto Naskh Arabic',serif;
+  color-scheme:light;
+}
+:root[data-theme="prestige"] body{font-size:14.5px;letter-spacing:0}
+:root[data-theme="prestige"] h1{font-weight:800;font-size:28px;letter-spacing:-.2px}
+
+/* الشريط الجانبي: كحلي بتدرج وخط ذهبي */
+:root[data-theme="prestige"] .rail{background:var(--navy);border-inline-start:1px solid rgb(185 150 90 / .25)}
+:root[data-theme="prestige"] .brand b{color:var(--gold-hi);font-weight:800;letter-spacing:.3px}
+:root[data-theme="prestige"] .nav button.on{background:var(--rail-active);box-shadow:inset -3px 0 0 var(--gold);color:#fff}
+:root[data-theme="prestige"] .nav .cnt.hot{background:var(--gold);color:#0B1B2B}
+:root[data-theme="prestige"] .nav .grp{color:#B9965A;opacity:.85;letter-spacing:.4px}
+
+/* الأزرار والعناصر */
+:root[data-theme="prestige"] .btn.pri{background:linear-gradient(180deg,#1F2D3D,#0B1B2B);color:#F9F6EF;border-color:#0B1B2B}
+:root[data-theme="prestige"] .btn.pri:hover{background:#0B1B2B}
+:root[data-theme="prestige"] .btn.gold{background:linear-gradient(135deg,#B9965A,#B9965A);color:#0B1B2B;border-color:#B9965A}
+:root[data-theme="prestige"] .panel{box-shadow:0 1px 0 rgb(11 27 43 / .03),0 8px 24px rgb(11 27 43 / .05)}
+:root[data-theme="prestige"] .top{background:rgb(249 246 239 / .92);backdrop-filter:blur(8px)}
+:root[data-theme="prestige"] .avatar{background:linear-gradient(135deg,#B9965A,#B9965A);color:#0B1B2B}
+
+/* الوثائق والنماذج: Traditional Arabic */
+:root[data-theme="prestige"] .paper{font-family:var(--f-doc);font-size:20px;line-height:1.9}
+:root[data-theme="prestige"] .paper .fill{background:rgb(185 150 90 / .2);border-bottom-color:var(--brass)}
+
+/* حقيبة الموكل: إزالة بقايا الأخضر */
+:root[data-theme="prestige"] .bag-av{background:linear-gradient(145deg,#B9965A,#B9965A);color:#0B1B2B}
+
+/* ── التصميم الجديد للهيكل: القائمة الجانبية والشريط العلوي ── */
+:root[data-theme="prestige"] .main{position:relative;background:radial-gradient(120% 60% at 100% 0%,rgb(185 150 90 / .14),transparent 55%),repeating-linear-gradient(45deg,rgb(11 27 43 / .012) 0 2px,transparent 2px 12px),var(--bg)}
+:root[data-theme="prestige"] .main::before{content:"";position:fixed;left:0;top:0;bottom:0;width:var(--side-w,130px);background:url(hdr-side.jpg) center/cover no-repeat;-webkit-mask:linear-gradient(90deg,#000 0%,#000 70%,transparent 100%);mask:linear-gradient(90deg,#000 0%,#000 70%,transparent 100%);pointer-events:none;z-index:0}
+:root[data-theme="prestige"] .page{padding-inline-end:calc(var(--side-w,130px) + 10px)}
+@media (max-width:1024px){:root[data-theme="prestige"] .main::before{display:none}:root[data-theme="prestige"] .page{padding-inline-end:18px}}
+:root[data-theme="prestige"] .page{position:relative;z-index:1}
+:root[data-theme="prestige"] .top{background:rgb(249 246 239 / .9);backdrop-filter:blur(10px);border-bottom:1px solid rgb(185 150 90 / .35);gap:14px;padding-block:10px}
+:root[data-theme="prestige"] .top .who.first{margin-inline-start:0;order:5}
+:root[data-theme="prestige"] .top .search{order:2;max-width:520px;margin-inline:auto}
+:root[data-theme="prestige"] .top .top-icons{order:4}
+:root[data-theme="prestige"] .top .top-date{order:1}
+:root[data-theme="prestige"] .top .theme{order:0}
+:root[data-theme="prestige"] .top .menu-btn{order:-1}
+.top-icons{display:flex;gap:4px}
+.tico{all:unset;cursor:pointer;position:relative;width:38px;height:38px;border-radius:12px;display:grid;place-items:center;color:var(--accent);border:1px solid transparent}
+.tico svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.tico:hover{background:var(--brass-soft);border-color:rgb(185 150 90 / .4)}
+.tico:focus-visible{outline:2px solid var(--brass)}
+.tico .tb{position:absolute;top:3px;inset-inline-end:3px;min-width:17px;height:17px;padding:0 4px;border-radius:99px;background:var(--danger);color:#fff;font-family:var(--f-mono);font-size:10.5px;display:grid;place-items:center}
+.tico .tb[hidden]{display:none!important}
+.top-date{display:flex;flex-direction:column;align-items:flex-start;line-height:1.3;white-space:nowrap}
+.top-date b{font-size:13.5px;color:var(--accent)}
+.top-date small{font-size:11.5px;color:var(--muted)}
+:root[data-theme="prestige"] .search input{padding-inline-start:38px;background:var(--surface);border-color:var(--line);box-shadow:inset 0 1px 2px rgb(11 27 43 / .04)}
+:root[data-theme="prestige"] .search input:focus{border-color:var(--gold);outline:none;box-shadow:0 0 0 3px rgb(185 150 90 / .2)}
+.search .s-ico{position:absolute;inset-inline-start:13px;top:50%;transform:translateY(-50%);color:var(--muted);display:flex;pointer-events:none}
+.search .s-ico svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}
+:root[data-theme="prestige"] .me{display:flex;align-items:center;gap:10px}
+:root[data-theme="prestige"] .me .me-t{display:flex;flex-direction:column;align-items:flex-start;line-height:1.2}
+:root[data-theme="prestige"] .me .me-t b{color:var(--ink);font-size:13.5px}
+:root[data-theme="prestige"] .me .me-t small{color:var(--brass);font-size:11.5px;font-weight:700}
+:root[data-theme="prestige"] .avatar{box-shadow:0 0 0 2px var(--surface),0 0 0 3px var(--gold)}
+
+/* القائمة الجانبية */
+:root[data-theme="prestige"] .rail{padding-inline:12px;gap:14px}
+:root[data-theme="prestige"] .brand{padding:6px 6px 14px;border-bottom:1px solid rgb(185 150 90 / .25);align-items:center}
+:root[data-theme="prestige"] .brand .seal{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;border:1.5px solid var(--gold);background:rgb(185 150 90 / .08)}
+:root[data-theme="prestige"] .brand .seal svg{width:26px;height:26px}
+:root[data-theme="prestige"] .nav{gap:3px}
+:root[data-theme="prestige"] .nav button{justify-content:flex-start;gap:10px;padding:9px 12px;border-radius:10px;color:#F9F6EF;font-size:14px;font-weight:600;transition:background .15s,color .15s}
+:root[data-theme="prestige"] .nav button .nico{display:flex;color:rgb(249 246 239 / .6)}
+:root[data-theme="prestige"] .nav button .nico svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+:root[data-theme="prestige"] .nav button:hover{background:rgb(255 255 255 / .06);color:#fff}
+:root[data-theme="prestige"] .nav button.on{background:linear-gradient(90deg,rgb(185 150 90 / .22),rgb(185 150 90 / .06));box-shadow:inset -3px 0 0 var(--gold);color:#fff}
+:root[data-theme="prestige"] .nav button.on .nico{color:var(--gold-hi)}
+:root[data-theme="prestige"] .nav .cnt{margin-inline-start:auto;font-size:11px;background:rgb(255 255 255 / .08);padding:1px 7px;border-radius:99px;color:#F9F6EF}
+:root[data-theme="prestige"] .nav .cnt.hot{background:var(--gold);color:#0B1B2B}
+:root[data-theme="prestige"] .nav .grp{padding:14px 12px 4px;font-size:10.5px}
+.nav-foot{margin-top:auto;display:flex;flex-direction:column;gap:3px;padding-top:12px;border-top:1px solid rgb(185 150 90 / .2)}
+.nav-foot button{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;color:#F9F6EF;font-size:14px;font-weight:600}
+.nav-foot button:hover{background:rgb(255 255 255 / .06);color:#fff}
+.nav-foot button.on{background:linear-gradient(90deg,rgb(185 150 90 / .22),rgb(185 150 90 / .06));box-shadow:inset -3px 0 0 var(--gold);color:#fff}
+.nav-foot .nico{display:flex;color:rgb(249 246 239 / .6)}
+.nav-foot .nico svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.nav-foot .cnt{display:none}
+:root[data-theme="prestige"] .rail-foot{margin-top:0;padding-top:8px}
+
+/* الوضع الليلي */
+:root[data-theme="prestige"].night{
+  --bg:#0E1526; --surface:#162038; --sunk:#1C2742; --ink:#EDE7D8; --muted:#A3ACBF; --line:#2A3651;
+  --accent:#B9965A; --accent-ink:#0B1B2B; --accent-soft:#223052;
+  --brass:#B9965A; --brass-soft:#2B2A22; --paper:#121A2E; --paper-ink:#EDE7D8; --paper-line:#2A3651;
+  --danger-soft:#3A1F1C; --warn-soft:#3A2F14; --ok-soft:#163327; color-scheme:dark;
+}
+:root[data-theme="prestige"].night .main{background:radial-gradient(120% 60% at 100% 0%,rgb(185 150 90 / .08),transparent 55%),var(--bg)}
+:root[data-theme="prestige"].night .top{background:rgb(14 21 38 / .9)}
+:root[data-theme="prestige"].night .verse{background:linear-gradient(90deg,rgb(17 26 48 / .35) 0%,rgb(17 26 48 / .6) 30%,rgb(17 26 48 / .92) 52%,#111A30 68%),url(hdr-banner.jpg) left center/auto 100% no-repeat,#111A30}
+:root[data-theme="prestige"].night .quran{color:#B9965A}
+:root[data-theme="prestige"].night .tile{background:var(--sunk)}
+:root[data-theme="prestige"].night .ct th{background:var(--sunk)}
+:root[data-theme="prestige"].night .panel,:root[data-theme="prestige"].night .card{box-shadow:0 8px 24px rgb(0 0 0 / .35)}
+:root[data-theme="prestige"].night .btn{background:var(--sunk);color:var(--ink);border-color:var(--line)}
+:root[data-theme="prestige"].night .field,:root[data-theme="prestige"].night input,:root[data-theme="prestige"].night select,:root[data-theme="prestige"].night textarea{background:var(--sunk);color:var(--ink);border-color:var(--line)}
+@media (max-width:700px){.top-date{display:none}.top-icons .tico:not(:first-child){display:none}:root[data-theme="prestige"] .top{gap:8px}:root[data-theme="prestige"] .top .search{margin-inline:0}}
+
+/* مطابقة التصميم: الشعار، القائمة بلا عدادات، الشريط العلوي العائم */
+:root[data-theme="prestige"] .brand .seal{width:52px;height:56px;border:0;border-radius:0;background:url(hdr-logo.jpg) center/contain no-repeat}
+:root[data-theme="prestige"] .brand .seal svg{display:none}
+:root[data-theme="prestige"] .brand{border-bottom:0;padding-bottom:18px}
+:root[data-theme="prestige"] .brand b{font-size:15px;color:#F9F6EF;font-weight:700}
+:root[data-theme="prestige"] .brand small{font-size:11px;color:#F9F6EF}
+:root[data-theme="prestige"] .nav button{font-size:15px;padding:11px 14px;color:#F9F6EF}
+:root[data-theme="prestige"] .nav button .nico{color:#F9F6EF}
+:root[data-theme="prestige"] .nav button .nico svg{width:21px;height:21px}
+:root[data-theme="prestige"] .nav button.on{background:rgb(255 255 255 / .07);box-shadow:inset -3px 0 0 var(--gold)}
+:root[data-theme="prestige"] .nav .cnt:not(.hot){display:none}
+:root[data-theme="prestige"] .nav .grp{margin-top:10px;border-top:1px solid rgb(255 255 255 / .08);padding-top:12px}
+:root[data-theme="prestige"] .nav .grp~button{font-size:13.5px;padding:8px 14px;color:rgb(249 246 239 / .6)}
+:root[data-theme="prestige"] .nav .grp~button .nico svg{width:18px;height:18px}
+:root[data-theme="prestige"] .top{margin:10px 16px 0;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 18px rgb(11 27 43 / .06);top:10px}
+.kbd{position:absolute;inset-inline-end:10px;top:50%;transform:translateY(-50%);font:600 11px var(--f-body);color:var(--muted);border:1px solid var(--line);border-radius:6px;padding:2px 7px;background:var(--bg);pointer-events:none}
+.me .chev{display:flex;color:var(--muted)}.me .chev svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2}
+@media (max-width:1024px){:root[data-theme="prestige"] .top{margin:0;border-radius:0;top:0}}
+@media (max-width:700px){.kbd{display:none}}
+
+/* ── تعديلات اللوحة المعتمدة (15/10) ── */
+/* 1. الشريط الجانبي كحلي أساسي موحد */
+:root[data-theme="prestige"] .rail{background:var(--navy)!important}
+:root[data-theme="prestige"] .nav button.on,.nav-foot button.on{background:rgb(185 150 90 / .14)!important;box-shadow:inset -3px 0 0 var(--gold)!important}
+:root[data-theme="prestige"] .nav button.on .nico{color:var(--gold)}
+/* 4. الأزرار النشطة والذهبية بدرجة واحدة */
+:root[data-theme="prestige"] .btn.gold{background:var(--gold)!important;border-color:var(--gold)!important;color:var(--navy)!important}
+:root[data-theme="prestige"] .btn.gold:hover{background:var(--bronze)!important;border-color:var(--bronze)!important;color:var(--ivory)!important}
+:root[data-theme="prestige"] .avatar{background:var(--gold);color:var(--navy);box-shadow:0 0 0 2px var(--ivory),0 0 0 3px var(--gold)}
+/* 6. صورة المكتب الجانبية أخف حتى لا تنافس المحتوى */
+:root[data-theme="prestige"] .main::before{display:none}

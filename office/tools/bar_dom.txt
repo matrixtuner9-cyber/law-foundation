@@ -1,0 +1,32 @@
+{
+ "telLinks": 16,
+ "memberships": 50,
+ "cardHTML": "<div class=\"person_card__actions\">\n                                    <a class=\"btn btn--primary\" href=\"tel:+970599369032\">\n                                        <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z\"></path></svg>\n                                        <span dir=\"ltr\">0599369032</span>\n                                    </a>\n                                    <a class=\"btn btn--ghost\" href=\"mailto:info@mushahwarlaw.com\">\n                                        <svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"2\"></rect><path d=\"m3 7 9 6 9-6\"></path></svg>\n                                        <span dir=\"ltr\">info@mushahwarlaw.com</span>\n                                    </a></div>",
+ "cardClass": "person_card__actions",
+ "parentClass": "person_card",
+ "siblings": 3,
+ "btns": [
+  "الصفحة الرئيسة",
+  "0599369032",
+  "0597190003",
+  "0599436520",
+  "0505243736",
+  "0599844138",
+  "0599552927",
+  "0545976506",
+  "0527528010",
+  "0599204911",
+  "0599204511",
+  "0597633658",
+  "0599204005",
+  "0597507334",
+  "0599231796",
+  "0595696844",
+  "السابق",
+  "1",
+  "2",
+  "3"
+ ]
+}
+after scroll memberships: 50 -> 50
+more/next controls: ["<button type=\"button\" class=\"pagination__btn\" data-page=\"2\">التالي</button>"]

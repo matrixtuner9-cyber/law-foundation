@@ -1,0 +1,32 @@
+  <script>
+  // إشعارات بوابة الموكل (Web Push): يتصل به تطبيق Flutter عبر mqPush
+  window.mqPush = (function () {
+    var ok = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window && window.isSecureContext;
+    var reg = null;
+    function key(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); var r = atob(s + '='.repeat((4 - s.length % 4) % 4)); return Uint8Array.from(r, function (c) { return c.charCodeAt(0); }); }
+    function code() { try { var v = localStorage.getItem('flutter.code'); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
+    async function subscribe(c) {
+      var k = await (await fetch('/api/portal/push-key')).json();
+      if (!k.enabled) return 'server';
+      reg = reg || await navigator.serviceWorker.ready;
+      var s = await reg.pushManager.getSubscription();
+      if (!s) s = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key(k.key) });
+      var r = await fetch('/api/portal/push-subscribe', { method: 'POST', headers: { 'content-type': 'application/json', 'x-client': c }, body: JSON.stringify(s) });
+      return r.ok ? 'granted' : 'error';
+    }
+    if (ok) navigator.serviceWorker.register('push-sw.js').then(function (r) {
+      reg = r;
+      var c = code();
+      if (c && Notification.permission === 'granted') subscribe(c).catch(function () {});
+    }).catch(function () {});
+    return {
+      status: function () { return ok ? Notification.permission : 'unsupported'; },
+      enable: async function (c) {
+        if (!ok) return 'unsupported';
+        try { var p = await Notification.requestPermission(); return p === 'granted' ? await subscribe(c) : p; }
+        catch (e) { return 'error'; }
+      }
+    };
+  })();
+  window.addEventListener('flutter-first-frame', function () { var s = document.getElementById('mq-splash'); if (s) s.remove(); });
+  </script>
