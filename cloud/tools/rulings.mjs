@@ -48,5 +48,6 @@ r = await req(H, 'POST', '/api/admin/state', { headers: C, body: { v: 2, changes
 ok(r.status === 403, 'لا اعتماد داخلي دون المعتمِد ورقم المزاولة');
 r = await req(H, 'POST', '/api/admin/state', { headers: C, body: { v: 2, changes: { lawforms: [{ ...LF, approvedBy: 'المدير', barNo: '77' }] } } });
 ok(r.status === 200 && (await boot()).lawforms[0].status === 'internal', 'المدير يعتمد بالشروط الكاملة');
+for (const f of ['rulings.js', 'lawlib.js', 'lawlib-data.js']) { r = await req(H, 'GET', '/' + f, { headers: C }); ok(r.status === 200 && r.body.length > 1000, 'ملف الشاشة ' + f + ' يُخدَم للمكتب') }
 console.log(`\n${passes} PASS · ${fails} FAIL`);
 process.exit(fails ? 1 : 0);
