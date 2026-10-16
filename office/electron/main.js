@@ -7,7 +7,8 @@ const path = require('path'), fs = require('fs'), http = require('http');
 const ROOT = path.join(__dirname, '..');
 /* «ميثاق خاص»: لا إنترنت. الخادم على 127.0.0.1 فقط، والنافذة لا تطلب أي عنوان خارج الجهاز ولا تفتح روابط خارجية */
 const ED = require(path.join(ROOT, 'lib', 'edition.js')).load();
-const PORT = 8080, BASE = ED.offline ? `http://127.0.0.1:${PORT}` : `http://localhost:${PORT}`;
+// منفذ مختلف لكل نسخة، فيمكن تثبيت «ميثاق خاص» و«ميثاق متصل» على جهاز واحد دون تداخل
+const PORT = ED.offline ? 8181 : 8080, BASE = ED.offline ? `http://127.0.0.1:${PORT}` : `http://localhost:${PORT}`;
 const isLocalUrl = u => { try { const x = new URL(u); return !/^(https?|wss?):$/.test(x.protocol) || ['127.0.0.1', 'localhost', '[::1]'].includes(x.hostname) } catch (e) { return false } };
 const ICON = path.join(__dirname, 'icon.png');
 
@@ -34,13 +35,23 @@ function ping() {
   });
 }
 
+function editionOf() {
+  return new Promise(res => {
+    const q = http.get(BASE + '/api/edition', r => { let d = ''; r.on('data', c => d += c); r.on('end', () => { try { res(JSON.parse(d).id || 'connected') } catch (e) { res('connected') } }) });
+    q.on('error', () => res(null)); q.setTimeout(1500, () => { q.destroy(); res(null) });
+  });
+}
 async function startServer() {
-  if (await ping()) return 'external'; // يعمل خادم ميثاق مسبقاً (مثلاً عبر start.bat)
+  if (await ping()) { // يعمل خادم ميثاق مسبقاً (مثلاً عبر start.bat): نتأكد أنه من النسخة نفسها
+    const other = await editionOf();
+    if (other && other !== ED.id) throw new Error(`المنفذ ${PORT} مستخدم من نسخة أخرى من ميثاق. أغلقها ثم أعد تشغيل ${ED.name}.`);
+    return 'external';
+  }
   fs.mkdirSync(cfg.dataDir, { recursive: true });
-  process.env.MQ_DATA = cfg.dataDir;
+  process.env.MQ_DATA = cfg.dataDir; process.env.PORT = String(PORT);
   require(path.join(ROOT, 'server.js'));
   for (let i = 0; i < 50; i++) { if (await ping()) return 'internal'; await new Promise(r => setTimeout(r, 200)) }
-  throw new Error('تعذّر تشغيل خادم المكتب على المنفذ 8080. تأكد أن برنامجاً آخر لا يستخدمه، ثم أعد تشغيل ميثاق.');
+  throw new Error(`تعذّر تشغيل خادم المكتب على المنفذ ${PORT}. تأكد أن برنامجاً آخر لا يستخدمه، ثم أعد تشغيل ${ED.name}.`);
 }
 
 function show() { if (!win) return createWindow(); if (win.isMinimized()) win.restore(); win.show(); win.focus() }
