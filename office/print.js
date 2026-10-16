@@ -43,7 +43,8 @@ const B=P.B={
  t:(head,rows,o={})=>`<table class="pt${o.cls?' '+o.cls:''}"><thead><tr>${head.map((x,i)=>`<th${o.w&&o.w[i]?` style="width:${o.w[i]}"`:''}${o.num&&o.num.includes(i)?' class="n"':''}>${e(x)}</th>`).join('')}</tr></thead><tbody>${rows.length?rows.map(r=>`<tr>${r.map((c,i)=>`<td${o.num&&o.num.includes(i)?' class="n"':''}>${c??''}</td>`).join('')}</tr>`).join(''):`<tr><td colspan="${head.length}" class="empty">لا توجد بيانات</td></tr>`}</tbody>${o.foot?`<tfoot><tr>${o.foot.map((c,i)=>`<td${o.num&&o.num.includes(i)?' class="n"':''}>${c??''}</td>`).join('')}</tr></tfoot>`:''}</table>`,
  stats:a=>`<div class="pstats">${a.map(([l,v,c])=>`<div class="${c||''}"><b>${v}</b><span>${e(l)}</span></div>`).join('')}</div>`,
  box:(t,cls)=>`<div class="pbox ${cls||''}">${t}</div>`,
- sp:()=>`<div class="psp"></div>`
+ sp:()=>`<div class="psp"></div>`,
+ br:()=>`<div class="pbr"></div>`
 };
 
 /* ── الرؤوس والتذييل ── */
@@ -83,6 +84,7 @@ function paginate(doc){
  add(true);
  const blocks=[...src.children];
  for(let i=0;i<blocks.length;i++){const b=blocks[i];
+  if(b.classList&&b.classList.contains('pbr')){if(body.children.length)add(false);continue} /* فاصل صفحة صريح */
   body.appendChild(b);
   if(!over())continue;
   if(b.tagName==='TABLE'&&b.classList.contains('pt')&&b.tBodies[0]&&b.tBodies[0].rows.length>1){
@@ -218,6 +220,8 @@ body{margin:0;background:#E9E4DA;font-family:Amiri,'Traditional Arabic','Simplif
 .pp{margin:0 0 2.2mm;line-height:1.9;text-align:justify;text-justify:inter-word;orphans:3;widows:3}
 .pp.c{text-align:center}.pp.b{font-weight:700}.pp.big{font-size:1.25em;font-weight:700;text-align:center;color:#0B1B2B;margin:2mm 0 4mm}.pp.r{text-align:right;font-weight:700}
 .pp.gap{height:2.5mm;margin:0}
+.pp.s{font-size:.82em;color:#6B5B45;overflow-wrap:anywhere}
+.pp.q{border-right:.8mm solid #C9A87A;background:#FBF8F2;padding:2mm 3.5mm;margin:0 0 3mm;font-family:Amiri,serif;font-size:1.05em}
 .psp{height:4mm}
 table{width:100%;border-collapse:collapse;margin:0 0 3mm}
 .kv th{font-family:Cairo,sans-serif;font-size:.64em;font-weight:600;color:#4b5563;text-align:right;white-space:nowrap;padding:1.6mm 2.2mm;background:#F7F2E7;border:.25mm solid #E5DAC6;width:1%}

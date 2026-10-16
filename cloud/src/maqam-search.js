@@ -4,7 +4,7 @@
 // نسخة مطابقة في office/lib/maqam-search.js (CommonJS)
 import * as impl from './maqam-integration.mjs';
 const KEYS = ['q', 'court', 'litigation_type', 'section', 'subject', 'branch', 'year', 'number', 'order_by', 'page'];
-const LIMITS = { search: [30, 60e3], judgment: [20, 60e3], download: [4, 600e3], full: [1, 120e3] };
+const LIMITS = { search: [30, 60e3], judgment: [20, 60e3], download: [4, 600e3], full: [1, 120e3], extract: [6, 600e3] };
 const MAX_BUSY = 3;
 
 const load = async () => impl;
@@ -18,6 +18,25 @@ function createLimiter() {
     a.push(now); hits.set(k, a);
     if (hits.size > 2000) for (const [kk, v] of hits) if (!v.some(t => now - t < 600e3)) hits.delete(kk);
     return 0;
+  };
+}
+
+/* تحويل حكم من المصدر إلى سجل في «مكتبة الاجتهادات» (يُراجعه المحامي ويكتب المبدأ بصياغته) */
+const COURTS = [[/الدستورية/, 'المحكمة الدستورية العليا'], [/النقض/, 'محكمة النقض'], [/العدل العليا|الإدارية العليا/, 'المحكمة العليا'], [/الإدارية/, 'المحكمة الإدارية'],
+  [/الشرعية العليا/, 'المحكمة الشرعية العليا'], [/استئناف.*شرعي|الشرعية.*استئناف/, 'محكمة الاستئناف الشرعية'], [/الجنايات الكبرى/, 'محكمة الجنايات الكبرى'],
+  [/استئناف/, 'محكمة الاستئناف'], [/بداية/, 'محكمة البداية'], [/صلح/, 'محكمة الصلح'], [/العليا/, 'المحكمة العليا']];
+const FIELDS = [[/حقوق/, 'مدني'], [/جزاء|جزائي|جنايات|جنح/, 'جزائي'], [/عمل|عمال/, 'عمالي'], [/إدار/, 'إداري'], [/دستور/, 'دستوري'], [/تنفيذ/, 'تنفيذ'], [/إيجار|مأجور/, 'إيجارات'], [/أراض|عقار/, 'أراضٍ وعقارات'], [/ضريب/, 'ضريبي'], [/تأمين/, 'تأمين'], [/شرعي|أحوال/, 'أحوال شخصية'], [/تجار/, 'تجاري']];
+function toRuling(j, M) {
+  const n = M.normalizeLocalJudgment(j), pick = (L, ...xs) => (L.find(([re]) => xs.some(x => x && re.test(x))) || [null, ''])[1];
+  const court = pick(COURTS, j.court) || 'أخرى';
+  return {
+    maqamId: n.maqamId, title: n.title, court, courtName: j.court || '',
+    no: `${j.litigationType ? j.litigationType + ' ' : ''}${j.number || ''}${j.year ? '/' + j.year : ''}`.trim() || ('حكم ' + n.maqamId),
+    date: n.decisionDateIso || '', field: pick(FIELDS, j.section, j.litigationType, j.subject) || '',
+    keywords: [...new Set([j.subject, j.branch].filter(Boolean))].slice(0, 6),
+    classifications: [j.section, j.subject, j.branch].filter(Boolean).join(' - '),
+    principle: '', summary: '', text: String(n.bodyText || '').slice(0, 200000), snippet: j.snippet || '',
+    src: 'الموسوعة القانونية · جامعة النجاح', srcUrl: n.sourceUrl, extracted: true,
   };
 }
 
@@ -60,6 +79,14 @@ function createService({ audit, now = () => Date.now() } = {}) {
         audit && audit({ ...who, action: 'maqam.download', entity: 'maqam', detail: { q: (f.q || '').slice(0, 120), format: fmt, pages, full, n: bundle.results.length, failed: bundle.failures.length } });
         return { status: 200, file };
       }
+      if (action === 'extract') {
+        /* استخراج صفحة نتائج واحدة مع النص الكامل لكل حكم، لتُحفظ في مكتبة المكتب. صفحة لكل طلب، و6 صفحات كل 10 دقائق */
+        const d = deny('extract'); if (d) return d;
+        const f = filtersOf(sp), bundle = await M.collectJudgments(f, { pages: 1, fullText: sp.get('full') !== '0' });
+        const rulings = bundle.results.map(j => toRuling(j, M));
+        audit && audit({ ...who, action: 'maqam.extract', entity: 'rulings', detail: { q: (f.q || '').slice(0, 120), page: Number(f.page) || 1, n: rulings.length, failed: bundle.failures.length } });
+        return { status: 200, body: { ok: true, page: Number(f.page) || 1, totalPages: bundle.totalPages, rulings, failures: bundle.failures } };
+      }
       return { status: 404, body: { error: 'not found' } };
     } catch (e) {
       audit && audit({ ...who, action: 'maqam.error', entity: 'maqam', detail: { action, error: String(e.message).slice(0, 160) } });
@@ -68,4 +95,4 @@ function createService({ audit, now = () => Date.now() } = {}) {
   };
 }
 
-export { createService, filtersOf, KEYS };
+export { createService, filtersOf, toRuling, KEYS };

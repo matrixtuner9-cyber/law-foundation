@@ -110,3 +110,20 @@ test('الخادم: بلا جلسة 401، ومعها رقم حكم غير صال
     assert.equal((await realFetch(BASE + '/api/admin/maqam/other', { headers: h })).status, 404);
   } finally { if (srv.exitCode === null) { const gone = new Promise(r => srv.once('exit', r)); srv.kill(); await gone } try { fs.rmSync(TMP, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }) } catch (e) {} }
 });
+
+test('الاستخراج إلى مكتبة الاجتهادات: صفحة واحدة بالنص الكامل، محوّلة لسجلات المكتبة، وبحد للطلبات', async () => {
+  stub(); const audits = []; const run = createService({ audit: e => audits.push(e) });
+  const r = await run('extract', sp('q=مطالبة&page=2&court=5'), U);
+  assert.equal(r.status, 200); assert.equal(r.body.page, 2); assert.equal(r.body.totalPages, 3);
+  assert.equal(r.body.rulings.length, 2);
+  const x = r.body.rulings[0];
+  assert.deepEqual([x.maqamId, x.court, x.no, x.date, x.field, x.extracted, x.principle], [10318, 'محكمة النقض', 'طعون حقوقية 12/2020', '2021-03-04', 'مدني', true, '']);
+  assert.ok(x.text.includes('الفقرة الأولى')); assert.equal(x.srcUrl, 'https://maqam.najah.edu/judgments/10318/');
+  assert.ok(!/مقام/.test(x.src), 'اسم المصدر بلا اسم الموقع');
+  assert.deepEqual(x.keywords, ['مطالبة مالية', 'حقوق']);
+  assert.equal(calls.filter(c => /\/judgments\/search\//.test(c)).length, 1, 'صفحة واحدة فقط لكل طلب');
+  assert.equal(new URL(calls[0]).searchParams.get('page'), '2');
+  assert.equal(audits.at(-1).action, 'maqam.extract');
+  for (let i = 0; i < 5; i++) assert.equal((await run('extract', sp('q=x'), U)).status, 200);
+  assert.equal((await run('extract', sp('q=x'), U)).status, 429, '6 صفحات كل 10 دقائق');
+});

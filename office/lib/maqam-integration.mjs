@@ -1,20 +1,25 @@
 /*
+ * (النسخة الموحدة المرفقة؛ التعديلات: User-Agent يعرّف ميثاق بصدق، والنصوص العربية بلا اسم الموقع. نسخة مطابقة في cloud/src/maqam-integration.mjs)
  * Maqam judgment search — portable, server-side ES module.
- * (النسخة المرفقة كما وصلت؛ التعديلات: User-Agent يعرّف ميثاق بصدق،. نسخة مطابقة في cloud/src/maqam-integration.mjs)
  * Source: https://maqam.najah.edu/judgments/
  *
  * Requires: Node.js 20+ and `npm install cheerio` in the host application.
  * Never import this file into a browser component: Maqam's HTML must be fetched
  * on the server, where you can enforce your application's own authentication.
  *
- * import { searchJudgments, getJudgment, collectJudgments, buildDownload } from './maqam-integration.mjs';
- * const page = await searchJudgments({ q: 'مطالبة مالية', court: 5, page: 1 });
- * const judgment = await getJudgment(page.results[0].maqamId);
- * const bundle = await collectJudgments({ q: 'مطالبة مالية' }, { pages: 2, fullText: true });
- * const file = buildDownload(bundle, 'html'); // { body, contentType, filename }
+ * import { collectJudgments, normalizeLocalJudgment, searchLocalJudgments,
+ *          buildPrintHtml, buildWhatsAppUrl } from './maqam-integration.mjs';
+ * const bundle = await collectJudgments({ q: 'مطالبة مالية' }, { pages: 1, fullText: true });
+ * const records = bundle.results.map(normalizeLocalJudgment);
+ * // Persist records with your app's database (e.g. PostgreSQL via Drizzle).
+ * const local = searchLocalJudgments(records, { q: 'المطالبة المالية', mode: 'all' });
+ * const printable = buildPrintHtml(local.results, { template: 'brief' });
+ * const shareUrl = buildWhatsAppUrl(local.results);
  *
- * This module does not contain credentials, bypass access restrictions, or
- * save user data. Verify Maqam's terms and attribute every result to its source.
+ * This module does NOT save to disk/database by itself or bypass access
+ * restrictions. For persistence, inject your own store into importToArchive()
+ * or save normalized records in your existing app's database. Verify Maqam's
+ * terms and attribute every judgment to its original source.
  */
 import { load } from 'cheerio';
 
@@ -324,4 +329,239 @@ export function buildDownload(bundle, format = 'html') {
     contentType: 'application/json; charset=utf-8', filename: `maqam-results-${date}.json`,
   };
   throw new Error('الصيغة غير مدعومة. استخدم html أو csv أو json');
+}
+
+// The functions below never fetch from Maqam except importToArchive() and
+// importOneToArchive(). Search, print and WhatsApp use ONLY records you pass in.
+const arabicDigits = '٠١٢٣٤٥٦٧٨٩';
+const persianDigits = '۰۱۲۳۴۵۶۷۸۹';
+function asciiDigits(value) {
+  return String(value ?? '').replace(/[٠-٩۰-۹]/g, (char) => {
+    const index = arabicDigits.indexOf(char);
+    return String(index < 0 ? persianDigits.indexOf(char) : index);
+  });
+}
+
+/** Normalize Arabic letters, diacritics and Arabic/Persian digits for local search. */
+export function normalizeArabic(value) {
+  return asciiDigits(value).normalize('NFKC')
+    .replace(/[\u064b-\u065f\u0670\u06d6-\u06ed\u0640]/g, '')
+    .replace(/[أإآٱ]/g, 'ا').replace(/ؤ/g, 'و').replace(/ئ/g, 'ي')
+    .replace(/[ىی]/g, 'ي').replace(/ة/g, 'ه').replace(/[کگ]/g, 'ك')
+    .replace(/[^\p{L}\p{N}]+/gu, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function dateFromRecord(item) {
+  const value = asciiDigits(item.decisionDateIso ?? item.decisionDate ?? '');
+  const candidate = value.match(/\b\d{4}-\d{2}-\d{2}\b/)?.[0]
+    ?? asciiDigits(item.title).match(/بتاريخ\s*(\d{4}-\d{2}-\d{2})/)?.[1];
+  if (!candidate) return null;
+  const parsed = new Date(`${candidate}T00:00:00Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === candidate ? candidate : null;
+}
+
+/** Prepare a public judgment for storage in YOUR application's database. */
+export function normalizeLocalJudgment(item) {
+  const maqamId = positiveNumber(item?.maqamId);
+  if (!maqamId || maqamId > 10000000) throw new Error('معرّف الحكم غير صحيح');
+  const title = clean(item.title);
+  const bodyText = String(item.bodyText ?? '');
+  const searchTitle = normalizeArabic(title);
+  const searchBody = normalizeArabic(bodyText.slice(0, 250000));
+  const searchText = normalizeArabic([
+    title, item.number, item.year, item.court, item.litigationType,
+    item.section, item.subject, item.branch, item.snippet, bodyText.slice(0, 250000),
+  ].filter(Boolean).join(' '));
+  return {
+    ...item,
+    maqamId,
+    title,
+    bodyText: bodyText || null,
+    sourceUrl: `${MAQAM_BASE}/judgments/${maqamId}/`,
+    decisionDateIso: dateFromRecord(item),
+    searchTitle,
+    searchBody,
+    searchText,
+    indexedAt: item.indexedAt ?? new Date().toISOString(),
+  };
+}
+
+/**
+ * Search records read from YOUR local database; never contacts Maqam.
+ * mode=all|any|exact; field=all|title|body; sort=relevance|newest|oldest|added.
+ * For very large archives, use a PostgreSQL GIN full-text index instead of
+ * loading the entire table into memory (see this bundle's README).
+ */
+export function searchLocalJudgments(records, filters = {}) {
+  if (!Array.isArray(records)) throw new TypeError('السجلات المحلية يجب أن تكون مصفوفة');
+  const q = normalizeArabic(filters.q ?? '').slice(0, 160);
+  const words = [...new Set(q.split(' ').filter(Boolean))].slice(0, 12);
+  const variants = words.map((word) => word.startsWith('ال') && word.length > 4
+    ? [word, word.slice(2)] : [word]);
+  const withoutArticles = (value) => value.replace(/(^| )ال(?=[\p{L}]{3,})/gu, '$1');
+  const mode = ['all', 'any', 'exact'].includes(filters.mode) ? filters.mode : 'all';
+  const field = ['all', 'title', 'body'].includes(filters.field) ? filters.field : 'all';
+  const sort = ['relevance', 'newest', 'oldest', 'added'].includes(filters.sort) ? filters.sort : 'relevance';
+  const facets = {
+    court: ['courtId', 'court'], litigation_type: ['litigationTypeId', 'litigationType'],
+    section: ['sectionId', 'section'], subject: ['subjectId', 'subject'], branch: ['branchId', 'branch'],
+  };
+  const from = /^\d{4}-\d{2}-\d{2}$/.test(asciiDigits(filters.from ?? '')) ? asciiDigits(filters.from) : null;
+  const to = /^\d{4}-\d{2}-\d{2}$/.test(asciiDigits(filters.to ?? '')) ? asciiDigits(filters.to) : null;
+  const matches = [];
+
+  for (const input of records) {
+    const item = input.searchText !== undefined ? input : normalizeLocalJudgment(input);
+    const text = field === 'title' ? item.searchTitle : field === 'body' ? item.searchBody : item.searchText;
+    const hasWord = (choices) => choices.some((word) => text.includes(word));
+    if (q && !(mode === 'exact' ? withoutArticles(text).includes(withoutArticles(q))
+      : mode === 'any' ? variants.some(hasWord) : variants.every(hasWord))) continue;
+    if (filters.full === true || filters.full === '1') {
+      if (!item.bodyText || item.bodyText.length < 100) continue;
+    }
+    if (filters.year && asciiDigits(item.year ?? '') !== asciiDigits(filters.year)) continue;
+    if (filters.number && asciiDigits(item.number ?? '') !== asciiDigits(filters.number)) continue;
+    const iso = item.decisionDateIso ?? dateFromRecord(item);
+    if (from && (!iso || iso < from)) continue;
+    if (to && (!iso || iso > to)) continue;
+    let rejected = false;
+    for (const [key, [idKey, nameKey]] of Object.entries(facets)) {
+      const filter = filters[key];
+      if (filter === undefined || filter === null || filter === '') continue;
+      if (/^\d+$/.test(asciiDigits(filter))) {
+        if (Number(item[idKey]) !== Number(asciiDigits(filter))) rejected = true;
+      } else if (normalizeArabic(item[nameKey]) !== normalizeArabic(filter)) rejected = true;
+    }
+    if (rejected) continue;
+    const titleText = item.searchTitle ?? normalizeArabic(item.title);
+    const body = item.searchBody ?? normalizeArabic(item.bodyText);
+    const rank = q ? (withoutArticles(titleText).includes(withoutArticles(q)) ? 10 : 0)
+      + variants.reduce((score, choices) => score
+        + (choices.some((word) => titleText.includes(word)) ? 5 : 0)
+        + (choices.some((word) => body.includes(word)) ? 1 : 0), 0) : 0;
+    matches.push({ item, rank, iso: iso ?? '', indexedAt: item.indexedAt ?? '' });
+  }
+
+  matches.sort((a, b) => {
+    if (sort === 'added') return b.indexedAt.localeCompare(a.indexedAt) || b.item.maqamId - a.item.maqamId;
+    if (sort === 'relevance' && q && b.rank !== a.rank) return b.rank - a.rank;
+    if (sort === 'oldest') return (a.iso || '9999').localeCompare(b.iso || '9999') || a.item.maqamId - b.item.maqamId;
+    return b.iso.localeCompare(a.iso) || b.item.maqamId - a.item.maqamId;
+  });
+  const pageSize = Math.min(positiveNumber(filters.pageSize, 12), 100);
+  const total = matches.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const page = Math.min(positiveNumber(filters.page, 1), totalPages);
+  return { results: matches.slice((page - 1) * pageSize, page * pageSize).map(({ item }) => item), total, page, pageSize, totalPages };
+}
+
+/**
+ * Extract up to five pages and persist them via an injected storage adapter.
+ * `storage.upsertMany(records)` must save/upsert by (userId, maqamId) in the
+ * host app's database. The module deliberately does not create shared tables.
+ */
+export async function importToArchive(filters = {}, options = {}, storage) {
+  if (typeof storage?.upsertMany !== 'function') throw new Error('يلزم توفير storage.upsertMany لحفظ الأحكام محليًا');
+  const bundle = await collectJudgments(filters, options);
+  const records = bundle.results.map(normalizeLocalJudgment);
+  if (records.length) await storage.upsertMany(records);
+  return { ...bundle, saved: records.length, records };
+}
+
+/** Import one decision into the same adapter, including its full text. */
+export async function importOneToArchive(id, storage) {
+  if (typeof storage?.upsertMany !== 'function') throw new Error('يلزم توفير storage.upsertMany');
+  const record = normalizeLocalJudgment(await getJudgment(id));
+  await storage.upsertMany([record]);
+  return record;
+}
+
+/** In-memory adapter for testing only; it is NOT persistent across restarts. */
+export function createMemoryArchive() {
+  const data = new Map();
+  return {
+    async upsertMany(records) {
+      for (const item of records) {
+        const existing = data.get(item.maqamId);
+        data.set(item.maqamId, { ...existing, ...item,
+          bodyText: item.bodyText || existing?.bodyText || null,
+          searchBody: item.bodyText ? item.searchBody : existing?.searchBody ?? '',
+          searchText: item.bodyText ? item.searchText : [item.searchText, existing?.searchBody].filter(Boolean).join(' '),
+        });
+      }
+    },
+    async list() { return [...data.values()]; },
+    async getById(id) { return data.get(Number(id)) ?? null; },
+  };
+}
+
+/** WhatsApp shares a citation and the ORIGINAL public URL, never private notes. */
+export function buildWhatsAppMessage(items, options = {}) {
+  if (!Array.isArray(items) || !items.length) throw new Error('اختر حكمًا واحدًا على الأقل');
+  const intro = String(options.introduction ?? '').trim().slice(0, 400);
+  const citations = items.slice(0, 5).map((item, index) => {
+    const id = positiveNumber(item.maqamId);
+    if (!id) throw new Error('معرّف الحكم غير صحيح');
+    return [
+      `${index + 1}. ${clean(item.title).slice(0, 250)}`,
+      item.court ? `المحكمة: ${clean(item.court)}` : null,
+      item.number && item.year ? `رقم القضية: ${item.number}/${item.year}` : null,
+      item.decisionDateIso || item.decisionDate ? `تاريخ القرار: ${item.decisionDateIso ?? item.decisionDate}` : null,
+      `المصدر: ${MAQAM_BASE}/judgments/${id}/`,
+    ].filter(Boolean).join('\n');
+  });
+  return ['⚖️ مراجع قضائية فلسطينية', intro || null, ...citations,
+    'المرجع: الموسوعة القانونية – جامعة النجاح. راجع النص الأصلي قبل الاستشهاد.'].filter(Boolean).join('\n\n');
+}
+
+export function buildWhatsAppUrl(items, options = {}) {
+  const phone = asciiDigits(options.phone ?? '').replace(/[^0-9]/g, '');
+  if (phone && (phone.length < 8 || phone.length > 15)) throw new Error('رقم واتساب الدولي غير صحيح');
+  return `https://wa.me/${phone}?text=${encodeURIComponent(buildWhatsAppMessage(items, options))}`;
+}
+
+/** Offline, A4-printable HTML: brief legal memo, complete decisions, or citations. */
+export function buildPrintHtml(items, options = {}) {
+  if (!Array.isArray(items) || items.length < 1 || items.length > 10) {
+    throw new Error('اختر من حكم واحد إلى عشرة أحكام للطباعة');
+  }
+  const template = ['brief', 'full', 'list'].includes(options.template) ? options.template : 'brief';
+  const heading = template === 'full' ? 'ملف الأحكام القضائية'
+    : template === 'list' ? 'كشف مراجع الأحكام القضائية' : 'مذكرة استشهاد بأحكام قضائية';
+  const source = (item) => `${MAQAM_BASE}/judgments/${positiveNumber(item.maqamId)}/`;
+  const citation = (item) => [item.court ?? 'المحكمة', item.number && item.year
+    ? `رقم ${item.number}/${item.year}` : `حكم ${item.maqamId}`, item.decisionDateIso ?? item.decisionDate]
+    .filter(Boolean).map(escapeHtml).join(' · ');
+  let content;
+  if (template === 'list') {
+    content = `<table><thead><tr><th>#</th><th>رقم القضية</th><th>المحكمة</th><th>التاريخ</th><th>التصنيف</th></tr></thead><tbody>${items.map((item, i) =>
+      `<tr><td>${i + 1}</td><td>${escapeHtml(item.number && item.year ? `${item.number}/${item.year}` : item.maqamId)}</td><td>${escapeHtml(item.court ?? '—')}</td><td>${escapeHtml(item.decisionDateIso ?? item.decisionDate ?? '—')}</td><td>${escapeHtml(item.branch ?? item.subject ?? '—')}</td></tr>`).join('')}</tbody></table>`;
+    content += `<p class="source">المصادر: ${items.map((item, i) => `${i + 1}. ${escapeHtml(source(item))}`).join('<br>')}</p>`;
+  } else if (template === 'full') {
+    content = items.map((item, i) => `<article class="full ${i ? 'new-page' : ''}"><h2>${escapeHtml(item.title)}</h2>
+<p class="meta">${citation(item)}</p><div class="body">${escapeHtml(item.bodyText || item.snippet || 'النص الكامل غير محفوظ محليًا؛ راجع المصدر الأصلي.')}</div>
+<p class="source">المصدر: ${escapeHtml(source(item))}</p></article>`).join('\n');
+  } else {
+    content = items.map((item, i) => `<article class="brief"><h2>${i + 1}. ${citation(item)}</h2>
+<p>${escapeHtml(item.title)}</p><blockquote>«${escapeHtml(String(item.bodyText || item.snippet || 'راجع الحكم الأصلي').replace(/\s+/g, ' ').slice(0, 470))}»</blockquote>
+<p class="source">المصدر: ${escapeHtml(source(item))}</p></article>`).join('\n');
+  }
+  const note = String(options.note ?? '').trim().slice(0, 1800);
+  return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${heading}</title><style>
+@page{size:A4;margin:16mm}*{box-sizing:border-box}body{font:14px/2 system-ui,"Segoe UI",Tahoma,sans-serif;color:#172b25;background:#f6f9f7;margin:0}
+main{max-width:210mm;margin:auto;padding:25px;background:#fff;min-height:297mm}header{border-bottom:3px solid #0b6b53;padding-bottom:15px}header h1{text-align:center;font-size:21px;margin:14px 0 0}
+.meta,.source,footer{color:#596a65;font-size:11px}.source{overflow-wrap:anywhere}.toolbar{max-width:210mm;margin:14px auto}.toolbar button{background:#0b6b53;color:white;border:0;border-radius:7px;padding:9px 18px;cursor:pointer}
+article{padding:16px 0;border-bottom:1px solid #e0e8e3}article.brief{break-inside:avoid}article h2{font-size:15px;color:#0b6b53;margin:0}.body{white-space:pre-wrap;line-height:2.2}blockquote{border-right:3px solid #9bb8a9;margin:10px 0;padding:8px 12px;background:#f7faf7}
+table{width:100%;border-collapse:collapse;margin:20px 0;font-size:12px;text-align:right}td,th{border:1px solid #d6e1da;padding:7px}th{background:#0b6b53;color:white}
+footer{border-top:1px solid #ddd;margin-top:28px;padding-top:10px}.new-page{break-before:page}
+@media print{body{background:white}main{padding:0;max-width:none;min-height:0}.toolbar{display:none}}
+</style></head><body><div class="toolbar"><button type="button" onclick="window.print()">طباعة / حفظ PDF</button></div><main>
+<header><strong>${escapeHtml(options.office ?? 'مكتب المحاماة')}</strong><h1>${heading}</h1>
+${options.caseRef ? `<p>مرجع الملف: ${escapeHtml(options.caseRef)}</p>` : ''}
+${options.recipient ? `<p>إلى: ${escapeHtml(options.recipient)}</p>` : ''}
+<p class="meta">تاريخ الإعداد: ${escapeHtml(new Date().toISOString().slice(0, 10))} · عدد الأحكام: ${items.length}</p></header>
+${note ? `<blockquote>${escapeHtml(note)}</blockquote>` : ''}${content}
+<footer>المصدر: الموسوعة القانونية – جامعة النجاح الوطنية. يرجى مطابقة النص مع الحكم الأصلي.
+${options.preparedBy ? `<br>إعداد: ${escapeHtml(options.preparedBy)}` : ''}</footer></main></body></html>`;
 }
