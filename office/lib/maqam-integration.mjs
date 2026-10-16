@@ -1,6 +1,6 @@
 /*
  * Maqam judgment search — portable, server-side ES module.
- * (النسخة المرفقة كما وصلت؛ التعديل الوحيد: User-Agent يعرّف ميثاق بصدق. نسخة مطابقة في cloud/src/maqam-integration.mjs)
+ * (النسخة المرفقة كما وصلت؛ التعديلات: User-Agent يعرّف ميثاق بصدق،. نسخة مطابقة في cloud/src/maqam-integration.mjs)
  * Source: https://maqam.najah.edu/judgments/
  *
  * Requires: Node.js 20+ and `npm install cheerio` in the host application.
@@ -66,7 +66,7 @@ async function fetchPage(url, timeoutMs = 25000) {
       cache: 'no-store',
     });
   } catch (error) {
-    throw new Error(`تعذر الاتصال بموقع مقام: ${error instanceof Error ? error.message : 'انتهت المهلة'}`);
+    throw new Error(`تعذر الاتصال بالموقع المصدر: ${error instanceof Error ? error.message : 'انتهت المهلة'}`);
   }
   const html = await response.text();
   return { status: response.status, html };
@@ -146,7 +146,7 @@ export async function searchJudgments(filters = {}) {
   if (status === 404 || (status === 500 && html.includes('VariableDoesNotExist'))) {
     return { results: [], page, totalPages: 1, sourceUrl };
   }
-  if (status !== 200) throw new Error(`تعذر البحث في موقع مقام (رمز ${status})`);
+  if (status !== 200) throw new Error(`تعذر البحث في الموقع المصدر (رمز ${status})`);
   const parsed = parseSearchPage(html, page);
   return { ...parsed, sourceUrl };
 }
@@ -169,7 +169,7 @@ export function parseJudgmentPage(html, maqamId) {
     .first().closest('div.card').find('div.card-body').first();
   const paragraphs = body.find('p, li, blockquote').map((_, el) => clean($(el).text())).get().filter(Boolean);
   const bodyText = paragraphs.length ? paragraphs.join('\n\n') : clean(body.text());
-  if (bodyText.length < 30) throw new Error(`النص الكامل للحكم ${maqamId} غير متاح على موقع مقام`);
+  if (bodyText.length < 30) throw new Error(`النص الكامل للحكم ${maqamId} غير متاح على الموقع المصدر`);
 
   const classification = {};
   body.closest('div.col-lg-9').find('div.card.bg-light ul.list-unstyled a[href^="/judgments/search/"]')
@@ -278,7 +278,7 @@ ${body}
 
   return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>نتائج البحث في الأحكام القضائية – مقام</title>
+<title>نتائج البحث في الأحكام القضائية</title>
 <style>
 :root{color-scheme:light}*{box-sizing:border-box}body{margin:0;background:#f7f9f8;color:#1c2826;font:15px/1.95 system-ui,"Segoe UI",Tahoma,sans-serif}
 main{max-width:960px;margin:auto;padding:30px 20px 70px}header{border-bottom:3px solid #0b6b53;padding-bottom:16px;margin-bottom:22px}h1{font-size:1.6rem;margin:0}header p{color:#526560;margin:3px 0;font-size:.86rem}
@@ -290,7 +290,7 @@ h2{font-size:1rem;margin:0 0 8px}.badges{display:flex;gap:6px;flex-wrap:wrap}.ba
 @media print{body{background:white}button{display:none}main{padding:0}article{box-shadow:none}}
 </style></head><body><main>
 <header><h1>نتائج البحث في الأحكام القضائية</h1>
-<p>المصدر: موسوعة مقام القانونية – جامعة النجاح الوطنية</p>
+<p>المصدر: الموسوعة القانونية – جامعة النجاح الوطنية</p>
 <p>عدد النتائج: ${items.length} · صفحات جُلبت: ${Number(bundle.fetchedPages ?? 1)} · تاريخ التحميل: ${escapeHtml(new Date().toLocaleString('ar-EG'))}</p>
 ${bundle.failures?.length ? `<p>تعذّر جلب النص الكامل لـ ${bundle.failures.length} حكم؛ الروابط الأصلية متاحة أدناه.</p>` : ''}
 </header><button type="button" onclick="window.print()">طباعة / حفظ PDF</button>
@@ -301,7 +301,7 @@ ${cards || '<p>لا توجد نتائج مطابقة.</p>'}
 
 /** Excel-compatible, UTF-8 BOM CSV. */
 export function toCsv(bundle) {
-  const columns = ['رقم مقام', 'عنوان الحكم', 'رقم القضية', 'السنة', 'تاريخ الفصل', 'المحكمة', 'نوع التقاضي', 'القسم', 'الموضوع', 'الفرع', 'الرابط', 'مقتطف', 'النص الكامل'];
+  const columns = ['رقم الحكم في المصدر', 'عنوان الحكم', 'رقم القضية', 'السنة', 'تاريخ الفصل', 'المحكمة', 'نوع التقاضي', 'القسم', 'الموضوع', 'الفرع', 'الرابط', 'مقتطف', 'النص الكامل'];
   const cell = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
   const lines = [columns.map(cell).join(',')];
   for (const item of bundle.results ?? []) {

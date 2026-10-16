@@ -64,7 +64,7 @@ test('الحكم: النص الكامل والبيانات، ورقم غير ص�
 
 test('أخطاء مقام تعود برسالة واضحة دون انهيار الخادم', async () => {
   const run = createService();
-  stub({ fail: true }); let r = await run('search', sp('q=x'), U); assert.equal(r.status, 502); assert.match(r.body.error, /تعذر الاتصال بموقع مقام/);
+  stub({ fail: true }); let r = await run('search', sp('q=x'), U); assert.equal(r.status, 502); assert.match(r.body.error, /تعذر الاتصال بالموقع المصدر/);
   stub({ status: 503 }); r = await run('search', sp('q=x'), U); assert.equal(r.status, 502); assert.match(r.body.error, /503/);
   stub({ status: 404 }); r = await run('search', sp('q=x'), U); assert.equal(r.status, 200); assert.deepEqual(r.body.results, []);
   stub({ judgStatus: 404 }); r = await run('judgment', sp('id=5'), U); assert.equal(r.status, 502);
@@ -80,7 +80,7 @@ test('حد الطلبات لكل مستخدم: 30 بحثاً في الدقيقة
 test('التنزيل: html وcsv وjson بصفحات محدودة، والنص الكامل صفحتان كحد أقصى ومرة كل دقيقتين', async () => {
   stub(); const run = createService();
   let r = await run('download', sp('q=x&format=csv&pages=9'), U);
-  assert.equal(r.status, 200); assert.match(r.file.contentType, /text\/csv/); assert.ok(r.file.body.startsWith('﻿"رقم مقام"')); assert.match(r.file.filename, /^maqam-results-\d{4}-\d{2}-\d{2}\.csv$/);
+  assert.equal(r.status, 200); assert.match(r.file.contentType, /text\/csv/); assert.ok(r.file.body.startsWith('﻿"رقم الحكم في المصدر"')); assert.match(r.file.filename, /^maqam-results-\d{4}-\d{2}-\d{2}\.csv$/);
   assert.ok(calls.length <= 3, 'الصفحات تتوقف عند آخر صفحة (3) رغم طلب 9: ' + calls.length);
   r = await run('download', sp('q=x&format=html'), U); assert.match(r.file.body, /<html lang="ar" dir="rtl">/); assert.match(r.file.body, /المصدر: <a href="https:\/\/maqam\.najah\.edu\/judgments\/10318\//);
   r = await run('download', sp('q=x&format=nope'), U); assert.match(r.file.contentType, /text\/html/, 'صيغة مجهولة ترجع إلى html');
