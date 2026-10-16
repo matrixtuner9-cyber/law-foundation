@@ -57,7 +57,7 @@ function card(r){
   <div class="toolbar"><button class="btn sm" data-act="msOpen" data-v="${r.maqamId}">${open?'إخفاء النص':'عرض النص الكامل'}</button>${can2('write')?(lib?`<button class="btn sm" data-act="rOpen" data-v="${e(lib.id)}">في المكتبة ✓</button>`:`<button class="btn sm pri" data-act="rImportUrl" data-v="${src}">استيراد للمكتبة</button>`):''}<a class="btn sm" href="${src}" target="_blank" rel="noopener noreferrer">المصدر ↗</a></div></header>
   <div class="bd"><div class="rl-p">${hl(r.title,MS.q)}</div><div class="chips ms-bs">${badges(r)}</div>
   ${r.snippet?`<div class="ms-sn">${hl(r.snippet,MS.q)}</div>`:''}
-  ${open?(d==='loading'?'<div class="ms-load">جارٍ جلب النص الكامل من الموقع المصدر…</div>':d&&d.error?`<div class="note" style="color:var(--danger)">${e(d.error)}</div>`:d?`<div class="ms-meta m">${[d.court,d.litigationType,d.section,d.subject,d.branch].filter(Boolean).map(e).join(' · ')}</div><div class="rl-t ms-t">${hl(d.bodyText,MS.q)}</div>`:''):''}
+  ${open?(d==='loading'?'<div class="ms-load">جارٍ جلب النص الكامل من الموقع المصدر…</div>':d&&d.error?`<div class="note" style="color:var(--danger)">${e(d.error)}</div>`:d?`<div class="ms-meta m">${[d.court,d.litigationType,d.section,d.subject,d.branch].filter(Boolean).map(e).join(' · ')}</div><div class="ms-t">${String(d.bodyText||'').split(/\n{2,}/).map(x=>x.trim()).filter(Boolean).map(x=>`<p>${hl(x,MS.q)}</p>`).join('')}</div>`:''):''}
   </div></section>`;
 }
 
@@ -146,7 +146,7 @@ const css=document.createElement('style');css.textContent=`
 .ms-bs{margin-top:8px}
 .ms-sn{margin-top:10px;padding:8px 12px;border-right:3px solid var(--brass);background:var(--sunk);border-radius:6px;line-height:1.85}
 .ms-card mark{background:var(--warn-soft);color:inherit;padding:0 2px;border-radius:3px}
-.ms-t{max-height:520px}.ms-meta{margin-top:10px}
+.ms-t{margin-top:10px;padding:14px 18px;background:var(--sunk);border-radius:8px;max-height:560px;overflow:auto;font-size:15.5px;line-height:1.95;color:var(--ink)}.ms-t p{margin:0 0 8px;white-space:pre-wrap}.ms-meta{margin-top:10px}
 .ms-load{color:var(--muted);text-align:center;padding:18px}
 .ms-top a{color:var(--accent);font-weight:600}.ms-top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;margin:2px 4px 10px}
 .ms-dl{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.ms-dl .field{width:auto;min-width:130px}
