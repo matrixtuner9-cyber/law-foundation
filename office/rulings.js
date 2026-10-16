@@ -64,7 +64,7 @@ V.rulings=()=>{
   <select class="field" id="rField"><option value="">كل الفروع</option>${FIELDS.map(c=>`<option ${RS.field===c?'selected':''}>${c}</option>`).join('')}</select>
   <select class="field" id="rSort"><option value="rel" ${RS.sort==='rel'?'selected':''}>الأقرب للبحث</option><option value="date" ${RS.sort==='date'?'selected':''}>الأحدث</option></select>
  </div>
- <div class="rl-src"><span class="m">ابحث في المصادر العامة:</span><button class="chip" data-act="nav" data-v="maqamsearch">بحث مباشر في مقام ←</button>${SOURCES.map(s=>`<a class="chip" target="_blank" rel="noopener" href="${s[2]}" data-act="rSrc" data-v="${s[0]}">${s[1]} ↗</a>`).join('')}<span class="m">يُفتح الموقع في نافذة جديدة وتُنسخ عبارة البحث لتلصقها هناك. لا يُنسخ أي محتوى من هذه المواقع إلى النظام.</span></div></section>
+ <div class="rl-src"><span class="m">ابحث في المصادر العامة:</span><button class="chip" data-act="nav" data-v="maqamsearch">بحث مباشر في الأحكام ←</button>${SOURCES.map(s=>`<a class="chip" target="_blank" rel="noopener" href="${s[2]}" data-act="rSrc" data-v="${s[0]}">${s[1]} ↗</a>`).join('')}<span class="m">يُفتح الموقع في نافذة جديدة وتُنسخ عبارة البحث لتلصقها هناك. لا يُنسخ أي محتوى من هذه المواقع إلى النظام.</span></div></section>
  <div id="rlRes">${results(rs)}</div>`;
 };
 function results(rs){

@@ -1,4 +1,4 @@
-// اختبارات شاشة «البحث في مقام»: طبقة الخادم فوق السكريبت المرفق، بصفحات مصطنعة وجلب مُستبدل (لا اتصال بمقام)
+// اختبارات شاشة «البحث في الأحكام»: طبقة الخادم فوق السكريبت المرفق، بصفحات مصطنعة وجلب مُستبدل (لا اتصال بالموقع)
 // التشغيل: node --test office/tests
 'use strict';
 const { test, before, after } = require('node:test');
@@ -62,7 +62,7 @@ test('الحكم: النص الكامل والبيانات، ورقم غير ص�
   assert.equal(r.body.judgment.branch, 'حقوق'); assert.equal(calls[0], 'https://maqam.najah.edu/judgments/10318/');
 });
 
-test('أخطاء مقام تعود برسالة واضحة دون انهيار الخادم', async () => {
+test('أخطاء الموقع المصدر تعود برسالة واضحة دون انهيار الخادم', async () => {
   const run = createService();
   stub({ fail: true }); let r = await run('search', sp('q=x'), U); assert.equal(r.status, 502); assert.match(r.body.error, /تعذر الاتصال بالموقع المصدر/);
   stub({ status: 503 }); r = await run('search', sp('q=x'), U); assert.equal(r.status, 502); assert.match(r.body.error, /503/);

@@ -1,5 +1,5 @@
-// «البحث في مقام»: طبقة الخادم فوق السكريبت المرفق (lib/maqam-integration.mjs).
-// يبحث المحامي بنفسه (طلب لكل ضغطة بحث) في صفحات الأحكام العامة؛ لا جلب آلي ولا مجدول ولا تخزين لنتائج مقام.
+// «البحث في الأحكام»: طبقة الخادم فوق السكريبت المرفق (lib/maqam-integration.mjs).
+// يبحث المحامي بنفسه (طلب لكل ضغطة بحث) في صفحات الأحكام العامة؛ لا جلب آلي ولا مجدول ولا تخزين للنتائج.
 // الحماية: جلسة موظف إلزامية (في الخادم)، حدود طلبات لكل مستخدم، سقف للطلبات المتزامنة، وتنزيل النص الكامل محدود.
 // نسخة مطابقة في cloud/src/maqam-search.js (ESM)
 'use strict';
@@ -11,7 +11,7 @@ let impl = null;
 async function load() {
   if (impl) return impl;
   try { impl = await import('./maqam-integration.mjs') }
-  catch (e) { throw Object.assign(new Error('مكوّن البحث في مقام غير مثبّت على هذا الخادم (cheerio). شغّل: npm install'), { status: 501 }) }
+  catch (e) { throw Object.assign(new Error('مكوّن البحث في الأحكام غير مثبّت على هذا الخادم (cheerio). شغّل: npm install'), { status: 501 }) }
   return impl;
 }
 

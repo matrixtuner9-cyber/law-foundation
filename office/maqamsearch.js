@@ -1,7 +1,7 @@
-/* ── البحث في مقام ──
-   شاشة تبحث مباشرة في صفحات الأحكام العامة لموسوعة مقام (جامعة النجاح) عبر خادم المكتب، بالسكريبت المرفق (lib/maqam-integration.mjs).
+/* ── البحث في الأحكام ──
+   شاشة تبحث مباشرة في صفحات الأحكام العامة للموسوعة القانونية (جامعة النجاح) عبر خادم المكتب، بالسكريبت المرفق (lib/maqam-integration.mjs).
    يبحث المحامي بنفسه (طلب لكل ضغطة بحث) بالنص والمحكمة والتصنيف والسنة ورقم القضية، ويقرأ النص الكامل لحكم يختاره،
-   وينزّل النتائج (HTML/CSV/JSON)، ويستورد أي حكم لمكتبة الاجتهادات مع رابط مصدره. لا جلب آلي ولا تخزين لنتائج مقام. */
+   وينزّل النتائج (HTML/CSV/JSON)، ويستورد أي حكم لمكتبة الاجتهادات مع رابط مصدره. لا جلب آلي ولا تخزين للنتائج. */
 (function(){
 const e=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const can2=w=>!!(window.MQ&&MQ.user&&({admin:{write:1,manage:1},lawyer:{write:1}}[MQ.user.role]||{})[w]);
@@ -9,7 +9,7 @@ const FACETS=[['court','المحكمة'],['litigation_type','نوع التقاض
 const CAMEL={court:['court','courtId'],litigation_type:['litigationType','litigationTypeId'],section:['section','sectionId'],subject:['subject','subjectId'],branch:['branch','branchId']};
 const MS={q:'',year:'',number:'',order:'relevance',facets:{},page:1,data:null,busy:false,err:'',open:null,detail:{},dl:{format:'html',pages:1,full:false},dlBusy:false};
 
-const NAV_I=NAV.findIndex(n=>n[0]==='rulings');NAV.splice(NAV_I+1,0,['maqamsearch','البحث في مقام']);
+const NAV_I=NAV.findIndex(n=>n[0]==='rulings');NAV.splice(NAV_I+1,0,['maqamsearch','البحث في الأحكام']);
 if(window.NAV_ICON)NAV_ICON.maqamsearch='<svg viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6"/><path d="m15 15 5 5"/><path d="M8.2 10.5h4.6M10.5 8.2v4.6"/></svg>';
 
 function params(page){
@@ -29,7 +29,7 @@ async function call(path,p){
 }
 async function jsonCall(path,p){
  const r=await call(path,p),j=await r.json().catch(()=>({}));
- if(!r.ok)throw new Error(j.error||'تعذّر الاتصال بموقع مقام');return j;
+ if(!r.ok)throw new Error(j.error||'تعذّر الاتصال بالموقع المصدر');return j;
 }
 const hasFilter=()=>MS.q.trim()||MS.year.trim()||MS.number.trim()||Object.keys(MS.facets).length;
 
@@ -54,10 +54,10 @@ function hl(t,q){t=e(t);const ws=(window.MQ_rnorm?MQ_rnorm(q):q||'').split(' ').
 function card(r){
  const d=MS.detail[r.maqamId],open=MS.open===r.maqamId,lib=inLib(r),src='https://maqam.najah.edu/judgments/'+r.maqamId+'/';
  return `<section class="panel rl-card ms-card" id="ms_${r.maqamId}"><header><div class="rl-h">${r.court?`<span class="pill mz">${e(r.court)}</span>`:''}<span class="mono">${r.number?e(r.number)+'/'+e(r.year||''):''}</span><span class="m">${r.decisionDate?(typeof dmy==='function'?dmy(r.decisionDate):e(r.decisionDate)):''}</span></div>
-  <div class="toolbar"><button class="btn sm" data-act="msOpen" data-v="${r.maqamId}">${open?'إخفاء النص':'عرض النص الكامل'}</button>${can2('write')?(lib?`<button class="btn sm" data-act="rOpen" data-v="${e(lib.id)}">في المكتبة ✓</button>`:`<button class="btn sm pri" data-act="rImportUrl" data-v="${src}">استيراد للمكتبة</button>`):''}<a class="btn sm" href="${src}" target="_blank" rel="noopener noreferrer">مقام ↗</a></div></header>
+  <div class="toolbar"><button class="btn sm" data-act="msOpen" data-v="${r.maqamId}">${open?'إخفاء النص':'عرض النص الكامل'}</button>${can2('write')?(lib?`<button class="btn sm" data-act="rOpen" data-v="${e(lib.id)}">في المكتبة ✓</button>`:`<button class="btn sm pri" data-act="rImportUrl" data-v="${src}">استيراد للمكتبة</button>`):''}<a class="btn sm" href="${src}" target="_blank" rel="noopener noreferrer">المصدر ↗</a></div></header>
   <div class="bd"><div class="rl-p">${hl(r.title,MS.q)}</div><div class="chips ms-bs">${badges(r)}</div>
   ${r.snippet?`<div class="ms-sn">${hl(r.snippet,MS.q)}</div>`:''}
-  ${open?(d==='loading'?'<div class="ms-load">جارٍ جلب النص الكامل من مقام…</div>':d&&d.error?`<div class="note" style="color:var(--danger)">${e(d.error)}</div>`:d?`<div class="ms-meta m">${[d.court,d.litigationType,d.section,d.subject,d.branch].filter(Boolean).map(e).join(' · ')}</div><div class="rl-t ms-t">${hl(d.bodyText,MS.q)}</div>`:''):''}
+  ${open?(d==='loading'?'<div class="ms-load">جارٍ جلب النص الكامل من الموقع المصدر…</div>':d&&d.error?`<div class="note" style="color:var(--danger)">${e(d.error)}</div>`:d?`<div class="ms-meta m">${[d.court,d.litigationType,d.section,d.subject,d.branch].filter(Boolean).map(e).join(' · ')}</div><div class="rl-t ms-t">${hl(d.bodyText,MS.q)}</div>`:''):''}
   </div></section>`;
 }
 
@@ -66,12 +66,12 @@ function pager(){
  return `<div class="ms-pg"><button class="btn sm" data-act="msPage" data-v="${d.page-1}" ${d.page<=1||MS.busy?'disabled':''}>→ السابقة</button><span class="m">صفحة ${d.page} من ${d.totalPages}</span><button class="btn sm" data-act="msPage" data-v="${d.page+1}" ${d.page>=d.totalPages||MS.busy?'disabled':''}>التالية ←</button></div>`;
 }
 function results(){
- if(MS.busy)return '<section class="panel"><div class="empty ms-load">جارٍ البحث في مقام…</div></section>';
- if(MS.err)return `<section class="panel"><div class="bd"><div class="note" style="color:var(--danger)">${e(MS.err)}</div><p class="m">قد يكون موقع مقام متوقفاً مؤقتاً أو بطيئاً. يمكنك المحاولة بعد قليل أو فتح الموقع مباشرة.</p></div></section>`;
+ if(MS.busy)return '<section class="panel"><div class="empty ms-load">جارٍ البحث في الأحكام…</div></section>';
+ if(MS.err)return `<section class="panel"><div class="bd"><div class="note" style="color:var(--danger)">${e(MS.err)}</div><p class="m">قد يكون الموقع المصدر متوقفاً مؤقتاً أو بطيئاً. يمكنك المحاولة بعد قليل أو فتح الموقع مباشرة.</p></div></section>`;
  const d=MS.data;
- if(!d)return `<section class="panel rl-empty"><div class="bd"><b>ابحث في الأحكام القضائية المنشورة في مقام.</b><p>اكتب موضوع المسألة أو المبدأ (مثل: «مطالبة مالية»، «بطلان التبليغ»، «إخلاء المأجور»)، أو حدّد السنة ورقم القضية. بعد ظهور النتائج اضغط على اسم المحكمة أو التصنيف في أي حكم لحصر البحث فيه.</p><p class="m">تُجلب النتائج من الصفحات العامة لموقع مقام عند ضغطك «بحث» فقط. راجع النص الأصلي قبل الاستشهاد، والتزم بشروط استخدام الموقع.</p></div></section>`;
- if(!d.results.length)return '<section class="panel"><div class="empty">لا نتائج مطابقة في مقام. جرّب كلمات أقل أو أزل بعض التصنيفات.</div></section>';
- return `<div class="ms-top"><div class="m">${d.results.length} حكماً في هذه الصفحة${d.totalPages>1?` · ${d.totalPages} صفحات`:''} · <a href="${e(d.sourceUrl)}" target="_blank" rel="noopener noreferrer">فتح البحث في مقام ↗</a></div>${download()}</div>
+ if(!d)return `<section class="panel rl-empty"><div class="bd"><b>ابحث في الأحكام القضائية المنشورة في الموسوعة القانونية.</b><p>اكتب موضوع المسألة أو المبدأ (مثل: «مطالبة مالية»، «بطلان التبليغ»، «إخلاء المأجور»)، أو حدّد السنة ورقم القضية. بعد ظهور النتائج اضغط على اسم المحكمة أو التصنيف في أي حكم لحصر البحث فيه.</p><p class="m">تُجلب النتائج من الصفحات العامة للموقع المصدر عند ضغطك «بحث» فقط. راجع النص الأصلي قبل الاستشهاد، والتزم بشروط استخدام الموقع.</p></div></section>`;
+ if(!d.results.length)return '<section class="panel"><div class="empty">لا نتائج مطابقة في المصدر. جرّب كلمات أقل أو أزل بعض التصنيفات.</div></section>';
+ return `<div class="ms-top"><div class="m">${d.results.length} حكماً في هذه الصفحة${d.totalPages>1?` · ${d.totalPages} صفحات`:''} · <a href="${e(d.sourceUrl)}" target="_blank" rel="noopener noreferrer">فتح البحث في الموقع المصدر ↗</a></div>${download()}</div>
  <div class="stack">${d.results.map(card).join('')}</div>${pager()}`;
 }
 function download(){
@@ -86,8 +86,8 @@ function chips(){
  return `<div class="ms-fc"><span class="m">تصنيفات مفعّلة:</span>${f.map(([k,v])=>`<button class="chip ms-b on" data-act="msUnfacet" data-v="${k}" title="إزالة">${e((FACETS.find(x=>x[0]===k)||[,k])[1])}: ${e(v.name)} ✕</button>`).join('')}</div>`;
 }
 
-V.maqamsearch=()=>`<div class="head"><div><h1>البحث في مقام</h1><p class="sub">بحث مباشر في الأحكام القضائية المنشورة على موسوعة مقام – جامعة النجاح، بنتائج حيّة وروابط مصادرها</p></div>
- <div class="toolbar"><a class="btn" href="https://maqam.najah.edu/judgments/" target="_blank" rel="noopener noreferrer">فتح مقام ↗</a><button class="btn" data-act="nav" data-v="rulings">مكتبة الاجتهادات</button></div></div>
+V.maqamsearch=()=>`<div class="head"><div><h1>البحث في الأحكام</h1><p class="sub">بحث مباشر في الأحكام القضائية المنشورة على الموسوعة القانونية – جامعة النجاح، بنتائج حيّة وروابط مصادرها</p></div>
+ <div class="toolbar"><a class="btn" href="https://maqam.najah.edu/judgments/" target="_blank" rel="noopener noreferrer">فتح الموقع المصدر ↗</a><button class="btn" data-act="nav" data-v="rulings">مكتبة الاجتهادات</button></div></div>
  <section class="panel"><form class="bd ms-form" id="msForm" autocomplete="off">
   <input class="field" id="msQ" value="${e(MS.q)}" placeholder="مثال: مطالبة مالية، بطلان التبليغ، إخلاء المأجور…" maxlength="200" aria-label="عبارة البحث">
   <input class="field mono" id="msYear" value="${e(MS.year)}" inputmode="numeric" maxlength="4" placeholder="سنة القضية" aria-label="سنة القضية">
