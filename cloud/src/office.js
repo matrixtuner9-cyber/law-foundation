@@ -40,7 +40,7 @@ const json = (code, obj, extra = {}) => new Response(JSON.stringify(obj), { stat
 const MEDIA_TTL = 7 * 24 * 3600; // صلاحية رابط الملف الموقّع (ثوانٍ)
 
 const ADMIN_FILES = new Set(['index.html', 'app.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'lawlib-data.js', 'lawlib.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
-const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css']);
+const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css', 'edition.js']);
 
 /* توحيد الكتابة العربية للبحث في دليل المحامين */
 export const norm = s => String(s || '').normalize('NFKC').replace(/[ً-ْـ]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/ؤ/g, 'و').replace(/ئ/g, 'ي').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -169,6 +169,7 @@ export class Office extends DurableObject {
       return noStore(r);
     }
     const name = p === '/' ? 'index.html' : p.slice(1);
+    if (/^fonts\/[a-z0-9-]+\.(woff2|css|txt)$/.test(name)) { const r = await asset('/app/' + name); const h = new Headers(r.headers); h.set('Cache-Control', 'public, max-age=604800'); return new Response(r.body, { status: r.status, headers: h }) }
     if (PUBLIC_FILES.has(name)) {
       if (name === 'login.html' && this.auth.fromReq(req)) return Response.redirect(new URL('/', u.origin).href, 302);
       return noStore(await asset('/app/' + name));
@@ -187,6 +188,8 @@ export class Office extends DurableObject {
     const jbody = async (limit = 4 * 1024 * 1024) => { try { const t = await req.text(); return t.length > limit ? {} : JSON.parse(t || '{}') } catch (e) { return {} } };
     if (M === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
     if (p === '/api/health') return json(200, { ok: true, at: stamp() });
+    /* السحابة دائماً «ميثاق متصل» */
+    if (p === '/api/edition') return json(200, { id: 'connected', name: 'ميثاق متصل', tagline: 'مكتبك وموكّلوك على اتصال دائم', offline: false, features: { portal: true, push: true, mizan: true, judgmentSearch: true, rulingImport: true, barRefresh: true, externalLinks: true } });
     if (p === '/api/portal/push-key') return json(200, { enabled: false, key: null });
 
     /* الملفات: لموظفي المكتب بجلستهم، وللموكل برابط موقّع مؤقت */

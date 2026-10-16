@@ -1,9 +1,11 @@
 // يجهّز مجلد public من ملفات واجهة ميثاق (المصدر: ../mithaq) ويولّد src/seed.js
 import fs from 'node:fs'; import path from 'node:path';
 const SRC = process.env.MQ_SRC || path.resolve('../mithaq'), OUT = path.resolve('public');
-const UI = ['index.html','app.js','print.js','intake.js','rulings.js','maqamsearch.js','lawlib-data.js','lawlib.js','dash.js','briefcase.js','sync.js','mizan-ui.js','data.js','admin.js','phase2.js','phase2.css','bar.js','bar.css','responsive.js','responsive.css','style.css','dash.css','briefcase.css','mizan.css','admin.css','prestige.css','login.html','login.js','login.css','scales.js','hdr-banner.jpg','hdr-side.jpg','hdr-side.webp','hdr-emblem.jpg','hdr-logo.jpg'];
+const UI = ['index.html','app.js','print.js','intake.js','rulings.js','maqamsearch.js','lawlib-data.js','lawlib.js','dash.js','briefcase.js','sync.js','mizan-ui.js','data.js','admin.js','phase2.js','phase2.css','bar.js','bar.css','responsive.js','responsive.css','style.css','dash.css','briefcase.css','mizan.css','admin.css','prestige.css','login.html','login.js','login.css','scales.js','edition.js','hdr-banner.jpg','hdr-side.jpg','hdr-side.webp','hdr-emblem.jpg','hdr-logo.jpg'];
 fs.rmSync(path.join(OUT, 'app'), { recursive: true, force: true }); fs.mkdirSync(path.join(OUT, 'app'), { recursive: true });
 for (const f of UI) fs.copyFileSync(path.join(SRC, f), path.join(OUT, 'app', f));
+// الخطوط المضمّنة محلياً
+fs.cpSync(path.join(SRC, 'fonts'), path.join(OUT, 'app', 'fonts'), { recursive: true });
 // صفحة الدخول: إعداد أول مدير برابط لمرة واحدة بدل "من جهاز المكتب فقط"
 const lj = path.join(OUT, 'app', 'login.js'); let s = fs.readFileSync(lj, 'utf8');
 const rep = (a, b) => { if (!s.includes(a)) throw new Error('login.js anchor missing: ' + a); s = s.replace(a, b) };

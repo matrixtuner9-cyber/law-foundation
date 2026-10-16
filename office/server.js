@@ -1,6 +1,11 @@
 // خادم ميثاق: يقدّم شاشة المكتب (بعد تسجيل الدخول) وبوابة الموكل (Flutter) وواجهة برمجية للرسائل والملفات
 // التخزين في قاعدة SQLite مدمجة داخل مجلد data، مع مستخدمين وأدوار وسجل تدقيق متسلسل.
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
+/* النسخة: «ميثاق خاص» (بلا إنترنت) أو «ميثاق متصل». في الخاصة يُركَّب قاطع الاتصال الخارجي قبل تحميل أي مكتبة شبكية */
+const ED = require('./lib/edition').load();
+const egressLog = [];
+if (ED.offline) require('./lib/egress').install({ onBlock: x => { egressLog.push(x); try { audit({ action: 'egress.blocked', detail: x }) } catch (e) {} } });
+const OFFLINE_ERR = { error: 'هذه الميزة غير متاحة في «ميثاق خاص» لأنها تحتاج الإنترنت. بيانات مكتبك تبقى على هذا الجهاز فقط.', offline: true };
 const PORT = process.env.PORT || 8080, ROOT = __dirname;
 const DATA = process.env.MQ_DATA || path.join(ROOT, 'data'), MEDIA = path.join(DATA, 'media'), PORTAL = path.join(ROOT, 'portal');
 fs.mkdirSync(MEDIA, { recursive: true });
@@ -64,7 +69,7 @@ const rules = () => { const saved = store.kv.get('appeal_rules', {}); return DEF
 
 /* ── إشعارات الدفع (Web Push) ── */
 let webpush = null;
-try { webpush = require('web-push') } catch (e) { console.log('تنبيه: مكتبة web-push غير مثبتة.') }
+if (ED.features.push) try { webpush = require('web-push') } catch (e) { console.log('تنبيه: مكتبة web-push غير مثبتة.') }
 let vapid = readJSON(VAPID_F, null), pushSubs = readJSON(PUSH_F, {});
 if (webpush) { if (!vapid) { vapid = webpush.generateVAPIDKeys(); save(VAPID_F, vapid) } webpush.setVapidDetails('mailto:office@mithaq.ps', vapid.publicKey, vapid.privateKey) }
 const pushCount = () => Object.fromEntries(Object.entries(pushSubs).map(([k, v]) => [k, v.length]));
@@ -222,6 +227,8 @@ function throttled(ip) { const now = Date.now(), t = tries.get(ip) || { n: 0, at
 async function api(req, res, u) {
   const p = u.pathname, M = req.method, ip = ipOf(req);
   if (M === 'OPTIONS') { res.writeHead(204, CORS); return res.end() }
+  if (ED.offline && (p.startsWith('/api/portal/') || p.startsWith('/api/admin/maqam/') || p === '/api/admin/ruling-import' || (p.startsWith('/api/mizan/') && p !== '/api/mizan/status') || p === '/api/bar/refresh')) return json(res, 403, OFFLINE_ERR);
+  if (p === '/api/edition') return json(res, 200, ED.pub());
   if (p === '/api/health') return json(res, 200, { ok: true, at: stamp() });
   if (p === '/api/portal/push-key') return json(res, 200, { enabled: !!webpush, key: vapid ? vapid.publicKey : null });
 
@@ -277,7 +284,7 @@ async function api(req, res, u) {
   }
 
   /* ── تسجيل الدخول لشاشة المكتب ── */
-  if (p === '/api/auth/status') return json(res, 200, { setup: !auth.hasUsers(), local: isLocal(req), office: settings().officeName, lawyer: settings().lawyerName });
+  if (p === '/api/auth/status') return json(res, 200, { setup: !auth.hasUsers(), local: isLocal(req), office: settings().officeName, lawyer: settings().lawyerName, edition: ED.pub() });
   if (p === '/api/auth/setup' && M === 'POST') {
     if (auth.hasUsers()) return json(res, 409, { error: 'تم إعداد النظام مسبقاً.' });
     if (!isLocal(req)) return json(res, 403, { error: 'إنشاء حساب المدير الأول متاح من جهاز المكتب فقط.' });
@@ -309,7 +316,7 @@ async function api(req, res, u) {
   const who = { user_id: me.id, username: me.username, ip };
   const need = what => { if (!auth.can(me, what)) { json(res, 403, { error: 'لا تملك صلاحية لهذا الإجراء.' }); return false } return true };
 
-  if (p === '/api/auth/me') return json(res, 200, { user: { ...me, token: undefined }, roles: Object.fromEntries(Object.entries(auth.ROLES).map(([k, v]) => [k, v.label])), settings: settings() });
+  if (p === '/api/auth/me') return json(res, 200, { user: { ...me, token: undefined }, roles: Object.fromEntries(Object.entries(auth.ROLES).map(([k, v]) => [k, v.label])), settings: settings(), edition: ED.pub() });
   if (p === '/api/me/password' && M === 'POST') {
     const b = await jbody(req);
     if (!auth.checkPassword(me.id, b.current)) return json(res, 400, { error: 'كلمة المرور الحالية غير صحيحة.' });
@@ -427,7 +434,7 @@ async function api(req, res, u) {
   /* ── شاشة المكتب ── */
   if (p === '/api/admin/bootstrap') {
     const st = auth.can(me, 'all') ? state : scope(me, cur());
-    return json(res, 200, { state: st, messages: msgs.filter(m => canSeeClient(me, m.client)).map(pub), push: pushCount(), pushReady: !!webpush, user: { ...me, token: undefined }, settings: settings() });
+    return json(res, 200, { state: st, messages: msgs.filter(m => canSeeClient(me, m.client)).map(pub), push: pushCount(), pushReady: !!webpush, user: { ...me, token: undefined }, settings: settings(), edition: ED.pub() });
   }
   /* الحفظ الآمن: المتصفح يرسل السجلات المتغيرة فقط مع رقم إصدار كل سجل (lib/merge.js) */
   if (p === '/api/admin/state' && M === 'POST') {
@@ -548,7 +555,7 @@ async function rulingFile(req, res, u, who) {
 
 /* ملفات شاشة المكتب: قائمة محددة فقط، وكلها تتطلب تسجيل الدخول عدا صفحة الدخول */
 const ADMIN_FILES = new Set(['index.html', 'app.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'lawlib-data.js', 'lawlib.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
-const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css']);
+const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css', 'edition.js']);
 
 http.createServer((req, res) => {
   const u = new URL(req.url, 'http://localhost');
@@ -568,6 +575,7 @@ http.createServer((req, res) => {
   }
   if (u.pathname.startsWith('/api/')) return api(req, res, u).catch(e => { console.error(e); json(res, 500, { error: 'خطأ في الخادم' }) });
   let p; try { p = decodeURIComponent(u.pathname) } catch (e) { res.writeHead(400); return res.end() }
+  if (ED.offline && (p === '/portal' || p.startsWith('/portal/') || p.startsWith('/p/'))) { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); return res.end('بوابة الموكل غير متاحة في «ميثاق خاص».') }
   { const m = /^\/p\/(MQ-[A-Za-z0-9]{3,12})$/i.exec(p); if (m) { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' }); return res.end(PLINK(m[1].toUpperCase())) } }
   if (p === '/portal') { res.writeHead(302, { Location: '/portal/' }); return res.end() }
   if (p.startsWith('/portal/')) {
@@ -577,6 +585,7 @@ http.createServer((req, res) => {
     return sendFile(req, res, f);
   }
   const name = p === '/' ? 'index.html' : p.slice(1);
+  if (/^fonts\/[a-z0-9-]+\.(woff2|css|txt)$/.test(name)) return sendFile(req, res, path.join(ROOT, name));
   if (PUBLIC_FILES.has(name)) {
     if (name === 'login.html' && auth.fromReq(req)) { res.writeHead(302, { Location: '/' }); return res.end() }
     return sendFile(req, res, path.join(ROOT, name));
@@ -587,9 +596,9 @@ http.createServer((req, res) => {
     res.writeHead(401); return res.end();
   }
   sendFile(req, res, path.join(ROOT, name));
-}).listen(PORT, '0.0.0.0', () => {
-  audit({ action: 'system.start', detail: { pid: process.pid, electron: process.versions.electron || null } });
-  console.log('Mithaq is running');
+}).listen(PORT, ED.offline ? (process.env.MQ_BIND || '127.0.0.1') : '0.0.0.0', () => {
+  audit({ action: 'system.start', detail: { pid: process.pid, electron: process.versions.electron || null, edition: ED.id } });
+  console.log('Mithaq is running — ' + ED.name + (ED.offline ? ' (بلا إنترنت، للجهاز نفسه فقط)' : ''));
   console.log('  شاشة المكتب:    http://localhost:' + PORT + (auth.hasUsers() ? '' : '  (أول مرة: أنشئ حساب مدير النظام)'));
-  console.log('  بوابة الموكل:   http://localhost:' + PORT + '/portal/');
+  if (ED.features.portal) console.log('  بوابة الموكل:   http://localhost:' + PORT + '/portal/');
 });

@@ -8,7 +8,8 @@
     "start": "node server.js",
     "app": "electron .",
     "icon": "node electron/make-icon.js",
-    "dist": "electron-builder --win nsis portable"
+    "dist": "electron-builder --win nsis portable",
+    "dist:private": "node tools/build-private.js"
   },
   "dependencies": {
     "cheerio": "^1.0.0",
@@ -61,10 +62,14 @@
       "!mithaq_portal/**",
       "!tools/**",
       "!dist/**",
+      "!dist-private/**",
       "print.js",
       "intake.js",
       "rulings.js",
       "maqamsearch.js",
+      "fonts/**",
+      "edition.js",
+      "edition.json",
       "lawlib-data.js",
       "lawlib.js",
       "hdr-banner.jpg",

@@ -4,8 +4,11 @@
 const { app, BrowserWindow, Tray, Menu, shell, dialog, nativeImage, Notification, session } = require('electron');
 const path = require('path'), fs = require('fs'), http = require('http');
 
-const PORT = 8080, BASE = `http://localhost:${PORT}`;
 const ROOT = path.join(__dirname, '..');
+/* «ميثاق خاص»: لا إنترنت. الخادم على 127.0.0.1 فقط، والنافذة لا تطلب أي عنوان خارج الجهاز ولا تفتح روابط خارجية */
+const ED = require(path.join(ROOT, 'lib', 'edition.js')).load();
+const PORT = 8080, BASE = ED.offline ? `http://127.0.0.1:${PORT}` : `http://localhost:${PORT}`;
+const isLocalUrl = u => { try { const x = new URL(u); return !/^(https?|wss?):$/.test(x.protocol) || ['127.0.0.1', 'localhost', '[::1]'].includes(x.hostname) } catch (e) { return false } };
 const ICON = path.join(__dirname, 'icon.png');
 
 if (!app.requestSingleInstanceLock()) { app.quit(); process.exit(0); }
@@ -16,7 +19,8 @@ function loadCfg() {
   try { cfg = JSON.parse(fs.readFileSync(CFG_F(), 'utf8')) } catch (e) { cfg = {} }
   if (!cfg.dataDir) {
     // يستخدم مجلد البيانات الحالي إن وُجد، وإلا مجلداً خاصاً بالتطبيق
-    const known = ['D:\\Mithaq\\data', path.join(path.dirname(process.execPath), 'data')].find(d => ['mithaq.db', 'messages.json'].some(f => fs.existsSync(path.join(d, f))));
+    // النسخة الخاصة لا تلتقط بيانات نسخة متصلة مثبّتة على الجهاز نفسه: مجلدها الخاص فقط
+    const known = ED.offline ? null : ['D:\\Mithaq\\data', path.join(path.dirname(process.execPath), 'data')].find(d => ['mithaq.db', 'messages.json'].some(f => fs.existsSync(path.join(d, f))));
     cfg.dataDir = known || path.join(app.getPath('userData'), 'data');
     saveCfg();
   }
@@ -43,15 +47,19 @@ function show() { if (!win) return createWindow(); if (win.isMinimized()) win.re
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 1440, height: 920, minWidth: 1000, minHeight: 640, title: 'ميثاق', icon: ICON,
+    width: 1440, height: 920, minWidth: 1000, minHeight: 640, title: ED.offline ? 'ميثاق خاص' : 'ميثاق', icon: ICON,
     backgroundColor: '#11302A', autoHideMenuBar: true, show: false,
     webPreferences: { contextIsolation: true, spellcheck: false },
   });
   win.loadURL(BASE);
   win.once('ready-to-show', () => { win.maximize(); win.show() });
   // الروابط الخارجية وفتح الملفات تذهب للمتصفح الافتراضي
-  win.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' } });
-  win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith(BASE)) { e.preventDefault(); shell.openExternal(url) } });
+  // في النسخة الخاصة: لا يُفتح أي رابط خارجي (لا متصفح ولا إنترنت)؛ ملفات المكتب المحلية تُفتح في نافذة داخلية
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (!ED.offline) { shell.openExternal(url); return { action: 'deny' } }
+    return isLocalUrl(url) ? { action: 'allow', overrideBrowserWindowOptions: { autoHideMenuBar: true, icon: ICON } } : { action: 'deny' };
+  });
+  win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith(BASE)) { e.preventDefault(); if (!ED.offline) shell.openExternal(url) } });
   win.on('close', e => {
     if (quitting) return;
     e.preventDefault(); win.hide();
@@ -65,11 +73,11 @@ function createWindow() {
 
 function createTray() {
   tray = new Tray(nativeImage.createFromPath(ICON).resize({ width: 16, height: 16 }));
-  tray.setToolTip('ميثاق · مكتب المحاماة');
+  tray.setToolTip(ED.offline ? 'ميثاق خاص · بياناتك لا تغادر مكتبك' : 'ميثاق · مكتب المحاماة');
   const login = () => app.getLoginItemSettings().openAtLogin;
   const menu = () => Menu.buildFromTemplate([
     { label: 'فتح لوحة المكتب', click: show },
-    { label: 'فتح بوابة الموكل في المتصفح', click: () => shell.openExternal(BASE + '/portal/') },
+    ...(ED.features.portal ? [{ label: 'فتح بوابة الموكل في المتصفح', click: () => shell.openExternal(BASE + '/portal/') }] : []),
     { type: 'separator' },
     { label: 'فتح مجلد البيانات', click: () => shell.openPath(cfg.dataDir) },
     { label: 'تشغيل ميثاق مع بدء Windows', type: 'checkbox', checked: login(), click: i => { app.setLoginItemSettings({ openAtLogin: i.checked, args: ['--hidden'] }); tray.setContextMenu(menu()) } },
@@ -90,6 +98,11 @@ app.whenReady().then(async () => {
   // السماح للوحة المكتب بالميكروفون (الرسائل الصوتية) والإشعارات
   session.defaultSession.setPermissionRequestHandler((wc, perm, cb) => cb(['media', 'notifications', 'clipboard-sanitized-write'].includes(perm) && wc.getURL().startsWith(BASE)));
   session.defaultSession.setPermissionCheckHandler((wc, perm, origin) => ['media', 'notifications'].includes(perm) && String(origin || '').startsWith(BASE));
+  if (ED.offline) {
+    // حجب كل طلب شبكي من النوافذ إلى خارج الجهاز (خطوط، صور، روابط، اتصالات خلفية)
+    session.defaultSession.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*', 'ws://*/*', 'wss://*/*'] }, (d, cb) => cb({ cancel: !isLocalUrl(d.url) }));
+    process.env.MQ_EDITION = 'private';
+  }
   try { await startServer() } catch (e) { dialog.showErrorBox('ميثاق', e.message); app.exit(1); return }
   createTray();
   if (!process.argv.includes('--hidden')) createWindow();

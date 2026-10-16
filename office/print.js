@@ -60,7 +60,7 @@ function titleBlock(d){const now=new Date();return `<div class="ttl"><h1>${e(d.t
 function signBlock(d){const s=d.sign||[];if(!s.length)return '';return `<div class="sign">${s.map(x=>`<div><span>${e(x)}</span><i></i><small>الاسم والتوقيع</small></div>`).join('')}${d.stamp!==false?'<div class="stamp"><span>ختم المكتب</span></div>':''}</div>`}
 
 /* ── بناء المستند داخل إطار المعاينة ── */
-const FONT='https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Cairo:wght@500;600;700&display=block';
+const FONT=location.origin+'/fonts/fonts.css'; /* خطوط مضمّنة محلياً */
 function shell(d,o){
  const [pw,ph]=PAPER[OPT.paper]||PAPER.A4;const land=(OPT.orient==='auto'?d.orient==='land':OPT.orient==='land');
  const W=land?ph:pw,H=land?pw:ph;
