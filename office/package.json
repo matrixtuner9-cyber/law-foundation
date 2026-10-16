@@ -11,6 +11,7 @@
     "dist": "electron-builder --win nsis portable"
   },
   "dependencies": {
+    "cheerio": "^1.0.0",
     "playwright-core": "^1.48.2",
     "web-push": "^3.6.7"
   },
@@ -63,6 +64,7 @@
       "print.js",
       "intake.js",
       "rulings.js",
+      "maqamsearch.js",
       "lawlib-data.js",
       "lawlib.js",
       "hdr-banner.jpg",

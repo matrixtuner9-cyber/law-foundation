@@ -8,6 +8,7 @@ import { createAuth } from './auth.js';
 import { courts, STEPS } from './seed.js';
 import { plan, rotate, lawformsGuard } from './merge.js';
 import { fetchJudgment } from './maqam.js';
+import { createService as maqamService } from './maqam-search.js';
 
 /* توقيع داخلي يثبت أن طلب /_ops وصل من الـ Worker بعد التحقق من رمز المشغّل (لا يمكن للزائر إرساله) */
 export const opsSig = env => env.OPS_TOKEN ? crypto.createHash('sha256').update('mq-ops|' + env.OPS_TOKEN).digest('hex') : null;
@@ -38,7 +39,7 @@ const SEC = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-orig
 const json = (code, obj, extra = {}) => new Response(JSON.stringify(obj), { status: code, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...CORS, ...SEC, ...extra } });
 const MEDIA_TTL = 7 * 24 * 3600; // صلاحية رابط الملف الموقّع (ثوانٍ)
 
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'print.js', 'intake.js', 'rulings.js', 'lawlib-data.js', 'lawlib.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'lawlib-data.js', 'lawlib.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css']);
 
 /* توحيد الكتابة العربية للبحث في دليل المحامين */
@@ -423,6 +424,12 @@ export class Office extends DurableObject {
         this.audit({ ...who, action: r.ok ? 'ruling.import' : 'ruling.import_failed', entity: 'rulings', detail: { url: String(b.url || '').slice(0, 200), ...(r.ok ? { no: r.ruling.no } : { error: r.error }) } });
         return r.ok ? json(200, r) : json(r.status || 400, { error: r.error });
       } finally { this.importBusy = false }
+    }
+    if (p.startsWith('/api/admin/maqam/') && M === 'GET') {
+      this.mqSearch ||= maqamService({ audit: e => this.audit(e) });
+      const r = await this.mqSearch(p.slice(17), u.searchParams, me);
+      if (r.file) return new Response(r.file.body, { headers: { 'Content-Type': r.file.contentType, 'Content-Disposition': `attachment; filename="${r.file.filename}"`, 'Cache-Control': 'no-store', ...CORS, ...SEC } });
+      return json(r.status, r.body, r.status === 429 && r.body.retry ? { 'Retry-After': String(r.body.retry) } : {});
     }
     if (p === '/api/admin/ruling-file' && M === 'POST') { if ((d = deny('write'))) return d; return this.rulingFile(req, u, who) }
     if (p === '/api/admin/read' && M === 'POST') {

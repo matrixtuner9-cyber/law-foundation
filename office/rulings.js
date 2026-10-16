@@ -64,7 +64,7 @@ V.rulings=()=>{
   <select class="field" id="rField"><option value="">كل الفروع</option>${FIELDS.map(c=>`<option ${RS.field===c?'selected':''}>${c}</option>`).join('')}</select>
   <select class="field" id="rSort"><option value="rel" ${RS.sort==='rel'?'selected':''}>الأقرب للبحث</option><option value="date" ${RS.sort==='date'?'selected':''}>الأحدث</option></select>
  </div>
- <div class="rl-src"><span class="m">ابحث في المصادر العامة:</span>${SOURCES.map(s=>`<a class="chip" target="_blank" rel="noopener" href="${s[2]}" data-act="rSrc" data-v="${s[0]}">${s[1]} ↗</a>`).join('')}<span class="m">يُفتح الموقع في نافذة جديدة وتُنسخ عبارة البحث لتلصقها هناك. لا يُنسخ أي محتوى من هذه المواقع إلى النظام.</span></div></section>
+ <div class="rl-src"><span class="m">ابحث في المصادر العامة:</span><button class="chip" data-act="nav" data-v="maqamsearch">بحث مباشر في مقام ←</button>${SOURCES.map(s=>`<a class="chip" target="_blank" rel="noopener" href="${s[2]}" data-act="rSrc" data-v="${s[0]}">${s[1]} ↗</a>`).join('')}<span class="m">يُفتح الموقع في نافذة جديدة وتُنسخ عبارة البحث لتلصقها هناك. لا يُنسخ أي محتوى من هذه المواقع إلى النظام.</span></div></section>
  <div id="rlRes">${results(rs)}</div>`;
 };
 function results(rs){
@@ -152,18 +152,21 @@ A.rImport=()=>{if(ro())return;
  <div class="wide toolbar"><button class="btn pri" id="riGo">استخراج بيانات الحكم</button><a class="btn" href="https://maqam.najah.edu/judgments/" target="_blank" rel="noopener">فتح مقام ↗</a></div>
  <p class="note wide">يُقرأ الحكم الذي تختاره فقط، ثم تراجع بياناته وتكتب المبدأ قبل حفظه في مكتبة المكتب، مع رابط مصدره.</p></form></div></div>`;
  document.getElementById('riUrl').focus()};
-document.addEventListener('submit',async ev=>{const f=ev.target;if(f.id!=='fRImport')return;ev.preventDefault();ev.stopImmediatePropagation();
- const url=f.riUrl.value.trim(),btn=document.getElementById('riGo');
+/* يقرأ الخادم صفحة الحكم ويفتح نموذج الإضافة للمراجعة؛ يُستدعى من نافذة الرابط ومن شاشة «البحث في مقام» */
+async function importFrom(url,btn,label){
  const dup=rulings.find(r=>r.srcUrl&&r.srcUrl.replace(/\/?$/,'/')===url.replace(/\/?$/,'/'));if(dup){A.close();toast('هذا الحكم موجود في المكتبة');A.rOpen(dup.id);return}
- btn.disabled=true;btn.textContent='جارٍ القراءة…';
+ if(btn){btn.disabled=true;btn.textContent='جارٍ القراءة…'}
  try{const r=await fetch('/api/admin/ruling-import',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url})});
   if(r.status===401){location.replace('/login.html');return}
   const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'تعذّر الاستيراد');
   const x=j.ruling;openForm({court:x.court,no:x.no,date:x.date,field:x.field,keywords:x.keywords,text:x.text,src:x.src,srcUrl:x.srcUrl,fullText:x.fullText,
    notes:[x.courtName&&x.court==='أخرى'?'المحكمة: '+x.courtName:'',(x.classifications||[]).length?'التصنيف: '+x.classifications.join('؛ '):'',(x.cited||[]).length?'النصوص المذكورة: '+x.cited.join('؛ '):''].filter(Boolean).join(' · ').slice(0,1500)});
   toast('استُخرجت بيانات الحكم، راجعها واكتب المبدأ');
- }catch(x){toast(x.message);btn.disabled=false;btn.textContent='استخراج بيانات الحكم'}
-},true);
+ }catch(x){toast(x.message);if(btn){btn.disabled=false;btn.textContent=label||'استخراج بيانات الحكم'}}
+}
+document.addEventListener('submit',ev=>{const f=ev.target;if(f.id!=='fRImport')return;ev.preventDefault();ev.stopImmediatePropagation();
+ importFrom(f.riUrl.value.trim(),document.getElementById('riGo'))},true);
+A.rImportUrl=v=>{if(ro())return;importFrom(String(v||''),null)};
 A.rNewFor=v=>{if(!ro())openForm(null,v)};
 A.rEdit=v=>{if(!ro())openForm(rulings.find(r=>r.id===v))};
 A.rDel=v=>{if(ro())return;const r=rulings.find(x=>x.id===v);if(!r||!confirm('حذف الحكم «'+(r.no||'')+'» من مكتبة المكتب؟'))return;
