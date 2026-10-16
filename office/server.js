@@ -26,6 +26,11 @@ const stampS = (d = new Date()) => stamp(d) + ':' + pad(d.getSeconds());
 
 /* ── قاعدة البيانات + نقل البيانات القديمة (JSON) مرة واحدة ── */
 const store = Store.open(DATA), auth = Auth.create(store);
+/* قاعدة البيانات مربوطة بنسختها: «ميثاق خاص» لا يفتح بيانات مكتب متصل (ولا العكس) — يمنع أي خلط بين النسختين */
+{ const owner = store.kv.get('edition'), stop = m => { if (process.versions.electron) throw new Error(m); console.error(m); process.exit(3) };
+  if (owner && owner !== ED.id) stop(`مجلد البيانات ${DATA} يخص «${owner === 'private' ? 'ميثاق خاص' : 'ميثاق متصل'}» ولا يُفتح من «${ED.name}».`);
+  if (!owner && ED.offline && auth.hasUsers()) stop(`مجلد البيانات ${DATA} لمكتب يعمل بـ«ميثاق متصل»؛ «ميثاق خاص» يبدأ بمجلد بيانات جديد خاص به.`);
+  if (!owner) store.kv.set('edition', ED.id) }
 const audit = (e) => { try { store.audit({ at: stampS(), ...e }) } catch (err) { console.error('[audit]', err.message) } };
 const maqamSearch = MaqamSearch.createService({ audit });
 (function migrate() {

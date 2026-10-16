@@ -52,7 +52,8 @@ async function boot(env) {
   const cookie = (s.headers.get('set-cookie') || '').split(';')[0];
   const req = (p, o = {}) => fetch(B + p, { ...o, headers: { cookie, 'content-type': 'application/json', ...(o.headers || {}) } });
   const stop = async () => { if (srv.exitCode === null) { const g = new Promise(r => srv.once('exit', r)); srv.kill(); await g } try { fs.rmSync(TMP, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }) } catch (e) {} };
-  return { B, PORT, req, stop, out: () => out };
+  const stopKeep = async () => { if (srv.exitCode === null) { const g = new Promise(r => srv.once('exit', r)); srv.kill(); await g } };
+  return { B, PORT, req, stop, stopKeep, dataDir: path.join(TMP, 'data'), out: () => out };
 }
 const lanIp = () => Object.values(os.networkInterfaces()).flat().find(i => i && i.family === 'IPv4' && !i.internal)?.address;
 
@@ -88,4 +89,17 @@ test('الخادم في «ميثاق متصل»: لم يتغير شيء (الب�
     const ip = lanIp();
     if (ip) await new Promise((res, rej) => { const c = net.connect(S.PORT, ip); c.on('connect', () => { c.destroy(); res() }); c.on('error', rej) });
   } finally { await S.stop() }
+});
+
+test('مجلد البيانات مربوط بنسخته: الخاصة لا تفتح بيانات مكتب متصل، والمتصلة لا تفتح بيانات خاصة', async () => {
+  const run = (dir, ed) => new Promise(res => { const p = spawn(process.execPath, ['server.js'], { cwd: ROOT, env: { ...process.env, PORT: String(22000 + Math.floor(Math.random() * 900)), MQ_DATA: dir, MQ_BACKUP: 'off', MQ_EDITION: ed }, stdio: ['ignore', 'pipe', 'pipe'] });
+    let err = ''; p.stderr.on('data', d => err += d); const t = setTimeout(() => { p.kill(); res({ code: 'running', err }) }, 2500); p.on('exit', c => { clearTimeout(t); res({ code: c, err }) }) });
+  // مكتب متصل فيه مستخدمون (بلا علامة نسخة، مثل البيانات القديمة)
+  const A = await boot({ MQ_EDITION: 'connected' }); const dirA = A.dataDir; await A.stopKeep();
+  const r1 = await run(dirA, 'private'); assert.equal(r1.code, 3, 'الخاصة رفضت بيانات المتصلة'); assert.match(r1.err, /ميثاق خاص/);
+  // مكتب خاص
+  const P = await boot({ MQ_EDITION: 'private' }); const dirP = P.dataDir; await P.stopKeep();
+  const r2 = await run(dirP, 'connected'); assert.equal(r2.code, 3, 'المتصلة رفضت بيانات الخاصة');
+  const r3 = await run(dirP, 'private'); assert.equal(r3.code, 'running', 'الخاصة تفتح بياناتها');
+  for (const d of [dirA, dirP]) try { fs.rmSync(path.dirname(d), { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }) } catch (e) {}
 });

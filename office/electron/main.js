@@ -12,12 +12,16 @@ const PORT = ED.offline ? 8181 : 8080, BASE = ED.offline ? `http://127.0.0.1:${P
 const isLocalUrl = u => { try { const x = new URL(u); return !/^(https?|wss?):$/.test(x.protocol) || ['127.0.0.1', 'localhost', '[::1]'].includes(x.hostname) } catch (e) { return false } };
 const ICON = path.join(__dirname, 'icon.png');
 
+// كل نسخة باسمها ومجلد إعداداتها الخاص (%APPDATA%\Mithaq Private) — لا تقرأ الخاصة إعدادات «ميثاق متصل» ولا مجلد بياناته
+if (ED.offline) { app.setName('Mithaq Private'); app.setPath('userData', path.join(app.getPath('appData'), 'Mithaq Private')) }
 if (!app.requestSingleInstanceLock()) { app.quit(); process.exit(0); }
 
 let win = null, tray = null, quitting = false, cfg = {};
 const CFG_F = () => path.join(app.getPath('userData'), 'config.json');
 function loadCfg() {
   try { cfg = JSON.parse(fs.readFileSync(CFG_F(), 'utf8')) } catch (e) { cfg = {} }
+  // النسخة الخاصة: بياناتها دائماً في مجلدها هي، حتى لو وُجد ملف إعدادات قديم يشير لغيره
+  if (ED.offline && cfg.dataDir !== path.join(app.getPath('userData'), 'data')) { cfg.dataDir = path.join(app.getPath('userData'), 'data'); saveCfg() }
   if (!cfg.dataDir) {
     // يستخدم مجلد البيانات الحالي إن وُجد، وإلا مجلداً خاصاً بالتطبيق
     // النسخة الخاصة لا تلتقط بيانات نسخة متصلة مثبّتة على الجهاز نفسه: مجلدها الخاص فقط
@@ -104,7 +108,7 @@ app.on('before-quit', () => { quitting = true });
 app.on('window-all-closed', () => { /* يبقى التطبيق في شريط المهام */ });
 
 app.whenReady().then(async () => {
-  app.setAppUserModelId('ps.mithaq.desktop');
+  app.setAppUserModelId(ED.offline ? 'ps.mithaq.private' : 'ps.mithaq.desktop');
   loadCfg();
   // السماح للوحة المكتب بالميكروفون (الرسائل الصوتية) والإشعارات
   session.defaultSession.setPermissionRequestHandler((wc, perm, cb) => cb(['media', 'notifications', 'clipboard-sanitized-write'].includes(perm) && wc.getURL().startsWith(BASE)));
