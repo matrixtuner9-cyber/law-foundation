@@ -292,9 +292,10 @@ function waOnClient(){if(S.view!=='client')return;const h=document.querySelector
 /* ── اللوحة الجانبية الحية: صورة المكتب القانوني مع حركة هادئة ── */
 function sideArt(){if(document.getElementById('sideArt'))return;const m=document.querySelector('.main');if(!m)return;
  const r=(a,b)=>(a+Math.random()*(b-a)).toFixed(2);
- const dust=[...Array(10)].map(()=>`<i style="left:${r(4,92)}%;--d:${r(24,40)}s;--w:${r(-40,0)}s;--s:${r(1.5,3)}px;--x:${r(-18,18)}px"></i>`).join('');
- const lights=[...Array(12)].map(()=>`<i style="left:${r(6,90)}%;top:${r(4,24)}%;--d:${r(4,8)}s;--w:${r(-8,0)}s"></i>`).join('');
- m.insertAdjacentHTML('afterbegin',`<div class="side-art" id="sideArt" aria-hidden="true"><div class="sa-img"></div><div class="sa-lights">${lights}</div><div class="sa-glow"></div><div class="sa-sweep"></div><div class="sa-dust">${dust}</div><div class="sa-edge"></div></div>`)}
+ const dust=[...Array(14)].map(()=>`<i style="left:${r(4,92)}%;--d:${r(14,28)}s;--w:${r(-28,0)}s;--s:${r(1.5,3.4)}px;--x:${r(-22,22)}px"></i>`).join('');
+ const lights=[...Array(9)].map(()=>`<i style="left:${r(6,90)}%;top:${r(3,22)}%;--d:${r(3,7)}s;--w:${r(-7,0)}s;--s:${r(2,4.5)}px"></i>`).join('');
+ const sparks=[[60,43.5],[92,44.5],[76,35],[48,24],[84,27]].map(([x,y],i)=>`<i style="left:${x}%;top:${y}%;--d:${(2.4+i*.55).toFixed(2)}s;--w:${(-i*.7).toFixed(2)}s"></i>`).join('');
+ m.insertAdjacentHTML('afterbegin',`<div class="side-art" id="sideArt" aria-hidden="true"><div class="sa-img"></div><div class="sa-rays"></div><div class="sa-lights">${lights}</div><div class="sa-glow"></div><div class="sa-pan l"></div><div class="sa-pan r"></div><div class="sa-sweep"></div><div class="sa-sparks">${sparks}</div><div class="sa-dust">${dust}</div><div class="sa-neon"></div></div>`)}
 
 /* ربط العرض */
 const baseRender=render;
