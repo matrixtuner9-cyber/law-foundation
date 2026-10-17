@@ -64,7 +64,7 @@ async function ops(req, env, u) {
       await env.DB.prepare('UPDATE offices SET status = ? WHERE slug = ?').bind(status, slug).run(); cache.delete(slug);
       return json(200, { ok: true, slug, status });
     }
-    const map = { '/info': '/_ops/info', '/setup-link': '/_ops/setup-link', '/import': '/_ops/import', '/media': '/_ops/media', '/export': '/_ops/export', '/backup': '/_ops/backup' };
+    const map = { '/info': '/_ops/info', '/setup-link': '/_ops/setup-link', '/import': '/_ops/import', '/media': '/_ops/media', '/export': '/_ops/export', '/backup': '/_ops/backup', '/reset-password': '/_ops/reset-password' };
     if (!map[rest]) return json(404, { error: 'unknown op' });
     const r = await forward(env, slug, req, map[rest], true);
     if (rest === '/setup-link' && r.ok) { const j = await r.json(); return json(200, { ...j, url: `https://${slug}.${String(env.BASE_DOMAINS || 'palgaz.net').split(',')[0].trim()}/login.html?setup=${j.token}` }) }

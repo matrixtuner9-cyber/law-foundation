@@ -624,6 +624,20 @@ export class Office extends DurableObject {
     }
     /* نسخة احتياطية مشفّرة يومية إلى R2 (يستدعيها الـ Worker المجدول). المحتوى كامل لأنه للاستعادة، ومشفّر بمفتاح لا يملكه إلا الخادم */
     if (p === '/_ops/backup') return json(200, await this.backup());
+    /* إعادة تعيين كلمة مرور مستخدم (بطلب مالك الخدمة): مكتب العرض التجريبي فقط، أو مكتب حقيقي منح مديره إذن الدعم الفني.
+       في المكتب الحقيقي تُولَّد كلمة مؤقتة ويُلزم المستخدم بتغييرها عند أول دخول. تُلغى جلساته، ويُسجَّل الإجراء دون كلمة المرور */
+    if (p === '/_ops/reset-password' && req.method === 'POST') {
+      const demo = this.slug() === 'demo';
+      if (!demo && !granted()) { this.audit({ username: 'ops', action: 'ops.password_reset_denied' }); return json(403, { error: 'لم يمنح المكتب إذن وصول للدعم الفني.' }) }
+      const usr = this.store.get('SELECT id, username FROM users WHERE username = ?', String(b.username || ''));
+      if (!usr) return json(404, { error: 'no such user' });
+      const pw = demo && b.password ? String(b.password) : crypto.randomBytes(9).toString('base64url');
+      try { this.auth.setPassword(usr.id, pw, !demo) } catch (e) { return json(400, { error: e.message }) }
+      this.store.run('UPDATE users SET failed = 0, locked_until = 0 WHERE id = ?', usr.id);
+      this.auth.logoutUser(usr.id);
+      this.audit({ username: 'ops', action: 'ops.password_reset', entity: 'users', entity_id: usr.id, detail: { username: usr.username, mustChange: !demo } });
+      return json(200, { ok: true, username: usr.username, mustChange: !demo, ...(demo && b.password ? {} : { temporary: pw }) });
+    }
     return json(404, { error: 'unknown op' });
   }
 }

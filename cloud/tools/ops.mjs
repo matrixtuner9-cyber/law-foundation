@@ -1,5 +1,5 @@
 // أداة مزود الخدمة: إدارة المكاتب على ميثاق السحابي. الرمز السري يُقرأ من ملف .ops_token (لا يُطبع).
-// node tools/ops.mjs list | create <slug> "<اسم المكتب>" ["<اسم المحامي>"] | setup <slug> | info <slug> | suspend <slug> | activate <slug>
+// node tools/ops.mjs list | create <slug> "<اسم المكتب>" ["<اسم المحامي>"] | setup <slug> | info <slug> | suspend <slug> | activate <slug> | reset-password <slug> <user> [password]
 // يستخدم DNS الخاص بـ Cloudflare (1.1.1.1) مباشرة كي لا يتأثر بتأخر تحديث DNS في الراوتر.
 import fs from 'node:fs'; import https from 'node:https'; import dns from 'node:dns';
 const API = new URL(process.env.MQ_API || 'https://test.palgaz.net'), TOKEN = fs.readFileSync(new URL('../.ops_token', import.meta.url), 'utf8').trim();
@@ -18,4 +18,6 @@ else if (cmd === 'create') out(await call('POST', '/_ops/offices', { slug, name,
 else if (cmd === 'setup') out(await call('POST', `/_ops/offices/${slug}/setup-link`));
 else if (cmd === 'info') out(await call('GET', `/_ops/offices/${slug}/info`));
 else if (cmd === 'suspend' || cmd === 'activate') out(await call('POST', `/_ops/offices/${slug}/status`, { status: cmd === 'suspend' ? 'suspended' : 'active' }));
-else console.log('usage: list | create <slug> "<name>" ["<lawyer>"] | setup <slug> | info <slug> | suspend|activate <slug>');
+// إعادة تعيين كلمة مرور: للعرض التجريبي بكلمة محددة، ولمكتب حقيقي بكلمة مؤقتة (يلزمه إذن الدعم من مدير المكتب)
+else if (cmd === 'reset-password') out(await call('POST', `/_ops/offices/${slug}/reset-password`, { username: name, ...(lawyer ? { password: lawyer } : {}) }));
+else console.log('usage: list | create <slug> "<name>" ["<lawyer>"] | setup <slug> | info <slug> | suspend|activate <slug> | reset-password <slug> <user> [password]');
