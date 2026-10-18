@@ -551,7 +551,7 @@ export class Office extends DurableObject {
     }
     const [tot, rows] = await DB.batch([
       DB.prepare(`SELECT COUNT(*) n FROM bar_dir ${where}`).bind(...a),
-      DB.prepare(`SELECT mno, name, status, city, office, address, phones, email FROM bar_dir ${where} ORDER BY (phones = '[]'), CAST(substr(mno, 2) AS INTEGER) LIMIT ? OFFSET ?`).bind(...a, limit, offset)]);
+      DB.prepare(`SELECT mno, name, status, city, office, address, phones, email FROM bar_dir ${where} ORDER BY (phones = '[]'), CASE WHEN mno LIKE 'L%' THEN mno ELSE '' END, CAST(substr(mno, 2) AS INTEGER) LIMIT ? OFFSET ?`).bind(...a, limit, offset)]);
     return { total: tot.results[0].n, rows: rows.results.map(r => ({ ...r, phones: JSON.parse(r.phones || '[]') })), meta: await this.barMeta(), facets: this.facets.v, running: false, progress: null };
   }
 

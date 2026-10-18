@@ -9,7 +9,7 @@ const ROOT = path.join(__dirname, '..'), pkg = require(path.join(ROOT, 'package.
 const EDF = path.join(ROOT, 'edition.json');
 const cfg = JSON.parse(JSON.stringify(pkg.build));
 Object.assign(cfg, { appId: 'ps.mithaq.private', productName: 'Mithaq Private', directories: { output: 'dist-private' } });
-cfg.files = [...cfg.files, '!portal/**', '!node_modules/playwright-core/**', '!bar/**', '!mizan/connector.js'];
+cfg.files = [...cfg.files, '!portal/**', '!node_modules/playwright-core/**', '!bar/crawler.js', '!mizan/connector.js'];
 cfg.win = { ...cfg.win, target: ['nsis'] };
 cfg.nsis = { ...cfg.nsis, perMachine: true, shortcutName: 'ميثاق خاص', include: 'electron/private.nsh', artifactName: `Mithaq-Private-${V}-Setup.\${ext}` };
 delete cfg.portable;

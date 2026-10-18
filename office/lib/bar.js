@@ -1,5 +1,6 @@
-// دليل محامي النقابة: تخزين وبحث في نسخة من الصفحة العامة لنقابة المحامين الفلسطينيين
-const fs = require('fs'), path = require('path'), { spawn } = require('child_process');
+// دليل المحامين: يُحمَّل من ملف المحامين المضمّن في البرنامج (bar/directory.json) ويُبحث فيه محلياً دون أي موقع خارجي.
+// يستطيع مدير المكتب تحديثه باستيراد ملف Excel أحدث. (قراءة الموقع العام للنقابة بقيت أداة احتياطية لنسخة «ميثاق متصل» فقط)
+const fs = require('fs'), path = require('path'), { spawn } = require('child_process'), XLSX = require('./xlsx');
 
 /* توحيد الكتابة العربية للبحث: الهمزات، التاء المربوطة، الألف المقصورة، التشكيل */
 const norm = s => String(s || '').normalize('NFKC').replace(/[ً-ْـ]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/ؤ/g, 'و').replace(/ئ/g, 'ي').toLowerCase().replace(/\s+/g, ' ').trim();
@@ -12,24 +13,44 @@ function create({ store, DATA, ROOT, audit, broadcast, stampS }) {
   const FILE = path.join(DATA, 'bar', 'lawyers.json');
   let run = null, progress = null, facets = null;
 
-  function importFile() {
-    const d = JSON.parse(fs.readFileSync(FILE, 'utf8')), ins = db.prepare('INSERT OR REPLACE INTO bar_dir(mno, name, status, city, office, address, phones, email, page, norm) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
+  const SEED = path.join(ROOT, 'bar', 'directory.json');
+  function importData(d, meta) {
+    const ins = db.prepare('INSERT OR REPLACE INTO bar_dir(mno, name, status, city, office, address, phones, email, page, norm) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)');
     const pick = (info, re, not) => { const k = Object.keys(info || {}).find(k => re.test(k) && !(not && not.test(k))); return k ? info[k] : '' };
     store.tx(() => {
       db.exec('DELETE FROM bar_dir');
       for (const l of d.lawyers || []) {
         const city = pick(l.info, /مدين/), office = pick(l.info, /اسم|مكتب/, /عنوان/), address = pick(l.info, /عنوان/);
-        const phones = (l.phones || []).map(p => p.replace(/[^\d+]/g, '')).filter(Boolean);
-        ins.run(l.mno, l.name, l.status, city, office, address, JSON.stringify(phones), l.email || '', l.page || null,
-          [norm(l.name), norm(l.mno), phones.map(digits).join(' '), norm(office), norm(l.email)].join(' | '));
+        const phones = (l.phones || []).map(p => String(p).replace(/[^\d+]/g, '')).filter(Boolean);
+        ins.run(String(l.mno), l.name, l.status || '', city, office, address, JSON.stringify(phones), l.email || '', l.page || null,
+          [norm(l.name), /^L\d+$/.test(l.mno) ? '' : norm(l.mno), phones.map(digits).join(' '), norm(office), norm(l.email), norm(city), norm(l.status)].join(' | '));
       }
-      store.kv.set('bar_meta', { fetchedAt: d.fetchedAt, source: d.source, total: (d.lawyers || []).length, pages: d.pages });
+      store.kv.set('bar_meta', { fetchedAt: d.fetchedAt, source: d.source, total: (d.lawyers || []).length, pages: d.pages, ...meta });
     });
     facets = null;
     return (d.lawyers || []).length;
   }
-  // أول تشغيل: إن وُجد ملف مجموع سابقاً ولم يُستورد
-  try { if (fs.existsSync(FILE) && !db.prepare('SELECT COUNT(*) n FROM bar_dir').get().n) { const n = importFile(); audit({ action: 'bar.result', detail: { ok: true, records: n, via: 'startup' } }) } } catch (e) { console.error('[bar]', e.message) }
+  const importFile = () => importData(JSON.parse(fs.readFileSync(FILE, 'utf8')), { kind: 'crawl' });
+  /* ملف المحامين المضمّن: يُحمَّل عند أول تشغيل، ويحل محل أي نسخة مقروءة من الموقع، ولا يمس ملفاً استورده المكتب بنفسه */
+  function loadSeed() {
+    if (!fs.existsSync(SEED)) return 0;
+    const meta = store.kv.get('bar_meta', null), d = JSON.parse(fs.readFileSync(SEED, 'utf8'));
+    if (meta && (meta.kind === 'upload' || (meta.kind === 'bundled' && meta.version === d.version))) return 0;
+    const n = importData(d, { kind: 'bundled', version: d.version });
+    audit({ action: 'bar.result', detail: { ok: true, records: n, via: 'bundled', version: d.version } });
+    return n;
+  }
+  try { loadSeed() } catch (e) { console.error('[bar seed]', e.message) }
+  /* استيراد ملف Excel من مدير المكتب */
+  function importUpload(buf, who, name) {
+    const lawyers = XLSX.lawyersFromRows(XLSX.readSheet(buf));
+    if (lawyers.length < 10) throw new Error('الملف يحتوي ' + lawyers.length + ' أسماء فقط؛ تأكد أنه ملف المحامين الصحيح.');
+    const n = importData({ lawyers, source: 'ملف Excel مستورد: ' + String(name || '').slice(0, 80), fetchedAt: new Date().toISOString() }, { kind: 'upload', by: who && who.username });
+    audit({ ...who, action: 'bar.import', detail: { records: n, file: String(name || '').slice(0, 120) } });
+    return n;
+  }
+  // تشغيل قديم: إن وُجد ملف مقروء سابقاً من الموقع ولا يوجد ملف مضمّن
+  try { if (!fs.existsSync(SEED) && fs.existsSync(FILE) && !db.prepare('SELECT COUNT(*) n FROM bar_dir').get().n) { const n = importFile(); audit({ action: 'bar.result', detail: { ok: true, records: n, via: 'startup' } }) } } catch (e) { console.error('[bar]', e.message) }
 
   function getFacets() {
     if (!facets) facets = {
@@ -48,9 +69,9 @@ function create({ store, DATA, ROOT, audit, broadcast, stampS }) {
     if (phone) w.push("phones <> '[]'");
     const where = w.length ? 'WHERE ' + w.join(' AND ') : '';
     const total = db.prepare(`SELECT COUNT(*) n FROM bar_dir ${where}`).get(...a).n;
-    const rows = db.prepare(`SELECT mno, name, status, city, office, address, phones, email FROM bar_dir ${where} ORDER BY (phones = '[]'), CAST(substr(mno, 2) AS INTEGER) LIMIT ? OFFSET ?`)
+    const rows = db.prepare(`SELECT mno, name, status, city, office, address, phones, email FROM bar_dir ${where} ORDER BY (phones = '[]'), CASE WHEN mno LIKE 'L%' THEN mno ELSE '' END, CAST(substr(mno, 2) AS INTEGER) LIMIT ? OFFSET ?`)
       .all(...a, Math.min(200, Math.max(1, +limit || 100)), Math.max(0, +offset || 0)).map(r => ({ ...r, phones: JSON.parse(r.phones || '[]') }));
-    return { total, rows, meta: store.kv.get('bar_meta', null), facets: getFacets(), running: !!run, progress };
+    return { total, rows, meta: store.kv.get('bar_meta', null), facets: getFacets(), running: !!run, progress, canImport: true };
   }
 
   function refresh(who) {
@@ -69,6 +90,6 @@ function create({ store, DATA, ROOT, audit, broadcast, stampS }) {
     return true;
   }
 
-  return { search, refresh, status: () => ({ running: !!run, progress, meta: store.kv.get('bar_meta', null) }) };
+  return { search, refresh, importUpload, status: () => ({ running: !!run, progress, meta: store.kv.get('bar_meta', null), canImport: true }) };
 }
 module.exports = { create, norm };

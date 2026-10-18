@@ -354,6 +354,13 @@ async function api(req, res, u) {
   /* دليل محامي النقابة (نسخة من الصفحة العامة) */
   if (p === '/api/bar' && M === 'GET') { const s = u.searchParams; return json(res, 200, bar.search({ q: s.get('q') || '', city: s.get('city') || '', status: s.get('status') || '', phone: s.get('phone') || '', offset: s.get('offset'), limit: s.get('limit') })) }
   if (p === '/api/bar/status') return json(res, 200, bar.status());
+  /* تحديث دليل المحامين من ملف Excel يرفعه مدير المكتب (يبقى على هذا الجهاز) */
+  if (p === '/api/bar/import' && M === 'POST') {
+    if (!need('manage')) return;
+    let buf; try { buf = await body(req, 20 * 1024 * 1024) } catch (e) { return json(res, 413, { error: 'الملف أكبر من المسموح (20 ميغابايت).' }) }
+    try { const n = bar.importUpload(buf, who, u.searchParams.get('name')); return json(res, 200, { ok: true, n, ...bar.status() }) }
+    catch (e) { return json(res, 400, { error: e.message }) }
+  }
   if (p === '/api/bar/refresh' && M === 'POST') {
     if (!need('manage')) return;
     if (!isLocal(req)) return json(res, 403, { error: 'التحديث متاح من جهاز المكتب فقط.' });

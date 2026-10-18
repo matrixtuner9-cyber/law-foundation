@@ -81,7 +81,7 @@ async function ops(req, env, u) {
       const phones = (l.phones || []).map(x => String(x).replace(/[^\d+]/g, '')).filter(Boolean);
       stmts.push(env.DB.prepare('INSERT OR REPLACE INTO bar_dir(mno, name, status, city, office, address, phones, email, page, norm) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
         .bind(String(l.mno), l.name || '', l.status || '', city || '', off || '', address || '', JSON.stringify(phones), l.email || '', l.page || null,
-          [norm(l.name), norm(l.mno), phones.map(x => x.replace(/\D/g, '')).join(' '), norm(off), norm(l.email)].join(' | ')));
+          [norm(l.name), /^L\d+$/.test(String(l.mno)) ? '' : norm(l.mno), phones.map(x => x.replace(/\D/g, '')).join(' '), norm(off), norm(l.email), norm(city), norm(l.status)].join(' | ')));
     }
     if (b.meta) stmts.push(env.DB.prepare("INSERT INTO meta(key, value) VALUES('bar_meta', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(JSON.stringify(b.meta)));
     if (stmts.length) await env.DB.batch(stmts);
