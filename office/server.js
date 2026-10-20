@@ -11,7 +11,7 @@ const DATA = process.env.MQ_DATA || path.join(ROOT, 'data'), MEDIA = path.join(D
 fs.mkdirSync(MEDIA, { recursive: true });
 
 const SEED = require('./data.js');
-const Store = require('./lib/db'), Auth = require('./lib/auth'), Merge = require('./lib/merge'), Maqam = require('./lib/maqam'), MaqamSearch = require('./lib/maqam-search'), Laws = require('./lib/laws'), LawSources = require('./lib/law-sources'), AiDraft = require('./lib/ai-draft'), Muqtafi = require('./lib/muqtafi'), Sjc = require('./lib/sjc'), Apns = require('./lib/apns'), http2 = require('http2');
+const Store = require('./lib/db'), Auth = require('./lib/auth'), Merge = require('./lib/merge'), Maqam = require('./lib/maqam'), MaqamSearch = require('./lib/maqam-search'), Laws = require('./lib/laws'), LawSources = require('./lib/law-sources'), AiDraft = require('./lib/ai-draft'), Muqtafi = require('./lib/muqtafi'), Sjc = require('./lib/sjc'), Apns = require('./lib/apns'), WebPush = require('./lib/webpush'), http2 = require('http2');
 const OFFICE = { name: 'مكتب الميثاق للمحاماة والاستشارات القانونية', lawyer: 'المحامي سامر عبد الله', city: 'نابلس', phone: '09-233-0000', hours: 'الأحد – الخميس · 8:30 – 16:00' };
 const STATE_F = path.join(DATA, 'state.json'), MSG_F = path.join(DATA, 'messages.json');
 const VAPID_F = path.join(DATA, 'vapid.json'), PUSH_F = path.join(DATA, 'push.json');
@@ -316,7 +316,7 @@ async function api(req, res, u) {
       broadcast('push', pushCount()); return json(res, 200, { ok: true, ready: !!(apnsCfg() || {}).p8 });
     }
     if (p === '/api/portal/push-subscribe' && M === 'POST') {
-      const s = await jbody(req); if (!s || !s.endpoint || !s.keys) return json(res, 400, { error: 'اشتراك غير صالح' });
+      const s = await jbody(req); if (!WebPush.okSub(s)) return json(res, 400, { error: 'اشتراك غير صالح' });
       const list = (pushSubs[cl.id] = pushSubs[cl.id] || []); if (!list.some(x => x.endpoint === s.endpoint)) { list.push({ endpoint: s.endpoint, keys: s.keys }); save(PUSH_F, pushSubs); broadcast('push', pushCount()) }
       return json(res, 200, { ok: true });
     }

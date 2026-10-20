@@ -12,6 +12,7 @@ import { createService as maqamService } from './maqam-search.js';
 import { createService as muqtafiService, idFromUrl as muqtafiId } from './muqtafi.js';
 import { createService as sjcService } from './sjc.js';
 import * as Apns from './apns.js';
+import * as WebPush from './webpush.js';
 import { createLaws } from './laws.js';
 import { createLawSearch } from './law-sources.js';
 import { createDrafter, createExtractor, createAssistant, createCalcExtractor, createRulingExtractor, usageSummary, PRICES as AI_PRICES, DOC_TYPES, MODEL as AI_MODEL } from './ai-draft.js';
@@ -88,7 +89,16 @@ export class Office extends DurableObject {
     for (const d of this.apnsDevs()[client] || []) { const r = await this.apns.send(d, payload); out.push(r); if (r.gone) this.store.kv.set('apns_devices', Apns.dropDevice(this.apnsDevs(), d.token)) }
     return out;
   }
-  pushCount() { return Object.fromEntries(Object.entries(this.apnsDevs()).map(([k, v]) => [k, v.length])) }
+  /* إشعارات الويب (بوابة الموكل على أندرويد والآيفون بعد إضافتها للشاشة الرئيسية) */
+  async vapid() { let v = this.store.kv.get('vapid'); if (!v || !v.jwk) { v = await WebPush.makeVapid(); this.store.kv.set('vapid', v) } return v }
+  webSubs() { return this.store.kv.get('push_subs') || {} }
+  async webTo(client, payload) {
+    this.wp ||= WebPush.createWebPush({ getVapid: () => this.vapid() });
+    const out = [];
+    for (const sub of this.webSubs()[client] || []) { const r = await this.wp.send(sub, payload); out.push(r); if (r.gone) { this.store.kv.set('push_subs', WebPush.dropSub(this.webSubs(), sub.endpoint)); this.broadcast('push', this.pushCount()) } }
+    return out;
+  }
+  pushCount() { const o = Object.fromEntries(Object.entries(this.webSubs()).map(([k, v]) => [k, v.length])); for (const [k, v] of Object.entries(this.apnsDevs())) o[k] = (o[k] || 0) + v.length; return o }
   preview(m) {
     if (m.type === 'voice') return 'رسالة صوتية (' + Math.floor((m.dur || 0) / 60) + ':' + String(Math.round(m.dur || 0) % 60).padStart(2, '0') + ')';
     if (m.type === 'image') return 'أرسل لك صورة' + (m.text ? ': ' + m.text : '');
@@ -137,7 +147,11 @@ export class Office extends DurableObject {
   addMsg(m) {
     const msg = { id: rid(), at: stamp(), read: m.from === 'lawyer', seen: m.from === 'client', ...m };
     this.msgs.push(msg); this.store.putMessage(msg); this.broadcast('message', this.pubAdmin(msg));
-    if (msg.from === 'lawyer' && (this.apnsCfg() || {}).p8) { const oi = this.officeInfo(), job = this.apnsTo(msg.client, { title: msg.type === 'notice' ? 'إشعار من ' + oi.name : 'رسالة من ' + oi.lawyer, body: this.preview(msg), tag: 'mq-' + msg.id }).catch(() => {}); try { this.ctx.waitUntil(job) } catch (e) {} }
+    if (msg.from === 'lawyer') {
+      const oi = this.officeInfo(), pl = { title: msg.type === 'notice' ? 'إشعار من ' + oi.name : 'رسالة من ' + oi.lawyer, body: this.preview(msg), tag: 'mq-' + msg.id, url: './' };
+      const job = Promise.all([(this.apnsCfg() || {}).p8 ? this.apnsTo(msg.client, pl) : null, this.webTo(msg.client, pl)]).catch(() => {});
+      try { this.ctx.waitUntil(job) } catch (e) {}
+    }
     return msg;
   }
 
@@ -214,7 +228,7 @@ export class Office extends DurableObject {
     if (p === '/api/health') return json(200, { ok: true, at: stamp() });
     /* السحابة دائماً «ميثاق متصل» */
     if (p === '/api/edition') return json(200, { id: 'connected', name: 'ميثاق متصل', tagline: 'مكتبك وموكّلوك على اتصال دائم', offline: false, features: { portal: true, push: true, mizan: true, judgmentSearch: true, rulingImport: true, barRefresh: true, externalLinks: true } });
-    if (p === '/api/portal/push-key') return json(200, { enabled: false, key: null });
+    if (p === '/api/portal/push-key') return json(200, { enabled: true, key: (await this.vapid()).publicKey });
 
     /* الملفات: لموظفي المكتب بجلستهم، وللموكل برابط موقّع مؤقت */
     if (p.startsWith('/api/media/')) {
@@ -255,7 +269,11 @@ export class Office extends DurableObject {
         this.broadcast('profile', { client: cl.id, ...upd });
         return json(200, upd);
       }
-      if (p === '/api/portal/push-subscribe' && M === 'POST') return json(200, { ok: true });
+      if (p === '/api/portal/push-subscribe' && M === 'POST') {
+        const sub = await jbody(); if (!WebPush.okSub(sub)) return json(400, { error: 'اشتراك غير صالح' });
+        this.store.kv.set('push_subs', WebPush.addSub(this.webSubs(), cl.id, sub)); this.broadcast('push', this.pushCount());
+        return json(200, { ok: true });
+      }
       if (p === '/api/portal/apns-register' && M === 'POST') {
         const b = await jbody() || {}; if (!Apns.okToken(b.token)) return json(400, { error: 'رمز جهاز غير صالح' });
         this.store.kv.set('apns_devices', b.off ? Apns.dropDevice(this.apnsDevs(), b.token) : Apns.addDevice(this.apnsDevs(), cl.id, String(b.token).toLowerCase(), b.env, stamp()));
@@ -391,7 +409,7 @@ export class Office extends DurableObject {
 
     if (p === '/api/admin/bootstrap') {
       const st = this.auth.can(me, 'all') ? this.state : this.scope(me, this.cur());
-      return json(200, { state: st, messages: this.msgs.filter(m => this.canSeeClient(me, m.client)).map(m => this.pubAdmin(m)), push: this.pushCount(), pushReady: !!(this.apnsCfg() || {}).p8, user: { ...me, token: undefined }, settings: this.settings() });
+      return json(200, { state: st, messages: this.msgs.filter(m => this.canSeeClient(me, m.client)).map(m => this.pubAdmin(m)), push: this.pushCount(), pushReady: true, user: { ...me, token: undefined }, settings: this.settings() });
     }
     /* الحفظ الآمن: السجلات المتغيرة فقط مع رقم إصدار كل سجل (merge.js) */
     if (p === '/api/admin/state' && M === 'POST') {
@@ -749,7 +767,7 @@ export class Office extends DurableObject {
     /* تصدير بيانات المكتب لمزود الخدمة: فقط بإذن مؤقت من مدير المكتب، ودون أسرار (كلمات المرور ومفاتيح التدقيق والتوقيع)، ويُسجّل في سجل المكتب */
     if (p === '/_ops/export') {
       if (!granted()) { this.audit({ username: 'ops', action: 'ops.export_denied' }); return json(403, { error: 'لم يمنح المكتب إذن وصول للدعم الفني. يمنحه مدير المكتب من الإعدادات.' }) }
-      const S = this.store, SECRET = ['setup', 'media_key', 'audit_key', 'support_grant', 'ai_key', 'muqtafi_cred', 'apns_cfg'];
+      const S = this.store, SECRET = ['setup', 'media_key', 'audit_key', 'support_grant', 'ai_key', 'muqtafi_cred', 'apns_cfg', 'vapid'];
       this.audit({ username: 'ops', action: 'ops.export' });
       return json(200, { slug: this.slug(), at: stampS(), records: S.all('SELECT * FROM records'), kv: S.all('SELECT * FROM kv').filter(k => !SECRET.includes(k.key)), messages: S.all('SELECT * FROM messages'), users: S.all('SELECT id, username, name, role, active, must_change, cases, created_at, last_login FROM users'), audit: S.all('SELECT * FROM audit ORDER BY seq') });
     }

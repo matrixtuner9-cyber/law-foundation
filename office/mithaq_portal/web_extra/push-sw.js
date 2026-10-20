@@ -7,7 +7,9 @@ self.addEventListener('push', e => {
   try { d = e.data.json(); } catch (_) { d = { title: 'بوابة ميثاق', body: e.data ? e.data.text() : '' }; }
   e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
     // إن كان التطبيق مفتوحاً أمام الموكل، فهو يُصدر التنبيه بنفسه
-    if (list.some(c => c.visibilityState === 'visible' && c.focused)) return;
+    // على الآيفون يجب أن يُعرض كل إشعار وإلا ألغى Safari اشتراك البوابة، فنعرضه دائماً هناك
+    const ios = /iPhone|iPad|iPod|Macintosh/.test(self.navigator.userAgent);
+    if (!ios && list.some(c => c.visibilityState === 'visible' && c.focused)) return;
     return self.registration.showNotification(d.title || 'بوابة ميثاق', {
       body: d.body || '',
       icon: 'icons/Icon-192.png',
