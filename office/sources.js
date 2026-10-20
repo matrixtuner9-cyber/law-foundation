@@ -162,10 +162,25 @@ V.sources=()=>{setTimeout(()=>{if(ST.tab==='sjc')sjcClasses();else mqStatus()},0
 function paint(){const el=document.getElementById('srcBody');if(el&&S.view==='sources')el.innerHTML=body();paintSettings()}
 
 /* ═══ قسم في شاشة الإعدادات: اشتراكات المصادر والخدمات الخارجية (لمدير المكتب) ═══ */
-const SS={ai:null,aiOpen:false,aiBusy:false,use:null,month:''};
+const SS={ai:null,aiOpen:false,aiBusy:false,use:null,month:'',ap:null,apOpen:false,apBusy:false,apP8:''};
+/* إشعارات تطبيق الموكل على الآيفون (Apple Push): مفتاح .p8 من حساب Apple Developer يُحفظ في الخادم ولا يُعاد */
+async function apStatus(){try{SS.ap=await j('apns')}catch(x){SS.ap={configured:false,error:x.message}}paintSettings()}
+const AP_WHY={network:'تعذّر الوصول إلى خادم Apple',InvalidProviderToken:'رقم المفتاح أو الفريق أو ملف ‎.p8‎ غير صحيح',BadKey:'ملف ‎.p8‎ غير صالح',DeviceTokenNotForTopic:'معرّف التطبيق Bundle ID لا يطابق التطبيق',TopicDisallowed:'معرّف التطبيق غير مسموح لهذا المفتاح',BadDeviceToken:'رمز الجهاز غير صالح (أُزيل)',Unregistered:'حُذف التطبيق من الجهاز (أُزيل)',TooManyRequests:'طلبات كثيرة، حاول لاحقاً'};
+const apWhy=k=>AP_WHY[k]||k;
+const allClients=()=>(typeof clients!=='undefined'&&Array.isArray(clients)?clients:[]).filter(c=>!c.archived);
+function apBox(){const a=SS.ap;if(!a)return '<div class="m">جارٍ القراءة…</div>';if(a.error)return `<div class="note" style="color:var(--danger)">${e(a.error)}</div>`;
+ if(SS.apOpen)return `<form class="form src-cred" id="srcApForm" autocomplete="off"><div class="wide ai-note">من حساب Apple Developer ← Certificates, Identifiers &amp; Profiles ← Keys: أنشئ مفتاحاً مفعّلاً عليه «Apple Push Notifications service (APNs)» ونزّل ملف ‎.p8‎ (يُنزَّل مرة واحدة فقط). يُحفظ في خادم المكتب ولا يظهر بعد حفظه.</div>
+  <label>رقم المفتاح Key ID<input class="field mono" id="srcApKey" dir="ltr" maxlength="10" value="${e(a.keyId||'')}" placeholder="ABC123DEFG" required></label>
+  <label>رقم الفريق Team ID<input class="field mono" id="srcApTeam" dir="ltr" maxlength="10" value="${e(a.teamId||'')}" placeholder="أعلى يمين صفحة Membership" required></label>
+  <label class="wide">معرّف التطبيق Bundle ID<input class="field mono" id="srcApTopic" dir="ltr" value="${e(a.topic||'ps.mithaq.mithaqPortal')}" required></label>
+  <label class="wide">ملف المفتاح ‎.p8‎ ${a.configured?'<small class="m">(اتركه فارغاً لإبقاء المفتاح المحفوظ)</small>':''}<input class="field" id="srcApFile" type="file" accept=".p8,text/plain"></label>
+  <div class="wide toolbar"><button class="btn pri" ${SS.apBusy?'disabled':''}>حفظ</button><button type="button" class="btn" data-act="srcApX">إلغاء</button></div></form>`;
+ const cl=allClients();
+ return `<div class="st-row"><div>${a.configured?`<span class="pill ok">مضبوط</span> المفتاح <span class="mono">${e(a.keyId)}</span> · الفريق <span class="mono">${e(a.teamId)}</span> <span class="m">· ${a.devices||0} جهاز آيفون لـ ${a.clients||0} موكل</span>`:'<span class="m">لم يُضبط بعد. بدونه يعمل تطبيق الآيفون لكن لا تصل التنبيهات والتطبيق مغلق.</span>'}</div><div class="toolbar"><button type="button" class="btn sm" data-act="srcAp">${a.configured?'تغيير':'ضبط الإشعارات'}</button>${a.configured?'<button type="button" class="btn sm" data-act="srcApRm">إزالة</button>':''}</div></div>
+ ${a.configured?`<div class="st-row" style="margin-top:8px"><div class="m">تجربة: أرسل تنبيهاً إلى آيفون موكل سجّل دخوله من التطبيق</div><div class="toolbar"><select class="field" id="srcApCl" style="max-width:220px">${cl.map(c=>`<option value="${e(c.id)}">${e(c.name)}</option>`).join('')}</select><button type="button" class="btn sm" data-act="srcApTest" ${SS.apBusy?'disabled':''}>إرسال تجربة</button></div></div>`:''}`}
 async function aiUsage(){try{SS.use=await j('ai/usage'+(SS.month?'?month='+SS.month:''))}catch(x){SS.use={error:x.message}}paintSettings()}
 const AI_KIND={'ai.draft':'صياغة لوائح ومستندات','ai.draft_failed':'صياغة لم تكتمل','ai.assist':'المساعد','ai.assist_failed':'طلبات مساعد لم تكتمل','ai.extract':'قراءة لائحة الخصم','ai.calc_extract':'استخراج معطيات الحاسبات','ai.ruling_extract':'استخراج مبادئ الأحكام'};
-const AI_MODE={brief:'ملخص قبل الجلسة',defences:'الدفوع والمهل',question:'سؤال قانوني',contract:'مراجعة عقد',opponent:'تحليل مستند للخصم',gaps:'ثغرات مستند',appeal:'أسباب الطعن',similar:'أحكام مشابهة',client_msg:'رسالة للموكل',minutes:'محضر اجتماع',translate:'ترجمة'};
+const AI_MODE={howto:'أسئلة عن التطبيق',brief:'ملخص قبل الجلسة',defences:'الدفوع والمهل',question:'سؤال قانوني',contract:'مراجعة عقد',opponent:'تحليل مستند للخصم',gaps:'ثغرات مستند',appeal:'أسباب الطعن',similar:'أحكام مشابهة',client_msg:'رسالة للموكل',minutes:'محضر اجتماع',translate:'ترجمة'};
 const kindName=k=>{const [a,m]=k.split(':');return m?(AI_MODE[m]||m):(AI_KIND[a]||a)};
 const usd=x=>'$'+(Number(x)||0).toFixed(2);
 function usageBox(){const u=SS.use;if(!u)return '<div class="m">جارٍ حساب الاستهلاك…</div>';if(u.error)return `<div class="m">${e(u.error)}</div>`;
@@ -183,11 +198,20 @@ function settingsBody(){
   :`${ai.configured?usageBox():''}<div class="st-row"><div>${ai.configured?`<span class="pill ok">مضبوط</span> ينتهي بـ <span class="mono">${e(ai.last4)}</span> <span class="m">· النموذج ${e(ai.model||'')}</span>`:'<span class="m">لم يُضبط المفتاح بعد. يلزم لتشغيل الصياغة والمساعد الذكي وحاسبات الاستخراج.</span>'}</div><div class="toolbar"><button type="button" class="btn sm" data-act="srcAi">${ai.configured?'تغيير المفتاح':'ضبط المفتاح'}</button>${ai.configured?'<button type="button" class="btn sm" data-act="srcAiRm">إزالة</button>':''}</div></div>`;
  return `<div class="bd src-set"><div class="src-set-item"><h3>المقتفي <small class="m">· معهد الحقوق – جامعة بيرزيت · قاعدة الأحكام النظامية</small></h3>${mq}</div>
  <div class="src-set-item"><h3>الذكاء الاصطناعي <small class="m">· Anthropic Claude · الصياغة والمساعد والحاسبات واستخراج المبادئ</small></h3>${aib}</div>
+ <div class="src-set-item"><h3>إشعارات تطبيق الآيفون <small class="m">· Apple Push · تنبيه الموكل برسائل المحامي والتطبيق مغلق</small></h3>${apBox()}</div>
  <div class="src-set-item"><h3>مصادر عامة بلا تسجيل <small class="m">· لا تحتاج إعداداً</small></h3><div class="m">مبادئ المكتب الفني (مجلس القضاء الأعلى)، مقام (جامعة النجاح) للأحكام والتشريعات، وموقع التشريعات الأمنية.</div></div></div>`;
 }
 function paintSettings(){const el=document.getElementById('srcSet');if(el&&S.view==='settings')el.innerHTML=settingsBody()}
-if(typeof V.settings==='function'){const vs=V.settings;V.settings=()=>{let h=vs();if(!can2('manage'))return h;setTimeout(()=>{if(!ST.mq.st)mqStatus();else paintSettings();if(!SS.ai)aiStatus();if(!SS.use)aiUsage()},0);
+if(typeof V.settings==='function'){const vs=V.settings;V.settings=()=>{let h=vs();if(!can2('manage'))return h;setTimeout(()=>{if(!ST.mq.st)mqStatus();else paintSettings();if(!SS.ai)aiStatus();if(!SS.use)aiUsage();if(!SS.ap)apStatus()},0);
  return h+`<section class="panel" style="margin-top:16px" id="srcSetPanel"><header><h2>اشتراكات المصادر والخدمات الخارجية</h2><span class="m">تُحفظ بيانات الدخول في خادم المكتب فقط، ويستخدمها التطبيق باسم المكتب عند طلب المحامي</span></header><div id="srcSet">${settingsBody()}</div></section>`}}
+A.srcAp=()=>{SS.apOpen=true;paintSettings()};A.srcApX=()=>{SS.apOpen=false;paintSettings()};
+A.srcApRm=async()=>{if(!confirm('إزالة مفتاح إشعارات الآيفون؟ ستتوقف التنبيهات على أجهزة الآيفون حتى يُضبط مفتاح جديد.'))return;try{await post('apns',{clear:true});toast('أُزيل المفتاح');await apStatus()}catch(x){toast(x.message)}};
+A.srcApTest=async()=>{const id=(document.getElementById('srcApCl')||{}).value;if(!id)return toast('اختر موكلاً');SS.apBusy=true;paintSettings();
+ try{const r=await post('apns/test',{client:id});toast(r.sent?'أُرسل التنبيه إلى '+r.sent+' جهاز':'لم يصل: '+[...new Set(r.failed||[])].map(apWhy).join('، '))}catch(x){toast(x.message)}SS.apBusy=false;paintSettings()};
+document.addEventListener('submit',async ev=>{const f=ev.target;if(f.id!=='srcApForm')return;ev.preventDefault();ev.stopImmediatePropagation();if(SS.apBusy)return;
+ const file=f.srcApFile.files[0];let p8='';if(file){if(file.size>4000)return toast('ملف المفتاح غير صالح');p8=await file.text()}
+ const body={keyId:f.srcApKey.value.trim(),teamId:f.srcApTeam.value.trim(),topic:f.srcApTopic.value.trim(),p8};SS.apBusy=true;const btn=f.querySelector('.btn.pri');if(btn)btn.disabled=true;
+ try{await post('apns',body);toast('حُفظت إعدادات إشعارات الآيفون');SS.apOpen=false;SS.apBusy=false;await apStatus()}catch(x){toast(x.message);SS.apBusy=false;if(btn)btn.disabled=false}},true);
 A.srcAi=()=>{SS.aiOpen=true;paintSettings()};A.srcAiX=()=>{SS.aiOpen=false;paintSettings()};
 A.srcAiRm=async()=>{if(!confirm('إزالة مفتاح الذكاء الاصطناعي من خادم المكتب؟ ستتوقف الصياغة والمساعد حتى يُضبط مفتاح جديد.'))return;try{await post('ai/key',{key:''});toast('أُزيل المفتاح');SS.ai=null;await aiStatus()}catch(x){toast(x.message)}};
 document.addEventListener('submit',async ev=>{const f=ev.target;if(f.id!=='srcAiKey')return;ev.preventDefault();ev.stopImmediatePropagation();if(SS.aiBusy)return;SS.aiBusy=true;paintSettings();

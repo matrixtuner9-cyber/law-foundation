@@ -139,7 +139,7 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ]),
         _section('الإشعارات', 'تنبيه بصوت ونص عند رسائل المحامي', [
-          if (kIsWeb)
+          if (kIsWeb || defaultTargetPlatform == TargetPlatform.iOS)
             const PushPrompt(compact: true)
           else
             const NotifyPanel(),

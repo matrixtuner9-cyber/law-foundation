@@ -11,7 +11,7 @@ const DATA = process.env.MQ_DATA || path.join(ROOT, 'data'), MEDIA = path.join(D
 fs.mkdirSync(MEDIA, { recursive: true });
 
 const SEED = require('./data.js');
-const Store = require('./lib/db'), Auth = require('./lib/auth'), Merge = require('./lib/merge'), Maqam = require('./lib/maqam'), MaqamSearch = require('./lib/maqam-search'), Laws = require('./lib/laws'), LawSources = require('./lib/law-sources'), AiDraft = require('./lib/ai-draft'), Muqtafi = require('./lib/muqtafi'), Sjc = require('./lib/sjc');
+const Store = require('./lib/db'), Auth = require('./lib/auth'), Merge = require('./lib/merge'), Maqam = require('./lib/maqam'), MaqamSearch = require('./lib/maqam-search'), Laws = require('./lib/laws'), LawSources = require('./lib/law-sources'), AiDraft = require('./lib/ai-draft'), Muqtafi = require('./lib/muqtafi'), Sjc = require('./lib/sjc'), Apns = require('./lib/apns'), http2 = require('http2');
 const OFFICE = { name: 'مكتب الميثاق للمحاماة والاستشارات القانونية', lawyer: 'المحامي سامر عبد الله', city: 'نابلس', phone: '09-233-0000', hours: 'الأحد – الخميس · 8:30 – 16:00' };
 const STATE_F = path.join(DATA, 'state.json'), MSG_F = path.join(DATA, 'messages.json');
 const VAPID_F = path.join(DATA, 'vapid.json'), PUSH_F = path.join(DATA, 'push.json');
@@ -98,7 +98,27 @@ let webpush = null;
 if (ED.features.push) try { webpush = require('web-push') } catch (e) { console.log('تنبيه: مكتبة web-push غير مثبتة.') }
 let vapid = readJSON(VAPID_F, null), pushSubs = readJSON(PUSH_F, {});
 if (webpush) { if (!vapid) { vapid = webpush.generateVAPIDKeys(); save(VAPID_F, vapid) } webpush.setVapidDetails('mailto:office@mithaq.ps', vapid.publicKey, vapid.privateKey) }
-const pushCount = () => Object.fromEntries(Object.entries(pushSubs).map(([k, v]) => [k, v.length]));
+/* إشعارات آيفون (APNs): الأجهزة في مخزن المكتب، والمفتاح .p8 لا يُعاد للمتصفح */
+const apnsCfg = () => store.kv.get('apns_cfg') || null, apnsDevs = () => store.kv.get('apns_devices') || {};
+const h2s = {};
+function h2Send({ host, path: pth, headers, body }) {
+  return new Promise(resolve => {
+    let s = h2s[host];
+    if (!s || s.closed || s.destroyed) { s = h2s[host] = http2.connect('https://' + host); s.on('error', () => { delete h2s[host] }); s.on('close', () => { delete h2s[host] }); s.setTimeout(10 * 60000, () => s.close()); s.unref() }
+    let st = 0, d = '', done = false; const fin = v => { if (!done) { done = true; resolve(v) } };
+    const r = s.request({ ':method': 'POST', ':path': pth, ...headers });
+    r.setEncoding('utf8'); r.on('response', h => { st = h[':status'] }); r.on('data', x => { d += x }); r.on('end', () => fin({ status: st, body: d })); r.on('error', e => fin({ status: 0, body: String(e.message) }));
+    r.setTimeout(15000, () => { r.close(); fin({ status: 0, body: 'timeout' }) });
+    r.end(body);
+  });
+}
+const apns = Apns.createApns({ getCfg: async () => apnsCfg(), transport: h2Send, subtle: crypto.webcrypto.subtle });
+async function apnsTo(client, payload) {
+  const list = apnsDevs()[client] || [], out = [];
+  for (const d of list) { const r = await apns.send(d, payload); out.push(r); if (r.gone) { store.kv.set('apns_devices', Apns.dropDevice(apnsDevs(), d.token)); broadcast('push', pushCount()) } }
+  return out;
+}
+const pushCount = () => { const o = Object.fromEntries(Object.entries(pushSubs).map(([k, v]) => [k, v.length])); for (const [k, v] of Object.entries(apnsDevs())) o[k] = (o[k] || 0) + v.length; return o };
 function preview(m) {
   if (m.type === 'voice') return 'رسالة صوتية (' + Math.floor((m.dur || 0) / 60) + ':' + String(Math.round(m.dur || 0) % 60).padStart(2, '0') + ')';
   if (m.type === 'image') return 'أرسل لك صورة' + (m.text ? ': ' + m.text : '');
@@ -106,6 +126,7 @@ function preview(m) {
   return String(m.text || '').slice(0, 160);
 }
 function pushTo(client, payload) {
+  apnsTo(client, payload).catch(() => {});
   if (!webpush) return;
   (pushSubs[client] || []).forEach(s => webpush.sendNotification(s, JSON.stringify(payload), { TTL: 86400, urgency: 'high' })
     .catch(err => { if (err.statusCode === 404 || err.statusCode === 410) { pushSubs[client] = (pushSubs[client] || []).filter(x => x.endpoint !== s.endpoint); save(PUSH_F, pushSubs); broadcast('push', pushCount()) } }));
@@ -287,6 +308,12 @@ async function api(req, res, u) {
       audit({ ...who, action: 'record.update', entity: 'clients', entity_id: c.id, detail: { label: c.name, fields: Store.diffFields(before, c), via: 'portal' } });
       broadcast('profile', { client: cl.id, ...upd });
       return json(res, 200, upd);
+    }
+    if (p === '/api/portal/apns-register' && M === 'POST') {
+      /* تطبيق الآيفون يسجّل رمز جهازه ليصله التنبيه والتطبيق مغلق؛ off=true عند تسجيل الخروج */
+      const b = await jbody(req) || {}; if (!Apns.okToken(b.token)) return json(res, 400, { error: 'رمز جهاز غير صالح' });
+      store.kv.set('apns_devices', b.off ? Apns.dropDevice(apnsDevs(), b.token) : Apns.addDevice(apnsDevs(), cl.id, String(b.token).toLowerCase(), b.env, stamp()));
+      broadcast('push', pushCount()); return json(res, 200, { ok: true, ready: !!(apnsCfg() || {}).p8 });
     }
     if (p === '/api/portal/push-subscribe' && M === 'POST') {
       const s = await jbody(req); if (!s || !s.endpoint || !s.keys) return json(res, 400, { error: 'اشتراك غير صالح' });
@@ -479,7 +506,7 @@ async function api(req, res, u) {
   /* ── شاشة المكتب ── */
   if (p === '/api/admin/bootstrap') {
     const st = auth.can(me, 'all') ? state : scope(me, cur());
-    return json(res, 200, { state: st, messages: msgs.filter(m => canSeeClient(me, m.client)).map(pub), push: pushCount(), pushReady: !!webpush, user: { ...me, token: undefined }, settings: settings(), edition: ED.pub() });
+    return json(res, 200, { state: st, messages: msgs.filter(m => canSeeClient(me, m.client)).map(pub), push: pushCount(), pushReady: !!webpush || !!(apnsCfg() || {}).p8, user: { ...me, token: undefined }, settings: settings(), edition: ED.pub() });
   }
   /* الحفظ الآمن: المتصفح يرسل السجلات المتغيرة فقط مع رقم إصدار كل سجل (lib/merge.js) */
   if (p === '/api/admin/state' && M === 'POST') {
@@ -536,6 +563,24 @@ async function api(req, res, u) {
     const a = p.slice(15), r = a === 'classes' && M === 'GET' ? await sjc('classes', {}, me) : a === 'search' && M === 'POST' ? await sjc('search', await jbody(req), me) : a === 'pdf' && M === 'GET' ? await sjc('pdf', { id: u.searchParams.get('id') }, me) : { status: 404, body: { error: 'not found' } };
     if (r.file) { res.writeHead(200, { 'Content-Type': r.file.contentType, 'Content-Disposition': `inline; filename="${r.file.filename}"`, 'Cache-Control': 'no-store', ...CORS, ...SEC }); return res.end(Buffer.from(r.file.body)) }
     return json(res, r.status, r.body, r.status === 429 && r.body.retry ? { 'Retry-After': String(r.body.retry) } : {});
+  }
+  if (p === '/api/admin/apns' || p === '/api/admin/apns/test') {
+    /* إعداد إشعارات آيفون من حساب Apple Developer: المفتاح يُحفظ هنا ولا يُعاد */
+    if (!need('manage')) return;
+    if (M === 'GET') { const d = apnsDevs(); return json(res, 200, { ...Apns.pubCfg(apnsCfg()), devices: Object.values(d).reduce((n, l) => n + l.length, 0), clients: Object.keys(d).length }) }
+    const b = await jbody(req) || {};
+    if (p === '/api/admin/apns/test') {
+      if (!(apnsCfg() || {}).p8) return json(res, 400, { error: 'أدخل إعدادات Apple أولاً.' });
+      const c = (cur().clients || []).find(x => x.id === b.client); if (!c) return json(res, 400, { error: 'اختر موكلاً' });
+      if (!(apnsDevs()[c.id] || []).length) return json(res, 400, { error: 'لم يسجّل هذا الموكل دخوله من تطبيق الآيفون بعد.' });
+      const r = await apnsTo(c.id, { title: 'تجربة من ' + officeInfo().name, body: 'هكذا تصلك رسائل المحامي على الآيفون', tag: 'mq-test' });
+      audit({ ...who, action: 'apns.test', entity: 'clients', entity_id: c.id, detail: { label: c.name, ok: r.filter(x => x.ok).length, fail: r.filter(x => !x.ok).map(x => x.reason) } });
+      return json(res, 200, { sent: r.filter(x => x.ok).length, failed: r.filter(x => !x.ok).map(x => x.reason) });
+    }
+    if (b.clear) { store.kv.set('apns_cfg', null); audit({ ...who, action: 'apns.cfg_removed', entity: 'settings' }); return json(res, 200, { configured: false }) }
+    const r = Apns.cleanCfg(b, apnsCfg()); if (r.error) return json(res, 400, { error: r.error });
+    store.kv.set('apns_cfg', r.cfg); audit({ ...who, action: 'apns.cfg_set', entity: 'settings', detail: { keyId: r.cfg.keyId, teamId: r.cfg.teamId, topic: r.cfg.topic } });
+    return json(res, 200, Apns.pubCfg(r.cfg));
   }
   if (p.startsWith('/api/admin/muqtafi/')) {
     const a = p.slice(19);

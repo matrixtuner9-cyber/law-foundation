@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
+import 'push.dart' show pushResume, pushForget;
 import 'util.dart';
 
 /// حالة التطبيق: بيانات الموكل والمحادثة، مع تحديث دوري من الخادم
@@ -133,6 +134,7 @@ class PortalStore extends ChangeNotifier {
     _timer?.cancel();
     final p = await SharedPreferences.getInstance();
     await p.remove('code');
+    await pushForget(Api.code ?? '').timeout(const Duration(seconds: 8), onTimeout: () {});
     Api.code = null;
     _loaded = false;
     home = null;

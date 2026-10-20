@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
+import 'push.dart' show pushResume, pushForget;
 import 'store.dart';
 import 'login_scene.dart';
 import 'theme.dart';
@@ -151,7 +152,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       builder: (d) => AlertDialog(
         title: Text('عنوان خادم المكتب', style: MQ.display(22)),
         content: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('يحصل عليه الموكل من المكتب، مثال: http://192.168.1.11:8080', style: MQ.body(12.5, color: MQ.muted)),
+          Text(defaultTargetPlatform == TargetPlatform.iOS ? 'يحصل عليه الموكل من المكتب، مثال: https://office.palgaz.net' : 'يحصل عليه الموكل من المكتب، مثال: http://192.168.1.11:8080', style: MQ.body(12.5, color: MQ.muted)),
           const SizedBox(height: 10),
           TextField(controller: c, textDirection: TextDirection.ltr, keyboardType: TextInputType.url, style: MQ.mono(15)),
         ]),
@@ -162,7 +163,8 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       ),
     );
     if (v == null || v.isEmpty) return;
-    final url = (v.startsWith('http') ? v : 'http://$v').replaceAll(RegExp(r'/+$'), '');
+    // الآيفون يشترط اتصالاً آمناً https إلا داخل شبكة المكتب
+    final url = (v.startsWith('http') ? v : (defaultTargetPlatform == TargetPlatform.iOS ? 'https://$v' : 'http://$v')).replaceAll(RegExp(r'/+$'), '');
     Api.base = url;
     final p = await SharedPreferences.getInstance();
     await p.setString('api', url);
@@ -311,11 +313,17 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     store.onIncoming = _incoming;
     WidgetsBinding.instance.addObserver(this);
     setForeground(true);
-    WidgetsBinding.instance.addPostFrameCallback((_) => ensureNotify());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ensureNotify();
+      pushResume(Api.code ?? '');
+    });
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState s) => setForeground(s == AppLifecycleState.resumed);
+  void didChangeAppLifecycleState(AppLifecycleState s) {
+    setForeground(s == AppLifecycleState.resumed);
+    if (s == AppLifecycleState.resumed) pushResume(Api.code ?? '');
+  }
 
   @override
   void dispose() {

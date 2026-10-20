@@ -23,3 +23,7 @@ String pushStatus() {
     return 'unsupported';
   }
 }
+
+Future<String> pushRefresh() async => pushStatus();
+Future<void> pushResume(String code) async {}
+Future<void> pushForget(String code) async {}

@@ -11,6 +11,7 @@ import { fetchJudgment } from './maqam.js';
 import { createService as maqamService } from './maqam-search.js';
 import { createService as muqtafiService, idFromUrl as muqtafiId } from './muqtafi.js';
 import { createService as sjcService } from './sjc.js';
+import * as Apns from './apns.js';
 import { createLaws } from './laws.js';
 import { createLawSearch } from './law-sources.js';
 import { createDrafter, createExtractor, createAssistant, createCalcExtractor, createRulingExtractor, usageSummary, PRICES as AI_PRICES, DOC_TYPES, MODEL as AI_MODEL } from './ai-draft.js';
@@ -78,6 +79,22 @@ export class Office extends DurableObject {
   mkMuqtafi() { return muqtafiService({ audit: e => this.audit(e), getCred: async () => this.store.kv.get('muqtafi_cred') || null, setCred: async c => this.store.kv.set('muqtafi_cred', c), can: (u, w) => this.auth.can(u, w) }) }
   audit(e) { try { this.store.audit({ at: stampS(), ...e }) } catch (err) { console.error('[audit]', err.message) } }
   settings() { const s = this.store.kv.get('settings', {}); const g = this.store.kv.get('support_grant'); const b = this.store.kv.get('backup_last'); return { edition: 'office', officeName: '', lawyerName: '', city: '', phone: '', hours: '', ...s, cloud: true, supportUntil: g && g.until > Date.now() ? g.until : null, backupLast: b || null } }
+  /* إشعارات آيفون (APNs) لتطبيق الموكل */
+  apnsCfg() { return this.store.kv.get('apns_cfg') || null }
+  apnsDevs() { return this.store.kv.get('apns_devices') || {} }
+  async apnsTo(client, payload) {
+    this.apns ||= Apns.createApns({ getCfg: async () => this.apnsCfg(), transport: Apns.fetchTransport });
+    const out = [];
+    for (const d of this.apnsDevs()[client] || []) { const r = await this.apns.send(d, payload); out.push(r); if (r.gone) this.store.kv.set('apns_devices', Apns.dropDevice(this.apnsDevs(), d.token)) }
+    return out;
+  }
+  pushCount() { return Object.fromEntries(Object.entries(this.apnsDevs()).map(([k, v]) => [k, v.length])) }
+  preview(m) {
+    if (m.type === 'voice') return 'رسالة صوتية (' + Math.floor((m.dur || 0) / 60) + ':' + String(Math.round(m.dur || 0) % 60).padStart(2, '0') + ')';
+    if (m.type === 'image') return 'أرسل لك صورة' + (m.text ? ': ' + m.text : '');
+    if (m.type === 'file') return 'أرسل لك مستنداً: ' + (m.name || '');
+    return String(m.text || '').slice(0, 160);
+  }
   officeInfo() { const s = this.settings(); return { name: s.officeName, lawyer: s.lawyerName, city: s.city, phone: s.phone, hours: s.hours } }
   rules() { const saved = this.store.kv.get('appeal_rules', {}); return DEFAULT_RULES.map(r => ({ ...r, ...(saved[r.id] || {}) })) }
   cur() { return this.state || EMPTY() }
@@ -120,6 +137,7 @@ export class Office extends DurableObject {
   addMsg(m) {
     const msg = { id: rid(), at: stamp(), read: m.from === 'lawyer', seen: m.from === 'client', ...m };
     this.msgs.push(msg); this.store.putMessage(msg); this.broadcast('message', this.pubAdmin(msg));
+    if (msg.from === 'lawyer' && (this.apnsCfg() || {}).p8) { const oi = this.officeInfo(), job = this.apnsTo(msg.client, { title: msg.type === 'notice' ? 'إشعار من ' + oi.name : 'رسالة من ' + oi.lawyer, body: this.preview(msg), tag: 'mq-' + msg.id }).catch(() => {}); try { this.ctx.waitUntil(job) } catch (e) {} }
     return msg;
   }
 
@@ -238,6 +256,11 @@ export class Office extends DurableObject {
         return json(200, upd);
       }
       if (p === '/api/portal/push-subscribe' && M === 'POST') return json(200, { ok: true });
+      if (p === '/api/portal/apns-register' && M === 'POST') {
+        const b = await jbody() || {}; if (!Apns.okToken(b.token)) return json(400, { error: 'رمز جهاز غير صالح' });
+        this.store.kv.set('apns_devices', b.off ? Apns.dropDevice(this.apnsDevs(), b.token) : Apns.addDevice(this.apnsDevs(), cl.id, String(b.token).toLowerCase(), b.env, stamp()));
+        this.broadcast('push', this.pushCount()); return json(200, { ok: true, ready: !!(this.apnsCfg() || {}).p8 });
+      }
       if (p === '/api/portal/messages' && M === 'GET') {
         const changed = [];
         if (!u.searchParams.get('peek')) this.msgs.forEach(m => { if (m.client === cl.id && m.from === 'lawyer' && !m.seen) { m.seen = true; changed.push(m) } });
@@ -368,7 +391,7 @@ export class Office extends DurableObject {
 
     if (p === '/api/admin/bootstrap') {
       const st = this.auth.can(me, 'all') ? this.state : this.scope(me, this.cur());
-      return json(200, { state: st, messages: this.msgs.filter(m => this.canSeeClient(me, m.client)).map(m => this.pubAdmin(m)), push: {}, pushReady: false, user: { ...me, token: undefined }, settings: this.settings() });
+      return json(200, { state: st, messages: this.msgs.filter(m => this.canSeeClient(me, m.client)).map(m => this.pubAdmin(m)), push: this.pushCount(), pushReady: !!(this.apnsCfg() || {}).p8, user: { ...me, token: undefined }, settings: this.settings() });
     }
     /* الحفظ الآمن: السجلات المتغيرة فقط مع رقم إصدار كل سجل (merge.js) */
     if (p === '/api/admin/state' && M === 'POST') {
@@ -441,6 +464,24 @@ export class Office extends DurableObject {
       const a = p.slice(15), r = a === 'classes' && M === 'GET' ? await this.sjc('classes', {}, me) : a === 'search' && M === 'POST' ? await this.sjc('search', await jbody(), me) : a === 'pdf' && M === 'GET' ? await this.sjc('pdf', { id: u.searchParams.get('id') }, me) : { status: 404, body: { error: 'not found' } };
       if (r.file) return new Response(r.file.body, { headers: { 'Content-Type': r.file.contentType, 'Content-Disposition': `inline; filename="${r.file.filename}"`, 'Cache-Control': 'no-store', ...CORS, ...SEC } });
       return json(r.status, r.body, r.status === 429 && r.body.retry ? { 'Retry-After': String(r.body.retry) } : {});
+    }
+    if (p === '/api/admin/apns' || p === '/api/admin/apns/test') {
+      /* إعداد إشعارات آيفون من حساب Apple Developer: المفتاح يُحفظ هنا ولا يُعاد */
+      if ((d = deny('manage'))) return d;
+      if (M === 'GET') { const dv = this.apnsDevs(); return json(200, { ...Apns.pubCfg(this.apnsCfg()), devices: Object.values(dv).reduce((n, l) => n + l.length, 0), clients: Object.keys(dv).length }) }
+      const b = await jbody() || {};
+      if (p === '/api/admin/apns/test') {
+        if (!(this.apnsCfg() || {}).p8) return json(400, { error: 'أدخل إعدادات Apple أولاً.' });
+        const c = (this.cur().clients || []).find(x => x.id === b.client); if (!c) return json(400, { error: 'اختر موكلاً' });
+        if (!(this.apnsDevs()[c.id] || []).length) return json(400, { error: 'لم يسجّل هذا الموكل دخوله من تطبيق الآيفون بعد.' });
+        const r = await this.apnsTo(c.id, { title: 'تجربة من ' + this.officeInfo().name, body: 'هكذا تصلك رسائل المحامي على الآيفون', tag: 'mq-test' });
+        this.audit({ ...who, action: 'apns.test', entity: 'clients', entity_id: c.id, detail: { label: c.name, ok: r.filter(x => x.ok).length, fail: r.filter(x => !x.ok).map(x => x.reason) } });
+        return json(200, { sent: r.filter(x => x.ok).length, failed: r.filter(x => !x.ok).map(x => x.reason) });
+      }
+      if (b.clear) { this.store.kv.set('apns_cfg', null); this.audit({ ...who, action: 'apns.cfg_removed', entity: 'settings' }); return json(200, { configured: false }) }
+      const r = Apns.cleanCfg(b, this.apnsCfg()); if (r.error) return json(400, { error: r.error });
+      this.store.kv.set('apns_cfg', r.cfg); this.audit({ ...who, action: 'apns.cfg_set', entity: 'settings', detail: { keyId: r.cfg.keyId, teamId: r.cfg.teamId, topic: r.cfg.topic } });
+      return json(200, Apns.pubCfg(r.cfg));
     }
     if (p.startsWith('/api/admin/muqtafi/')) {
       /* «المقتفي» (بيرزيت): اشتراك المكتب في مخزن المكتب ولا يُعاد للمتصفح */
@@ -708,7 +749,7 @@ export class Office extends DurableObject {
     /* تصدير بيانات المكتب لمزود الخدمة: فقط بإذن مؤقت من مدير المكتب، ودون أسرار (كلمات المرور ومفاتيح التدقيق والتوقيع)، ويُسجّل في سجل المكتب */
     if (p === '/_ops/export') {
       if (!granted()) { this.audit({ username: 'ops', action: 'ops.export_denied' }); return json(403, { error: 'لم يمنح المكتب إذن وصول للدعم الفني. يمنحه مدير المكتب من الإعدادات.' }) }
-      const S = this.store, SECRET = ['setup', 'media_key', 'audit_key', 'support_grant'];
+      const S = this.store, SECRET = ['setup', 'media_key', 'audit_key', 'support_grant', 'ai_key', 'muqtafi_cred', 'apns_cfg'];
       this.audit({ username: 'ops', action: 'ops.export' });
       return json(200, { slug: this.slug(), at: stampS(), records: S.all('SELECT * FROM records'), kv: S.all('SELECT * FROM kv').filter(k => !SECRET.includes(k.key)), messages: S.all('SELECT * FROM messages'), users: S.all('SELECT id, username, name, role, active, must_change, cases, created_at, last_login FROM users'), audit: S.all('SELECT * FROM audit ORDER BY seq') });
     }

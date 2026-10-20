@@ -1,0 +1,51 @@
+# بناء تطبيق الموكل «ميثاق» للآيفون على أجهزة Mac السحابية (Codemagic) ورفعه إلى TestFlight
+# التشغيل يدوي من لوحة Codemagic: Start new build ← mithaq-client-ios
+# المتغيرات السرية في مجموعة mithaq_ios داخل Codemagic (لا تُكتب هنا أبداً):
+#   APP_STORE_CONNECT_ISSUER_ID, APP_STORE_CONNECT_KEY_IDENTIFIER, APP_STORE_CONNECT_PRIVATE_KEY  ← مفتاح API من App Store Connect
+#   CERTIFICATE_PRIVATE_KEY  ← مفتاح RSA لشهادة التوزيع (يولّده Codemagic أو: ssh-keygen -t rsa -b 2048 -m PEM -f cert_key -q -N "")
+workflows:
+  mithaq-client-ios:
+    name: ميثاق — تطبيق الموكل (آيفون)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    working_directory: office/mithaq_portal
+    environment:
+      groups:
+        - mithaq_ios
+      vars:
+        BUNDLE_ID: ps.mithaq.mithaqPortal
+        # عنوان خادم المكتب الذي يتصل به التطبيق (يجب أن يكون https)
+        API_URL: https://demo.palgaz.net
+        BUILD_NAME: 1.0.1
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: حزم Flutter
+        script: flutter pub get
+      - name: تجهيز مشروع iOS و CocoaPods
+        script: flutter build ios --config-only --release --no-codesign --dart-define=API=$API_URL
+      - name: سلسلة المفاتيح
+        script: keychain initialize
+      - name: شهادة التوزيع وملف التعريف (يُنشآن تلقائياً إن لم يوجدا)
+        script: app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
+      - name: تثبيت الشهادة
+        script: keychain add-certificates
+      - name: ربط ملفات التوقيع بالمشروع
+        script: xcode-project use-profiles
+      - name: بناء ملف ipa
+        script: |
+          flutter build ipa --release \
+            --build-name=$BUILD_NAME \
+            --build-number=$((BUILD_NUMBER + 10)) \
+            --dart-define=API=$API_URL \
+            --export-options-plist=/Users/builder/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: true

@@ -5,9 +5,9 @@
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
-	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<string>ar</string>
 	<key>CFBundleDisplayName</key>
-	<string>Mithaq Portal</string>
+	<string>ميثاق</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -24,6 +24,31 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>ar</string>
+	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>لتسجيل رسالة صوتية وإرسالها إلى محاميك.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>لتصوير مستند أو صورة وإرسالها إلى محاميك.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>لاختيار صورة أو مستند من الصور وإرساله إلى محاميك.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>لفتح بوابتك بأمان ببصمة الوجه بدل كتابة الرمز.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>للاتصال بخادم مكتب المحاماة على شبكة المكتب.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>
@@ -56,8 +81,6 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
-		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
