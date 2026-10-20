@@ -5,13 +5,16 @@
 'use strict';
 
 const UA = 'Mithaq-Law-Office/2.0 (legal research by a law office; one request per user action)';
-const LIMITS = { search: [30, 60e3], item: [30, 60e3], items: [4, 600e3] };
+const LIMITS = { search: [60, 60e3], item: [30, 60e3], items: [4, 600e3] };
 const MAX_BUSY = 3, ITEMS_MAX = 20, CACHE_MS = 10 * 60e3;
 
 /* المصادر: كل مصدر = محوّل بحث + محوّل تشريع. المفعّل الآن مصدر واحد عام النشر بنص كامل منظم بالمواد.
    مصادر أخرى معتمدة فُحصت ولم تُفعّل: المرجع الإلكتروني للتشريعات المدمجة (محمي بتحدٍّ ضد البرامج، فلا يُتجاوز)،
    وبحث موقع ديوان الجريدة الرسمية (أخبار وأعداد PDF لا سجلات تشريع)، ومنظومة جامعية أخرى (غير متاحة وقت الفحص). */
 const S1 = 'https://maqam.najah.edu';
+/* المصدر 2: قاعدة تشريعات القطاع الأمني (واجهة WP REST العامة، الموقع العربي). يطلب ملف robots فاصلاً 10 ثوانٍ بين الطلبات، فيُحترم بطابور */
+const S2 = 'https://security-legislation.ps/ar/wp-json/wp/v2';
+const GAP = { s1: 400, s2: 10e3 };
 
 const ENT = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
 const dec = s => String(s || '').replace(/&(#x[0-9a-f]+|#\d+|[a-z]+);/gi, (m, k) => k[0] === '#' ? String.fromCodePoint(k[1] === 'x' || k[1] === 'X' ? parseInt(k.slice(2), 16) : +k.slice(1)) : (ENT[k] ?? m));
@@ -88,6 +91,24 @@ function s1ParseItem(html, id) {
   };
 }
 
+/* ── المصدر 2 ── */
+/* أسماء التصنيفات تأتي مضمّنة في الطلب نفسه (_embed) فلا حاجة لطلبات إضافية */
+const S2_Q = '_embed=wp:term&_fields=id,title,date,content,_links,_embedded';
+function s2Item(x, full) {
+  const title = one(x.title && x.title.rendered), html = String(x.content && x.content.rendered || '');
+  const T = [].concat(...((x._embedded && x._embedded['wp:term']) || [])).filter(Boolean), by = tax => T.filter(t => t.taxonomy === tax).map(t => one(t.name));
+  const tt = by('text-type-categories'), st = by('status-categories'), inst = by('institution-categories');
+  const year = +((title.match(/لسنة\s*(\d{4})/) || [])[1]) || null, no = (title.match(/رقم\s*\(?\s*(\d+)\s*\)?/) || [])[1] || '';
+  const type = mapType(tt.join(' '), '', title), statusRaw = st.join(' / ');
+  const content = text(html.replace(/<\/(p|h\d|li|div|tr)>/gi, '\n'));
+  const articles = (content.match(/(^|\n)\s*(المادة|مادة)\s*\(?\s*\d+/g) || []).length;
+  const out = { id: 's2:' + x.id, title, year, no, ref: no && year ? `${no}/${year}` : no, kind: tt.join(' / '), type, source: mapSource(type, tt.join(' '), title, year), subject: inst.join(' / '),
+    statusRaw, status: mapStatus(statusRaw), articles,
+    summary: [tt.join(' / '), inst.join(' / '), statusRaw, articles ? articles + ' مادة' : ''].filter(Boolean).join(' · ') };
+  if (full) { out.content = content; out.parts = content.split('\n').filter(Boolean).map(l => /^(المادة|مادة)\s*\(?\s*\d+/.test(l) ? { a: (l.match(/^((?:المادة|مادة)\s*\(?\s*\d+\s*\)?)/) || [l])[0], t: l.replace(/^((?:المادة|مادة)\s*\(?\s*\d+\s*\)?)\s*[:：-]?\s*/, '') } : /^(الباب|الفصل|القسم)\b/.test(l) && l.length < 120 ? { h: l } : { t: l }) }
+  return out;
+}
+
 function createLimiter() {
   const hits = new Map();
   return (key, kind) => {
@@ -117,8 +138,27 @@ function createLawSearch({ audit, fetchImpl = fetch } = {}) {
     cache.set(url, { at: Date.now(), html }); if (cache.size > 200) cache.delete(cache.keys().next().value);
     return html;
   }
-  const parseId = v => { const m = String(v || '').match(/^s1:(\d{1,7})$/); return m ? +m[1] : null };
-  async function item(id) { const n = parseId(id); if (!n) throw Object.assign(new Error('رقم التشريع غير صحيح.'), { status: 400 }); return s1ParseItem(await get(`${S1}/legislation/${n}/`), id) }
+  /* طابور لكل مصدر يحترم الفاصل الزمني المطلوب بين الطلبات */
+  const lastAt = { s1: 0, s2: 0 }, chain = { s1: Promise.resolve(), s2: Promise.resolve() };
+  function polite(src, url, opt) {
+    if (cache.has(url) && Date.now() - cache.get(url).at < CACHE_MS) return get(url, opt);
+    const run = chain[src].then(async () => { const w = lastAt[src] + GAP[src] - Date.now(); if (w > 0) await new Promise(r => setTimeout(r, w)); try { return await get(url, opt) } finally { lastAt[src] = Date.now() } });
+    chain[src] = run.catch(() => {}); return run;
+  }
+  const parseId = v => { const m = String(v || '').match(/^(s[12]):(\d{1,8})$/); return m ? { src: m[1], n: +m[2] } : null };
+  async function item(id) {
+    const p = parseId(id); if (!p) throw Object.assign(new Error('رقم التشريع غير صحيح.'), { status: 400 });
+    if (p.src === 's1') return s1ParseItem(await polite('s1', `${S1}/legislation/${p.n}/`), id);
+    return s2Item(JSON.parse(await polite('s2', `${S2}/latest-laws/${p.n}?${S2_Q}`)), true);
+  }
+  /* بحث في مصدر واحد (الواجهة تطلب المصادر معاً وتعرض كل ما يصل أولاً بأول) */
+  async function search(src, q, page) {
+    if (src === 's1') return s1ParseSearch(await polite('s1', s1SearchUrl(q, page)), page);
+    let txt; try { txt = await polite('s2', `${S2}/latest-laws?search=${encodeURIComponent(q)}&per_page=10&page=${page}&${S2_Q}`) }
+    catch (e) { if (page > 1) return { items: [], page, pages: page - 1 }; throw e } // تجاوز آخر صفحة
+    const j = JSON.parse(txt); const items = Array.isArray(j) ? j.map(x => s2Item(x, false)) : [];
+    return { items, page, pages: items.length === 10 ? page + 1 : page };
+  }
 
   return async function run(action, p, user) {
     const key = String(user && (user.id || user.username) || 'anon'), who = { user_id: user && user.id, username: user && user.username };
@@ -130,8 +170,8 @@ function createLawSearch({ audit, fetchImpl = fetch } = {}) {
         const q = String(p.q || '').replace(/\s+/g, ' ').trim().slice(0, 120), page = Math.min(500, Math.max(1, parseInt(p.page, 10) || 1));
         if (q.length < 2) return { status: 400, body: { error: 'اكتب كلمتين أو كلمة من حرفين على الأقل.' } };
         const d = deny('search'); if (d) return d;
-        const r = s1ParseSearch(await get(s1SearchUrl(q, page)), page);
-        audit && audit({ ...who, action: 'lawsearch.search', entity: 'laws', detail: { q: q.slice(0, 120), page, n: r.items.length } });
+        const src = p.src === 's2' ? 's2' : 's1', r = await search(src, q, page);
+        audit && audit({ ...who, action: 'lawsearch.search', entity: 'laws', detail: { q: q.slice(0, 120), src, page, n: r.items.length } });
         return { status: 200, body: { ok: true, q, ...r } };
       }
       if (action === 'item') {
@@ -145,7 +185,7 @@ function createLawSearch({ audit, fetchImpl = fetch } = {}) {
         if (!ids.length || ids.length > ITEMS_MAX) return { status: 400, body: { error: `اختر من 1 إلى ${ITEMS_MAX} تشريعاً للاستخراج من المصادر.` } };
         const d = deny('items'); if (d) return d;
         const out = [];
-        for (const id of ids) { const fresh = !cache.has(`${S1}/legislation/${parseId(id)}/`); out.push(await item(id)); if (fresh) await new Promise(r => setTimeout(r, 400)) } // تمهّل بين الطلبات
+        for (const id of ids) out.push(await item(id)); // الطابور يفصل بين الطلبات
         audit && audit({ ...who, action: 'lawsearch.extract', entity: 'laws', detail: { n: out.length } });
         return { status: 200, body: { ok: true, items: out } };
       }
@@ -155,4 +195,4 @@ function createLawSearch({ audit, fetchImpl = fetch } = {}) {
   };
 }
 
-module.exports = { createLawSearch, s1ParseSearch, s1ParseItem, toLibrary, mapType, mapStatus };
+module.exports = { createLawSearch, s1ParseSearch, s1ParseItem, s2Item, toLibrary, mapType, mapStatus };
