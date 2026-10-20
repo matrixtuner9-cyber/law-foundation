@@ -85,6 +85,8 @@ function mcBody(c){
   <div class="toolbar" style="margin-top:8px"><a class="btn sm" href="https://www.courts.gov.ps/EServices/login.aspx" target="_blank" rel="noopener noreferrer">التحقق في بوابة مجلس القضاء ↗</a></div>
   <div class="note mc-how" style="margin-top:8px"><b>كيف تصل القضية إلى حساب المحامي في ميزان:</b> يقدّم المحامي صك الوكالة لقلم المحكمة ← يُدرج موظف القلم رقم عضويته على القضية ← يتحقق ميزان من النقابة أنه مزاول ← تظهر القضية في حساب المحامي فوراً. قبل ذلك تظهر القضية في حساب الموكل (برقم هويته) فقط، ولذلك يفيد حسابه أدناه في المرحلة الأولى.</div>
   <p class="m" style="margin-top:6px">تُقرأ التحديثات بحساب المحامي (شاشة «الربط مع ميزان») للقضايا المُدرجة، وبحساب الموكل لما سواها، وتظهر للمراجعة قبل إضافتها إلى ملف القضية.</p></div></section>
+ <section class="panel wide-panel"><header><h2>تقرير قضايا الموكل</h2><span class="m">ملخص منظّم لكل قضية: أرقامها، درجتها، صفته، الجلسة القادمة، آخر قرار، وحالة الربط في ميزان</span></header><div class="bd"><div class="toolbar"><button class="btn pri" data-act="mcRep" data-v="print">${PI2} طباعة التقرير</button><button class="btn" data-act="mcRep" data-v="wa">إرسال عبر واتساب</button><button class="btn" data-act="mcRep" data-v="mail">إرسال بالبريد الإلكتروني</button><button class="btn" data-act="mcRep" data-v="copy">نسخ النص</button></div>
+  <p class="m" style="margin-top:6px">واتساب والبريد يُرسلان نص التقرير من جهازك. لإرفاق نسخة PDF: «طباعة التقرير» ثم «حفظ PDF» وأرفقه بالرسالة.</p></div></section>
  <section class="panel wide-panel"><header><h2>حساب الموكل في ميزان</h2><span class="m">اختياري، بموافقة الموكل</span></header><div class="bd" id="mcAcct">${mcAcct(c)}</div></section>
  </div>`;
 }
@@ -112,4 +114,23 @@ document.addEventListener('submit',e=>{const f=e.target;
 const mcss=document.createElement('style');mcss.textContent=`.mc .wide-panel{grid-column:1/-1}.mc-t{width:100%;border-collapse:collapse;font-size:14px}.mc-t th,.mc-t td{padding:6px;border-bottom:1px solid var(--line);text-align:right;vertical-align:middle}.mc-t th{color:var(--muted);font-weight:600}.mc-t .field{width:100%;min-width:110px}
 .mc-t .mc-role,.mc-t .mc-link{min-width:130px}.mc-how{line-height:1.9}.mc-chain{font-size:12px;margin-top:2px}.mc-pros{display:flex;flex-direction:column;gap:2px;font-size:12px;color:var(--muted);margin-top:4px}.mc-pros .field{max-width:160px}.mc-late{color:var(--danger,#B42318);font-size:12.5px;line-height:1.6;margin-top:4px;max-width:260px}
 .mc-log{list-style:none;margin:8px 0 0;padding:0;font-size:13.5px;display:flex;flex-direction:column;gap:3px}.mc-log li.bad{color:var(--danger,#B42318)}.mc-log li.good{color:var(--ok)}`;document.head.appendChild(mcss);
+
+/* ── تقرير قضايا الموكل: طباعة، واتساب، بريد ── */
+const PI2='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-3px"><path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v7H6z"/></svg>';
+const LINKT=Object.fromEntries(LINK);
+function repRows(c){const m=c.mz||{};return cases.filter(k=>k.client===c.id).map(k=>{const tr=window.trackOf?trackOf(k):[],lvl=tr.length?tr[tr.length-1].lvl:'',h=nextH(k.id),dec=(k.decisions||[]).slice().sort((a,b)=>String(b.date).localeCompare(String(a.date)))[0];
+ return {k,no:k.no,mz:k.mzRef||'',court:(CT(k.court)||{}).name||'',lvl,chain:tr.length>1?tr.map(t=>t.lvl+' '+(t.no||'')).join(' ← '):'',role:k.mzRole||m.role||'',link:LINKT[k.mzLink||'']&&k.mzLink?LINKT[k.mzLink]:'',next:h?dmy(h.date)+(h.time?' '+h.time:'')+(h.purpose?' · '+h.purpose:''):'',dec:dec?dmy(dec.date)+' · '+(dec.text||dec.kind||'').slice(0,140):'',status:k.status||'',subject:k.subject||''}})}
+function repText(c){const rs=repRows(c),o=(window.OFFICE&&OFFICE.name)||'';
+ return [`تقرير قضايا: ${c.name}`,`بتاريخ ${dmy(iso(TODAY))}${o?' · '+o:''}`,'',...rs.map((r,i)=>[`${i+1}) القضية ${r.no}${r.mz&&r.mz!==r.no?' (رقمها في ميزان '+r.mz+')':''} — ${r.subject}`,r.court?`المحكمة: ${r.court}${r.lvl?' · الدرجة: '+r.lvl:''}`:'',r.chain?`المسار: ${r.chain}`:'',r.role?`صفتكم: ${r.role}`:'',`الجلسة القادمة: ${r.next||'لم تُحدد بعد'}`,r.dec?`آخر قرار: ${r.dec}`:'',r.link?`وكالة المحامي في ميزان: ${r.link}`:''].filter(Boolean).join('\n')),'','للاستفسار راسلونا عبر بوابة الموكل.'].join('\n')}
+A.mcRep=v=>{const c=C(S.clientId);if(!c)return;const rs=repRows(c);if(!rs.length){toast('لا قضايا لهذا الموكل');return}
+ if(v==='print'){if(!window.MQP)return;const M=MQP,B=M.B,E=M.esc;MQP.open({label:'تقرير قضايا الموكل',build(){return {title:'تقرير قضايا الموكل',sub:c.name,ref:'ت/'+(c.code||c.id)+'/'+iso(TODAY),file:'تقرير قضايا - '+c.name+' - '+iso(TODAY),orient:'land',sign:['المحامي'],
+   blocks:[B.kv([['الموكل','<b>'+E(c.name)+'</b>'],['رقم الهوية في ميزان','<span class="mono">'+E((c.mz&&c.mz.idNo)||c.idNo||'')+'</span>'],['عدد القضايا',rs.length],['تاريخ التقرير',dmy(iso(TODAY))]],2),
+    B.t(['#','القضية','رقمها في ميزان','المحكمة والدرجة','صفة الموكل','الجلسة القادمة','آخر قرار','وكالة المحامي في ميزان'],rs.map((r,i)=>[i+1,'<span class="mono">'+E(r.no)+'</span><br><small>'+E(r.subject)+'</small>'+(r.chain?'<br><small>'+E(r.chain)+'</small>':''),'<span class="mono">'+E(r.mz||'—')+'</span>',E(r.court)+(r.lvl?'<br><small>'+E(r.lvl)+'</small>':''),E(r.role||'—'),E(r.next||'—'),E(r.dec||'—'),E(r.link||'—')]),{w:['3%','17%','10%','14%','9%','15%','20%','12%']}),
+    B.p('<small>أُعدّ هذا التقرير من ملفات المكتب وما سُجّل من ميزان حتى تاريخه.</small>','s')]}}});return}
+ const txt=repText(c);
+ if(v==='wa'){let d=String(c.whatsapp||c.phone||'').replace(/\D/g,'');if(d.startsWith('00'))d=d.slice(2);else if(d.startsWith('0'))d='970'+d.slice(1);
+  const a=document.createElement('a');a.href='https://wa.me/'+(d.length>=11?d:'')+'?text='+encodeURIComponent(txt);a.target='_blank';a.rel='noopener';document.body.appendChild(a);a.click();a.remove();if(d.length<11)toast('لا رقم واتساب للموكل؛ اختر جهة الاتصال في واتساب');return}
+ if(v==='mail'){if(!c.email)toast('لا بريد إلكتروني مسجّل للموكل؛ أضفه من «تعديل البيانات»');const a=document.createElement('a');a.href='mailto:'+encodeURIComponent(c.email||'')+'?subject='+encodeURIComponent('تقرير قضايا: '+c.name)+'&body='+encodeURIComponent(txt);document.body.appendChild(a);a.click();a.remove();return}
+ if(v==='copy'){(navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast('نُسخ نص التقرير')).catch(()=>toast('تعذّر النسخ'))}};
+window.MQ_mzReportText=repText;
 })();
