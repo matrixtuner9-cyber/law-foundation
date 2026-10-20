@@ -469,13 +469,13 @@ class _NavBar extends StatelessWidget {
     final bottom = MediaQuery.paddingOf(context).bottom;
     final chat = idx == 2;
     return SizedBox(
-      height: 120 + bottom,
+      height: 96 + bottom,
       child: Stack(clipBehavior: Clip.none, alignment: Alignment.bottomCenter, children: [
         Positioned(
           left: 12,
           right: 12,
-          bottom: 12 + bottom,
-          height: 70,
+          bottom: 10 + bottom,
+          height: 66,
           child: Container(
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(24),
@@ -496,7 +496,7 @@ class _NavBar extends StatelessWidget {
         ),
         // الزر الأوسط: المراسلة
         Positioned(
-          bottom: 12 + bottom + 70 - 34,
+          bottom: 10 + bottom + 66 - 34,
           child: Semantics(
             button: true,
             selected: chat,
