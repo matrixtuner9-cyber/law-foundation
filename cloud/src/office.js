@@ -13,7 +13,7 @@ import { createService as muqtafiService, idFromUrl as muqtafiId } from './muqta
 import { createService as sjcService } from './sjc.js';
 import { createLaws } from './laws.js';
 import { createLawSearch } from './law-sources.js';
-import { createDrafter, createExtractor, createAssistant, createCalcExtractor, createRulingExtractor, DOC_TYPES, MODEL as AI_MODEL } from './ai-draft.js';
+import { createDrafter, createExtractor, createAssistant, createCalcExtractor, createRulingExtractor, usageSummary, PRICES as AI_PRICES, DOC_TYPES, MODEL as AI_MODEL } from './ai-draft.js';
 
 /* توقيع داخلي يثبت أن طلب /_ops وصل من الـ Worker بعد التحقق من رمز المشغّل (لا يمكن للزائر إرساله) */
 export const opsSig = env => env.OPS_TOKEN ? crypto.createHash('sha256').update('mq-ops|' + env.OPS_TOKEN).digest('hex') : null;
@@ -485,6 +485,11 @@ export class Office extends DurableObject {
         if ((d = deny('write'))) return d;
         this.calcExtract ||= createCalcExtractor({ audit: e => this.audit(e), getKey: aiKey, model: this.env.MQ_AI_MODEL });
         const r = await this.calcExtract(await jbody(), me); return json(r.status, r.body);
+      }
+      if (a === 'usage' && M === 'GET') {
+        if ((d = deny('manage'))) return d;
+        const m = /^\d{4}-\d{2}$/.test(u.searchParams.get('month') || '') ? u.searchParams.get('month') : stampS().slice(0, 7), [y, mo] = m.split('-').map(Number), next = mo === 12 ? `${y + 1}-01` : `${y}-${String(mo + 1).padStart(2, '0')}`;
+        return json(200, { month: m, prices: AI_PRICES, model: AI_MODEL, ...usageSummary(this.store.aiAudit(m + '-01').filter(r => r.at < next + '-01')) });
       }
       if (a === 'ruling' && M === 'POST') {
         if ((d = deny('write'))) return d;

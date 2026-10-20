@@ -543,6 +543,7 @@ async function api(req, res, u) {
     }
     if (a === 'extract' && M === 'POST') { if (!need('write')) return; const r = await extractor(await jbody(req, 16 * 1024 * 1024), me); return json(res, r.status, r.body) }
     if (a === 'calc' && M === 'POST') { if (!need('write')) return; const r = await calcExtract(await jbody(req), me); return json(res, r.status, r.body) }
+    if (a === 'usage' && M === 'GET') { if (!need('manage')) return; const m = /^\d{4}-\d{2}$/.test(u.searchParams.get('month') || '') ? u.searchParams.get('month') : stampS().slice(0, 7); const next = (() => { const [y, mo] = m.split('-').map(Number); return mo === 12 ? `${y + 1}-01` : `${y}-${String(mo + 1).padStart(2, '0')}` })(); return json(res, 200, { month: m, prices: AiDraft.PRICES, model: AiDraft.MODEL, ...AiDraft.usageSummary(store.aiAudit(m + '-01').filter(r => r.at < next + '-01')) }) }
     if (a === 'ruling' && M === 'POST') { if (!need('write')) return; const r = await rulingExtract(await jbody(req), me); return json(res, r.status, r.body) }
     if (a === 'assist' && M === 'POST') { if (!need('write')) return; const r = await assistant(await jbody(req, 16 * 1024 * 1024), me, { rulings: cur().rulings || [] }); return json(res, r.status, r.body) }
     if (a === 'draft' && M === 'POST') { if (!need('write')) return; const r = await drafter(await jbody(req, 2 * 1024 * 1024), me, { rulings: cur().rulings || [] }); return json(res, r.status, r.body) }

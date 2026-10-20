@@ -124,6 +124,8 @@ function open(DATA) {
       const hash = chain(prev, row);
       q.auditAdd.run(row.at, row.user_id, row.username, row.action, row.entity, row.entity_id, row.detail, row.ip, prev, hash);
     },
+    /* عمليات الذكاء الاصطناعي منذ تاريخ (لملخص الاستهلاك) */
+    aiAudit(since) { return db.prepare("SELECT at, username, action, detail FROM audit WHERE action LIKE 'ai.%' AND at >= ? ORDER BY seq DESC LIMIT 20000").all(String(since || '')) },
     auditList({ limit = 200, before = null, action = '', user = '', text = '' } = {}) {
       const w = [], a = [];
       if (before) { w.push('seq < ?'); a.push(+before) }

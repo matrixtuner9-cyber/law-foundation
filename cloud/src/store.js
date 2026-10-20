@@ -108,6 +108,8 @@ export function openStore(ctx) {
       run('INSERT INTO audit(at, user_id, username, action, entity, entity_id, detail, ip, prev, hash) VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
         row.at, row.user_id, row.username, row.action, row.entity, row.entity_id, row.detail, row.ip, prev, chain(prev, row));
     },
+    /* عمليات الذكاء الاصطناعي منذ تاريخ (لملخص الاستهلاك) */
+    aiAudit(since) { return all("SELECT at, username, action, detail FROM audit WHERE action LIKE 'ai.%' AND at >= ? ORDER BY seq DESC LIMIT 20000", String(since || '')) },
     auditList({ limit = 200, before = null, action = '', user = '', text = '' } = {}) {
       const w = [], a = [];
       if (before) { w.push('seq < ?'); a.push(+before) }

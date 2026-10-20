@@ -66,22 +66,30 @@ function pickArticles(content, words, max = 5) {
 }
 
 /* الإجبار على استدعاء أداة (tool_choice: tool/any) غير مدعوم في بعض النماذج (ومنها claude-sonnet-5-5)،
-   فنرسل tool_choice: auto مع تعليمة صريحة، وإن أجاب النموذج نصاً بلا أداة نعيد الطلب مرة واحدة بطلب الاستدعاء. */
-async function callClaude(key, body, fetchImpl) {
+   فنرسل tool_choice: auto مع تعليمة صريحة في آخر رسالة (لا في system كي تبقى بداية الطلب ثابتة فيعمل التخزين المؤقت)،
+   وإن أجاب النموذج نصاً بلا أداة نعيد الطلب مرة واحدة بطلب الاستدعاء. meter يجمع الاستهلاك الفعلي لحساب التكلفة. */
+const withNote = (messages, note) => { const m = messages.slice(), last = m[m.length - 1]; const c = typeof last.content === 'string' ? [{ type: 'text', text: last.content }] : last.content.slice(); c.push({ type: 'text', text: note }); m[m.length - 1] = { ...last, content: c }; return m };
+async function callClaude(key, body, fetchImpl, meter) {
   const forced = body.tool_choice && (body.tool_choice.type === 'tool' || body.tool_choice.type === 'any') ? (body.tool_choice.name || (body.tools && body.tools[0] && body.tools[0].name) || '') : '';
   if (forced) {
-    body = { ...body, tool_choice: { type: 'auto' }, system: (body.system || '') + `\n\nأجب حصراً باستدعاء الأداة «${forced}» بمدخلات مكتملة، ولا تكتب أي نص خارجها.` };
-    const j = await callRaw(key, body, fetchImpl);
+    body = { ...body, tool_choice: { type: 'auto' }, messages: withNote(body.messages, `أجب حصراً باستدعاء الأداة «${forced}» بمدخلات مكتملة، ولا تكتب أي نص خارجها.`) };
+    const j = await callRaw(key, body, fetchImpl, meter);
     if ((j.content || []).some(x => x.type === 'tool_use' && x.name === forced)) return j;
     const txt = (j.content || []).filter(x => x.type === 'text').map(x => x.text).join('\n').slice(0, 4000);
-    return callRaw(key, { ...body, messages: [...body.messages, { role: 'assistant', content: txt || '…' }, { role: 'user', content: `استدعِ الأداة «${forced}» الآن بالمحتوى نفسه، بلا أي نص آخر.` }] }, fetchImpl);
+    return callRaw(key, { ...body, messages: [...body.messages, { role: 'assistant', content: txt || '…' }, { role: 'user', content: `استدعِ الأداة «${forced}» الآن بالمحتوى نفسه، بلا أي نص آخر.` }] }, fetchImpl, meter);
   }
-  return callRaw(key, body, fetchImpl);
+  return callRaw(key, body, fetchImpl, meter);
 }
-async function callRaw(key, body, fetchImpl) {
+/* أسعار تقديرية بالدولار لكل مليون وحدة (قراءة، كتابة). التخزين المؤقت: الكتابة ×1.25 والقراءة ×0.1 من سعر القراءة */
+const PRICES = { 'claude-sonnet-5-5': [2, 10], 'claude-haiku-5-5': [0.5, 2.5], 'claude-opus-5-5': [8, 40] };
+const meterNew = model => ({ model, calls: 0, in: 0, out: 0, cw: 0, cr: 0 });
+function meterUsd(m) { const [pi, po] = PRICES[m.model] || PRICES['claude-sonnet-5-5']; return Math.round(((m.in * pi) + (m.cw * pi * 1.25) + (m.cr * pi * 0.1) + (m.out * po)) / 1e6 * 10000) / 10000 }
+const meterOut = m => m && m.calls ? { calls: m.calls, in: m.in, out: m.out, cw: m.cw, cr: m.cr, usd: meterUsd(m) } : undefined;
+async function callRaw(key, body, fetchImpl, meter) {
   let r; try { r = await fetchImpl(API, { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' }, body: JSON.stringify(body) }) }
   catch (e) { throw Object.assign(new Error('تعذّر الاتصال بخدمة الصياغة. تحقق من الإنترنت.'), { status: 502 }) }
   const j = await r.json().catch(() => ({}));
+  if (meter && j.usage) { meter.calls++; meter.in += j.usage.input_tokens || 0; meter.out += j.usage.output_tokens || 0; meter.cw += j.usage.cache_creation_input_tokens || 0; meter.cr += j.usage.cache_read_input_tokens || 0 }
   if (r.status === 401 || r.status === 403) throw Object.assign(new Error('مفتاح الذكاء الاصطناعي غير صالح أو موقوف. حدّثه من إعدادات الصياغة.'), { status: 400 });
   if (r.status === 429) throw Object.assign(new Error('تجاوزت حد الاستخدام لدى مزوّد الذكاء الاصطناعي. حاول بعد قليل.'), { status: 429 });
   const em = String((j.error && j.error.message) || '').slice(0, 200);
@@ -169,18 +177,18 @@ function createDrafter({ audit, getKey, laws, lawSearch, rulingSearch, fetchImpl
     const said = an.hide(dict), tpl = String(input.template || '').slice(0, 8000);
     const claimsTxt = claims.length ? '\n\nادعاءات الخصم كما وردت في لائحته، ورد المحامي على كل منها:\n' + claims.map((x, i) => `${i + 1}. ادعاء الخصم: ${an.hide(x.text)}\n   رد المحامي: ${x.response ? an.hide(x.response) : '(لم يملِ رداً؛ أنكره إنكاراً عاماً وكلّف الخصم بإثباته)'}`).join('\n') : '';
     const guide = (GUIDE.find(([re]) => re.test(docType)) || [, ''])[1];
-    const mdl = model || MODEL;
+    const mdl = model || MODEL, meter = meterNew(mdl);
     try {
       /* الخطوة 1: ما الذي يلزم البحث عنه؟ */
       const plan = toolInput(await callClaude(key, { model: mdl, max_tokens: 800, system: SYSTEM, tools: [PLAN_TOOL], tool_choice: { type: 'tool', name: 'plan_research' },
-        messages: [{ role: 'user', content: `نوع المستند: ${docType}\n\nملف القضية:\n${caseTxt}\n\nإملاء المحامي:\n${said}${claimsTxt}\n\nحدّد عبارات البحث عن التشريعات الفلسطينية ذات الصلة والكلمات المفتاحية.` }] }, fetchImpl), 'plan_research');
+        messages: [{ role: 'user', content: `نوع المستند: ${docType}\n\nملف القضية:\n${caseTxt}\n\nإملاء المحامي:\n${said}${claimsTxt}\n\nحدّد عبارات البحث عن التشريعات الفلسطينية ذات الصلة والكلمات المفتاحية.` }] }, fetchImpl, meter), 'plan_research');
       /* الخطوة 2: المراجع من مصادر موثقة فقط */
       const refs = await gatherRefs(plan, ctxExtra.rulings, input.web !== false, user);
       let refTxt = refs.map(r => `[${r.id}] ${r.kind === 'ruling' ? 'حكم قضائي' : 'تشريع'}: ${r.title}${r.ref ? ' (' + r.ref + ')' : ''}\n${r.arts.map(a => (a.head ? a.head + ': ' : '') + a.text).join('\n')}`).join('\n\n');
       if (refTxt.length > MAX_CTX) refTxt = refTxt.slice(0, MAX_CTX);
       /* الخطوة 3: الصياغة */
       const out = toolInput(await callClaude(key, { model: mdl, max_tokens: 8000, system: SYSTEM, tools: [DRAFT_TOOL], tool_choice: { type: 'tool', name: 'submit_draft' },
-        messages: [{ role: 'user', content: `المطلوب: صياغة «${docType}».\n\nملف القضية:\n${caseTxt}\n\nإملاء المحامي (الوقائع والطلبات كما ذكرها):\n${said}${claimsTxt}\n\n${guide ? 'إرشادات البنية: ' + guide + '\n\n' : ''}${tpl ? 'نموذج المكتب الذي يُبنى عليه (التزم ببنيته):\n' + an.hide(tpl) + '\n\n' : ''}المراجع المتاحة (لا يُستشهد بغيرها):\n${refTxt || '(لا توجد مراجع متاحة؛ علّم كل سند قانوني «يحتاج تحقق»)'}` }] }, fetchImpl), 'submit_draft');
+        messages: [{ role: 'user', content: `المطلوب: صياغة «${docType}».\n\nملف القضية:\n${caseTxt}\n\nإملاء المحامي (الوقائع والطلبات كما ذكرها):\n${said}${claimsTxt}\n\n${guide ? 'إرشادات البنية: ' + guide + '\n\n' : ''}${tpl ? 'نموذج المكتب الذي يُبنى عليه (التزم ببنيته):\n' + an.hide(tpl) + '\n\n' : ''}المراجع المتاحة (لا يُستشهد بغيرها):\n${refTxt || '(لا توجد مراجع متاحة؛ علّم كل سند قانوني «يحتاج تحقق»)'}` }] }, fetchImpl, meter), 'submit_draft');
       /* إعادة الأسماء، والتحقق من أن كل مرجع مذكور موجود فعلاً */
       const valid = new Set(refs.map(r => r.id));
       const fix = s => an.show(String(s || '')).replace(/\[(R\d+)\]/g, (m, id) => valid.has(id) ? m : '[مرجع يحتاج تحقق]');
@@ -189,10 +197,10 @@ function createDrafter({ audit, getKey, laws, lawSearch, rulingSearch, fetchImpl
       const references = refs.filter(r => usedIds.has(r.id)).map(r => ({ id: r.id, kind: r.kind, title: r.title, ref: r.ref, url: r.url || '', origin: r.origin, arts: r.arts.map(a => a.head).filter(Boolean),
         used_for: fix(((out.references || []).find(x => x.id === r.id) || {}).used_for || '') }));
       const unverified = (out.unverified || []).map(u => fix(u.need)).filter(Boolean);
-      audit && audit({ ...who, action: 'ai.draft', entity: 'docs', detail: { docType, refs: references.length, unverified: unverified.length, model: mdl, chars: dict.length } });
+      audit && audit({ ...who, action: 'ai.draft', entity: 'docs', detail: { docType, refs: references.length, unverified: unverified.length, model: mdl, chars: dict.length, usage: meterOut(meter) } });
       return { status: 200, body: { ok: true, title: fix(out.title || docType), court: fix(out.court || ''), sections, references, unverified, considered: refs.length } };
     } catch (e) {
-      audit && audit({ ...who, action: 'ai.draft_failed', entity: 'docs', detail: { docType, error: String(e.message).slice(0, 160) } });
+      audit && audit({ ...who, action: 'ai.draft_failed', entity: 'docs', detail: { docType, error: String(e.message).slice(0, 160), usage: meterOut(meter) } });
       return { status: e.status || 500, body: { error: e.status ? e.message : 'تعذّرت الصياغة. أعد المحاولة.' } };
     }
   };
@@ -224,11 +232,12 @@ function createExtractor({ audit, getKey, fetchImpl = fetch, model } = {}) {
       const t = String(input.text || '').slice(0, 120000).trim(); if (t.length < 50) return { status: 400, body: { error: 'لم يُعثر على نص كافٍ في الملف.' } };
       const an = anonymizer(input.case || {}); content.push({ type: 'text', text: an.hide(t) }); input._an = an;
     }
+    const meter = meterNew(model || MODEL);
     content.push({ type: 'text', text: 'هذه لائحة مقدمة من الخصم في دعوى أمام المحاكم الفلسطينية. استخرج ادعاءاته ووقائعه بنداً بنداً كما وردت (دون إضافة أو تقييم)، وطلباته.' });
     try {
-      const out = toolInput(await callClaude(key, { model: model || MODEL, max_tokens: 6000, system: 'أنت مساعد قانوني دقيق يقرأ اللوائح القضائية الفلسطينية ويستخرج مضمونها بأمانة.', tools: [EXTRACT_TOOL], tool_choice: { type: 'tool', name: 'extract_pleading' }, messages: [{ role: 'user', content }] }, fetchImpl), 'extract_pleading');
+      const out = toolInput(await callClaude(key, { model: model || MODEL, max_tokens: 6000, system: 'أنت مساعد قانوني دقيق يقرأ اللوائح القضائية الفلسطينية ويستخرج مضمونها بأمانة.', tools: [EXTRACT_TOOL], tool_choice: { type: 'tool', name: 'extract_pleading' }, messages: [{ role: 'user', content }] }, fetchImpl, meter), 'extract_pleading');
       const show = input._an ? input._an.show : (x => x);
-      audit && audit({ ...who, action: 'ai.extract', entity: 'docs', detail: { claims: (out.claims || []).length, kind: input.file ? input.file.type : 'text' } });
+      audit && audit({ ...who, action: 'ai.extract', entity: 'docs', detail: { claims: (out.claims || []).length, kind: input.file ? input.file.type : 'text', usage: meterOut(meter) } });
       return { status: 200, body: { ok: true, docType: show(out.doc_type || ''), court: show(out.court || ''), caseNo: show(out.case_no || ''), summary: show(out.summary || ''), claims: (out.claims || []).map(c => show(c.text)).filter(Boolean), requests: (out.requests || []).map(show) } };
     } catch (e) { return { status: e.status || 500, body: { error: e.status ? e.message : 'تعذّرت قراءة اللائحة.' } } }
   };
@@ -264,12 +273,12 @@ function createCalcExtractor({ audit, getKey, fetchImpl = fetch, model } = {}) {
     const key = await getKey(); if (!key) return { status: 400, body: { error: 'لم يُضبط مفتاح الذكاء الاصطناعي بعد.', needKey: true } };
     const kind = input.kind === 'labour' ? 'labour' : 'insurance', t = String(input.text || '').slice(0, 20000).trim();
     if (t.length < 20) return { status: 400, body: { error: 'اسرد الوقائع أولاً.' } };
-    const an = anonymizer(input.case || {});
+    const an = anonymizer(input.case || {}), meter = meterNew(model || MODEL);
     try {
       const out = toolInput(await callClaude(key, { model: model || MODEL, max_tokens: 1500, system: 'أنت مساعد قانوني فلسطيني دقيق. تستخرج من سرد المحامي المعطيات الرقمية فقط ولا تحسب شيئاً ولا تخترع رقماً لم يُذكر. التواريخ بصيغة YYYY-MM-DD. النسب أرقام بلا علامة %.', tools: [CALC_TOOL], tool_choice: { type: 'tool', name: 'extract_calc' },
-        messages: [{ role: 'user', content: `نوع الحساب: ${kind === 'labour' ? 'حقوق عمالية (قانون العمل 7/2000)' : 'تعويض حادث طرق (قانون التأمين 20/2005)'}\n\nسرد المحامي:\n${an.hide(t)}\n\nاستخرج المعطيات المتاحة في السرد فقط، واذكر الناقص منها.` }] }, fetchImpl), 'extract_calc');
+        messages: [{ role: 'user', content: `نوع الحساب: ${kind === 'labour' ? 'حقوق عمالية (قانون العمل 7/2000)' : 'تعويض حادث طرق (قانون التأمين 20/2005)'}\n\nسرد المحامي:\n${an.hide(t)}\n\nاستخرج المعطيات المتاحة في السرد فقط، واذكر الناقص منها.` }] }, fetchImpl, meter), 'extract_calc');
       const fields = {}; for (const [k, v] of Object.entries(out.fields || {})) if (v !== '' && v != null) fields[k] = typeof v === 'string' ? an.show(v) : v;
-      audit && audit({ user_id: user && user.id, username: user && user.username, action: 'ai.calc_extract', entity: 'cases', detail: { kind, fields: Object.keys(fields).length } });
+      audit && audit({ user_id: user && user.id, username: user && user.username, action: 'ai.calc_extract', entity: 'cases', detail: { kind, fields: Object.keys(fields).length, usage: meterOut(meter) } });
       return { status: 200, body: { ok: true, kind, fields, missing: (out.missing || []).map(x => an.show(String(x))), assumptions: (out.assumptions || []).map(x => an.show(String(x))) } };
     } catch (e) { return { status: e.status || 500, body: { error: e.status ? e.message : 'تعذّر الاستخراج.' } } }
   };
@@ -290,11 +299,12 @@ function createRulingExtractor({ audit, getKey, fetchImpl = fetch, model } = {})
     const t = String(input.text || '').slice(0, 60000).trim(); if (t.length < 200) return { status: 400, body: { error: 'نص الحكم قصير جداً لاستخراج المبدأ.' } };
     const now = Date.now(), k = String(user && (user.id || user.username)), a = (hits.get(k) || []).filter(x => now - x < 600e3);
     if (a.length >= 20) { hits.set(k, a); return { status: 429, body: { error: 'طلبات كثيرة. حاول بعد قليل.' } } } a.push(now); hits.set(k, a);
+    const meter = meterNew(model || MODEL);
     const head = [input.court && `المحكمة: ${input.court}`, input.no && `رقم الحكم: ${input.no}`, input.date && `تاريخ الفصل: ${input.date}`].filter(Boolean).join(' · ');
     try {
       const out = toolInput(await callClaude(key, { model: model || MODEL, max_tokens: 1800, system: 'أنت محامٍ فلسطيني خبير يقرأ أحكام المحاكم الفلسطينية المنشورة ويستخرج منها المبدأ القضائي بدقة ودون زيادة على ما قرّره الحكم. لا تذكر أسماء الأطراف ولا الوكلاء ولا القضاة. لا تخترع مواد قانونية لم ترد في النص.', tools: [RULING_TOOL], tool_choice: { type: 'tool', name: 'extract_ruling' },
-        messages: [{ role: 'user', content: `${head ? head + '\n\n' : ''}نص الحكم:\n${t}\n\nاستخرج المبدأ القضائي والملخص والكلمات المفتاحية والنتيجة والمواد المطبّقة.` }] }, fetchImpl), 'extract_ruling');
-      audit && audit({ user_id: user && user.id, username: user && user.username, action: 'ai.ruling_extract', entity: 'rulings', detail: { no: String(input.no || '').slice(0, 40), chars: t.length } });
+        messages: [{ role: 'user', content: `${head ? head + '\n\n' : ''}نص الحكم:\n${t}\n\nاستخرج المبدأ القضائي والملخص والكلمات المفتاحية والنتيجة والمواد المطبّقة.` }] }, fetchImpl, meter), 'extract_ruling');
+      audit && audit({ user_id: user && user.id, username: user && user.username, action: 'ai.ruling_extract', entity: 'rulings', detail: { no: String(input.no || '').slice(0, 40), chars: t.length, usage: meterOut(meter) } });
       const arr = x => Array.isArray(x) ? x.map(v => String(v).trim()).filter(Boolean) : [];
       return { status: 200, body: { ok: true, principle: String(out.principle || '').trim(), summary: String(out.summary || '').trim(), keywords: arr(out.keywords).slice(0, 8), outcome: String(out.outcome || '').trim().slice(0, 60), articles: arr(out.articles).slice(0, 10) } };
     } catch (e) { return { status: e.status || 500, body: { error: e.status ? e.message : 'تعذّر الاستخراج.' } } }
@@ -332,25 +342,49 @@ function createAssistant({ audit, getKey, laws, lawSearch, rulingSearch, fetchIm
         doc.push({ type: 'text', text: `${M.doc}:\n` + an.hide(t) });
       }
     }
+    /* المستند يُرسل في الطلبين (تحديد البحث ثم الجواب): نعلّمه للتخزين المؤقت ونوحّد الأدوات في الطلبين كي تُقرأ بدايتهما من الذاكرة
+       المؤقتة في الطلب الثاني بعُشر السعر بدل إعادة قراءة المستند كاملاً. */
+    if (doc.length && M.refs) doc[doc.length - 1] = { ...doc[doc.length - 1], cache_control: { type: 'ephemeral' } };
+    const tools = n => doc.length && M.refs ? [PLAN_TOOL, ANSWER_TOOL] : [n === 'plan_research' ? PLAN_TOOL : ANSWER_TOOL];
     const msg = text => doc.length ? [...doc, { type: 'text', text }] : text;
+    const meter = meterNew(mdl);
     try {
       let refs = [], refTxt = '';
       if (M.refs) {
-        const plan = toolInput(await callClaude(key, { model: mdl, max_tokens: 800, system: SYSTEM, tools: [PLAN_TOOL], tool_choice: { type: 'tool', name: 'plan_research' },
-          messages: [{ role: 'user', content: msg(`${head}${M.ask}\n\nحدّد عبارات البحث عن التشريعات الفلسطينية والأحكام ذات الصلة والكلمات المفتاحية.`) }] }, fetchImpl), 'plan_research');
+        const plan = toolInput(await callClaude(key, { model: mdl, max_tokens: 800, system: SYSTEM, tools: tools('plan_research'), tool_choice: { type: 'tool', name: 'plan_research' },
+          messages: [{ role: 'user', content: msg(`${head}${M.ask}\n\nحدّد عبارات البحث عن التشريعات الفلسطينية والأحكام ذات الصلة والكلمات المفتاحية.`) }] }, fetchImpl, meter), 'plan_research');
         refs = await gather(plan, extra.rulings, input.web !== false, user, { rulings: M.rulings, liveMax: mode === 'similar' ? 5 : 3 });
         refTxt = refs.map(r => `[${r.id}] ${r.kind === 'ruling' ? 'حكم قضائي' : 'تشريع'}: ${r.title}${r.ref ? ' (' + r.ref + ')' : ''}\n${r.arts.map(x => (x.head ? x.head + ': ' : '') + x.text).join('\n')}`).join('\n\n').slice(0, MAX_CTX);
       }
-      const out = toolInput(await callClaude(key, { model: mdl, max_tokens: 6000, system: SYSTEM, tools: [ANSWER_TOOL], tool_choice: { type: 'tool', name: 'submit_answer' },
-        messages: [{ role: 'user', content: msg(`${head}${M.ask}${M.refs ? '\n\nالمراجع المتاحة (لا يُستشهد بغيرها):\n' + (refTxt || '(لا توجد)') : ''}`) }] }, fetchImpl), 'submit_answer');
+      const out = toolInput(await callClaude(key, { model: mdl, max_tokens: 6000, system: SYSTEM, tools: tools('submit_answer'), tool_choice: { type: 'tool', name: 'submit_answer' },
+        messages: [{ role: 'user', content: msg(`${head}${M.ask}${M.refs ? '\n\nالمراجع المتاحة (لا يُستشهد بغيرها):\n' + (refTxt || '(لا توجد)') : ''}`) }] }, fetchImpl, meter), 'submit_answer');
       const valid = new Set(refs.map(r => r.id)), fix = s => an.show(String(s || '')).replace(/\[(R\d+)\]/g, (m, id) => valid.has(id) ? m : '[مرجع يحتاج تحقق]');
       const sections = (out.sections || []).map(s => ({ heading: fix(s.heading), items: (s.items || []).map(fix) }));
       const used = new Set(sections.flatMap(s => s.items.join(' ').match(/R\d+/g) || []));
       const references = refs.filter(r => used.has(r.id)).map(r => ({ id: r.id, kind: r.kind, title: r.title, ref: r.ref, url: r.url || '', origin: r.origin, arts: r.arts.map(x => x.head).filter(Boolean), text: r.arts.map(x => (x.head ? x.head + ': ' : '') + x.text).join('\n').slice(0, 4000) }));
-      audit && audit({ ...who, action: 'ai.assist', entity: 'cases', detail: { mode, refs: references.length, file: input.file ? input.file.type : undefined, lang: mode === 'translate' ? lang : undefined } });
+      audit && audit({ ...who, action: 'ai.assist', entity: 'cases', detail: { mode, refs: references.length, file: input.file ? input.file.type : undefined, lang: mode === 'translate' ? lang : undefined, usage: meterOut(meter) } });
       return { status: 200, body: { ok: true, mode, lang: mode === 'translate' ? lang : undefined, sections, references, unverified: (out.unverified || []).map(fix).filter(Boolean) } };
-    } catch (e) { return { status: e.status || 500, body: { error: e.status ? e.message : 'تعذّر إتمام الطلب. أعد المحاولة.' } } }
+    } catch (e) {
+      if (meter.calls) audit && audit({ ...who, action: 'ai.assist_failed', entity: 'cases', detail: { mode, error: String(e.message).slice(0, 160), usage: meterOut(meter) } });
+      return { status: e.status || 500, body: { error: e.status ? e.message : 'تعذّر إتمام الطلب. أعد المحاولة.' } };
+    }
   };
 }
 
-module.exports = { createDrafter, createExtractor, createAssistant, createCalcExtractor, createRulingExtractor, pickPassages, anonymizer, pickArticles, DOC_TYPES, MODEL };
+/* ── ملخص الاستهلاك من سجل التدقيق: لكل مستخدم ولكل نوع عملية، بالتكلفة التقديرية ── */
+const AI_LABELS = { 'ai.draft': 'صياغة', 'ai.draft_failed': 'صياغة (لم تكتمل)', 'ai.assist': 'المساعد', 'ai.assist_failed': 'المساعد (لم يكتمل)', 'ai.extract': 'قراءة لائحة الخصم', 'ai.calc_extract': 'الحاسبات', 'ai.ruling_extract': 'استخراج المبادئ' };
+function usageSummary(rows) {
+  const by = new Map(), kinds = new Map(), tot = { ops: 0, calls: 0, in: 0, out: 0, usd: 0, unmetered: 0 };
+  for (const r of rows || []) {
+    if (!AI_LABELS[r.action]) continue;
+    const d = typeof r.detail === 'string' ? (() => { try { return JSON.parse(r.detail) } catch (e) { return {} } })() : (r.detail || {}), u = d.usage, who = r.username || '—';
+    const b = by.get(who) || { user: who, ops: 0, usd: 0, in: 0, out: 0 }; b.ops++; tot.ops++;
+    const kk = r.action === 'ai.assist' && d.mode ? 'ai.assist:' + d.mode : r.action, kd = kinds.get(kk) || { kind: kk, ops: 0, usd: 0, metered: 0 }; kd.ops++;
+    if (u) { b.usd += u.usd || 0; b.in += (u.in || 0) + (u.cw || 0) + (u.cr || 0); b.out += u.out || 0; kd.usd += u.usd || 0; kd.metered++; b.metered = (b.metered || 0) + 1; tot.calls += u.calls || 0; tot.in += (u.in || 0) + (u.cw || 0) + (u.cr || 0); tot.out += u.out || 0; tot.usd += u.usd || 0 } else tot.unmetered++;
+    by.set(who, b); kinds.set(kk, kd);
+  }
+  const r4 = x => Math.round(x * 100) / 100;
+  return { total: { ...tot, usd: r4(tot.usd) }, users: [...by.values()].map(x => ({ ...x, usd: r4(x.usd) })).sort((a, b) => b.usd - a.usd), kinds: [...kinds.values()].map(x => ({ ...x, usd: r4(x.usd) })).sort((a, b) => b.usd - a.usd) };
+}
+
+module.exports = { createDrafter, createExtractor, createAssistant, createCalcExtractor, createRulingExtractor, usageSummary, meterUsd, PRICES, pickPassages, anonymizer, pickArticles, DOC_TYPES, MODEL };

@@ -162,19 +162,31 @@ V.sources=()=>{setTimeout(()=>{if(ST.tab==='sjc')sjcClasses();else mqStatus()},0
 function paint(){const el=document.getElementById('srcBody');if(el&&S.view==='sources')el.innerHTML=body();paintSettings()}
 
 /* ═══ قسم في شاشة الإعدادات: اشتراكات المصادر والخدمات الخارجية (لمدير المكتب) ═══ */
-const SS={ai:null,aiOpen:false,aiBusy:false};
+const SS={ai:null,aiOpen:false,aiBusy:false,use:null,month:''};
+async function aiUsage(){try{SS.use=await j('ai/usage'+(SS.month?'?month='+SS.month:''))}catch(x){SS.use={error:x.message}}paintSettings()}
+const AI_KIND={'ai.draft':'صياغة لوائح ومستندات','ai.draft_failed':'صياغة لم تكتمل','ai.assist':'المساعد','ai.assist_failed':'طلبات مساعد لم تكتمل','ai.extract':'قراءة لائحة الخصم','ai.calc_extract':'استخراج معطيات الحاسبات','ai.ruling_extract':'استخراج مبادئ الأحكام'};
+const AI_MODE={brief:'ملخص قبل الجلسة',defences:'الدفوع والمهل',question:'سؤال قانوني',contract:'مراجعة عقد',opponent:'تحليل مستند للخصم',gaps:'ثغرات مستند',appeal:'أسباب الطعن',similar:'أحكام مشابهة',client_msg:'رسالة للموكل',minutes:'محضر اجتماع',translate:'ترجمة'};
+const kindName=k=>{const [a,m]=k.split(':');return m?(AI_MODE[m]||m):(AI_KIND[a]||a)};
+const usd=x=>'$'+(Number(x)||0).toFixed(2);
+function usageBox(){const u=SS.use;if(!u)return '<div class="m">جارٍ حساب الاستهلاك…</div>';if(u.error)return `<div class="m">${e(u.error)}</div>`;
+ const t=u.total,mo=[0,1,2].map(i=>{const d=new Date();d.setDate(1);d.setMonth(d.getMonth()-i);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')});
+ return `<div class="src-use"><div class="st-row"><div><b>استهلاك الشهر</b> <select class="field src-mo" id="srcMo">${mo.map(m=>`<option ${u.month===m?'selected':''}>${m}</option>`).join('')}</select></div><div class="src-use-tot"><span>${t.ops} عملية</span><b>${usd(t.usd)}</b><small class="m">تقديري</small></div></div>
+  ${t.ops?`<div class="src-use-g"><table class="src-tbl"><thead><tr><th>المستخدم</th><th>العمليات</th><th>التكلفة</th></tr></thead><tbody>${u.users.map(x=>`<tr><td>${e(x.user)}</td><td>${x.ops}</td><td>${x.metered?usd(x.usd):'—'}</td></tr>`).join('')}</tbody></table>
+  <table class="src-tbl"><thead><tr><th>نوع العملية</th><th>العمليات</th><th>التكلفة</th></tr></thead><tbody>${u.kinds.map(x=>`<tr><td>${e(kindName(x.kind))}</td><td>${x.ops}</td><td>${x.metered?usd(x.usd):'—'}</td></tr>`).join('')}</tbody></table></div>`:'<div class="m">لا عمليات ذكاء اصطناعي في هذا الشهر.</div>'}
+  <div class="m" style="margin-top:6px">تُحسب من الاستهلاك الفعلي الذي يعيده المزوّد وبأسعار تقديرية للنموذج ${e(u.model||'')}${t.unmetered?` · ${t.unmetered} عملية قديمة بلا قياس (—)`:''}. الفاتورة الرسمية في لوحة Anthropic، ويُنصح بضبط سقف شهري للإنفاق هناك.</div></div>`}
+document.addEventListener('change',ev=>{if(ev.target.id!=='srcMo')return;SS.month=ev.target.value;SS.use=null;paintSettings();aiUsage()});
 async function aiStatus(){try{SS.ai=await j('ai/status')}catch(x){SS.ai={configured:false,error:x.message}}paintSettings()}
 function settingsBody(){
  const st=ST.mq.st,ai=SS.ai,m=ST.mq;
  const mq=!st?'<div class="m">جارٍ القراءة…</div>':st.error?`<div class="note" style="color:var(--danger)">${e(st.error)}</div>`:m.credOpen?credBox():`<div class="st-row"><div>${st.configured?`<span class="pill ok">مضبوط</span> اسم المستخدم: <b>${e(st.user)}</b> <span class="m">· كلمة المرور محفوظة في الخادم ولا تُعرض</span>`:'<span class="m">لم يُضبط اشتراك المكتب بعد. البحث في المقتفي يحتاج اشتراكاً من معهد الحقوق في جامعة بيرزيت.</span>'}</div><div class="toolbar"><button type="button" class="btn sm" data-act="srcCred">${st.configured?'تغيير':'ضبط الاشتراك'}</button>${st.configured?'<button type="button" class="btn sm" data-act="srcCredRm">إزالة</button>':''}</div></div>`;
  const aib=!ai?'<div class="m">جارٍ القراءة…</div>':SS.aiOpen?`<form class="form src-cred" id="srcAiKey" autocomplete="off"><div class="wide ai-note">مفتاح API من Anthropic (console.anthropic.com). يُحفظ في خادم المكتب فقط ولا يظهر بعد حفظه لأي مستخدم.</div><label class="wide">مفتاح API<input class="field mono" id="srcAiK" type="password" autocomplete="new-password" dir="ltr" placeholder="sk-ant-…" required></label><div class="wide toolbar"><button class="btn pri" ${SS.aiBusy?'disabled':''}>حفظ المفتاح</button><button type="button" class="btn" data-act="srcAiX">إلغاء</button></div></form>`
-  :`<div class="st-row"><div>${ai.configured?`<span class="pill ok">مضبوط</span> ينتهي بـ <span class="mono">${e(ai.last4)}</span> <span class="m">· النموذج ${e(ai.model||'')}</span>`:'<span class="m">لم يُضبط المفتاح بعد. يلزم لتشغيل الصياغة والمساعد الذكي وحاسبات الاستخراج.</span>'}</div><div class="toolbar"><button type="button" class="btn sm" data-act="srcAi">${ai.configured?'تغيير المفتاح':'ضبط المفتاح'}</button>${ai.configured?'<button type="button" class="btn sm" data-act="srcAiRm">إزالة</button>':''}</div></div>`;
+  :`${ai.configured?usageBox():''}<div class="st-row"><div>${ai.configured?`<span class="pill ok">مضبوط</span> ينتهي بـ <span class="mono">${e(ai.last4)}</span> <span class="m">· النموذج ${e(ai.model||'')}</span>`:'<span class="m">لم يُضبط المفتاح بعد. يلزم لتشغيل الصياغة والمساعد الذكي وحاسبات الاستخراج.</span>'}</div><div class="toolbar"><button type="button" class="btn sm" data-act="srcAi">${ai.configured?'تغيير المفتاح':'ضبط المفتاح'}</button>${ai.configured?'<button type="button" class="btn sm" data-act="srcAiRm">إزالة</button>':''}</div></div>`;
  return `<div class="bd src-set"><div class="src-set-item"><h3>المقتفي <small class="m">· معهد الحقوق – جامعة بيرزيت · قاعدة الأحكام النظامية</small></h3>${mq}</div>
  <div class="src-set-item"><h3>الذكاء الاصطناعي <small class="m">· Anthropic Claude · الصياغة والمساعد والحاسبات واستخراج المبادئ</small></h3>${aib}</div>
  <div class="src-set-item"><h3>مصادر عامة بلا تسجيل <small class="m">· لا تحتاج إعداداً</small></h3><div class="m">مبادئ المكتب الفني (مجلس القضاء الأعلى)، مقام (جامعة النجاح) للأحكام والتشريعات، وموقع التشريعات الأمنية.</div></div></div>`;
 }
 function paintSettings(){const el=document.getElementById('srcSet');if(el&&S.view==='settings')el.innerHTML=settingsBody()}
-if(typeof V.settings==='function'){const vs=V.settings;V.settings=()=>{let h=vs();if(!can2('manage'))return h;setTimeout(()=>{if(!ST.mq.st)mqStatus();else paintSettings();if(!SS.ai)aiStatus()},0);
+if(typeof V.settings==='function'){const vs=V.settings;V.settings=()=>{let h=vs();if(!can2('manage'))return h;setTimeout(()=>{if(!ST.mq.st)mqStatus();else paintSettings();if(!SS.ai)aiStatus();if(!SS.use)aiUsage()},0);
  return h+`<section class="panel" style="margin-top:16px" id="srcSetPanel"><header><h2>اشتراكات المصادر والخدمات الخارجية</h2><span class="m">تُحفظ بيانات الدخول في خادم المكتب فقط، ويستخدمها التطبيق باسم المكتب عند طلب المحامي</span></header><div id="srcSet">${settingsBody()}</div></section>`}}
 A.srcAi=()=>{SS.aiOpen=true;paintSettings()};A.srcAiX=()=>{SS.aiOpen=false;paintSettings()};
 A.srcAiRm=async()=>{if(!confirm('إزالة مفتاح الذكاء الاصطناعي من خادم المكتب؟ ستتوقف الصياغة والمساعد حتى يُضبط مفتاح جديد.'))return;try{await post('ai/key',{key:''});toast('أُزيل المفتاح');SS.ai=null;await aiStatus()}catch(x){toast(x.message)}};
@@ -195,6 +207,8 @@ const css=document.createElement('style');css.textContent=`
 .src-card mark{background:var(--warn-soft);color:inherit;padding:0 2px;border-radius:3px}
 .src-pr{border-right:3px solid var(--brass);background:var(--sunk);border-radius:6px;padding:10px 14px;line-height:1.9}.src-pr ol{margin:6px 0 0;padding-right:20px}.src-meta{margin-top:8px;line-height:1.8}
 .src-card .ms-t h4{margin:10px 0 4px;color:var(--brass);font-size:15px}
+.src-use{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:var(--sunk)}.src-use-tot{display:flex;gap:10px;align-items:baseline}.src-use-tot b{font-size:20px;color:var(--brass)}.src-mo{width:auto;display:inline-block;margin-inline-start:8px;padding:4px 8px}
+.src-use-g{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}@media(max-width:800px){.src-use-g{grid-template-columns:1fr}}.src-tbl{width:100%;border-collapse:collapse;font-size:14px}.src-tbl th,.src-tbl td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right}.src-tbl th{color:var(--muted);font-weight:600}
 .src-set{display:flex;flex-direction:column;gap:14px}.src-set-item h3{margin:0 0 8px;font-size:16px}.src-set-item small{font-weight:400}.src-set .src-cred{margin:0}.src-set .st-row{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
 `;document.head.appendChild(css);
 })();
