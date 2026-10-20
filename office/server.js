@@ -515,7 +515,7 @@ async function api(req, res, u) {
       return json(res, 200, { ok: true, configured: !!k, last4: k ? k.slice(-4) : '' });
     }
     if (a === 'extract' && M === 'POST') { if (!need('write')) return; const r = await extractor(await jbody(req, 16 * 1024 * 1024), me); return json(res, r.status, r.body) }
-    if (a === 'assist' && M === 'POST') { if (!need('write')) return; const r = await assistant(await jbody(req, 1024 * 1024), me, { rulings: cur().rulings || [] }); return json(res, r.status, r.body) }
+    if (a === 'assist' && M === 'POST') { if (!need('write')) return; const r = await assistant(await jbody(req, 16 * 1024 * 1024), me, { rulings: cur().rulings || [] }); return json(res, r.status, r.body) }
     if (a === 'draft' && M === 'POST') { if (!need('write')) return; const r = await drafter(await jbody(req, 2 * 1024 * 1024), me, { rulings: cur().rulings || [] }); return json(res, r.status, r.body) }
     return json(res, 404, { error: 'غير موجود' });
   }

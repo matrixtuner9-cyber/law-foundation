@@ -140,8 +140,8 @@ A.aiPrint=()=>{if(!window.MQP||!D.res)return;const r=D.res,k=K(D.k),B=MQP.B,E=MQ
   sign:['المحامي'],mark:'مسودة'}}})};
 
 /* ── مساعد القضية: ملخص قبل الجلسة، الدفوع الشكلية والمهل، سؤال قانوني بمراجعه ── */
-const AS={k:'',mode:'brief',q:'',busy:false,res:null,err:''};
-const MODES={brief:['ملخص قبل الجلسة','أين وصلت الدعوى، والمطلوب في الجلسة القادمة، والنواقص والمهل'],defences:['الدفوع الشكلية والمهل','الدفوع الإجرائية الممكنة لموكلك والمهل الواجب مراقبتها، بمراجعها'],question:['سؤال قانوني','اسأل عن أي مسألة، فيُجاب من نصوص التشريعات والأحكام فقط']};
+const AS={k:'',mode:'brief',q:'',busy:false,res:null,err:'',doc:null};
+const MODES={brief:['ملخص قبل الجلسة','أين وصلت الدعوى، والمطلوب في الجلسة القادمة، والنواقص والمهل'],defences:['الدفوع الشكلية والمهل','الدفوع الإجرائية الممكنة لموكلك والمهل الواجب مراقبتها، بمراجعها'],question:['سؤال قانوني','اسأل عن أي مسألة، فيُجاب من نصوص التشريعات والأحكام فقط'],contract:['مراجعة عقد','البنود الضارة بموكلك والناقصة والغامضة، مع صياغة مقترحة'],opponent:['تحليل مستند للخصم','ما يثبته وما لا يثبته، ومواطن ضعفه وأوجه الطعن فيه'],similar:['أحكام مشابهة','الأقرب لقضيتك من مكتبة الاجتهادات، وكيف يُستفاد منها']};
 function history(k){const hs=hearings.filter(h=>h.k===k.id).sort((a,b)=>a.date.localeCompare(b.date)),ds=deadlines.filter(d=>d.k===k.id),dc=docs.filter(d=>d.k===k.id),ml=typeof mzLog!=='undefined'?mzLog.filter(l=>l.k===k.id):[];
  return [`اليوم: ${iso(TODAY)}`,hs.length&&'الجلسات:\n'+hs.map(h=>`- ${h.date} ${h.time||''}: ${h.purpose||''}${h.result?' — القرار: '+h.result:''}`).join('\n'),
   ds.length&&'المهل:\n'+ds.map(d=>`- ${d.due}: ${d.title} (${d.kind||''})`).join('\n'),dc.length&&'المستندات:\n'+dc.map(d=>`- ${d.date||''}: ${d.title} (${d.kind||''})`).join('\n'),
@@ -155,14 +155,25 @@ function asBody(){const k=K(AS.k),st=D.status;
  if(!st.configured)return head+`<div class="lg-empty">المساعد يحتاج مفتاح الذكاء الاصطناعي. ${st.canManage?'<button class="btn pri sm" data-act="aiOpen" data-v="'+e(AS.k)+'">ضبط المفتاح</button>':'يضيفه مدير المكتب.'}</div>`;
  const tabs=`<div class="as-modes">${Object.entries(MODES).map(([id,[t,d]])=>`<button type="button" class="as-mode ${AS.mode===id?'on':''}" data-act="asMode" data-v="${id}"><b>${t}</b><span>${d}</span></button>`).join('')}</div>`;
  const q=AS.mode==='question'?`<div class="ai-dict" style="margin-top:10px"><div class="ai-resp"><textarea class="field ai-text" id="asQ" rows="3" placeholder="مثال: ما مدة تقادم المطالبة بالأجور المتأخرة؟ وهل يقطعها الإنذار العدلي؟">${e(AS.q)}</textarea><button type="button" class="ai-mic sm ${D.listening&&D.target==='asQ'?'on':''}" data-act="asMic" aria-label="إملاء السؤال">${D.listening&&D.target==='asQ'?'■':'🎙'}</button></div><div class="ai-interim" id="aiInterim"></div></div>`:'';
- const go=`<div class="toolbar" style="margin-top:10px"><button class="btn pri" data-act="asRun" ${AS.busy?'disabled':''}>${AS.busy?'جارٍ التحضير…':'ابدأ'}</button>${AS.busy?'<span class="m">'+(AS.mode==='brief'?'يقرأ سجل القضية…':'يبحث في التشريعات والأحكام ثم يجيب؛ قد يستغرق دقيقة')+'</span>':''}</div>`;
- return head+tabs+q+(AS.err?`<div class="ai-err" style="margin-top:10px">${e(AS.err)}</div>`:'')+(AS.res?asResult():go)}
-A.asMode=v=>{asKeep();if(AS.busy)return;AS.mode=v;AS.res=null;AS.err='';asDraw()};
+ const dk=AS.mode==='contract'||AS.mode==='opponent';
+ const dbox=dk?`<div class="ai-opp" style="margin-top:10px">${AS.doc?`<b>${e(AS.doc.name)}</b> <span class="m">${AS.doc.text?'(نص · تُخفى الأسماء قبل الإرسال)':'(يُرسل الملف كما هو)'}</span> <button type="button" class="link" data-act="asDocClear">تغيير</button>`
+  :`<b>${AS.mode==='contract'?'ارفع العقد':'ارفع مستند الخصم'}</b> <span class="m">(Word أو PDF أو صورة أو نص)</span><div class="toolbar" style="margin-top:6px"><input type="file" id="asFile" accept=".pdf,.png,.jpg,.jpeg,.webp,.docx,.txt"></div>`}</div>`:'';
+ const sim=AS.mode==='similar'&&!(typeof rulings!=='undefined'&&rulings.length)?`<div class="ai-note" style="margin-top:8px">مكتبة الاجتهادات فارغة حالياً؛ أضف أحكاماً من «البحث في الأحكام» أو «الاجتهادات القضائية» أولاً.</div>`:'';
+ const go=`<div class="toolbar" style="margin-top:10px"><button class="btn pri" data-act="asRun" ${AS.busy?'disabled':''}>${AS.busy?'جارٍ التحضير…':'ابدأ'}</button>${AS.busy?'<span class="m">'+(AS.mode==='brief'?'يقرأ سجل القضية…':AS.mode==='similar'?'يبحث في مكتبة الاجتهادات…':'يقرأ ويبحث في التشريعات والأحكام؛ قد يستغرق دقيقة')+'</span>':''}</div>`;
+ return head+tabs+q+dbox+sim+(AS.err?`<div class="ai-err" style="margin-top:10px">${e(AS.err)}</div>`:'')+(AS.res?asResult():go)}
+A.asMode=v=>{asKeep();if(AS.busy)return;if(v!==AS.mode)AS.doc=null;AS.mode=v;AS.res=null;AS.err='';asDraw()};
+A.asDocClear=()=>{AS.doc=null;AS.res=null;asDraw()};
+document.addEventListener('change',async ev=>{if(ev.target.id!=='asFile')return;const f=ev.target.files[0];if(!f)return;asKeep();
+ if(f.size>10*1024*1024){toast('الملف أكبر من 10 ميغابايت');return}const nm=f.name.toLowerCase();
+ try{if(nm.endsWith('.docx'))AS.doc={name:f.name,text:await docxText(await f.arrayBuffer())};else if(nm.endsWith('.txt'))AS.doc={name:f.name,text:await f.text()};
+  else{if(!confirm('ملف PDF أو الصورة يُرسل كما هو لخدمة القراءة (لا يمكن إخفاء الأسماء داخله). متابعة؟')){ev.target.value='';return}
+   AS.doc={name:f.name,file:{name:f.name,type:f.type||(nm.endsWith('.pdf')?'application/pdf':'image/jpeg'),data:b64(await f.arrayBuffer())}}}}
+ catch(er){toast(er.message);return}AS.err='';asDraw()});
 const asKeep=()=>{const t=document.getElementById('asQ');if(t)AS.q=t.value};
 A.asMic=()=>{asKeep();if(D.listening&&D.target!=='asQ')stopMic();A.aiMic('asQ')};
-A.asRun=async()=>{if(AS.busy)return;stopMic();asKeep();const k=K(AS.k);if(!k)return;if(AS.mode==='question'&&AS.q.trim().length<8){AS.err='اكتب السؤال أو أمله بوضوح';return asDraw()}
+A.asRun=async()=>{if(AS.busy)return;stopMic();asKeep();const k=K(AS.k);if(!k)return;if((AS.mode==='contract'||AS.mode==='opponent')&&!AS.doc){AS.err='ارفع المستند أولاً';return asDraw()}if(AS.mode==='question'&&AS.q.trim().length<8){AS.err='اكتب السؤال أو أمله بوضوح';return asDraw()}
  AS.busy=true;AS.err='';asDraw();
- try{AS.res=await api('assist',{mode:AS.mode,case:caseCtx(k),history:history(k),question:AS.mode==='question'?AS.q:'',web:true})}catch(er){AS.err=er.message;if(er.body&&er.body.needKey)D.status.configured=false}
+ try{AS.res=await api('assist',{mode:AS.mode,case:caseCtx(k),history:history(k),question:AS.mode==='question'?AS.q:'',web:true,...(AS.mode==='contract'||AS.mode==='opponent'?(AS.doc.text?{text:AS.doc.text}:{file:AS.doc.file}):{})})}catch(er){AS.err=er.message;if(er.body&&er.body.needKey)D.status.configured=false}
  AS.busy=false;asDraw()};
 const asLink=s=>e(s).replace(/\[(R\d+)\]/g,'<sup class="ai-r">[$1]</sup>').replace(/\[مرجع يحتاج تحقق[^\]]*\]/g,m=>`<mark class="ai-v">${m}</mark>`);
 function asResult(){const r=AS.res;
@@ -175,7 +186,7 @@ const asPlain=()=>{const r=AS.res;return [MODES[r.mode][0]+' — '+(K(AS.k)||{})
 A.asAgain=()=>{AS.res=null;asDraw()};
 A.asCopy=()=>{(navigator.clipboard?navigator.clipboard.writeText(asPlain()):Promise.reject()).then(()=>toast('نُسخ')).catch(()=>toast('تعذّر النسخ'))};
 A.asSave=()=>{if(ro())return;const k=K(AS.k),r=AS.res;if(!k||!r)return;
- docs.push({id:'d'+Date.now().toString(36),k:k.id,title:MODES[r.mode][0]+(r.mode==='question'?': '+AS.q.slice(0,60):'')+' — '+iso(TODAY),kind:'مذكرة داخلية',date:iso(TODAY),src:'مساعد القضية',pages:1,shared:false,text:asPlain(),refs:r.references.map(x=>({id:x.id,title:x.title,ref:x.ref,arts:x.arts,origin:x.origin})),unverified:r.unverified,aiDraft:true});
+ docs.push({id:'d'+Date.now().toString(36),k:k.id,title:MODES[r.mode][0]+(r.mode==='question'?': '+AS.q.slice(0,60):AS.doc?': '+AS.doc.name:'')+' — '+iso(TODAY),kind:'مذكرة داخلية',date:iso(TODAY),src:'مساعد القضية',pages:1,shared:false,text:asPlain(),refs:r.references.map(x=>({id:x.id,title:x.title,ref:x.ref,arts:x.arts,origin:x.origin})),unverified:r.unverified,aiDraft:true});
  if(window.MQ&&MQ.saveState)MQ.saveState();toast('حُفظت في مستندات القضية '+k.no)};
 A.asPrint=()=>{if(!window.MQP||!AS.res)return;const r=AS.res,k=K(AS.k),B=MQP.B,E=MQP.esc;
  MQP.open({label:MODES[r.mode][0],build(){return {title:MODES[r.mode][0],sub:k?'في الدعوى رقم '+k.no:'',ref:k?k.no:'',file:'brief-'+(k?k.no.replace(/\W+/g,'-'):'case'),
@@ -201,9 +212,9 @@ const css=document.createElement('style');css.textContent=`
 .ai-doc:focus{border-color:var(--brass)}.ai-doc h2{text-align:center;font-size:20px;margin:4px 0}.ai-doc h3{font-size:16.5px;margin:14px 0 4px;color:var(--brass,#8B6F47)}.ai-doc p{margin:0 0 8px;text-align:justify}.ai-court{text-align:center;font-weight:700}
 .ai-r{color:#1D4ED8;font-weight:700}.ai-v{background:#FDE68A}.ai-f{background:#E0EAFD;border-radius:4px;padding:0 3px}
 .ai-h{font-size:15.5px;margin:14px 0 6px}.ai-refs{margin:0;padding-inline-start:22px;line-height:1.9;font-size:14px}.ai-refs .m{font-size:12.5px}.ai-unv{line-height:1.9;font-size:14px;color:#78350F}
-.ai-modal>*{flex-shrink:0}.as-modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.as-mode{all:unset;cursor:pointer;border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:3px;background:var(--surface);line-height:1.6}
+.ai-modal>*{flex-shrink:0}.as-modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}@media(max-width:700px){.as-modes{grid-template-columns:repeat(2,minmax(0,1fr))}.as-mode span{display:none}}.as-mode{all:unset;cursor:pointer;border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:3px;background:var(--surface);line-height:1.6}
 .as-mode span{font-size:12.5px;color:var(--muted)}.as-mode.on{border-color:var(--brass);box-shadow:0 0 0 2px rgba(184,134,61,.25);background:var(--sunk)}.as-mode:focus-visible{outline:3px solid var(--brass)}
 .as-doc ul{margin:0 0 6px;padding-inline-start:20px}.as-doc li{margin-bottom:4px;text-align:justify}.as-txt{white-space:pre-wrap;font-size:13px;background:var(--sunk);border-radius:8px;padding:8px 10px;margin:4px 0 8px;max-height:30vh;overflow:auto}
-@media(max-width:700px){.ai-form{grid-template-columns:1fr}.as-modes{grid-template-columns:1fr}}`;
+@media(max-width:700px){.ai-form{grid-template-columns:1fr}}`;
 document.head.appendChild(css);
 })();

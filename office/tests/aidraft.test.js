@@ -82,6 +82,28 @@ test('مساعد القضية: الملخص لا يبحث عن مراجع، وا
   assert.equal((await as({ mode: 'hack' }, { id: 'a1' })).status, 400);
 });
 
+test('مراجعة عقد وتحليل مستند وأحكام مشابهة: النص تُخفى أسماؤه، والملف يُرسل كمستند، والأحكام من المكتبة فقط', async () => {
+  const sent = [];
+  const fetchImpl = async (u, opt) => { const b = JSON.parse(opt.body); sent.push(b); const name = b.tool_choice.name;
+    const input = name === 'plan_research' ? { queries: [], keywords: ['فصل تعسفي'] } : { sections: [{ heading: 'نقض 12/2019', items: ['المبدأ [R1].'] }] };
+    return { ok: true, status: 200, json: async () => ({ content: [{ type: 'tool_use', name, input }] }) } };
+  let webCalls = 0; const lawSearch = async () => { webCalls++; return { status: 500, body: {} } };
+  const as = AI.createAssistant({ getKey: () => 'k', fetchImpl, lawSearch });
+  assert.equal((await as({ mode: 'contract', case: CASE }, { id: 'r1' })).status, 400, 'بلا مستند');
+  const c = await as({ mode: 'contract', case: CASE, web: false, text: 'عقد عمل بين شركة الزيتون للتجارة العامة والسيد أحمد محمود الشكعة براتب شهري قدره 3000 شيكل لمدة سنة قابلة للتجديد.' }, { id: 'r1' });
+  assert.equal(c.status, 200, JSON.stringify(c.body)); assert.ok(!JSON.stringify(sent).includes('الشكعة')); assert.match(JSON.stringify(sent[1]), /البنود الناقصة|بنود ناقصة/);
+  sent.length = 0;
+  const o = await as({ mode: 'opponent', case: CASE, web: false, file: { name: 'x.pdf', type: 'application/pdf', data: 'JVBERi0x' } }, { id: 'r1' });
+  assert.equal(o.status, 200); assert.equal(sent[1].messages[0].content[0].type, 'document');
+  assert.equal((await as({ mode: 'opponent', case: CASE, file: { name: 'x.exe', type: 'application/x-msdownload', data: 'AA' } }, { id: 'r1' })).status, 400);
+  sent.length = 0;
+  const rulings = Array.from({ length: 10 }, (_, i) => ({ court: 'نقض', no: `${i}/2019`, principle: 'الفصل التعسفي يوجب التعويض', summary: 'ملخص ' + i }));
+  assert.equal((await as({ mode: 'similar', case: CASE }, { id: 'r1' }, { rulings: [] })).status, 400, 'مكتبة فارغة: لا اتصال');
+  const r = await as({ mode: 'similar', case: CASE }, { id: 'r1' }, { rulings });
+  assert.equal(r.status, 200); assert.equal(webCalls, 0, 'الأحكام المشابهة من المكتبة فقط');
+  assert.equal((JSON.stringify(sent[1]).match(/حكم قضائي: نقض/g) || []).length, 8); assert.equal(r.body.references[0].kind, 'ruling');
+});
+
 /* ── مسارات الخادم ── */
 const ROOT = path.resolve(__dirname, '..'), TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'mq-ai-'));
 const PORT = 22000 + Math.floor(Math.random() * 1000), BASE = `http://127.0.0.1:${PORT}`;

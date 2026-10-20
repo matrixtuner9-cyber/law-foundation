@@ -457,7 +457,7 @@ export class Office extends DurableObject {
         this.laws ||= createLaws({ all: this.store.all, run: this.store.run, tx: this.store.tx }, { randomId: () => 'L' + crypto.randomBytes(6).toString('hex'), now: stampS });
         this.lawSearch ||= createLawSearch({ audit: e => this.audit(e) });
         this.assistant ||= createAssistant({ audit: e => this.audit(e), getKey: aiKey, laws: this.laws, lawSearch: this.lawSearch, model: this.env.MQ_AI_MODEL });
-        const r = await this.assistant(await jbody(1024 * 1024), me, { rulings: (this.cur().rulings) || [] }); return json(r.status, r.body);
+        const r = await this.assistant(await jbody(16 * 1024 * 1024), me, { rulings: (this.cur().rulings) || [] }); return json(r.status, r.body);
       }
       if (a === 'draft' && M === 'POST') {
         if ((d = deny('write'))) return d;
