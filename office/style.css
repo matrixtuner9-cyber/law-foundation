@@ -268,3 +268,15 @@ td .m{font-size:12px;color:var(--muted)}
 .cr-t .cr-weak{color:var(--danger,#B42318)}
 .cr-t tfoot td{font-weight:600;border-top:2px solid var(--line)}
 .cr-wrap{overflow-x:auto}
+
+/* الدفعات: طريقة الدفع وتفاصيلها وجدول الدفعات */
+.pay-x{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.pay-x .field{width:auto;min-width:130px}
+.pay-x .pvck{display:flex;gap:6px;align-items:center;font-size:14px;cursor:pointer}
+.pay-det{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.pay-det:empty{display:none}
+@media(max-width:560px){.pay-det{grid-template-columns:1fr}}
+.pay-f{display:flex;flex-direction:column;gap:3px;font-size:13px;color:var(--muted);min-width:0}.pay-f .field{width:100%}
+.pay-all{border-top:1px solid var(--line);padding-top:8px;display:flex;flex-direction:column;gap:6px}
+.pay-h{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+.pay-t{width:100%;border-collapse:collapse;font-size:13.5px}.pay-t th,.pay-t td{padding:5px 6px;border-bottom:1px solid var(--line);text-align:right;vertical-align:top}.pay-t th{color:var(--muted);font-weight:600}
+.pay-t .m{font-size:12px;line-height:1.5}
+.pay-t .mono,.pay-t .num{white-space:nowrap}
