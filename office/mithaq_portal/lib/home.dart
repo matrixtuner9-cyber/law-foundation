@@ -23,7 +23,11 @@ class HomeTab extends StatelessWidget {
           color: MQ.pine,
           onRefresh: () => store.load(),
           child: CustomScrollView(slivers: [
-            SliverToBoxAdapter(child: _Hero(next: next)),
+            SliverToBoxAdapter(child: _Hero(next: next, onGo: onGo)),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              sliver: SliverToBoxAdapter(child: _Kpis(next: next, onGo: onGo)),
+            ),
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
               sliver: SliverToBoxAdapter(child: _QuickActions(onGo: onGo)),
@@ -103,8 +107,9 @@ class HomeTab extends StatelessWidget {
 
 /* ── رأس الشاشة الداكن مع العدّاد ── */
 class _Hero extends StatelessWidget {
-  const _Hero({required this.next});
+  const _Hero({required this.next, required this.onGo});
   final ({Map<String, dynamic> kase, Map<String, dynamic> h, DateTime t})? next;
+  final GoTo onGo;
 
   @override
   Widget build(BuildContext context) {
@@ -113,24 +118,29 @@ class _Hero extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       decoration: const BoxDecoration(
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
-        gradient: LinearGradient(begin: Alignment.topRight, end: Alignment.bottomLeft, colors: [MQ.navy2, MQ.forest, MQ.forestDeep]),
+        color: MQ.forest,
       ),
       child: Stack(children: [
-        Positioned(
-            left: -50, bottom: -60, child: Icon(Icons.balance, size: 260, color: MQ.brassHi.withValues(alpha: .07))),
+        const Positioned.fill(
+            child: PhotoBackdrop(asset: 'assets/images/hero.jpg', alignment: Alignment.centerLeft, shade: .78)),
         Padding(
           padding: EdgeInsets.fromLTRB(20, top + 18, 20, 22),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
-              const Seal(size: 38),
+              const OfficeLogo(size: 40),
               const SizedBox(width: 10),
               Expanded(
-                  child: Text('${store.office['name'] ?? ''}',
-                      style: MQ.body(12, color: MQ.soft), maxLines: 1, overflow: TextOverflow.ellipsis)),
-              Chip2('${store.client['code'] ?? ''}', bg: Colors.white.withValues(alpha: .1), fg: Colors.white, mono: true),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('${store.office['name'] ?? ''}',
+                    style: MQ.body(14, color: Colors.white, weight: FontWeight.w700, height: 1.3),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+                Text('${store.client['code'] ?? ''}', style: MQ.mono(11, color: MQ.brassSoft)),
+              ])),
+              _iconBtn(Icons.notifications_none_rounded, store.unread, () => onGo(2)),
             ]),
             const SizedBox(height: 18),
-            Text('${greeting()}،', style: MQ.body(15, color: MQ.soft)),
+            Text('${greeting()}،', style: MQ.body(15, color: MQ.brassSoft)),
             Text(store.firstName, style: MQ.display(32, color: Colors.white), maxLines: 2),
             const SizedBox(height: 16),
             if (next == null)
@@ -159,13 +169,34 @@ class _Hero extends StatelessWidget {
     ));
   }
 
+  Widget _iconBtn(IconData icon, int badge, VoidCallback onTap) => Material(
+        color: MQ.forest.withValues(alpha: .35),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14), side: BorderSide(color: MQ.brassSoft.withValues(alpha: .35))),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(14),
+          onTap: onTap,
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: Badge(
+              isLabelVisible: badge > 0,
+              label: Text('$badge'),
+              backgroundColor: const Color(0xFFEF4444),
+              offset: const Offset(-4, 4),
+              child: Center(child: Icon(icon, color: Colors.white, size: 22)),
+            ),
+          ),
+        ),
+      );
+
   Widget _glass(Widget child) => Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: .07),
+            color: MQ.forest.withValues(alpha: .55),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: .14))),
+            border: Border.all(color: MQ.gold.withValues(alpha: .35))),
         child: child,
       );
 }
@@ -222,6 +253,60 @@ class _CountdownState extends State<Countdown> {
   }
 }
 
+/* ── بطاقات المؤشرات ── */
+class _Kpis extends StatelessWidget {
+  const _Kpis({required this.next, required this.onGo});
+  final ({Map<String, dynamic> kase, Map<String, dynamic> h, DateTime t})? next;
+  final GoTo onGo;
+  @override
+  Widget build(BuildContext context) {
+    final days = next == null ? null : next!.t.difference(DateTime.now()).inDays;
+    final items = [
+      (Icons.gavel_rounded, '${store.cases.length}', 'قضاياي', MQ.goldLo, MQ.brassSoft, () => onGo(1)),
+      (Icons.event_rounded, days == null ? '—' : (days == 0 ? 'اليوم' : '$days'), days == null || days == 0 ? 'الجلسة القادمة' : 'يوم للجلسة',
+          const Color(0xFF2563EB), const Color(0xFFE0EAFD), () => onGo(1)),
+      (Icons.mark_chat_unread_outlined, '${store.unread}', 'رسائل جديدة', MQ.danger, const Color(0xFFFDE7E7), () => onGo(2)),
+      (Icons.folder_copy_outlined, '${store.docs.length}', 'المستندات', const Color(0xFF047857), const Color(0xFFDDF5EA), () => onGo(3)),
+    ];
+    return Row(children: [
+      for (final (i, it) in items.indexed) ...[
+        if (i > 0) const SizedBox(width: 8),
+        Expanded(
+          child: Material(
+            color: MQ.surface,
+            borderRadius: BorderRadius.circular(18),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(18),
+              onTap: it.$6,
+              child: Container(
+                padding: const EdgeInsets.fromLTRB(4, 10, 4, 8),
+                decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: MQ.line),
+                    boxShadow: const [BoxShadow(color: Color(0x0D3E2F21), blurRadius: 10, offset: Offset(0, 3))]),
+                child: Column(children: [
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(color: it.$5, borderRadius: BorderRadius.circular(10)),
+                    child: Icon(it.$1, color: it.$4, size: 18),
+                  ),
+                  const SizedBox(height: 4),
+                  FittedBox(child: Text(it.$2, style: MQ.body(19, weight: FontWeight.w800, height: 1.25))),
+                  Text(it.$3,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: MQ.body(10.5, color: MQ.muted, weight: FontWeight.w700, height: 1.3)),
+                ]),
+              ),
+            ),
+          ),
+        ),
+      ],
+    ]);
+  }
+}
+
 /* ── أزرار سريعة ── */
 class _QuickActions extends StatelessWidget {
   const _QuickActions({required this.onGo});
@@ -229,7 +314,7 @@ class _QuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      (Icons.chat_bubble_outline, 'رسالة', MQ.pine, () => onGo(2)),
+      (Icons.chat_bubble_outline, 'رسالة', MQ.goldLo, () => onGo(2)),
       (Icons.mic_none, 'رسالة صوتية', MQ.danger, () => onGo(2, action: 'voice')),
       (Icons.photo_camera_outlined, 'تصوير وثيقة', MQ.brass, () => onGo(2, action: 'camera')),
       (Icons.upload_file_outlined, 'رفع مستند', MQ.docBlue, () => onGo(2, action: 'file')),
@@ -239,24 +324,34 @@ class _QuickActions extends StatelessWidget {
         if (i > 0) const SizedBox(width: 10),
         Expanded(
           child: Material(
-            color: MQ.surface,
+            color: Colors.transparent,
             borderRadius: BorderRadius.circular(18),
-            child: InkWell(
+            child: Ink(
+              decoration: BoxDecoration(
+                  gradient: i == 0 ? MQ.goldGradient : null,
+                  color: i == 0 ? null : MQ.surface,
+                  borderRadius: BorderRadius.circular(18),
+                  border: i == 0 ? null : Border.all(color: MQ.line),
+                  boxShadow: i == 0
+                      ? [BoxShadow(color: MQ.goldLo.withValues(alpha: .3), blurRadius: 16, offset: const Offset(0, 6))]
+                      : null),
+              child: InkWell(
               borderRadius: BorderRadius.circular(18),
               onTap: it.$4,
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
-                decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), border: Border.all(color: MQ.line)),
                 child: Column(children: [
                   Container(
                     width: 44,
                     height: 44,
-                    decoration: BoxDecoration(color: it.$3.withValues(alpha: .1), shape: BoxShape.circle),
-                    child: Icon(it.$1, color: it.$3, size: 22),
+                    decoration: BoxDecoration(
+                        color: i == 0 ? MQ.forest : it.$3.withValues(alpha: .1), shape: BoxShape.circle),
+                    child: Icon(it.$1, color: i == 0 ? MQ.gold : it.$3, size: 22),
                   ),
                   const SizedBox(height: 8),
-                  Text(it.$2, textAlign: TextAlign.center, style: MQ.body(12, weight: FontWeight.w600, height: 1.3)),
+                  Text(it.$2, textAlign: TextAlign.center, style: MQ.body(12, weight: FontWeight.w700, height: 1.3)),
                 ]),
+              ),
               ),
             ),
           ),

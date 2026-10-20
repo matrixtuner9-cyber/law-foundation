@@ -74,7 +74,7 @@ class _PushPromptState extends State<PushPrompt> {
             style: FilledButton.styleFrom(minimumSize: const Size(0, 42), padding: const EdgeInsets.symmetric(horizontal: 16)),
             onPressed: busy ? null : _enable,
             child: busy
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: MQ.onGold))
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: MQ.ink))
                 : const Text('تفعيل'),
           ),
         ],

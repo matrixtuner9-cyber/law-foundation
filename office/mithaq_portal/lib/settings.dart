@@ -115,7 +115,7 @@ class _SettingsPageState extends State<SettingsPage> {
           FilledButton.icon(
             onPressed: saving ? null : _save,
             icon: saving
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: MQ.onGold))
+                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: MQ.ink))
                 : const Icon(Icons.save_outlined),
             label: const Text('حفظ الأرقام'),
           ),
@@ -180,42 +180,72 @@ class _LockScreenState extends State<LockScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        backgroundColor: MQ.forest,
-        body: SafeArea(
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(28),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Seal(size: 76),
-                const SizedBox(height: 16),
-                Text('بوابة الموكل', style: MQ.display(30, color: Colors.white)),
-                Text(store.firstName, style: MQ.body(15, color: MQ.soft)),
-                const SizedBox(height: 36),
-                InkWell(
-                  customBorder: const CircleBorder(),
-                  onTap: _try,
-                  child: Container(
-                    width: 96,
-                    height: 96,
-                    decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Colors.white.withValues(alpha: .08),
-                        border: Border.all(color: MQ.brassHi, width: 1.5)),
-                    child: busy
-                        ? const Padding(padding: EdgeInsets.all(34), child: CircularProgressIndicator(strokeWidth: 2.4, color: MQ.brassHi))
-                        : const Icon(Icons.fingerprint, size: 56, color: MQ.brassHi),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Text('المس للدخول بالبصمة', style: MQ.body(14, color: Colors.white)),
-                const SizedBox(height: 30),
-                TextButton(
-                    onPressed: widget.onLogout,
-                    child: Text('الدخول بحساب آخر', style: MQ.body(13, color: MQ.soft))),
-              ]),
+  Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    final heroH = (mq.size.height * .5).clamp(320.0, 470.0);
+    return Scaffold(
+      backgroundColor: MQ.ivory,
+      body: Stack(children: [
+        SizedBox(
+            height: heroH + 60,
+            width: double.infinity,
+            child: const PhotoBackdrop(asset: 'assets/images/login_bg.jpg', alignment: Alignment(0, -.3), shade: .55)),
+        Positioned(
+          top: mq.padding.top + 40,
+          left: 0,
+          right: 0,
+          child: Column(children: [
+            const OfficeLogo(size: 84),
+            const SizedBox(height: 12),
+            Text('بوابة الموكل', style: MQ.display(30, color: Colors.white)),
+            Text('${store.office['name'] ?? ''}', style: MQ.body(13.5, color: MQ.brassSoft)),
+          ]),
+        ),
+        Positioned.fill(
+          top: heroH,
+          child: Container(
+            decoration: const BoxDecoration(
+              color: MQ.ivory,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+              boxShadow: [BoxShadow(color: Color(0x471A1209), blurRadius: 40, offset: Offset(0, -14))],
             ),
+            padding: EdgeInsets.fromLTRB(24, 26, 24, 16 + mq.padding.bottom),
+            child: Column(children: [
+              Text('مرحباً بعودتك', style: MQ.body(14, color: MQ.muted)),
+              Text(store.firstName, style: MQ.display(28), textAlign: TextAlign.center),
+              const Spacer(),
+              InkWell(
+                customBorder: const CircleBorder(),
+                onTap: _try,
+                child: Container(
+                  width: 96,
+                  height: 96,
+                  decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: MQ.surface,
+                      border: Border.all(color: MQ.gold, width: 2),
+                      boxShadow: [BoxShadow(color: MQ.gold.withValues(alpha: .25), blurRadius: 24, offset: const Offset(0, 8))]),
+                  child: busy
+                      ? const Padding(
+                          padding: EdgeInsets.all(34), child: CircularProgressIndicator(strokeWidth: 2.4, color: MQ.goldLo))
+                      : const Icon(Icons.fingerprint, size: 56, color: MQ.goldLo),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text('المس للدخول بالبصمة', style: MQ.body(14.5, weight: FontWeight.w700)),
+              const Spacer(),
+              TextButton(
+                  onPressed: widget.onLogout,
+                  child: Text('الدخول بحساب آخر', style: MQ.body(13, color: MQ.brass, weight: FontWeight.w700))),
+              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                const Icon(Icons.verified_user_outlined, size: 14, color: Color(0xFF10B981)),
+                const SizedBox(width: 6),
+                Text('اتصال آمن ومشفّر', style: MQ.body(11.5, color: MQ.brass)),
+              ]),
+            ]),
           ),
         ),
-      );
+      ]),
+    );
+  }
 }
