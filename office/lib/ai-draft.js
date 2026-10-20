@@ -65,7 +65,20 @@ function pickArticles(content, words, max = 5) {
   return arts.map(a => ({ ...a, score: ws.reduce((s, w) => s + (norm(a.text).includes(w) ? 1 : 0), 0) })).filter(a => a.score > 0).sort((a, b) => b.score - a.score).slice(0, max).map(a => ({ head: a.head, text: a.text.slice(0, 1800) }));
 }
 
+/* الإجبار على استدعاء أداة (tool_choice: tool/any) غير مدعوم في بعض النماذج (ومنها claude-sonnet-5-5)،
+   فنرسل tool_choice: auto مع تعليمة صريحة، وإن أجاب النموذج نصاً بلا أداة نعيد الطلب مرة واحدة بطلب الاستدعاء. */
 async function callClaude(key, body, fetchImpl) {
+  const forced = body.tool_choice && (body.tool_choice.type === 'tool' || body.tool_choice.type === 'any') ? (body.tool_choice.name || (body.tools && body.tools[0] && body.tools[0].name) || '') : '';
+  if (forced) {
+    body = { ...body, tool_choice: { type: 'auto' }, system: (body.system || '') + `\n\nأجب حصراً باستدعاء الأداة «${forced}» بمدخلات مكتملة، ولا تكتب أي نص خارجها.` };
+    const j = await callRaw(key, body, fetchImpl);
+    if ((j.content || []).some(x => x.type === 'tool_use' && x.name === forced)) return j;
+    const txt = (j.content || []).filter(x => x.type === 'text').map(x => x.text).join('\n').slice(0, 4000);
+    return callRaw(key, { ...body, messages: [...body.messages, { role: 'assistant', content: txt || '…' }, { role: 'user', content: `استدعِ الأداة «${forced}» الآن بالمحتوى نفسه، بلا أي نص آخر.` }] }, fetchImpl);
+  }
+  return callRaw(key, body, fetchImpl);
+}
+async function callRaw(key, body, fetchImpl) {
   let r; try { r = await fetchImpl(API, { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' }, body: JSON.stringify(body) }) }
   catch (e) { throw Object.assign(new Error('تعذّر الاتصال بخدمة الصياغة. تحقق من الإنترنت.'), { status: 502 }) }
   const j = await r.json().catch(() => ({}));

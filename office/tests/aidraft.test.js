@@ -13,7 +13,7 @@ function fakeClaude(captured, draftInput) {
   return async (url, opt) => {
     const b = JSON.parse(opt.body); captured.push(b);
     assert.equal(opt.headers['x-api-key'], 'sk-ant-test-key-1234567890abcdef');
-    const name = b.tool_choice.name;
+    const name = b.tools[0].name;
     const input = name === 'plan_research' ? { queries: ['قانون العمل'], keywords: ['الإجازة', 'الأجور'] } : draftInput;
     return { ok: true, status: 200, json: async () => ({ content: [{ type: 'tool_use', name, input }] }) };
   };
@@ -39,7 +39,7 @@ test('إخفاء الهوية: لا تصل الأسماء والهواتف لخ�
 });
 test('لائحة الخصم: الاستخراج من نص بعد إخفاء الأسماء، والرد بنداً بنداً يصل للصياغة', async () => {
   const sent = [];
-  const fetchImpl = async (u, opt) => { const b = JSON.parse(opt.body); sent.push(b); const name = b.tool_choice.name;
+  const fetchImpl = async (u, opt) => { const b = JSON.parse(opt.body); sent.push(b); const name = b.tools[0].name;
     const input = name === 'extract_pleading' ? { doc_type: 'لائحة دعوى', claims: [{ text: 'عمل [الخصم 1] لدى [الموكل] براتب 3500' }], requests: ['الإلزام بالدفع'] }
       : name === 'plan_research' ? { queries: [], keywords: [] } : { title: 'لائحة جوابية', sections: [{ heading: 'الرد', paragraphs: ['ينكر [الموكل] ذلك.'] }], references: [], unverified: [] };
     return { ok: true, status: 200, json: async () => ({ content: [{ type: 'tool_use', name, input }] }) } };
@@ -66,7 +66,7 @@ test('مفتاح مرفوض لدى المزوّد يُبلَّغ بوضوح', as
 
 test('مساعد القضية: الملخص لا يبحث عن مراجع، والسؤال يُجاب من المراجع فقط، والأسماء مخفية', async () => {
   const sent = [];
-  const fetchImpl = async (u, opt) => { const b = JSON.parse(opt.body); sent.push(b); const name = b.tool_choice.name;
+  const fetchImpl = async (u, opt) => { const b = JSON.parse(opt.body); sent.push(b); const name = b.tools[0].name;
     const input = name === 'plan_research' ? { queries: ['قانون العمل'], keywords: ['الإجازة'] } : { sections: [{ heading: 'الجواب', items: ['يستحق [الخصم 1] إجازة [R1].', 'والمادة 500 [R9].'] }], unverified: ['مدة التقادم'] };
     return { ok: true, status: 200, json: async () => ({ content: [{ type: 'tool_use', name, input }] }) } };
   const as = AI.createAssistant({ getKey: () => 'k', laws: LAWS, fetchImpl });
@@ -84,7 +84,7 @@ test('مساعد القضية: الملخص لا يبحث عن مراجع، وا
 
 test('مراجعة عقد وتحليل مستند وأحكام مشابهة: النص تُخفى أسماؤه، والملف يُرسل كمستند، والأحكام من المكتبة فقط', async () => {
   const sent = [];
-  const fetchImpl = async (u, opt) => { const b = JSON.parse(opt.body); sent.push(b); const name = b.tool_choice.name;
+  const fetchImpl = async (u, opt) => { const b = JSON.parse(opt.body); sent.push(b); const name = b.tools[0].name;
     const input = name === 'plan_research' ? { queries: [], keywords: ['فصل تعسفي'] } : { sections: [{ heading: 'نقض 12/2019', items: ['المبدأ [R1].'] }] };
     return { ok: true, status: 200, json: async () => ({ content: [{ type: 'tool_use', name, input }] }) } };
   let webCalls = 0; const lawSearch = async () => { webCalls++; return { status: 500, body: {} } };
@@ -106,7 +106,7 @@ test('مراجعة عقد وتحليل مستند وأحكام مشابهة: ا�
 
 test('رسالة للموكل ومحضر اجتماع وترجمة: بلا بحث عن مراجع، والإملاء القصير يُرفض، واللغة تصل', async () => {
   const sent = [];
-  const fetchImpl = async (u, opt) => { const b = JSON.parse(opt.body); sent.push(b); const name = b.tool_choice.name;
+  const fetchImpl = async (u, opt) => { const b = JSON.parse(opt.body); sent.push(b); const name = b.tools[0].name;
     return { ok: true, status: 200, json: async () => ({ content: [{ type: 'tool_use', name, input: { sections: [{ heading: '', items: ['Dear [الموكل], the hearing was adjourned.'] }] } }] }) } };
   const as = AI.createAssistant({ getKey: () => 'k', fetchImpl });
   assert.equal((await as({ mode: 'minutes', question: 'قصير', case: CASE }, { id: 'm1' })).status, 400);
@@ -122,7 +122,7 @@ test('رسالة للموكل ومحضر اجتماع وترجمة: بلا بح�
 
 test('أحكام النقض والاستئناف المنشورة: بحث حي بدل المكتبة الفارغة، والمقتطفات من نص الحكم، ولا اتصال بدون web', async () => {
   const sent = [], calls = [];
-  const fetchImpl = async (u, opt) => { const b = JSON.parse(opt.body); sent.push(b); const name = b.tool_choice.name;
+  const fetchImpl = async (u, opt) => { const b = JSON.parse(opt.body); sent.push(b); const name = b.tools[0].name;
     const input = name === 'plan_research' ? { queries: ['قانون التجارة'], keywords: ['شيك', 'كفالة'], ruling_queries: ['شيك بدون رصيد كفالة'] } : { sections: [{ heading: 'نقض حقوق 10/2019', items: ['المبدأ [R1].', 'حكم مختلق [R5].'] }], unverified: [] };
     return { ok: true, status: 200, json: async () => ({ content: [{ type: 'tool_use', name, input }] }) } };
   const rulingSearch = async (q, user, max) => { calls.push([q, max]); return [{ id: 7001, title: 'محكمة النقض حقوق 10/2019', date: '2019-05-01', url: 'https://maqam.najah.edu/judgments/7001/', text: 'مقدمة لا علاقة لها بالموضوع وهي فقرة طويلة بما يكفي لتتجاوز الحد الأدنى.\n\nإن الكفالة في الشيك لا تنشئ التزاماً مستقلاً على الكفيل ما لم يوقّع صراحة على صفحة الشيك وفق ما استقر عليه اجتهاد هذه المحكمة.\n\nوعليه تقرر المحكمة قبول الطعن شكلاً.' }] };
@@ -171,4 +171,17 @@ test('الصياغة تتطلب صلاحية الكتابة، وملف الوا�
   for (const f of ['calc.js', 'calc-engine.js']) assert.equal((await fetch(BASE + '/' + f, { headers: { cookie: admin } })).status, 200, f);
   assert.equal((await req('/api/admin/ai/calc', v, { method: 'POST', body: { kind: 'labour', text: 'x'.repeat(40) } })).status, 403);
   assert.match(fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'), /aidraft\.js[\s\S]*calc-engine\.js[\s\S]*calc\.js/);
+});
+
+test('النماذج التي لا تدعم إجبار الأداة: يُرسل tool_choice auto مع تعليمة صريحة، ويُعاد الطلب مرة إذا أجاب النموذج نصاً', async () => {
+  const sent = []; let n = 0;
+  const fetchImpl = async (u, opt) => { const b = JSON.parse(opt.body); sent.push(b); n++;
+    const tool = b.tools[0].name;
+    if (n === 1) return new Response(JSON.stringify({ content: [{ type: 'text', text: 'سأجيب هنا نصاً' }] }), { status: 200 });
+    return new Response(JSON.stringify({ content: [{ type: 'tool_use', name: tool, input: { kind: 'labour', fields: { monthlyWage: 3000 }, missing: [] } }] }), { status: 200 }) };
+  const ex = AI.createCalcExtractor({ getKey: async () => 'sk-ant-test', fetchImpl });
+  const r = await ex({ kind: 'labour', text: 'عمل موكلنا منذ 2016 براتب 3000 شيكل وفُصل بلا إشعار' }, { id: 1 });
+  assert.equal(r.status, 200); assert.equal(r.body.fields.monthlyWage, 3000);
+  assert.equal(sent.length, 2); assert.deepEqual(sent[0].tool_choice, { type: 'auto' }); assert.match(sent[0].system, /أجب حصراً باستدعاء الأداة «extract_calc»/);
+  assert.equal(sent[1].messages.length, 3); assert.equal(sent[1].messages[2].role, 'user'); assert.match(sent[1].messages[2].content, /استدعِ الأداة «extract_calc»/);
 });
