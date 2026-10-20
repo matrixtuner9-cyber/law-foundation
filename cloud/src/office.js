@@ -11,7 +11,7 @@ import { fetchJudgment } from './maqam.js';
 import { createService as maqamService } from './maqam-search.js';
 import { createLaws } from './laws.js';
 import { createLawSearch } from './law-sources.js';
-import { createDrafter, createExtractor, DOC_TYPES, MODEL as AI_MODEL } from './ai-draft.js';
+import { createDrafter, createExtractor, createAssistant, DOC_TYPES, MODEL as AI_MODEL } from './ai-draft.js';
 
 /* توقيع داخلي يثبت أن طلب /_ops وصل من الـ Worker بعد التحقق من رمز المشغّل (لا يمكن للزائر إرساله) */
 export const opsSig = env => env.OPS_TOKEN ? crypto.createHash('sha256').update('mq-ops|' + env.OPS_TOKEN).digest('hex') : null;
@@ -451,6 +451,13 @@ export class Office extends DurableObject {
         if ((d = deny('write'))) return d;
         this.extractor ||= createExtractor({ audit: e => this.audit(e), getKey: aiKey, model: this.env.MQ_AI_MODEL });
         const r = await this.extractor(await jbody(16 * 1024 * 1024), me); return json(r.status, r.body);
+      }
+      if (a === 'assist' && M === 'POST') {
+        if ((d = deny('write'))) return d;
+        this.laws ||= createLaws({ all: this.store.all, run: this.store.run, tx: this.store.tx }, { randomId: () => 'L' + crypto.randomBytes(6).toString('hex'), now: stampS });
+        this.lawSearch ||= createLawSearch({ audit: e => this.audit(e) });
+        this.assistant ||= createAssistant({ audit: e => this.audit(e), getKey: aiKey, laws: this.laws, lawSearch: this.lawSearch, model: this.env.MQ_AI_MODEL });
+        const r = await this.assistant(await jbody(1024 * 1024), me, { rulings: (this.cur().rulings) || [] }); return json(r.status, r.body);
       }
       if (a === 'draft' && M === 'POST') {
         if ((d = deny('write'))) return d;

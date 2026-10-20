@@ -15,7 +15,7 @@ async function api(path,body){const r=await fetch('/api/admin/ai/'+path,body?{me
 
 /* زر في صفحة القضية بجانب «إنشاء مستند» */
 const vcase=V.case;V.case=()=>{const h=vcase();if(!online())return h;
- return h.replace(/(<button class="btn" data-act="tplFor" data-v="([^"]+)">إنشاء مستند<\/button>)/,(m,b,id)=>b+`<button class="btn pri" data-act="aiOpen" data-v="${id}" title="أملِ الوقائع بصوتك فتُصاغ لائحة رسمية بمراجعها">🎙 صياغة بالصوت</button>`)};
+ return h.replace(/(<button class="btn" data-act="tplFor" data-v="([^"]+)">إنشاء مستند<\/button>)/,(m,b,id)=>b+`<button class="btn pri" data-act="aiOpen" data-v="${id}" title="أملِ الوقائع بصوتك فتُصاغ لائحة رسمية بمراجعها">🎙 صياغة بالصوت</button><button class="btn" data-act="asOpen" data-v="${id}" title="ملخص قبل الجلسة، الدفوع الشكلية والمهل، سؤال قانوني">⚖ مساعد القضية</button>`)};
 
 const LIB=()=>((window.MQ_LAWLIB||{}).items||[]);
 /* زر في نافذة أي نموذج من المكتبة القانونية: يصوغ على بنية النموذج نفسه */
@@ -64,15 +64,16 @@ function keyBox(st){return st.canManage?`<form class="form" id="fAiKey"><div cla
 /* ── الإملاء ── */
 let rec=null;
 function stopMic(){D.listening=false;if(rec){try{rec.stop()}catch(_){}rec=null}}
+const rd=()=>{if(D.target==='asQ'){asKeep();asDraw()}else draw()};
 A.aiMic=v=>{v=v||'aiText';if(!SR||isElectron){toast('في تطبيق سطح المكتب: ضع المؤشر في مربع النص واضغط Win+H للإملاء');const t=document.getElementById(v);if(t)t.focus();return}
- if(D.listening){const same=D.target===v;stopMic();keep();if(same){draw();return}}
+ if(D.listening){const same=D.target===v;stopMic();keep();if(same){rd();return}}
  keep();D.target=v;rec=new SR();rec.lang='ar-PS';rec.continuous=true;rec.interimResults=true;
  rec.onresult=ev=>{let fin='',mid='';for(let i=ev.resultIndex;i<ev.results.length;i++){const r=ev.results[i];if(r.isFinal)fin+=r[0].transcript;else mid+=r[0].transcript}
   const t=document.getElementById(D.target);if(fin&&t){t.value=(t.value&&!/\s$/.test(t.value)?t.value+' ':t.value)+fin.trim();keep()}
   D.interim=mid;const i=document.getElementById('aiInterim');if(i)i.textContent=mid};
  rec.onerror=ev=>{if(ev.error==='not-allowed'||ev.error==='service-not-allowed')toast('اسمح للمتصفح باستخدام المايكروفون');else if(ev.error==='language-not-supported'&&rec){rec.lang='ar-JO';try{rec.start()}catch(_){}return}else if(ev.error!=='no-speech'&&ev.error!=='aborted')toast('تعذّر الإملاء: '+ev.error)};
- rec.onend=()=>{if(D.listening&&rec){try{rec.start()}catch(_){}}else{D.interim='';const b=document.querySelector('.ai-mic');if(b&&!D.listening)draw()}};
- try{rec.start();D.listening=true}catch(er){toast('تعذّر تشغيل المايكروفون')}draw()};
+ rec.onend=()=>{if(D.listening&&rec){try{rec.start()}catch(_){}}else{D.interim='';const b=document.querySelector('.ai-mic');if(b&&!D.listening)rd()}};
+ try{rec.start();D.listening=true}catch(er){toast('تعذّر تشغيل المايكروفون')}rd()};
 function keep(){const t=document.getElementById('aiText');if(t)D.text=t.value;D.claims.forEach((c,i)=>{const r=document.getElementById('aiR'+i);if(r)c.response=r.value});const ty=document.getElementById('aiType');if(ty)D.type=ty.value;const k=document.getElementById('aiK');if(k)D.k=k.value;const w=document.getElementById('aiWeb');if(w)D.web=w.checked}
 function bind(){const t=document.getElementById('aiText');if(t)t.oninput=()=>{D.text=t.value};const k=document.getElementById('aiK');if(k)k.onchange=()=>{keep();draw()}}
 
@@ -138,6 +139,50 @@ A.aiPrint=()=>{if(!window.MQP||!D.res)return;const r=D.res,k=K(D.k),B=MQP.B,E=MQ
    ...(r.references.length?[B.h('المراجع'),...r.references.map(x=>B.p('<small>['+x.id+'] '+E(x.title)+(x.ref?' ('+E(x.ref)+')':'')+(x.arts.length?' — '+E(x.arts.join('، ')):'')+'</small>','s'))]:[])],
   sign:['المحامي'],mark:'مسودة'}}})};
 
+/* ── مساعد القضية: ملخص قبل الجلسة، الدفوع الشكلية والمهل، سؤال قانوني بمراجعه ── */
+const AS={k:'',mode:'brief',q:'',busy:false,res:null,err:''};
+const MODES={brief:['ملخص قبل الجلسة','أين وصلت الدعوى، والمطلوب في الجلسة القادمة، والنواقص والمهل'],defences:['الدفوع الشكلية والمهل','الدفوع الإجرائية الممكنة لموكلك والمهل الواجب مراقبتها، بمراجعها'],question:['سؤال قانوني','اسأل عن أي مسألة، فيُجاب من نصوص التشريعات والأحكام فقط']};
+function history(k){const hs=hearings.filter(h=>h.k===k.id).sort((a,b)=>a.date.localeCompare(b.date)),ds=deadlines.filter(d=>d.k===k.id),dc=docs.filter(d=>d.k===k.id),ml=typeof mzLog!=='undefined'?mzLog.filter(l=>l.k===k.id):[];
+ return [`اليوم: ${iso(TODAY)}`,hs.length&&'الجلسات:\n'+hs.map(h=>`- ${h.date} ${h.time||''}: ${h.purpose||''}${h.result?' — القرار: '+h.result:''}`).join('\n'),
+  ds.length&&'المهل:\n'+ds.map(d=>`- ${d.due}: ${d.title} (${d.kind||''})`).join('\n'),dc.length&&'المستندات:\n'+dc.map(d=>`- ${d.date||''}: ${d.title} (${d.kind||''})`).join('\n'),
+  ml.length&&'أحداث ميزان:\n'+ml.slice(-15).map(l=>`- ${l.at}: ${l.t}`).join('\n')].filter(Boolean).join('\n\n')}
+A.asOpen=async v=>{if(ro())return;if(!can2('write'))return toast('المساعد متاح للمحامين ومدير المكتب');AS.k=v||AS.k||(cases[0]||{}).id;AS.res=null;AS.err='';asDraw();
+ if(!D.status)try{D.status=await api('status')}catch(er){AS.err=er.message}asDraw()};
+function asDraw(){const m=document.getElementById('modal');m.innerHTML=`<div class="modal-bg" data-act="close"><div class="modal ai-modal" role="dialog" aria-label="مساعد القضية">${asBody()}</div></div>`}
+function asBody(){const k=K(AS.k),st=D.status;
+ const head=`<div class="head"><div><h1 style="font-size:23px">مساعد القضية</h1><p class="sub">${k?`${e(k.no)} · ${e(k.subject||'')}`:''}</p></div><button class="btn sm" data-act="aiClose">إغلاق</button></div>`;
+ if(!st)return head+`<div class="lg-empty">${AS.err?e(AS.err):'جارٍ التحضير…'}</div>`;
+ if(!st.configured)return head+`<div class="lg-empty">المساعد يحتاج مفتاح الذكاء الاصطناعي. ${st.canManage?'<button class="btn pri sm" data-act="aiOpen" data-v="'+e(AS.k)+'">ضبط المفتاح</button>':'يضيفه مدير المكتب.'}</div>`;
+ const tabs=`<div class="as-modes">${Object.entries(MODES).map(([id,[t,d]])=>`<button type="button" class="as-mode ${AS.mode===id?'on':''}" data-act="asMode" data-v="${id}"><b>${t}</b><span>${d}</span></button>`).join('')}</div>`;
+ const q=AS.mode==='question'?`<div class="ai-dict" style="margin-top:10px"><div class="ai-resp"><textarea class="field ai-text" id="asQ" rows="3" placeholder="مثال: ما مدة تقادم المطالبة بالأجور المتأخرة؟ وهل يقطعها الإنذار العدلي؟">${e(AS.q)}</textarea><button type="button" class="ai-mic sm ${D.listening&&D.target==='asQ'?'on':''}" data-act="asMic" aria-label="إملاء السؤال">${D.listening&&D.target==='asQ'?'■':'🎙'}</button></div><div class="ai-interim" id="aiInterim"></div></div>`:'';
+ const go=`<div class="toolbar" style="margin-top:10px"><button class="btn pri" data-act="asRun" ${AS.busy?'disabled':''}>${AS.busy?'جارٍ التحضير…':'ابدأ'}</button>${AS.busy?'<span class="m">'+(AS.mode==='brief'?'يقرأ سجل القضية…':'يبحث في التشريعات والأحكام ثم يجيب؛ قد يستغرق دقيقة')+'</span>':''}</div>`;
+ return head+tabs+q+(AS.err?`<div class="ai-err" style="margin-top:10px">${e(AS.err)}</div>`:'')+(AS.res?asResult():go)}
+A.asMode=v=>{asKeep();if(AS.busy)return;AS.mode=v;AS.res=null;AS.err='';asDraw()};
+const asKeep=()=>{const t=document.getElementById('asQ');if(t)AS.q=t.value};
+A.asMic=()=>{asKeep();if(D.listening&&D.target!=='asQ')stopMic();A.aiMic('asQ')};
+A.asRun=async()=>{if(AS.busy)return;stopMic();asKeep();const k=K(AS.k);if(!k)return;if(AS.mode==='question'&&AS.q.trim().length<8){AS.err='اكتب السؤال أو أمله بوضوح';return asDraw()}
+ AS.busy=true;AS.err='';asDraw();
+ try{AS.res=await api('assist',{mode:AS.mode,case:caseCtx(k),history:history(k),question:AS.mode==='question'?AS.q:'',web:true})}catch(er){AS.err=er.message;if(er.body&&er.body.needKey)D.status.configured=false}
+ AS.busy=false;asDraw()};
+const asLink=s=>e(s).replace(/\[(R\d+)\]/g,'<sup class="ai-r">[$1]</sup>').replace(/\[مرجع يحتاج تحقق[^\]]*\]/g,m=>`<mark class="ai-v">${m}</mark>`);
+function asResult(){const r=AS.res;
+ return `<div class="ai-doc as-doc" id="asDoc">${r.sections.map(s=>`<h3>${e(s.heading)}</h3><ul>${s.items.map(i=>`<li>${asLink(i)}</li>`).join('')}</ul>`).join('')||'<p class="m">لا نتيجة.</p>'}</div>
+ ${r.references.length?`<h3 class="ai-h">المراجع (${r.references.length})</h3><ol class="ai-refs">${r.references.map(x=>`<li><details><summary><b>[${x.id}]</b> ${e(x.title)}${x.ref?` <span class="mono">${e(x.ref)}</span>`:''}${x.arts.length?' — '+e(x.arts.join('، ')):''} <span class="pill ${x.origin==='library'?'ok':''}">${ORIGIN[x.origin]||''}</span></summary><div class="as-txt">${e(x.text||'')}</div></details></li>`).join('')}</ol>`:(AS.mode==='brief'?'':'<p class="m">لم يُعثر على نص في المصادر المتاحة يُستند إليه.</p>')}
+ ${r.unverified.length?`<h3 class="ai-h">يحتاج تحقق (${r.unverified.length})</h3><ul class="ai-unv">${r.unverified.map(u=>`<li>${e(u)}</li>`).join('')}</ul>`:''}
+ <div class="ai-warn" style="margin-top:10px">مساعدة أولية للمحامي، وليست رأياً قانونياً نهائياً. راجع النصوص المرفقة قبل الاعتماد عليها.</div>
+ <div class="toolbar"><button class="btn pri" data-act="asSave">حفظ في مستندات القضية</button><button class="btn" data-act="asPrint">طباعة</button><button class="btn" data-act="asCopy">نسخ</button><button class="btn" data-act="asAgain">طلب جديد</button></div>`}
+const asPlain=()=>{const r=AS.res;return [MODES[r.mode][0]+' — '+(K(AS.k)||{}).no,...r.sections.flatMap(s=>[s.heading,...s.items.map(i=>'• '+i)]),...(r.references.length?['المراجع:',...r.references.map(x=>`[${x.id}] ${x.title}${x.ref?' ('+x.ref+')':''}${x.arts.length?' — '+x.arts.join('، '):''}`)]:[]),...(r.unverified.length?['يحتاج تحقق:',...r.unverified.map(u=>'• '+u)]:[])].join('\n')};
+A.asAgain=()=>{AS.res=null;asDraw()};
+A.asCopy=()=>{(navigator.clipboard?navigator.clipboard.writeText(asPlain()):Promise.reject()).then(()=>toast('نُسخ')).catch(()=>toast('تعذّر النسخ'))};
+A.asSave=()=>{if(ro())return;const k=K(AS.k),r=AS.res;if(!k||!r)return;
+ docs.push({id:'d'+Date.now().toString(36),k:k.id,title:MODES[r.mode][0]+(r.mode==='question'?': '+AS.q.slice(0,60):'')+' — '+iso(TODAY),kind:'مذكرة داخلية',date:iso(TODAY),src:'مساعد القضية',pages:1,shared:false,text:asPlain(),refs:r.references.map(x=>({id:x.id,title:x.title,ref:x.ref,arts:x.arts,origin:x.origin})),unverified:r.unverified,aiDraft:true});
+ if(window.MQ&&MQ.saveState)MQ.saveState();toast('حُفظت في مستندات القضية '+k.no)};
+A.asPrint=()=>{if(!window.MQP||!AS.res)return;const r=AS.res,k=K(AS.k),B=MQP.B,E=MQP.esc;
+ MQP.open({label:MODES[r.mode][0],build(){return {title:MODES[r.mode][0],sub:k?'في الدعوى رقم '+k.no:'',ref:k?k.no:'',file:'brief-'+(k?k.no.replace(/\W+/g,'-'):'case'),
+  blocks:[...(r.mode==='question'?[B.box('<b>السؤال:</b> '+E(AS.q))]:[]),...r.sections.flatMap(s=>[B.h(E(s.heading)),...s.items.map(i=>B.p('• '+E(i)))]),
+   ...(r.references.length?[B.h('المراجع'),...r.references.map(x=>B.p('<small>['+x.id+'] '+E(x.title)+(x.ref?' ('+E(x.ref)+')':'')+(x.arts.length?' — '+E(x.arts.join('، ')):'')+'</small>','s'))]:[]),
+   ...(r.unverified.length?[B.h('يحتاج تحقق'),...r.unverified.map(u=>B.p('• '+E(u)))]:[])],sign:['المحامي'],mark:'داخلي'}}})};
+
 const css=document.createElement('style');css.textContent=`
 .ai-modal{max-width:980px}.ai-form{grid-template-columns:1fr 1fr}
 .ai-case{background:var(--sunk);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13.5px}
@@ -156,6 +201,9 @@ const css=document.createElement('style');css.textContent=`
 .ai-doc:focus{border-color:var(--brass)}.ai-doc h2{text-align:center;font-size:20px;margin:4px 0}.ai-doc h3{font-size:16.5px;margin:14px 0 4px;color:var(--brass,#8B6F47)}.ai-doc p{margin:0 0 8px;text-align:justify}.ai-court{text-align:center;font-weight:700}
 .ai-r{color:#1D4ED8;font-weight:700}.ai-v{background:#FDE68A}.ai-f{background:#E0EAFD;border-radius:4px;padding:0 3px}
 .ai-h{font-size:15.5px;margin:14px 0 6px}.ai-refs{margin:0;padding-inline-start:22px;line-height:1.9;font-size:14px}.ai-refs .m{font-size:12.5px}.ai-unv{line-height:1.9;font-size:14px;color:#78350F}
-@media(max-width:700px){.ai-form{grid-template-columns:1fr}}`;
+.ai-modal>*{flex-shrink:0}.as-modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.as-mode{all:unset;cursor:pointer;border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:3px;background:var(--surface);line-height:1.6}
+.as-mode span{font-size:12.5px;color:var(--muted)}.as-mode.on{border-color:var(--brass);box-shadow:0 0 0 2px rgba(184,134,61,.25);background:var(--sunk)}.as-mode:focus-visible{outline:3px solid var(--brass)}
+.as-doc ul{margin:0 0 6px;padding-inline-start:20px}.as-doc li{margin-bottom:4px;text-align:justify}.as-txt{white-space:pre-wrap;font-size:13px;background:var(--sunk);border-radius:8px;padding:8px 10px;margin:4px 0 8px;max-height:30vh;overflow:auto}
+@media(max-width:700px){.ai-form{grid-template-columns:1fr}.as-modes{grid-template-columns:1fr}}`;
 document.head.appendChild(css);
 })();

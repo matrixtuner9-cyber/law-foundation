@@ -116,7 +116,7 @@ function createDrafter({ audit, getKey, laws, lawSearch, fetchImpl = fetch, mode
     return refs;
   }
 
-  return async function draft(input, user, ctxExtra = {}) {
+  const fn = async function draft(input, user, ctxExtra = {}) {
     const who = { user_id: user && user.id, username: user && user.username };
     const key = await getKey(); if (!key) return { status: 400, body: { error: 'لم يُضبط مفتاح الذكاء الاصطناعي بعد. يضيفه مدير المكتب من إعدادات الصياغة.', needKey: true } };
     const wait = limited(String(user && (user.id || user.username))); if (wait) return { status: 429, body: { error: `طلبات صياغة كثيرة. حاول بعد ${wait} ثانية.` } };
@@ -157,8 +157,9 @@ function createDrafter({ audit, getKey, laws, lawSearch, fetchImpl = fetch, mode
       return { status: e.status || 500, body: { error: e.status ? e.message : 'تعذّرت الصياغة. أعد المحاولة.' } };
     }
   };
+  fn._gather = gatherRefs;
+  return fn;
 }
-
 
 /* ── قراءة لائحة الخصم: استخراج الادعاءات بنداً بنداً ليرد عليها المحامي ── */
 const EXTRACT_TOOL = { name: 'extract_pleading', description: 'استخراج محتوى لائحة الخصم', input_schema: { type: 'object', required: ['doc_type', 'claims'], properties: {
@@ -194,4 +195,50 @@ function createExtractor({ audit, getKey, fetchImpl = fetch, model } = {}) {
   };
 }
 
-export { createDrafter, createExtractor, anonymizer, pickArticles, DOC_TYPES, MODEL };
+/* ── مساعد القضية: ملخص قبل الجلسة، الدفوع الشكلية والمهل، السؤال القانوني ── */
+const ANSWER_TOOL = { name: 'submit_answer', description: 'تسليم الجواب', input_schema: { type: 'object', required: ['sections'], properties: {
+  sections: { type: 'array', items: { type: 'object', required: ['heading', 'items'], properties: { heading: { type: 'string' }, items: { type: 'array', items: { type: 'string' } } } } },
+  unverified: { type: 'array', items: { type: 'string' }, description: 'أسانيد لازمة لم تتوفر نصوصها في المراجع' },
+} } };
+const MODES = {
+  brief: { refs: false, ask: 'اكتب ملخصاً عملياً للمحامي قبل الجلسة القادمة من ملف القضية وسجلها فقط، في أقسام: (1) أين وصلت الدعوى، (2) المطلوب في الجلسة القادمة، (3) البينات أو المستندات الناقصة، (4) المهل القريبة، (5) تنبيهات. لا تستشهد بأي نص قانوني ولا تخترع وقائع غير واردة في السجل.' },
+  defences: { refs: true, ask: 'استعرض الدفوع الشكلية والإجرائية الممكنة لموكلنا في هذه الدعوى (عدم الاختصاص النوعي أو المكاني، التقادم ومرور الزمن، سبق الفصل، انتفاء الصفة أو المصلحة، بطلان التبليغ، فوات مهل الطعن…) ومدى انطباق كل منها على الوقائع، ثم المهل الإجرائية الواجب مراقبتها. اربط كل دفع أو مهلة بالمرجع [Rn] إن وُجد نصه في المراجع المتاحة، وإلا اذكره في unverified. لا تخترع أرقام مواد أو مدداً.' },
+  question: { refs: true, ask: 'أجب عن سؤال المحامي أعلاه بدقة وإيجاز، مستنداً فقط إلى المراجع المتاحة [Rn]. إن لم تجد فيها نصاً يجيب فقل صراحة: «لم أجد في المصادر المتاحة نصاً يجيب عن هذا» واذكر ما يلزم البحث عنه. لا تخترع أرقام مواد أو أحكام.' },
+};
+function createAssistant({ audit, getKey, laws, lawSearch, fetchImpl = fetch, model } = {}) {
+  const gather = createDrafter({ getKey, laws, lawSearch, fetchImpl, model })._gather;
+  const hits = new Map();
+  return async function assist(input, user, extra = {}) {
+    const who = { user_id: user && user.id, username: user && user.username }, mode = MODES[input.mode] ? input.mode : '';
+    if (!mode) return { status: 400, body: { error: 'طلب غير معروف.' } };
+    const q = String(input.question || '').slice(0, 2000).trim();
+    if (mode === 'question' && q.length < 8) return { status: 400, body: { error: 'اكتب السؤال بوضوح.' } };
+    const key = await getKey(); if (!key) return { status: 400, body: { error: 'لم يُضبط مفتاح الذكاء الاصطناعي بعد. يضيفه مدير المكتب من إعدادات الصياغة.', needKey: true } };
+    const now = Date.now(), k = String(user && (user.id || user.username)), a = (hits.get(k) || []).filter(t => now - t < 600e3);
+    if (a.length >= 15) { hits.set(k, a); return { status: 429, body: { error: 'طلبات كثيرة. حاول بعد قليل.' } } } a.push(now); hits.set(k, a);
+    const c = input.case || {}, an = anonymizer(c);
+    const hist = an.hide(String(input.history || '').slice(0, 30000));
+    const caseTxt = c.no || c.subject ? an.hide([c.no && `رقم الدعوى: ${c.no}`, c.court && `المحكمة: ${c.court}`, c.type && `نوع الدعوى: ${c.type}`, c.subject && `الموضوع: ${c.subject}`, c.role && `صفة موكلنا: ${c.role}`, c.stage && `المرحلة: ${c.stage}`, c.opened && `تاريخ فتح الملف: ${c.opened}`].filter(Boolean).join('\n')) : '';
+    const head = `${caseTxt ? 'ملف القضية:\n' + caseTxt + '\n\n' : ''}${hist ? 'سجل القضية (الجلسات والمهل والمستندات والملاحظات):\n' + hist + '\n\n' : ''}${q ? 'سؤال المحامي: ' + an.hide(q) + '\n\n' : ''}`;
+    const mdl = model || MODEL;
+    try {
+      let refs = [], refTxt = '';
+      if (MODES[mode].refs) {
+        const plan = toolInput(await callClaude(key, { model: mdl, max_tokens: 800, system: SYSTEM, tools: [PLAN_TOOL], tool_choice: { type: 'tool', name: 'plan_research' },
+          messages: [{ role: 'user', content: `${head}${MODES[mode].ask}\n\nحدّد عبارات البحث عن التشريعات الفلسطينية ذات الصلة والكلمات المفتاحية.` }] }, fetchImpl), 'plan_research');
+        refs = await gather(plan, extra.rulings, input.web !== false, user);
+        refTxt = refs.map(r => `[${r.id}] ${r.kind === 'ruling' ? 'حكم قضائي' : 'تشريع'}: ${r.title}${r.ref ? ' (' + r.ref + ')' : ''}\n${r.arts.map(x => (x.head ? x.head + ': ' : '') + x.text).join('\n')}`).join('\n\n').slice(0, MAX_CTX);
+      }
+      const out = toolInput(await callClaude(key, { model: mdl, max_tokens: 4000, system: SYSTEM, tools: [ANSWER_TOOL], tool_choice: { type: 'tool', name: 'submit_answer' },
+        messages: [{ role: 'user', content: `${head}${MODES[mode].ask}${MODES[mode].refs ? '\n\nالمراجع المتاحة (لا يُستشهد بغيرها):\n' + (refTxt || '(لا توجد)') : ''}` }] }, fetchImpl), 'submit_answer');
+      const valid = new Set(refs.map(r => r.id)), fix = s => an.show(String(s || '')).replace(/\[(R\d+)\]/g, (m, id) => valid.has(id) ? m : '[مرجع يحتاج تحقق]');
+      const sections = (out.sections || []).map(s => ({ heading: fix(s.heading), items: (s.items || []).map(fix) }));
+      const used = new Set(sections.flatMap(s => s.items.join(' ').match(/R\d+/g) || []));
+      const references = refs.filter(r => used.has(r.id)).map(r => ({ id: r.id, kind: r.kind, title: r.title, ref: r.ref, origin: r.origin, arts: r.arts.map(x => x.head).filter(Boolean), text: r.arts.map(x => (x.head ? x.head + ': ' : '') + x.text).join('\n').slice(0, 4000) }));
+      audit && audit({ ...who, action: 'ai.assist', entity: 'cases', detail: { mode, refs: references.length } });
+      return { status: 200, body: { ok: true, mode, sections, references, unverified: (out.unverified || []).map(fix).filter(Boolean) } };
+    } catch (e) { return { status: e.status || 500, body: { error: e.status ? e.message : 'تعذّر إتمام الطلب. أعد المحاولة.' } } }
+  };
+}
+
+export { createDrafter, createExtractor, createAssistant, anonymizer, pickArticles, DOC_TYPES, MODEL };

@@ -64,6 +64,24 @@ test('مفتاح مرفوض لدى المزوّد يُبلَّغ بوضوح', as
   const r = await d({ docType: 'لائحة جوابية', dictation: DICT, case: CASE, web: false }, { id: 'u3' }); assert.equal(r.status, 400); assert.match(r.body.error, /مفتاح/);
 });
 
+test('مساعد القضية: الملخص لا يبحث عن مراجع، والسؤال يُجاب من المراجع فقط، والأسماء مخفية', async () => {
+  const sent = [];
+  const fetchImpl = async (u, opt) => { const b = JSON.parse(opt.body); sent.push(b); const name = b.tool_choice.name;
+    const input = name === 'plan_research' ? { queries: ['قانون العمل'], keywords: ['الإجازة'] } : { sections: [{ heading: 'الجواب', items: ['يستحق [الخصم 1] إجازة [R1].', 'والمادة 500 [R9].'] }], unverified: ['مدة التقادم'] };
+    return { ok: true, status: 200, json: async () => ({ content: [{ type: 'tool_use', name, input }] }) } };
+  const as = AI.createAssistant({ getKey: () => 'k', laws: LAWS, fetchImpl });
+  const b = await as({ mode: 'brief', case: CASE, history: 'الجلسات:\n- 2026-10-14: تقديم لائحة جوابية من شركة الزيتون للتجارة العامة' }, { id: 'a1' });
+  assert.equal(b.status, 200, JSON.stringify(b.body)); assert.equal(sent.length, 1, 'الملخص طلب واحد بلا بحث'); assert.ok(!JSON.stringify(sent).includes('شركة الزيتون'));
+  sent.length = 0;
+  const q = await as({ mode: 'question', question: 'هل يستحق أحمد محمود الشكعة بدل الإجازة السنوية؟', case: CASE, web: false }, { id: 'a1' });
+  assert.equal(q.status, 200); assert.equal(sent.length, 2); assert.ok(!JSON.stringify(sent).includes('الشكعة'));
+  assert.match(JSON.stringify(sent[1]), /المادة \(74\)/);
+  const it = q.body.sections[0].items; assert.match(it[0], /أحمد محمود الشكعة/); assert.match(it[0], /\[R1\]/); assert.match(it[1], /يحتاج تحقق/);
+  assert.equal(q.body.references.length, 1); assert.match(q.body.references[0].text, /إجازة سنوية/);
+  assert.equal((await as({ mode: 'question', question: 'قصير' }, { id: 'a1' })).status, 400);
+  assert.equal((await as({ mode: 'hack' }, { id: 'a1' })).status, 400);
+});
+
 /* ── مسارات الخادم ── */
 const ROOT = path.resolve(__dirname, '..'), TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'mq-ai-'));
 const PORT = 22000 + Math.floor(Math.random() * 1000), BASE = `http://127.0.0.1:${PORT}`;
@@ -92,6 +110,7 @@ test('الصياغة تتطلب صلاحية الكتابة، وملف الوا�
   await req('/api/users', admin, { method: 'POST', body: { name: 'مطلع', username: 'viewer1', role: 'viewer', password: 'Viewer123' } });
   const v = ((await req('/api/auth/login', '', { method: 'POST', body: { username: 'viewer1', password: 'Viewer123' } })).r.headers.get('set-cookie') || '').split(';')[0];
   assert.equal((await req('/api/admin/ai/draft', v, { method: 'POST', body: { docType: 'لائحة', dictation: DICT } })).status, 403);
+  assert.equal((await req('/api/admin/ai/assist', v, { method: 'POST', body: { mode: 'brief' } })).status, 403);
   assert.equal((await fetch(BASE + '/aidraft.js', { headers: { cookie: admin } })).status, 200);
   assert.match(fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'), /aidraft\.js/);
 });
