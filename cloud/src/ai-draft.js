@@ -97,7 +97,29 @@ async function callRaw(key, body, fetchImpl, meter) {
   if (!r.ok) throw Object.assign(new Error('خدمة الصياغة لا تستجيب الآن (' + r.status + (em ? ': ' + em : '') + ').'), { status: 502 });
   return j;
 }
-const toolInput = (j, name) => { const b = (j.content || []).find(x => x.type === 'tool_use' && x.name === name); if (!b) throw Object.assign(new Error('لم تُرجع خدمة الصياغة نتيجة صالحة. أعد المحاولة.'), { status: 502 }); return b.input };
+/* مدخلات الأداة كما أعادها النموذج. بلا إجبار الأداة قد يُرجع النموذج مصفوفة أو كائناً كنصّ JSON، أو يكتب جزءاً من الجواب نصاً خارج الأداة:
+   نفكّ النصوص المرمّزة، ونحفظ النص الخارجي في _text ليُستعمل احتياطاً. */
+const parseMaybe = v => { if (typeof v !== 'string' || !/^\s*[\[{]/.test(v)) return v; try { return JSON.parse(v) } catch (e) { return v } };
+const toolInput = (j, name) => {
+  const b = (j.content || []).find(x => x.type === 'tool_use' && x.name === name); if (!b) throw Object.assign(new Error('لم تُرجع خدمة الصياغة نتيجة صالحة. أعد المحاولة.'), { status: 502 });
+  const inp = {}; for (const [k, v] of Object.entries(b.input || {})) inp[k] = parseMaybe(v);
+  const txt = (j.content || []).filter(x => x.type === 'text').map(x => x.text).join('\n').trim(); if (txt) inp._text = txt;
+  return inp;
+};
+/* أقسام الجواب بأي شكل معقول: [{heading, items}] أو عناوين/فقرات بأسماء أخرى أو نص حر */
+function normSections(out) {
+  let ss = parseMaybe(out.sections); if (!Array.isArray(ss)) ss = ss && typeof ss === 'object' ? Object.entries(ss).map(([heading, items]) => ({ heading, items })) : [];
+  ss = ss.map(x => typeof x === 'string' ? { heading: '', items: [x] } : { heading: String(x.heading || x.title || x.name || ''), items: (a => Array.isArray(a) ? a : a == null ? [] : [a])(parseMaybe(x.items ?? x.paragraphs ?? x.points ?? x.content ?? x.text)).map(v => typeof v === 'string' ? v : JSON.stringify(v)) }).filter(x => x.heading || x.items.length);
+  if (!ss.length && out._text) {
+    const cur = []; let sec = null;
+    for (const line of out._text.split('\n').map(l => l.trim()).filter(Boolean)) {
+      const h = line.match(/^(?:#{1,4}\s*|\*\*)(.+?)(?:\*\*)?:?$/) || (line.length < 70 && /^\(?\d+\)?[.\-)]\s*\S/.test(line) && !/[.،]$/.test(line) ? [, line] : null);
+      if (h) { sec = { heading: h[1].replace(/\*\*/g, '').trim(), items: [] }; cur.push(sec) } else { if (!sec) { sec = { heading: '', items: [] }; cur.push(sec) } sec.items.push(line.replace(/^[-*•]\s*/, '')) }
+    }
+    ss = cur.filter(x => x.items.length);
+  }
+  return ss;
+}
 
 const SYSTEM = `أنت محامٍ فلسطيني خبير في صياغة اللوائح والمذكرات والنماذج القانونية أمام المحاكم الفلسطينية (الضفة الغربية وقطاع غزة)، بلغة عربية قانونية رسمية سليمة.
 قواعد ملزمة:
@@ -192,7 +214,8 @@ function createDrafter({ audit, getKey, laws, lawSearch, rulingSearch, fetchImpl
       /* إعادة الأسماء، والتحقق من أن كل مرجع مذكور موجود فعلاً */
       const valid = new Set(refs.map(r => r.id));
       const fix = s => an.show(String(s || '')).replace(/\[(R\d+)\]/g, (m, id) => valid.has(id) ? m : '[مرجع يحتاج تحقق]');
-      const sections = (out.sections || []).map(s => ({ heading: fix(s.heading), paragraphs: (s.paragraphs || []).map(fix) }));
+      const sections = normSections(out).map(s => ({ heading: fix(s.heading), paragraphs: s.items.map(fix) }));
+      if (!sections.length) throw Object.assign(new Error('لم يُرجع النموذج مسودة منظمة هذه المرة. أعد المحاولة.'), { status: 502 });
       const usedIds = new Set(sections.flatMap(s => s.paragraphs.join(' ').match(/R\d+/g) || []));
       const references = refs.filter(r => usedIds.has(r.id)).map(r => ({ id: r.id, kind: r.kind, title: r.title, ref: r.ref, url: r.url || '', origin: r.origin, arts: r.arts.map(a => a.head).filter(Boolean),
         used_for: fix(((out.references || []).find(x => x.id === r.id) || {}).used_for || '') }));
@@ -359,7 +382,8 @@ function createAssistant({ audit, getKey, laws, lawSearch, rulingSearch, fetchIm
       const out = toolInput(await callClaude(key, { model: mdl, max_tokens: 6000, system: SYSTEM, tools: tools('submit_answer'), tool_choice: { type: 'tool', name: 'submit_answer' },
         messages: [{ role: 'user', content: msg(`${head}${M.ask}${M.refs ? '\n\nالمراجع المتاحة (لا يُستشهد بغيرها):\n' + (refTxt || '(لا توجد)') : ''}`) }] }, fetchImpl, meter), 'submit_answer');
       const valid = new Set(refs.map(r => r.id)), fix = s => an.show(String(s || '')).replace(/\[(R\d+)\]/g, (m, id) => valid.has(id) ? m : '[مرجع يحتاج تحقق]');
-      const sections = (out.sections || []).map(s => ({ heading: fix(s.heading), items: (s.items || []).map(fix) }));
+      const sections = normSections(out).map(s => ({ heading: fix(s.heading), items: s.items.map(fix) }));
+      if (!sections.length) { audit && audit({ ...who, action: 'ai.assist_failed', entity: 'cases', detail: { mode, error: 'empty', shape: Object.keys(out).join(','), usage: meterOut(meter) } }); return { status: 502, body: { error: 'لم يُرجع النموذج جواباً منظماً هذه المرة. أعد المحاولة.' } } }
       const used = new Set(sections.flatMap(s => s.items.join(' ').match(/R\d+/g) || []));
       const references = refs.filter(r => used.has(r.id)).map(r => ({ id: r.id, kind: r.kind, title: r.title, ref: r.ref, url: r.url || '', origin: r.origin, arts: r.arts.map(x => x.head).filter(Boolean), text: r.arts.map(x => (x.head ? x.head + ': ' : '') + x.text).join('\n').slice(0, 4000) }));
       audit && audit({ ...who, action: 'ai.assist', entity: 'cases', detail: { mode, refs: references.length, file: input.file ? input.file.type : undefined, lang: mode === 'translate' ? lang : undefined, usage: meterOut(meter) } });

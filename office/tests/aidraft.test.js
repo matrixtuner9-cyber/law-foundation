@@ -232,3 +232,15 @@ test('الاستهلاك والتكلفة: يُجمع من ردود المزوّ
   const sum = AI.usageSummary([{ action: 'ai.assist', username: 'lawyer1', detail: JSON.stringify({ mode: 'gaps', usage: u }) }, { action: 'ai.ruling_extract', username: 'lawyer2', detail: { usage: { calls: 1, in: 5000, out: 500, cw: 0, cr: 0, usd: 0.015 } } }, { action: 'ai.calc_extract', username: 'lawyer2', detail: {} }, { action: 'auth.login', username: 'x' }]);
   assert.equal(sum.total.ops, 3); assert.equal(sum.total.unmetered, 1); assert.equal(sum.users[0].user, 'lawyer1'); assert.equal(sum.users.length, 2); assert.ok(sum.kinds.some(k => k.kind === 'ai.assist:gaps'));
 });
+
+test('مخرجات غير منتظمة من النموذج: أقسام كنص JSON، أو بأسماء حقول أخرى، أو نص حر خارج الأداة؛ والجواب الفارغ يُرفض', async () => {
+  const mk = input => async (u, opt) => { const b = JSON.parse(opt.body); const name = want(b);
+    const inp = name === 'plan_research' ? { queries: ['قانون العمل'], keywords: ['الإجازة'] } : input;
+    const { __text, ...clean } = inp || {}; const content = [{ type: 'tool_use', name, input: clean }]; if (__text) content.unshift({ type: 'text', text: __text });
+    return { ok: true, status: 200, json: async () => ({ content }) } };
+  const run = async input => AI.createAssistant({ getKey: () => 'k', laws: LAWS, fetchImpl: mk(input) })({ mode: 'question', question: 'ما مدة الإجازة السنوية للعامل؟', web: false }, { id: 1 });
+  let r = await run({ sections: JSON.stringify([{ heading: 'الجواب', items: ['أسبوعان [R1]'] }]) }); assert.equal(r.status, 200); assert.equal(r.body.sections[0].items[0], 'أسبوعان [R1]');
+  r = await run({ sections: [{ title: 'الجواب', paragraphs: ['أسبوعان'] }] }); assert.equal(r.body.sections[0].heading, 'الجواب');
+  r = await run({ sections: [], __text: '## طريق الطعن\nالاستئناف خلال ثلاثين يوماً.\n## أسباب الطعن\n- مخالفة القانون.' }); assert.equal(r.status, 200); assert.deepEqual(r.body.sections.map(s => s.heading), ['طريق الطعن', 'أسباب الطعن']);
+  r = await run({ sections: [] }); assert.equal(r.status, 502);
+});
