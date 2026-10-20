@@ -11,6 +11,7 @@ import { fetchJudgment } from './maqam.js';
 import { createService as maqamService } from './maqam-search.js';
 import { createLaws } from './laws.js';
 import { createLawSearch } from './law-sources.js';
+import { createDrafter, DOC_TYPES, MODEL as AI_MODEL } from './ai-draft.js';
 
 /* توقيع داخلي يثبت أن طلب /_ops وصل من الـ Worker بعد التحقق من رمز المشغّل (لا يمكن للزائر إرساله) */
 export const opsSig = env => env.OPS_TOKEN ? crypto.createHash('sha256').update('mq-ops|' + env.OPS_TOKEN).digest('hex') : null;
@@ -41,7 +42,7 @@ const SEC = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-orig
 const json = (code, obj, extra = {}) => new Response(JSON.stringify(obj), { status: code, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...CORS, ...SEC, ...extra } });
 const MEDIA_TTL = 7 * 24 * 3600; // صلاحية رابط الملف الموقّع (ثوانٍ)
 
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css', 'edition.js']);
 
 /* توحيد الكتابة العربية للبحث في دليل المحامين */
@@ -435,6 +436,25 @@ export class Office extends DurableObject {
       const r = await this.mqSearch(p.slice(17), u.searchParams, me);
       if (r.file) return new Response(r.file.body, { headers: { 'Content-Type': r.file.contentType, 'Content-Disposition': `attachment; filename="${r.file.filename}"`, 'Cache-Control': 'no-store', ...CORS, ...SEC } });
       return json(r.status, r.body, r.status === 429 && r.body.retry ? { 'Retry-After': String(r.body.retry) } : {});
+    }
+    if (p.startsWith('/api/admin/ai/')) {
+      /* صياغة اللوائح بالذكاء الاصطناعي: مفتاح المكتب (أو مفتاح المنصة) في الخادم فقط */
+      const a = p.slice(14), aiKey = () => this.store.kv.get('ai_key') || this.env.ANTHROPIC_API_KEY || '';
+      if (a === 'status' && M === 'GET') { const k = aiKey(); return json(200, { configured: !!k, last4: k ? k.slice(-4) : '', model: AI_MODEL, types: DOC_TYPES, canManage: this.auth.can(me, 'manage') }) }
+      if (a === 'key' && M === 'POST') {
+        if ((d = deny('manage'))) return d; const b = await jbody(); const k = String(b.key || '').trim();
+        if (k && !/^sk-ant-[\w-]{20,200}$/.test(k)) return json(400, { error: 'صيغة المفتاح غير صحيحة (يبدأ بـ sk-ant-).' });
+        this.store.kv.set('ai_key', k || null); this.audit({ ...who, action: k ? 'ai.key_set' : 'ai.key_removed', entity: 'settings', detail: k ? { last4: k.slice(-4) } : {} });
+        return json(200, { ok: true, configured: !!k, last4: k ? k.slice(-4) : '' });
+      }
+      if (a === 'draft' && M === 'POST') {
+        if ((d = deny('write'))) return d;
+        this.laws ||= createLaws({ all: this.store.all, run: this.store.run, tx: this.store.tx }, { randomId: () => 'L' + crypto.randomBytes(6).toString('hex'), now: stampS });
+        this.lawSearch ||= createLawSearch({ audit: e => this.audit(e) });
+        this.drafter ||= createDrafter({ audit: e => this.audit(e), getKey: aiKey, laws: this.laws, lawSearch: this.lawSearch, model: this.env.MQ_AI_MODEL });
+        const r = await this.drafter(await jbody(2 * 1024 * 1024), me, { rulings: (this.cur().rulings) || [] }); return json(r.status, r.body);
+      }
+      return json(404, { error: 'غير موجود' });
     }
     if (p.startsWith('/api/admin/lawsearch/') && M === 'GET') {
       this.lawSearch ||= createLawSearch({ audit: e => this.audit(e) });

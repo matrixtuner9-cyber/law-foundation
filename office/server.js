@@ -11,7 +11,7 @@ const DATA = process.env.MQ_DATA || path.join(ROOT, 'data'), MEDIA = path.join(D
 fs.mkdirSync(MEDIA, { recursive: true });
 
 const SEED = require('./data.js');
-const Store = require('./lib/db'), Auth = require('./lib/auth'), Merge = require('./lib/merge'), Maqam = require('./lib/maqam'), MaqamSearch = require('./lib/maqam-search'), Laws = require('./lib/laws'), LawSources = require('./lib/law-sources');
+const Store = require('./lib/db'), Auth = require('./lib/auth'), Merge = require('./lib/merge'), Maqam = require('./lib/maqam'), MaqamSearch = require('./lib/maqam-search'), Laws = require('./lib/laws'), LawSources = require('./lib/law-sources'), AiDraft = require('./lib/ai-draft');
 const OFFICE = { name: 'مكتب الميثاق للمحاماة والاستشارات القانونية', lawyer: 'المحامي سامر عبد الله', city: 'نابلس', phone: '09-233-0000', hours: 'الأحد – الخميس · 8:30 – 16:00' };
 const STATE_F = path.join(DATA, 'state.json'), MSG_F = path.join(DATA, 'messages.json');
 const VAPID_F = path.join(DATA, 'vapid.json'), PUSH_F = path.join(DATA, 'push.json');
@@ -37,6 +37,8 @@ const maqamSearch = MaqamSearch.createService({ audit });
 const laws = Laws.createLaws({ all: (q, ...a) => store.raw.prepare(q).all(...a), run: (q, ...a) => { store.raw.prepare(q).run(...a) }, tx: store.tx },
   { randomId: () => 'L' + crypto.randomBytes(6).toString('hex'), now: stampS });
 const lawSearch = LawSources.createLawSearch({ audit }); /* البحث المباشر في مصادر التشريعات على الإنترنت */
+const aiKey = () => store.kv.get('ai_key') || process.env.ANTHROPIC_API_KEY || '';
+const drafter = AiDraft.createDrafter({ audit, getKey: aiKey, laws, lawSearch, model: process.env.MQ_AI_MODEL });
 (function migrate() {
   if (store.kv.get('migrated_v1')) return;
   const st = readJSON(STATE_F, null); let ms = readJSON(MSG_F, null);
@@ -236,7 +238,7 @@ function throttled(ip) { const now = Date.now(), t = tries.get(ip) || { n: 0, at
 async function api(req, res, u) {
   const p = u.pathname, M = req.method, ip = ipOf(req);
   if (M === 'OPTIONS') { res.writeHead(204, CORS); return res.end() }
-  if (ED.offline && (p.startsWith('/api/portal/') || p.startsWith('/api/admin/maqam/') || p === '/api/admin/ruling-import' || p.startsWith('/api/admin/lawsearch/') || (p.startsWith('/api/mizan/') && p !== '/api/mizan/status') || p === '/api/bar/refresh')) return json(res, 403, OFFLINE_ERR);
+  if (ED.offline && (p.startsWith('/api/portal/') || p.startsWith('/api/admin/maqam/') || p === '/api/admin/ruling-import' || p.startsWith('/api/admin/lawsearch/') || p.startsWith('/api/admin/ai/') || (p.startsWith('/api/mizan/') && p !== '/api/mizan/status') || p === '/api/bar/refresh')) return json(res, 403, OFFLINE_ERR);
   if (p === '/api/edition') return json(res, 200, ED.pub());
   if (p === '/api/health') return json(res, 200, { ok: true, at: stamp() });
   if (p === '/api/portal/push-key') return json(res, 200, { enabled: !!webpush, key: vapid ? vapid.publicKey : null });
@@ -500,6 +502,19 @@ async function api(req, res, u) {
     if (r.file) { res.writeHead(200, { 'Content-Type': r.file.contentType, 'Content-Disposition': `attachment; filename="${r.file.filename}"`, 'Cache-Control': 'no-store', ...CORS, ...SEC }); return res.end(r.file.body) }
     return json(res, r.status, r.body, r.status === 429 && r.body.retry ? { 'Retry-After': String(r.body.retry) } : {});
   }
+  if (p.startsWith('/api/admin/ai/')) {
+    /* صياغة اللوائح بالذكاء الاصطناعي: المفتاح يُحفظ في الخادم ولا يُعاد للمتصفح أبداً */
+    const a = p.slice(14);
+    if (a === 'status' && M === 'GET') { const k = aiKey(); return json(res, 200, { configured: !!k, last4: k ? k.slice(-4) : '', model: AiDraft.MODEL, types: AiDraft.DOC_TYPES, canManage: auth.can(me, 'manage') }) }
+    if (a === 'key' && M === 'POST') {
+      if (!need('manage')) return; const b = await jbody(req); const k = String(b.key || '').trim();
+      if (k && !/^sk-ant-[\w-]{20,200}$/.test(k)) return json(res, 400, { error: 'صيغة المفتاح غير صحيحة (يبدأ بـ sk-ant-).' });
+      store.kv.set('ai_key', k || null); audit({ ...who, action: k ? 'ai.key_set' : 'ai.key_removed', entity: 'settings', detail: k ? { last4: k.slice(-4) } : {} });
+      return json(res, 200, { ok: true, configured: !!k, last4: k ? k.slice(-4) : '' });
+    }
+    if (a === 'draft' && M === 'POST') { if (!need('write')) return; const r = await drafter(await jbody(req, 2 * 1024 * 1024), me, { rulings: cur().rulings || [] }); return json(res, r.status, r.body) }
+    return json(res, 404, { error: 'غير موجود' });
+  }
   if (p.startsWith('/api/admin/lawsearch/') && M === 'GET') { const r = await lawSearch(p.slice(21), Object.fromEntries(u.searchParams), me); return json(res, r.status, r.body, r.status === 429 && r.body.retry ? { 'Retry-After': String(r.body.retry) } : {}) }
   if (p.startsWith('/api/admin/laws/')) {
     const r = await laws.handle(p.slice(16), M, Object.fromEntries(u.searchParams), () => jbody(req, 25 * 1024 * 1024), me, w => auth.can(me, w), who, audit);
@@ -569,7 +584,7 @@ async function rulingFile(req, res, u, who) {
 }
 
 /* ملفات شاشة المكتب: قائمة محددة فقط، وكلها تتطلب تسجيل الدخول عدا صفحة الدخول */
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css', 'edition.js']);
 
 http.createServer((req, res) => {
