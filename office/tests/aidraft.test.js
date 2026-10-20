@@ -254,3 +254,14 @@ test('الجواب المنقطع عند حد الطول يُرفض برسالة
   assert.equal(r.status, 502); assert.match(r.body.error, /أطول من الحد/);
   assert.equal(sent[sent.length - 1].max_tokens, 16000);
 });
+
+test('دليل التطبيق (howto): يجيب من الدليل المرسل، بلا بحث عن مراجع، والدليل يُخزَّن مؤقتاً', async () => {
+  const sent = [];
+  const fetchImpl = async (u, opt) => { const b = JSON.parse(opt.body); sent.push(b); return { ok: true, status: 200, json: async () => ({ content: [{ type: 'tool_use', name: want(b), input: { sections: [{ heading: 'تسجيل دفعة بشيك', items: ['افتح الموكل ثم الأتعاب.', 'اختر «شيك» واملأ رقمه وبنكه.'] }] } }] }) } };
+  const as = AI.createAssistant({ getKey: () => 'k', fetchImpl });
+  const guide = '## الأتعاب والدفعات\n' + 'اختر طريقة الدفع شيك واملأ رقم الشيك والبنك وتاريخ الاستحقاق. '.repeat(6);
+  const r = await as({ mode: 'howto', question: 'كيف أسجّل دفعة بشيك؟', text: guide, web: false }, { id: 1 });
+  assert.equal(r.status, 200, JSON.stringify(r.body)); assert.equal(sent.length, 1, 'طلب واحد بلا بحث');
+  assert.deepEqual(sent[0].messages[0].content[0].cache_control, { type: 'ephemeral' }); assert.match(textOf(sent[0].messages[0].content), /دليل استخدام تطبيق ميثاق/);
+  assert.equal((await as({ mode: 'howto', question: 'كيف', text: guide }, { id: 1 })).status, 400);
+});
