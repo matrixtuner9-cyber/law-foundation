@@ -104,6 +104,22 @@ test('مراجعة عقد وتحليل مستند وأحكام مشابهة: ا�
   assert.equal((JSON.stringify(sent[1]).match(/حكم قضائي: نقض/g) || []).length, 8); assert.equal(r.body.references[0].kind, 'ruling');
 });
 
+test('رسالة للموكل ومحضر اجتماع وترجمة: بلا بحث عن مراجع، والإملاء القصير يُرفض، واللغة تصل', async () => {
+  const sent = [];
+  const fetchImpl = async (u, opt) => { const b = JSON.parse(opt.body); sent.push(b); const name = b.tool_choice.name;
+    return { ok: true, status: 200, json: async () => ({ content: [{ type: 'tool_use', name, input: { sections: [{ heading: '', items: ['Dear [الموكل], the hearing was adjourned.'] }] } }] }) } };
+  const as = AI.createAssistant({ getKey: () => 'k', fetchImpl });
+  assert.equal((await as({ mode: 'minutes', question: 'قصير', case: CASE }, { id: 'm1' })).status, 400);
+  const m = await as({ mode: 'minutes', question: 'حضر الموكل شركة الزيتون للتجارة العامة واتفقنا على تقديم كشوف الرواتب خلال أسبوع', case: CASE }, { id: 'm1' });
+  assert.equal(m.status, 200); assert.equal(sent.length, 1); assert.match(JSON.stringify(sent[0]), /ملاحظات الاجتماع كما أملاها/); assert.ok(!JSON.stringify(sent).includes('الزيتون'));
+  sent.length = 0;
+  const t = await as({ mode: 'translate', lang: 'he', text: 'تُعتبر هذه الوكالة سارية المفعول.', case: CASE }, { id: 'm1' });
+  assert.equal(t.status, 200); assert.equal(t.body.lang, 'he'); assert.match(JSON.stringify(sent[0]), /إلى العبرية/); assert.equal(sent.length, 1);
+  assert.match(t.body.sections[0].items[0], /شركة الزيتون للتجارة العامة/);
+  const c = await as({ mode: 'client_msg', case: CASE, history: 'الجلسات:\n- 2026-11-02: سماع الشهود' }, { id: 'm1' });
+  assert.equal(c.status, 200);
+});
+
 /* ── مسارات الخادم ── */
 const ROOT = path.resolve(__dirname, '..'), TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'mq-ai-'));
 const PORT = 22000 + Math.floor(Math.random() * 1000), BASE = `http://127.0.0.1:${PORT}`;

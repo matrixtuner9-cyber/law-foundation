@@ -209,6 +209,9 @@ const MODES = {
   contract: { refs: true, doc: 'عقد', ask: 'راجع العقد المرفق لمصلحة موكلنا، في أقسام: (1) ملخص العقد (الأطراف، الموضوع، البدل، المدة)، (2) بنود تضر بموكلنا أو غير متوازنة ولماذا، (3) بنود ناقصة يُنصح بإضافتها، (4) عبارات غامضة أو متناقضة، (5) صياغة مقترحة للتعديلات بنصها. اربط ما يستند إلى نص بالمرجع [Rn] من المراجع المتاحة فقط.' },
   opponent: { refs: true, doc: 'مستند مقدم من الخصم', ask: 'حلّل المستند المرفق المقدم من الخصم لمصلحة موكلنا، في أقسام: (1) ملخص المستند وما يريد الخصم إثباته به، (2) ما يثبته فعلاً وما لا يثبته، (3) مواطن الضعف والتناقض مع وقائع الدعوى أو مع نفسه، (4) أوجه الطعن الممكنة (إنكار التوقيع أو الخط، الادعاء بالتزوير، عدم الحجية، عدم الصلة بالنزاع…)، (5) ما يُقترح قوله أو طلبه في الجلسة رداً عليه. اربط ما يستند إلى نص بالمرجع [Rn] من المراجع المتاحة فقط.' },
   similar: { refs: true, rulings: 8, ask: 'من الأحكام القضائية بين المراجع المتاحة، اختر الأقرب إلى وقائع هذه القضية، ولكل حكم قسم مستقل عنوانه المحكمة ورقم الحكم: المبدأ الذي قرره [Rn]، أوجه الشبه والاختلاف مع قضيتنا، وكيف يُستفاد منه في الدفاع. إن لم يوجد بينها حكم مناسب فقل صراحة: «لا توجد في مكتبة الاجتهادات أحكام قريبة من هذه القضية» ولا تذكر أحكاماً من عندك.' },
+  client_msg: { refs: false, ask: 'اكتب رسالة قصيرة من المحامي إلى الموكل [الموكل] بلغة عربية بسيطة واضحة غير متخصصة ومهذبة، تطمئنه دون أي وعد بنتيجة: آخر ما جرى في قضيته، والموعد القادم، وما يلزمه إحضاره أو فعله. إن كتب المحامي ملاحظة أعلاه فالتزم بها. قسم واحد عنوانه «الرسالة» وكل فقرة منها عنصر. لا أرقام مواد ولا مصطلحات معقدة، ولا تذكر معلومات لم ترد في السجل.' },
+  minutes: { refs: false, need: 'أملِ ملاحظات الاجتماع أولاً.', ask: 'نظّم ملاحظات الاجتماع التي أملاها المحامي أعلاه في محضر اجتماع بأقسام: الحاضرون، موضوع الاجتماع، ما تم بحثه، ما اتُّفق عليه، المهام (المهمة — المسؤول — الموعد)، المستندات المطلوبة من الموكل. لا تضف شيئاً لم يرد في الملاحظات؛ ما لم يُذكر اكتبه بين { }.' },
+  translate: { refs: false, doc: 'النص المراد ترجمته', min: 5, ask: 'ترجم النص المرفق ترجمة قانونية دقيقة كاملة إلى {LANG}، مع الحفاظ على البنية والترقيم واستعمال المصطلحات القانونية المقابلة. لا تلخص ولا تعلق ولا تحذف. أبقِ الرموز بين أقواس مربعة مثل [الموكل] و[الخصم 1] كما هي حرفياً. اجعل كل عنوان في النص قسماً، وفقراته عناصره؛ وإن لم يكن فيه عناوين فقسم واحد بعنوان فارغ.' },
   question: { refs: true, ask: 'أجب عن سؤال المحامي أعلاه بدقة وإيجاز، مستنداً فقط إلى المراجع المتاحة [Rn]. إن لم تجد فيها نصاً يجيب فقل صراحة: «لم أجد في المصادر المتاحة نصاً يجيب عن هذا» واذكر ما يلزم البحث عنه. لا تخترع أرقام مواد أو أحكام.' },
 };
 function createAssistant({ audit, getKey, laws, lawSearch, fetchImpl = fetch, model } = {}) {
@@ -219,6 +222,7 @@ function createAssistant({ audit, getKey, laws, lawSearch, fetchImpl = fetch, mo
     if (!mode) return { status: 400, body: { error: 'طلب غير معروف.' } };
     const q = String(input.question || '').slice(0, 2000).trim();
     if (mode === 'question' && q.length < 8) return { status: 400, body: { error: 'اكتب السؤال بوضوح.' } };
+    if (MODES[mode].need && q.length < 20) return { status: 400, body: { error: MODES[mode].need } };
     if (mode === 'similar' && !(extra.rulings || []).length) return { status: 400, body: { error: 'مكتبة الاجتهادات فارغة. أضف أحكاماً من «البحث في الأحكام» أو «الاجتهادات القضائية» أولاً.' } };
     const key = await getKey(); if (!key) return { status: 400, body: { error: 'لم يُضبط مفتاح الذكاء الاصطناعي بعد. يضيفه مدير المكتب من إعدادات الصياغة.', needKey: true } };
     const now = Date.now(), k = String(user && (user.id || user.username)), a = (hits.get(k) || []).filter(t => now - t < 600e3);
@@ -226,8 +230,9 @@ function createAssistant({ audit, getKey, laws, lawSearch, fetchImpl = fetch, mo
     const c = input.case || {}, an = anonymizer(c);
     const hist = an.hide(String(input.history || '').slice(0, 30000));
     const caseTxt = c.no || c.subject ? an.hide([c.no && `رقم الدعوى: ${c.no}`, c.court && `المحكمة: ${c.court}`, c.type && `نوع الدعوى: ${c.type}`, c.subject && `الموضوع: ${c.subject}`, c.role && `صفة موكلنا: ${c.role}`, c.stage && `المرحلة: ${c.stage}`, c.opened && `تاريخ فتح الملف: ${c.opened}`].filter(Boolean).join('\n')) : '';
-    const head = `${caseTxt ? 'ملف القضية:\n' + caseTxt + '\n\n' : ''}${hist ? 'سجل القضية (الجلسات والمهل والمستندات والملاحظات):\n' + hist + '\n\n' : ''}${q ? 'سؤال المحامي: ' + an.hide(q) + '\n\n' : ''}`;
-    const mdl = model || MODEL, M = MODES[mode];
+    const head = `${caseTxt ? 'ملف القضية:\n' + caseTxt + '\n\n' : ''}${hist ? 'سجل القضية (الجلسات والمهل والمستندات والملاحظات):\n' + hist + '\n\n' : ''}${q ? ({ minutes: 'ملاحظات الاجتماع كما أملاها المحامي', client_msg: 'ملاحظة المحامي' }[mode] || 'سؤال المحامي') + ': ' + an.hide(q) + '\n\n' : ''}`;
+    const LANGS = { en: 'الإنجليزية', he: 'العبرية', ar: 'العربية' }, lang = LANGS[input.lang] ? input.lang : 'en';
+    const mdl = model || MODEL, M = { ...MODES[mode], ask: MODES[mode].ask.replace('{LANG}', LANGS[lang]) };
     /* المستند المراد مراجعته (عقد أو مستند للخصم): نص يُخفى منه الأسماء، أو PDF/صورة يُرسل كما هو */
     const doc = [];
     if (M.doc) {
@@ -236,7 +241,7 @@ function createAssistant({ audit, getKey, laws, lawSearch, fetchImpl = fetch, mo
         if (String(input.file.data).length > 14e6) return { status: 413, body: { error: 'الملف أكبر من 10 ميغابايت.' } };
         doc.push({ type: kind, source: { type: 'base64', media_type: input.file.type, data: String(input.file.data) } });
       } else {
-        const t = String(input.text || '').slice(0, 120000).trim(); if (t.length < 50) return { status: 400, body: { error: 'ارفع المستند أو الصق نصه أولاً.' } };
+        const t = String(input.text || '').slice(0, 120000).trim(); if (t.length < (M.min || 50)) return { status: 400, body: { error: 'ارفع المستند أو الصق نصه أولاً.' } };
         doc.push({ type: 'text', text: `${M.doc}:\n` + an.hide(t) });
       }
     }
@@ -255,8 +260,8 @@ function createAssistant({ audit, getKey, laws, lawSearch, fetchImpl = fetch, mo
       const sections = (out.sections || []).map(s => ({ heading: fix(s.heading), items: (s.items || []).map(fix) }));
       const used = new Set(sections.flatMap(s => s.items.join(' ').match(/R\d+/g) || []));
       const references = refs.filter(r => used.has(r.id)).map(r => ({ id: r.id, kind: r.kind, title: r.title, ref: r.ref, origin: r.origin, arts: r.arts.map(x => x.head).filter(Boolean), text: r.arts.map(x => (x.head ? x.head + ': ' : '') + x.text).join('\n').slice(0, 4000) }));
-      audit && audit({ ...who, action: 'ai.assist', entity: 'cases', detail: { mode, refs: references.length, file: input.file ? input.file.type : undefined } });
-      return { status: 200, body: { ok: true, mode, sections, references, unverified: (out.unverified || []).map(fix).filter(Boolean) } };
+      audit && audit({ ...who, action: 'ai.assist', entity: 'cases', detail: { mode, refs: references.length, file: input.file ? input.file.type : undefined, lang: mode === 'translate' ? lang : undefined } });
+      return { status: 200, body: { ok: true, mode, lang: mode === 'translate' ? lang : undefined, sections, references, unverified: (out.unverified || []).map(fix).filter(Boolean) } };
     } catch (e) { return { status: e.status || 500, body: { error: e.status ? e.message : 'تعذّر إتمام الطلب. أعد المحاولة.' } } }
   };
 }
