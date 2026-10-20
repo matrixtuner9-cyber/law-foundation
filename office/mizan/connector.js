@@ -4,8 +4,10 @@
 const fs = require('fs'), path = require('path');
 const vault = require('./vault');
 const mode = process.argv[2] || 'test', show = process.argv.includes('--show');
+/* --client <id>: الدخول بحساب الموكل (بوابة المواطن) بدل حساب المحامي */
+const ci = process.argv.indexOf('--client'), CLIENT = ci > 0 ? String(process.argv[ci + 1] || '').replace(/[^\w-]/g, '') : '';
 const LOGIN = process.env.MIZAN_URL || 'https://courts.gov.ps/EServices2020/account/login';
-const PROFILE = path.join(vault.DIR, 'browser-profile');
+const PROFILE = path.join(vault.DIR, CLIENT ? 'browser-profile-' + CLIENT : 'browser-profile');
 const out = o => process.stdout.write(JSON.stringify(o) + '\n');
 const step = (stage, msg) => out({ stage, msg });
 const isLogin = u => /account\/login/i.test(String(u));
@@ -13,7 +15,7 @@ const isLogin = u => /account\/login/i.test(String(u));
 async function main() {
   let chromium;
   try { ({ chromium } = require('playwright-core')) } catch (e) { throw new Error('مكتبة المتصفح الآلي غير مثبتة. شغّل npm install داخل مجلد Mithaq.') }
-  const creds = vault.load(); if (!creds) throw new Error('لم تُحفظ بيانات الدخول إلى ميزان بعد.');
+  const creds = CLIENT ? vault.loadClient(CLIENT) : vault.load(); if (!creds) throw new Error(CLIENT ? 'لم يُحفظ حساب هذا الموكل في ميزان بعد.' : 'لم تُحفظ بيانات الدخول إلى ميزان بعد.');
 
   step('browser', 'تشغيل المتصفح الآلي…');
   const exe = process.env.MQ_CHROME;
@@ -39,7 +41,7 @@ async function main() {
       const sel = page.locator('select').first();
       if (await sel.count()) {
         const opts = await sel.locator('option').allTextContents();
-        const i = opts.findIndex(o => o.includes('حارس'));
+        const i = CLIENT ? opts.findIndex(o => /مواطن|فرد|شخص|جمهور/.test(o)) : opts.findIndex(o => o.includes('حارس'));
         if (i >= 0) await sel.selectOption({ index: i }, { force: true });
       }
       const cb = page.locator('input[type=checkbox]').first();
@@ -52,7 +54,7 @@ async function main() {
       if (!ok) {
         const err = (await page.locator('.validation-summary-errors, .field-validation-error, .text-danger, .alert-danger, .alert, .error, [style*="color:Red"], [style*="color: red"]').allTextContents().catch(() => []))
           .map(s => s.trim()).filter(Boolean).join(' · ');
-        throw new Error(err || 'لم يتم الدخول. تحقق من رقم العضوية وكلمة المرور.');
+        throw new Error(err || (CLIENT ? 'لم يتم الدخول بحساب الموكل. تحقق من رقم الهوية وكلمة المرور.' : 'لم يتم الدخول. تحقق من رقم العضوية وكلمة المرور.'));
       }
     }
     await page.waitForLoadState('domcontentloaded').catch(() => {});
@@ -60,14 +62,14 @@ async function main() {
     step('in', 'تم الدخول إلى ميزان 2' + (title ? ' · ' + title : ''));
 
     if (mode === 'capture') await capture(page);
-    out({ done: true, ok: true, mode, at: new Date().toISOString() });
+    out({ done: true, ok: true, mode, client: CLIENT || undefined, at: new Date().toISOString() });
   } finally { await ctx.close().catch(() => {}) }
 }
 
 // يحفظ نسخة محلية من صفحات القضايا لبناء قارئ الحقول (تبقى على هذا الجهاز فقط)
 async function capture(page) {
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const dir = path.join(vault.DIR, 'capture', stamp); fs.mkdirSync(dir, { recursive: true });
+  const dir = path.join(vault.DIR, 'capture', (CLIENT ? 'client-' + CLIENT + '-' : '') + stamp); fs.mkdirSync(dir, { recursive: true });
   const pages = [];
   async function snap(name) {
     await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => {});
@@ -90,4 +92,5 @@ async function capture(page) {
   out({ stage: 'captured', msg: `حُفظت ${pages.length} صفحات من ميزان على هذا الجهاز`, dir, count: pages.length });
 }
 
-main().catch(e => { out({ done: true, ok: false, error: String(e && e.message || e).split('\n')[0] }); process.exitCode = 1 });
+const friendly = m => /Executable doesn't exist|Chromium distribution|chrome.*not found/i.test(m) ? 'متصفح Google Chrome غير مثبت على جهاز المكتب. ثبّته ثم أعد المحاولة.' : /Timeout|net::ERR/i.test(m) ? 'تعذّر الوصول إلى موقع ميزان (انتهت المهلة). تحقق من الإنترنت وأعد المحاولة.' : m;
+main().catch(e => { out({ done: true, ok: false, client: CLIENT || undefined, error: friendly(String(e && e.message || e).split('\n')[0]) }); process.exitCode = 1 });

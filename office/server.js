@@ -119,15 +119,17 @@ function mzStatus() {
   const i = vault.info();
   return { configured: !!i, cred: i && { user: i.user.replace(/.(?=.{3})/g, '•'), savedAt: i.savedAt, method: i.method }, running: !!mzRun, last: mz.last || null, captures: mz.captures || 0 };
 }
-function mzStart(mode, show) {
+const mask = u => String(u || '').replace(/.(?=.{3})/g, '•');
+function mzClient(id) { const i = vault.infoClient(id), st = (mz.clients || {})[id] || {}; return { configured: !!i, cred: i && { user: mask(i.user), savedAt: i.savedAt, method: i.method, consent: i.consent }, last: st.last || null, captures: st.captures || 0, running: !!mzRun } }
+function mzStart(mode, show, client) {
   if (mzRun) return false;
-  const args = [path.join(ROOT, 'mizan', 'connector.js'), mode]; if (show) args.push('--show');
+  const args = [path.join(ROOT, 'mizan', 'connector.js'), mode]; if (show) args.push('--show'); if (client) args.push('--client', client);
   const ch = spawn(process.execPath, args, { cwd: ROOT, windowsHide: true, env: { ...process.env, ...(process.versions.electron ? { ELECTRON_RUN_AS_NODE: '1' } : {}) } }); mzRun = ch; let buf = '', done = false;
   broadcast('mizan', { stage: 'start', msg: mode === 'capture' ? 'بدء قراءة صفحات القضايا من ميزان…' : 'بدء تجربة الدخول إلى ميزان…' });
   ch.stdout.on('data', d => { buf += d; let i; while ((i = buf.indexOf('\n')) >= 0) { const line = buf.slice(0, i); buf = buf.slice(i + 1);
-    try { const o = JSON.parse(line); if (o.done) { done = true; mz.last = { ok: o.ok, mode, at: stamp(), error: o.error || null }; if (o.ok && mode === 'capture') mz.captures = (mz.captures || 0) + 1; save(MZ_STATUS_F, mz); audit({ action: 'mizan.result', detail: { mode, ok: o.ok, error: o.error || null } }) } broadcast('mizan', o) } catch (e) {} } });
+    try { const o = JSON.parse(line); if (o.done) { done = true; const r = { ok: o.ok, mode, at: stamp(), error: o.error || null }; if (client) { mz.clients = mz.clients || {}; mz.clients[client] = { ...(mz.clients[client] || {}), last: r, captures: ((mz.clients[client] || {}).captures || 0) + (o.ok && mode === 'capture' ? 1 : 0) } } else { mz.last = r; if (o.ok && mode === 'capture') mz.captures = (mz.captures || 0) + 1 } save(MZ_STATUS_F, mz); audit({ action: 'mizan.result', entity: client ? 'clients' : undefined, entity_id: client || undefined, detail: { mode, ok: o.ok, error: o.error || null, client: client || undefined } }) } broadcast('mizan', client ? { ...o, client } : o) } catch (e) {} } });
   ch.stderr.on('data', d => console.error('[mizan]', String(d).trim().slice(0, 300)));
-  ch.on('exit', () => { mzRun = null; if (!done) { mz.last = { ok: false, mode, at: stamp(), error: 'توقف الموصل بشكل غير متوقع.' }; save(MZ_STATUS_F, mz); broadcast('mizan', { done: true, ok: false, error: mz.last.error }) } broadcast('mizan', { stage: 'exit', status: mzStatus() }) });
+  ch.on('exit', () => { mzRun = null; if (!done) { const r = { ok: false, mode, at: stamp(), error: 'توقف الموصل بشكل غير متوقع.' }; if (client) { mz.clients = mz.clients || {}; mz.clients[client] = { ...(mz.clients[client] || {}), last: r } } else mz.last = r; save(MZ_STATUS_F, mz); broadcast('mizan', { done: true, ok: false, error: r.error, client: client || undefined }) } broadcast('mizan', { stage: 'exit', status: mzStatus(), client: client || undefined, clientStatus: client ? mzClient(client) : undefined }) });
   return true;
 }
 const backup = require('./lib/backup').create({ store, DATA, audit: e => audit(e), stampS });
@@ -449,6 +451,23 @@ async function api(req, res, u) {
       if (!mzStart(mode === 'capture' ? 'capture' : 'test', !!show)) return json(res, 409, { error: 'عملية قراءة من ميزان قيد التنفيذ حالياً.' });
       audit({ ...who, action: 'mizan.run', detail: { mode: mode === 'capture' ? 'capture' : 'test' } });
       return json(res, 202, mzStatus());
+    }
+    /* حساب الموكل في ميزان (بموافقة الموكل الموثّقة): يُحفظ مشفّراً على جهاز المكتب ولا يُعاد */
+    if (p === '/api/mizan/client' && M === 'GET') { const id = u.searchParams.get('id') || ''; if (!cur().clients.some(c => c.id === id)) return json(res, 404, { error: 'موكل غير معروف.' }); return json(res, 200, mzClient(id)) }
+    if (p === '/api/mizan/client' && M === 'POST') {
+      const b = await jbody(req), c = cur().clients.find(x => x.id === b.client); if (!c) return json(res, 404, { error: 'موكل غير معروف.' });
+      if (b.forget) { vault.forgetClient(c.id); audit({ ...who, action: 'mizan.client_forget', entity: 'clients', entity_id: c.id, detail: { label: c.name } }); return json(res, 200, mzClient(c.id)) }
+      if (!b.consent) return json(res, 400, { error: 'وثّق موافقة الموكل على استخدام حسابه في ميزان أولاً.' });
+      try { vault.saveClient(c.id, b.username, b.password, { by: me.username, at: stampS(), how: String(b.consentHow || '').slice(0, 120) }) } catch (e) { return json(res, 400, { error: e.message }) }
+      audit({ ...who, action: 'mizan.client_credentials', entity: 'clients', entity_id: c.id, detail: { label: c.name, user: mask(b.username), consent: String(b.consentHow || '').slice(0, 120) } });
+      return json(res, 200, mzClient(c.id));
+    }
+    if (p === '/api/mizan/client-run' && M === 'POST') {
+      const { client, mode, show } = await jbody(req); if (!cur().clients.some(c => c.id === client)) return json(res, 404, { error: 'موكل غير معروف.' });
+      if (!vault.infoClient(client)) return json(res, 400, { error: 'احفظ حساب الموكل في ميزان أولاً.' });
+      if (!mzStart(mode === 'capture' ? 'capture' : 'test', !!show, client)) return json(res, 409, { error: 'عملية قراءة من ميزان قيد التنفيذ حالياً.' });
+      audit({ ...who, action: 'mizan.run', entity: 'clients', entity_id: client, detail: { mode: mode === 'capture' ? 'capture' : 'test', client } });
+      return json(res, 202, mzClient(client));
     }
     if (p === '/api/mizan/match' && M === 'POST') {
       const { records } = await jbody(req); const S = cur();

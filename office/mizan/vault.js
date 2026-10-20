@@ -37,3 +37,18 @@ exports.load = () => { if (!fs.existsSync(CRED)) return null; const j = JSON.par
 exports.info = () => { if (!fs.existsSync(CRED)) return null; const j = JSON.parse(fs.readFileSync(CRED, 'utf8')); return { user: j.user, savedAt: j.savedAt, method: j.box.m } };
 exports.forget = () => { try { fs.unlinkSync(CRED) } catch (e) {} };
 exports.DIR = DIR;
+
+/* حسابات الموكلين في ميزان (بموافقة الموكل): ملف مشفّر لكل موكل، على جهاز المكتب فقط */
+const CDIR = path.join(DIR, 'clients');
+const cfile = id => { const k = String(id || '').replace(/[^\w-]/g, ''); if (!k) throw new Error('موكل غير معروف.'); return path.join(CDIR, k + '.json') };
+exports.saveClient = (id, username, password, consent) => {
+  const u = String(username || '').trim(), p = String(password || '');
+  if (!u || !p) throw new Error('أدخل اسم المستخدم (رقم الهوية) وكلمة المرور.');
+  if (!consent || !consent.by) throw new Error('يلزم توثيق موافقة الموكل على استخدام حسابه.');
+  fs.mkdirSync(CDIR, { recursive: true });
+  fs.writeFileSync(cfile(id), JSON.stringify({ user: u, box: seal(p), savedAt: new Date().toISOString(), consent }), { mode: 0o600 });
+};
+exports.loadClient = id => { const f = cfile(id); if (!fs.existsSync(f)) return null; const j = JSON.parse(fs.readFileSync(f, 'utf8')); return { username: j.user, password: open(j.box), savedAt: j.savedAt } };
+exports.infoClient = id => { const f = cfile(id); if (!fs.existsSync(f)) return null; const j = JSON.parse(fs.readFileSync(f, 'utf8')); return { user: j.user, savedAt: j.savedAt, method: j.box.m, consent: j.consent || null } };
+exports.forgetClient = id => { try { fs.unlinkSync(cfile(id)) } catch (e) {} try { fs.rmSync(path.join(DIR, 'browser-profile-' + String(id).replace(/[^\w-]/g, '')), { recursive: true, force: true }) } catch (e) {} };
+exports.listClients = () => { try { return fs.readdirSync(CDIR).filter(f => f.endsWith('.json')).map(f => f.slice(0, -5)) } catch (e) { return [] } };

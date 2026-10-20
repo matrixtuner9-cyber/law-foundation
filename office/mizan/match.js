@@ -13,16 +13,16 @@ function match(records, st) {
   const res = { matched: [], newForClient: [], unknown: [], summary: {} };
   for (const r of records) {
     const key = caseKey(r.caseNo);
-    const kase = st.cases.find(k => caseKey(k.no) === key && (!r.court || !k.courtName || loose(k.courtName).includes(loose(r.court).split(' ').slice(-1)[0])));
+    const kase = st.cases.find(k => (caseKey(k.mzRef || '') === key || caseKey(k.no) === key) && (!r.court || !k.courtName || loose(k.courtName).includes(loose(r.court).split(' ').slice(-1)[0])));
     const ids = (r.parties || []).map(p => idKey(p.idNo)).filter(Boolean);
-    const client = st.clients.find(c => ids.includes(idKey(c.idNo)));
+    const client = st.clients.find(c => ids.includes(idKey((c.mz && c.mz.idNo) || c.idNo)) || (c.mz && c.mz.idNo && c.idNo && ids.includes(idKey(c.idNo))));
     if (kase) {
       const known = new Set(st.hearings.filter(h => h.k === kase.id).map(h => h.date));
       const newSessions = (r.sessions || []).filter(s => s.date && !known.has(s.date));
       const changes = [];
       if (r.ref && kase.mz !== r.ref) changes.push({ field: 'mz', from: kase.mz, to: r.ref });
       if (r.status && r.status !== kase.stage) changes.push({ field: 'stage', from: kase.stage, to: r.status });
-      res.matched.push({ caseId: kase.id, caseNo: kase.no, by: 'رقم الدعوى', newSessions, changes, record: r });
+      res.matched.push({ caseId: kase.id, caseNo: kase.no, by: kase.mzRef && caseKey(kase.mzRef) === key ? 'رقم ميزان' : 'رقم الدعوى', newSessions, changes, record: r });
     } else if (client) res.newForClient.push({ clientId: client.id, clientName: client.name, by: 'رقم الهوية', record: r });
     else res.unknown.push({ record: r });
   }
