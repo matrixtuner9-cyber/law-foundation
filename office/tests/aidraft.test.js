@@ -37,6 +37,22 @@ test('إخفاء الهوية: لا تصل الأسماء والهواتف لخ�
   /* المراجع المتاحة أُرسلت بنصها في طلب الصياغة */
   assert.match(JSON.stringify(sent[1]), /المادة \(74\)/);
 });
+test('لائحة الخصم: الاستخراج من نص بعد إخفاء الأسماء، والرد بنداً بنداً يصل للصياغة', async () => {
+  const sent = [];
+  const fetchImpl = async (u, opt) => { const b = JSON.parse(opt.body); sent.push(b); const name = b.tool_choice.name;
+    const input = name === 'extract_pleading' ? { doc_type: 'لائحة دعوى', claims: [{ text: 'عمل [الخصم 1] لدى [الموكل] براتب 3500' }], requests: ['الإلزام بالدفع'] }
+      : name === 'plan_research' ? { queries: [], keywords: [] } : { title: 'لائحة جوابية', sections: [{ heading: 'الرد', paragraphs: ['ينكر [الموكل] ذلك.'] }], references: [], unverified: [] };
+    return { ok: true, status: 200, json: async () => ({ content: [{ type: 'tool_use', name, input }] }) } };
+  const ex = AI.createExtractor({ getKey: () => 'k', fetchImpl });
+  const r = await ex({ text: 'لائحة دعوى: عمل أحمد محمود الشكعة لدى شركة الزيتون للتجارة العامة براتب 3500 شيكل منذ 2015 وحتى نهاية 2024، وفُصل تعسفياً.', case: CASE }, { id: 'x' });
+  assert.equal(r.status, 200); assert.ok(!JSON.stringify(sent[0]).includes('الشكعة'));
+  assert.match(r.body.claims[0], /أحمد محمود الشكعة/); assert.match(r.body.claims[0], /شركة الزيتون/);
+  const d = AI.createDrafter({ getKey: () => 'k', fetchImpl });
+  const r2 = await d({ docType: 'لائحة جوابية', dictation: '', case: CASE, web: false, claims: [{ text: r.body.claims[0], response: 'الراتب 3000 بموجب الكشوف' }] }, { id: 'y' });
+  assert.equal(r2.status, 200, JSON.stringify(r2.body));
+  const draftReq = JSON.stringify(sent[sent.length - 1]);
+  assert.match(draftReq, /رد المحامي: الراتب 3000/); assert.ok(!draftReq.includes('الشكعة')); assert.match(draftReq, /الدفوع الشكلية أولاً/);
+});
 test('بلا مفتاح: رسالة واضحة، وإملاء قصير يُرفض قبل أي اتصال', async () => {
   const d0 = AI.createDrafter({ getKey: () => '', fetchImpl: () => { throw new Error('no call') } });
   const r0 = await d0({ docType: 'x', dictation: DICT }, { id: 'u' }); assert.equal(r0.status, 400); assert.ok(r0.body.needKey);

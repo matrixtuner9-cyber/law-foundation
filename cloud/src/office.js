@@ -11,7 +11,7 @@ import { fetchJudgment } from './maqam.js';
 import { createService as maqamService } from './maqam-search.js';
 import { createLaws } from './laws.js';
 import { createLawSearch } from './law-sources.js';
-import { createDrafter, DOC_TYPES, MODEL as AI_MODEL } from './ai-draft.js';
+import { createDrafter, createExtractor, DOC_TYPES, MODEL as AI_MODEL } from './ai-draft.js';
 
 /* توقيع داخلي يثبت أن طلب /_ops وصل من الـ Worker بعد التحقق من رمز المشغّل (لا يمكن للزائر إرساله) */
 export const opsSig = env => env.OPS_TOKEN ? crypto.createHash('sha256').update('mq-ops|' + env.OPS_TOKEN).digest('hex') : null;
@@ -446,6 +446,11 @@ export class Office extends DurableObject {
         if (k && !/^sk-ant-[\w-]{20,200}$/.test(k)) return json(400, { error: 'صيغة المفتاح غير صحيحة (يبدأ بـ sk-ant-).' });
         this.store.kv.set('ai_key', k || null); this.audit({ ...who, action: k ? 'ai.key_set' : 'ai.key_removed', entity: 'settings', detail: k ? { last4: k.slice(-4) } : {} });
         return json(200, { ok: true, configured: !!k, last4: k ? k.slice(-4) : '' });
+      }
+      if (a === 'extract' && M === 'POST') {
+        if ((d = deny('write'))) return d;
+        this.extractor ||= createExtractor({ audit: e => this.audit(e), getKey: aiKey, model: this.env.MQ_AI_MODEL });
+        const r = await this.extractor(await jbody(16 * 1024 * 1024), me); return json(r.status, r.body);
       }
       if (a === 'draft' && M === 'POST') {
         if ((d = deny('write'))) return d;

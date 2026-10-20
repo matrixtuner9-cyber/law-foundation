@@ -12,7 +12,13 @@ const MODEL = 'claude-sonnet-5-5';
 const LIMITS = { draft: [6, 600e3] };
 const MAX_DICT = 20000, MAX_CTX = 60000;
 
-const DOC_TYPES = ['لائحة دعوى', 'لائحة جوابية', 'لائحة جوابية متقابلة', 'مذكرة دفاع', 'مذكرة ختامية', 'لائحة استئناف', 'لائحة جوابية على الاستئناف', 'لائحة نقض', 'طلب مستعجل', 'طلب وقف تنفيذ', 'إنذار عدلي', 'شكوى جزائية', 'لائحة اعتراض', 'طلب تنفيذ'];
+const DOC_TYPES = ['لائحة دعوى', 'لائحة جوابية', 'لائحة جوابية متقابلة', 'مذكرة دفاع', 'مذكرة ختامية', 'لائحة استئناف', 'لائحة جوابية على الاستئناف', 'لائحة نقض', 'طلب مستعجل', 'طلب وقف تنفيذ', 'إنذار عدلي', 'شكوى جزائية', 'لائحة اعتراض', 'طلب تنفيذ', 'وكالة عامة', 'وكالة خاصة', 'وكالة بالخصومة (وكالة محامٍ)', 'مرافعة ختامية'];
+/* إرشادات بنية حسب نوع المستند */
+const GUIDE = [
+  [/وكالة/, 'هذه وكالة لا لائحة: بنيتها (الموكِّل وبياناته، الوكيل وبياناته، موضوع الوكالة، الصلاحيات مفصلة بنوداً مرقمة، المدة إن وُجدت، حق التوكيل للغير أو عدمه، التوقيع، مكان التصديق لدى الكاتب العدل). اذكر صراحة الصلاحيات التي تحتاج نصاً خاصاً متى لزمت (الإقرار، الصلح، التنازل، الإبراء، التحكيم، قبض المبالغ، البيع والإفراغ، توجيه اليمين وردها)، ولا تضف صلاحية لم يطلبها المحامي إلا بين قوسين معقوفين كاقتراح. لا أقسام وقائع ولا طلبات.'],
+  [/جوابية/, 'رتّب الرد: الدفوع الشكلية أولاً إن وُجدت، ثم الرد الموضوعي على ادعاءات الخصم بنداً بنداً بأرقامها، ثم الطلبات.'],
+  [/مرافعة|مذكرة ختامية/, 'المرافعة الختامية تلخص الوقائع الثابتة، والبينات المقدمة وما أثبتته، ثم الرد على بينات الخصم، ثم الطلبات.'],
+];
 
 /* ── إخفاء الهوية ── */
 function anonymizer(ctx) {
@@ -116,23 +122,26 @@ function createDrafter({ audit, getKey, laws, lawSearch, fetchImpl = fetch, mode
     const wait = limited(String(user && (user.id || user.username))); if (wait) return { status: 429, body: { error: `طلبات صياغة كثيرة. حاول بعد ${wait} ثانية.` } };
     const docType = String(input.docType || '').slice(0, 120).trim(), dict = String(input.dictation || '').slice(0, MAX_DICT).trim();
     if (!docType) return { status: 400, body: { error: 'اختر نوع المستند.' } };
-    if (dict.length < 20) return { status: 400, body: { error: 'الإملاء قصير جداً. صف الوقائع وما تريد قوله في المستند.' } };
+    const claims = (Array.isArray(input.claims) ? input.claims : []).slice(0, 60).map(x => ({ text: String(x.text || '').slice(0, 2000).trim(), response: String(x.response || '').slice(0, 3000).trim() })).filter(x => x.text);
+    if (dict.length < 20 && !claims.some(x => x.response)) return { status: 400, body: { error: 'الإملاء قصير جداً. صف الوقائع وما تريد قوله في المستند.' } };
     const c = input.case || {}, an = anonymizer(c);
     const caseTxt = an.hide([c.no && `رقم الدعوى: ${c.no}`, c.court && `المحكمة: ${c.court}`, c.type && `نوع الدعوى: ${c.type}`, c.subject && `الموضوع: ${c.subject}`,
       c.role && `صفة موكلنا: ${c.role}`, c.stage && `المرحلة: ${c.stage}`, c.value && `قيمة الدعوى: ${c.value}`, '[الموكل] = موكلنا', ...(c.opponents || []).map((o, i) => `[الخصم ${i + 1}] = خصم`)].filter(Boolean).join('\n'));
     const said = an.hide(dict), tpl = String(input.template || '').slice(0, 8000);
+    const claimsTxt = claims.length ? '\n\nادعاءات الخصم كما وردت في لائحته، ورد المحامي على كل منها:\n' + claims.map((x, i) => `${i + 1}. ادعاء الخصم: ${an.hide(x.text)}\n   رد المحامي: ${x.response ? an.hide(x.response) : '(لم يملِ رداً؛ أنكره إنكاراً عاماً وكلّف الخصم بإثباته)'}`).join('\n') : '';
+    const guide = (GUIDE.find(([re]) => re.test(docType)) || [, ''])[1];
     const mdl = model || MODEL;
     try {
       /* الخطوة 1: ما الذي يلزم البحث عنه؟ */
       const plan = toolInput(await callClaude(key, { model: mdl, max_tokens: 800, system: SYSTEM, tools: [PLAN_TOOL], tool_choice: { type: 'tool', name: 'plan_research' },
-        messages: [{ role: 'user', content: `نوع المستند: ${docType}\n\nملف القضية:\n${caseTxt}\n\nإملاء المحامي:\n${said}\n\nحدّد عبارات البحث عن التشريعات الفلسطينية ذات الصلة والكلمات المفتاحية.` }] }, fetchImpl), 'plan_research');
+        messages: [{ role: 'user', content: `نوع المستند: ${docType}\n\nملف القضية:\n${caseTxt}\n\nإملاء المحامي:\n${said}${claimsTxt}\n\nحدّد عبارات البحث عن التشريعات الفلسطينية ذات الصلة والكلمات المفتاحية.` }] }, fetchImpl), 'plan_research');
       /* الخطوة 2: المراجع من مصادر موثقة فقط */
       const refs = await gatherRefs(plan, ctxExtra.rulings, input.web !== false, user);
       let refTxt = refs.map(r => `[${r.id}] ${r.kind === 'ruling' ? 'حكم قضائي' : 'تشريع'}: ${r.title}${r.ref ? ' (' + r.ref + ')' : ''}\n${r.arts.map(a => (a.head ? a.head + ': ' : '') + a.text).join('\n')}`).join('\n\n');
       if (refTxt.length > MAX_CTX) refTxt = refTxt.slice(0, MAX_CTX);
       /* الخطوة 3: الصياغة */
       const out = toolInput(await callClaude(key, { model: mdl, max_tokens: 8000, system: SYSTEM, tools: [DRAFT_TOOL], tool_choice: { type: 'tool', name: 'submit_draft' },
-        messages: [{ role: 'user', content: `المطلوب: صياغة «${docType}».\n\nملف القضية:\n${caseTxt}\n\nإملاء المحامي (الوقائع والطلبات كما ذكرها):\n${said}\n\n${tpl ? 'نموذج المكتب الذي يُبنى عليه (التزم ببنيته):\n' + an.hide(tpl) + '\n\n' : ''}المراجع المتاحة (لا يُستشهد بغيرها):\n${refTxt || '(لا توجد مراجع متاحة؛ علّم كل سند قانوني «يحتاج تحقق»)'}` }] }, fetchImpl), 'submit_draft');
+        messages: [{ role: 'user', content: `المطلوب: صياغة «${docType}».\n\nملف القضية:\n${caseTxt}\n\nإملاء المحامي (الوقائع والطلبات كما ذكرها):\n${said}${claimsTxt}\n\n${guide ? 'إرشادات البنية: ' + guide + '\n\n' : ''}${tpl ? 'نموذج المكتب الذي يُبنى عليه (التزم ببنيته):\n' + an.hide(tpl) + '\n\n' : ''}المراجع المتاحة (لا يُستشهد بغيرها):\n${refTxt || '(لا توجد مراجع متاحة؛ علّم كل سند قانوني «يحتاج تحقق»)'}` }] }, fetchImpl), 'submit_draft');
       /* إعادة الأسماء، والتحقق من أن كل مرجع مذكور موجود فعلاً */
       const valid = new Set(refs.map(r => r.id));
       const fix = s => an.show(String(s || '')).replace(/\[(R\d+)\]/g, (m, id) => valid.has(id) ? m : '[مرجع يحتاج تحقق]');
@@ -150,4 +159,39 @@ function createDrafter({ audit, getKey, laws, lawSearch, fetchImpl = fetch, mode
   };
 }
 
-export { createDrafter, anonymizer, pickArticles, DOC_TYPES, MODEL };
+
+/* ── قراءة لائحة الخصم: استخراج الادعاءات بنداً بنداً ليرد عليها المحامي ── */
+const EXTRACT_TOOL = { name: 'extract_pleading', description: 'استخراج محتوى لائحة الخصم', input_schema: { type: 'object', required: ['doc_type', 'claims'], properties: {
+  doc_type: { type: 'string', description: 'نوع المستند كما يظهر (لائحة دعوى، لائحة استئناف…)' }, court: { type: 'string' }, case_no: { type: 'string' },
+  summary: { type: 'string', description: 'خلاصة الدعوى في سطرين' },
+  claims: { type: 'array', maxItems: 60, description: 'ادعاءات الخصم ووقائعه كما وردت، كل ادعاء مستقل في عنصر، بصياغته المختصرة الأمينة', items: { type: 'object', required: ['text'], properties: { text: { type: 'string' } } } },
+  requests: { type: 'array', items: { type: 'string' }, description: 'طلبات الخصم' },
+} } };
+const MEDIA = { 'application/pdf': 'document', 'image/png': 'image', 'image/jpeg': 'image', 'image/webp': 'image', 'image/gif': 'image' };
+function createExtractor({ audit, getKey, fetchImpl = fetch, model } = {}) {
+  const hits = new Map();
+  return async function extract(input, user) {
+    const who = { user_id: user && user.id, username: user && user.username };
+    const key = await getKey(); if (!key) return { status: 400, body: { error: 'لم يُضبط مفتاح الذكاء الاصطناعي بعد.', needKey: true } };
+    const now = Date.now(), k = String(user && (user.id || user.username)), a = (hits.get(k) || []).filter(t => now - t < 600e3);
+    if (a.length >= 10) return { status: 429, body: { error: 'طلبات قراءة كثيرة. حاول بعد قليل.' } }; a.push(now); hits.set(k, a);
+    const content = [];
+    if (input.file && input.file.data) {
+      const kind = MEDIA[input.file.type]; if (!kind) return { status: 400, body: { error: 'نوع الملف غير مدعوم. ارفع PDF أو صورة أو Word.' } };
+      if (String(input.file.data).length > 14e6) return { status: 413, body: { error: 'الملف أكبر من 10 ميغابايت.' } };
+      content.push({ type: kind, source: { type: 'base64', media_type: input.file.type, data: String(input.file.data) } });
+    } else {
+      const t = String(input.text || '').slice(0, 120000).trim(); if (t.length < 50) return { status: 400, body: { error: 'لم يُعثر على نص كافٍ في الملف.' } };
+      const an = anonymizer(input.case || {}); content.push({ type: 'text', text: an.hide(t) }); input._an = an;
+    }
+    content.push({ type: 'text', text: 'هذه لائحة مقدمة من الخصم في دعوى أمام المحاكم الفلسطينية. استخرج ادعاءاته ووقائعه بنداً بنداً كما وردت (دون إضافة أو تقييم)، وطلباته.' });
+    try {
+      const out = toolInput(await callClaude(key, { model: model || MODEL, max_tokens: 6000, system: 'أنت مساعد قانوني دقيق يقرأ اللوائح القضائية الفلسطينية ويستخرج مضمونها بأمانة.', tools: [EXTRACT_TOOL], tool_choice: { type: 'tool', name: 'extract_pleading' }, messages: [{ role: 'user', content }] }, fetchImpl), 'extract_pleading');
+      const show = input._an ? input._an.show : (x => x);
+      audit && audit({ ...who, action: 'ai.extract', entity: 'docs', detail: { claims: (out.claims || []).length, kind: input.file ? input.file.type : 'text' } });
+      return { status: 200, body: { ok: true, docType: show(out.doc_type || ''), court: show(out.court || ''), caseNo: show(out.case_no || ''), summary: show(out.summary || ''), claims: (out.claims || []).map(c => show(c.text)).filter(Boolean), requests: (out.requests || []).map(show) } };
+    } catch (e) { return { status: e.status || 500, body: { error: e.status ? e.message : 'تعذّرت قراءة اللائحة.' } } }
+  };
+}
+
+export { createDrafter, createExtractor, anonymizer, pickArticles, DOC_TYPES, MODEL };

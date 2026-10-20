@@ -39,6 +39,7 @@ const laws = Laws.createLaws({ all: (q, ...a) => store.raw.prepare(q).all(...a),
 const lawSearch = LawSources.createLawSearch({ audit }); /* البحث المباشر في مصادر التشريعات على الإنترنت */
 const aiKey = () => store.kv.get('ai_key') || process.env.ANTHROPIC_API_KEY || '';
 const drafter = AiDraft.createDrafter({ audit, getKey: aiKey, laws, lawSearch, model: process.env.MQ_AI_MODEL });
+const extractor = AiDraft.createExtractor({ audit, getKey: aiKey, model: process.env.MQ_AI_MODEL });
 (function migrate() {
   if (store.kv.get('migrated_v1')) return;
   const st = readJSON(STATE_F, null); let ms = readJSON(MSG_F, null);
@@ -512,6 +513,7 @@ async function api(req, res, u) {
       store.kv.set('ai_key', k || null); audit({ ...who, action: k ? 'ai.key_set' : 'ai.key_removed', entity: 'settings', detail: k ? { last4: k.slice(-4) } : {} });
       return json(res, 200, { ok: true, configured: !!k, last4: k ? k.slice(-4) : '' });
     }
+    if (a === 'extract' && M === 'POST') { if (!need('write')) return; const r = await extractor(await jbody(req, 16 * 1024 * 1024), me); return json(res, r.status, r.body) }
     if (a === 'draft' && M === 'POST') { if (!need('write')) return; const r = await drafter(await jbody(req, 2 * 1024 * 1024), me, { rulings: cur().rulings || [] }); return json(res, r.status, r.body) }
     return json(res, 404, { error: 'غير موجود' });
   }
