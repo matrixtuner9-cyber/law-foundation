@@ -108,10 +108,31 @@ function caseTab(k){
 function bubble(m){return `<div class="bubble ${m.f}">${esc(m.t)}<small>${esc(m.ch)} · ${m.at.slice(5).replace('-','/')}</small></div>`}
 function docTable(ds,showCase){return `<section class="panel tablewrap"><table><thead><tr><th>المستند</th>${showCase?'<th>القضية</th>':''}<th>النوع</th><th>المصدر</th><th>التاريخ</th><th>الصفحات</th><th>في بوابة الموكل</th></tr></thead><tbody>${ds.map(d=>`<tr><td style="font-weight:500">${esc(d.title)}</td>${showCase?`<td><button class="link mono" data-act="openCase" data-v="${d.k}">${K(d.k).no}</button><div class="m">${esc(C(K(d.k).client).name)}</div></td>`:''}<td>${esc(d.kind)}</td><td><span class="pill ${d.src==='ميزان'?'mz':d.src==='مولّد من نموذج'?'acc':''}">${esc(d.src)}</span></td><td class="num">${dmy(d.date)}</td><td class="num">${d.pages}</td><td><button class="sw ${d.shared?'on':''}" data-act="share" data-v="${d.id}" aria-label="مشاركة مع الموكل" aria-pressed="${d.shared}"></button></td></tr>`).join('')||'<tr><td colspan="7" class="empty">لا مستندات.</td></tr>'}</tbody></table></section>`}
 
-V.clients=()=>`<div class="head"><div><h1>الموكلون</h1><p class="sub">ملف كل موكل يجمع قضاياه وأتعابه وقناة تواصله المفضلة وحالة دخوله للبوابة</p></div></div>
- <div class="grid-eq">${clients.map(c=>{const ks=cases.filter(k=>k.client===c.id);const p=Math.round(c.paid/c.fee*100);return `<button class="client-card" data-act="openClient" data-v="${c.id}"><div style="display:flex;justify-content:space-between;gap:8px"><span class="nm">${esc(c.name)}</span><span class="pill">${c.type}</span></div>
+const clientCards=list=>`<div class="grid-eq">${list.map(c=>{const ks=cases.filter(k=>k.client===c.id);const p=Math.round(c.paid/c.fee*100);return `<button class="client-card" data-act="openClient" data-v="${c.id}"><div style="display:flex;justify-content:space-between;gap:8px"><span class="nm">${esc(c.name)}</span><span class="pill">${c.type}</span></div>
  <dl class="kv"><dt>القضايا</dt><dd>${ks.map(k=>`<span class="mono">${k.no}</span>`).join('، ')}</dd><dt>التواصل</dt><dd>${esc(c.ch)}</dd><dt>البوابة</dt><dd>${c.portal?`<span class="pill ok">مفعّلة</span>`:'<span class="pill">غير مفعّلة</span>'}</dd></dl>
  <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted)"><span>الأتعاب المحصّلة</span><span class="num">${money(c.paid)} / ${money(c.fee)}</span></div><div class="bar"><span style="width:${p}%"></span></div></button>`}).join('')}</div>`;
+/* ── سجلات الموكلين: جدول قابل للبحث والفرز والطباعة، بديلاً عن البطاقات ── */
+const CR={mode:(()=>{try{return localStorage.getItem('mq_clients_view')||'cards'}catch(e){return 'cards'}})(),q:'',sort:'name',dir:1,f:'all'};
+const crRow=c=>{const ks=cases.filter(k=>k.client===c.id),act=ks.filter(k=>k.status!=='منتهية'),fee=+c.fee||0,paid=+c.paid||0,un=(messages[c.id]||[]).filter(m=>m.unread&&m.f!=='me').length;
+ return {c,ks,act,fee,paid,due:Math.max(0,fee-paid),pct:fee?Math.round(paid/fee*100):0,un,weak:window.MQ_isWeak?MQ_isWeak(c):false}};
+function crList(){const q=CR.q.trim();let rs=clients.map(crRow).filter(r=>(!q||[r.c.name,r.c.phone,r.c.idNo,r.c.ch,...r.ks.map(k=>k.no+' '+(k.subject||''))].join(' ').includes(q))
+  &&(CR.f==='all'||(CR.f==='portal'&&r.c.portal)||(CR.f==='noportal'&&!r.c.portal)||(CR.f==='due'&&r.due>0)||(CR.f==='active'&&r.act.length)));
+ const key={name:r=>r.c.name,cases:r=>r.ks.length,fee:r=>r.fee,paid:r=>r.paid,due:r=>r.due,ch:r=>r.c.ch||'',portal:r=>(r.c.portal?1:0)*1e9+(r.c.last?Date.parse(r.c.last)/1e3:0)}[CR.sort]||(r=>r.c.name);
+ return rs.sort((a,b)=>{const x=key(a),y=key(b);return (typeof x==='string'?x.localeCompare(y,'ar'):x-y)*CR.dir})}
+const crTh=(k,t,cls)=>`<th class="${cls||''}"><button class="crs ${CR.sort===k?'on':''}" data-act="crSort" data-v="${k}">${t}${CR.sort===k?(CR.dir>0?' ▲':' ▼'):''}</button></th>`;
+function clientRecords(){const rs=crList(),T=rs.reduce((t,r)=>({fee:t.fee+r.fee,paid:t.paid+r.paid,due:t.due+r.due,ks:t.ks+r.ks.length}),{fee:0,paid:0,due:0,ks:0});
+ return `<section class="panel tablewrap cr-wrap"><table class="cr-t"><thead><tr>${crTh('name','الموكل')}${crTh('cases','القضايا')}${crTh('fee','الأتعاب','num')}${crTh('paid','المحصّل','num')}${crTh('due','المتبقي','num')}${crTh('ch','قناة التواصل')}${crTh('portal','البوابة')}</tr></thead>
+ <tbody>${rs.map(r=>{const c=r.c;return `<tr class="clk" data-act="openClient" data-v="${c.id}"><td><b>${esc(c.name)}</b>${r.un?` <span class="newdot" title="${r.un} رسائل جديدة">${r.un}</span>`:''}<div class="m">${esc(c.type||'')}${c.phone?' · <span class="mono" dir="ltr">'+esc(c.phone)+'</span>':''}</div></td>
+  <td>${r.ks.length?r.ks.map(k=>`<span class="mono ${k.status==='منتهية'?'m':''}">${k.no}</span>`).join('، '):'<span class="m">—</span>'}${r.ks.length?`<div class="m">${r.act.length} جارية</div>`:''}</td>
+  <td class="num">${money(r.fee)}</td><td class="num">${money(r.paid)}<div class="bar cr-bar"><span style="width:${r.pct}%"></span></div></td><td class="num ${r.due?'cr-due':''}">${r.due?money(r.due):'—'}</td>
+  <td>${esc(c.ch||'—')}</td>
+  <td>${c.portal?`<span class="pill ok">مفعّلة</span><div class="m">${c.last?'آخر دخول '+dmy(c.last):'لم يدخل بعد'}</div>`:'<span class="pill">غير مفعّلة</span>'}${r.weak&&c.portal?'<div class="m cr-weak">رمز ضعيف</div>':''}</td></tr>`}).join('')||'<tr><td colspan="7" class="empty">لا موكلين مطابقين.</td></tr>'}</tbody>
+ ${rs.length?`<tfoot><tr><td><b>${rs.length} موكلاً</b></td><td>${T.ks} قضية</td><td class="num">${money(T.fee)}</td><td class="num">${money(T.paid)}</td><td class="num">${money(T.due)}</td><td colspan="2"></td></tr></tfoot>`:''}</table></section>`}
+V.clients=()=>{const rec=CR.mode==='records';return `<div class="head"><div><h1>الموكلون</h1><p class="sub">ملف كل موكل يجمع قضاياه وأتعابه وقناة تواصله المفضلة وحالة دخوله للبوابة</p></div>
+ <div class="toolbar"><div class="seg" role="group" aria-label="طريقة العرض"><button class="${rec?'':'on'}" data-act="crMode" data-v="cards" aria-pressed="${!rec}">بطاقات</button><button class="${rec?'on':''}" data-act="crMode" data-v="records" aria-pressed="${rec}">سجلات</button></div>${rec?'<button class="btn sm" data-act="crPrint">طباعة السجل</button>':''}</div></div>
+ ${rec?`<div class="cr-bar-top"><input class="field" id="crQ" value="${esc(CR.q)}" placeholder="بحث بالاسم أو الهاتف أو رقم القضية…" aria-label="بحث في الموكلين"><select class="field" id="crF" aria-label="تصفية">${[['all','كل الموكلين'],['active','لهم قضايا جارية'],['due','عليهم أتعاب متبقية'],['portal','البوابة مفعّلة'],['noportal','البوابة غير مفعّلة']].map(([v,t])=>`<option value="${v}" ${CR.f===v?'selected':''}>${t}</option>`).join('')}</select></div><div id="crBody">${clientRecords()}</div>`:clientCards(clients)}`};
+document.addEventListener('input',ev=>{if(ev.target.id!=='crQ')return;CR.q=ev.target.value;const b=document.getElementById('crBody');if(b)b.innerHTML=clientRecords()});
+document.addEventListener('change',ev=>{if(ev.target.id!=='crF')return;CR.f=ev.target.value;const b=document.getElementById('crBody');if(b)b.innerHTML=clientRecords()});
 
 V.client=()=>{const c=C(S.clientId),ks=cases.filter(k=>k.client===c.id);
  return `<div><button class="link" data-act="nav" data-v="clients">→ كل الموكلين</button></div>
@@ -217,6 +238,9 @@ function nowStamp(){const n=new Date();return iso(TODAY)+' '+String(n.getHours()
 function sendMsg(cid,t,ch){(messages[cid]=messages[cid]||[]).push({f:'me',ch,t,at:nowStamp()})}
 
 const A={
+ crMode:v=>{CR.mode=v==='records'?'records':'cards';try{localStorage.setItem('mq_clients_view',CR.mode)}catch(e){}render()},
+ crSort:v=>{if(CR.sort===v)CR.dir=-CR.dir;else{CR.sort=v;CR.dir=['fee','paid','due','cases','portal'].includes(v)?-1:1}const b=document.getElementById('crBody');if(b)b.innerHTML=clientRecords()},
+ crPrint:()=>{if(!window.MQP)return;const rs=crList(),M=MQP,B=M.B,E=M.esc;MQP.open({label:'سجل الموكلين',build(){return {title:'سجل الموكلين',sub:rs.length+' موكلاً'+(CR.q?' · بحث: '+CR.q:''),ref:'مك/'+iso(TODAY),file:'سجل الموكلين - '+iso(TODAY),orient:'land',sign:[],blocks:[B.t(['#','الموكل','الهاتف','القضايا','الأتعاب','المحصّل','المتبقي','قناة التواصل','البوابة'],rs.map((r,i)=>[i+1,E(r.c.name),'<span dir="ltr">'+E(r.c.phone||'')+'</span>',E(r.ks.map(k=>k.no).join('، ')||'—'),money(r.fee),money(r.paid),r.due?money(r.due):'—',E(r.c.ch||'—'),r.c.portal?('مفعّلة'+(r.c.last?' · '+dmy(r.c.last):'')):'غير مفعّلة']),{w:['4%','18%','12%','16%','10%','10%','10%','10%','10%']})]}}})},
  nav:v=>{S.view=v;window.scrollTo(0,0);render()},
  openCase:v=>{S.view='case';S.caseId=v;S.caseTab='hearings';window.scrollTo(0,0);render()},
  openClient:v=>{S.view='client';S.clientId=v;window.scrollTo(0,0);render()},
