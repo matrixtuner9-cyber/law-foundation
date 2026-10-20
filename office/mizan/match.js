@@ -13,7 +13,9 @@ function match(records, st) {
   const res = { matched: [], newForClient: [], unknown: [], summary: {} };
   for (const r of records) {
     const key = caseKey(r.caseNo);
-    const kase = st.cases.find(k => (caseKey(k.mzRef || '') === key || caseKey(k.no) === key) && (!r.court || !k.courtName || loose(k.courtName).includes(loose(r.court).split(' ').slice(-1)[0])));
+    /* أرقام القضية كلها: رقمها في ميزان، ورقمها في المكتب، وأرقامها في كل درجات التقاضي (صلح، بداية، استئناف، نقض، تنفيذ)، ورقم الأساس لدى النيابة */
+    const keysOf = k => [k.mzRef, k.no, k.prosBase, ...((k.track || []).map(t => t.no))].filter(Boolean).map(caseKey);
+    const kase = st.cases.find(k => keysOf(k).includes(key) && (!r.court || !k.courtName || loose(k.courtName).includes(loose(r.court).split(' ').slice(-1)[0])));
     const ids = (r.parties || []).map(p => idKey(p.idNo)).filter(Boolean);
     const client = st.clients.find(c => ids.includes(idKey((c.mz && c.mz.idNo) || c.idNo)) || (c.mz && c.mz.idNo && c.idNo && ids.includes(idKey(c.idNo))));
     if (kase) {
@@ -22,7 +24,7 @@ function match(records, st) {
       const changes = [];
       if (r.ref && kase.mz !== r.ref) changes.push({ field: 'mz', from: kase.mz, to: r.ref });
       if (r.status && r.status !== kase.stage) changes.push({ field: 'stage', from: kase.stage, to: r.status });
-      res.matched.push({ caseId: kase.id, caseNo: kase.no, by: kase.mzRef && caseKey(kase.mzRef) === key ? 'رقم ميزان' : 'رقم الدعوى', newSessions, changes, record: r });
+      res.matched.push({ caseId: kase.id, caseNo: kase.no, by: kase.mzRef && caseKey(kase.mzRef) === key ? 'رقم ميزان' : caseKey(kase.no) === key ? 'رقم الدعوى' : kase.prosBase && caseKey(kase.prosBase) === key ? 'رقم الأساس لدى النيابة' : 'رقم في درجة تقاضٍ أخرى', newSessions, changes, record: r });
     } else if (client) res.newForClient.push({ clientId: client.id, clientName: client.name, by: 'رقم الهوية', record: r });
     else res.unknown.push({ record: r });
   }

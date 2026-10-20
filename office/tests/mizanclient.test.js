@@ -19,3 +19,9 @@ test('ميزان: المطابقة برقم القضية في ميزان أول�
   assert.deepEqual(r.summary, { total: 4, matched: 2, newForClient: 1, unknown: 1, newSessions: 1 });
   assert.equal(r.matched[0].caseId, 'k1'); assert.equal(r.matched[0].by, 'رقم ميزان'); assert.equal(r.newForClient[0].clientId, 'c1');
 });
+
+test('ميزان: ارتباط درجات التقاضي — تحديث برقم الاستئناف أو ملف التنفيذ أو رقم الأساس لدى النيابة يذهب إلى القضية نفسها', () => {
+  const st = { cases: [{ id: 'k1', no: '120/2024', track: [{ lvl: 'صلح', no: '120/2024' }, { lvl: 'استئناف', no: '77/2025' }, { lvl: 'تنفيذ', no: '9001/2026' }] }, { id: 'k2', no: '15/2026', prosBase: '3344/2025' }], clients: [], hearings: [] };
+  const r = match([{ caseNo: '77/2025' }, { caseNo: '9001/2026' }, { caseNo: '3344/2025' }], st);
+  assert.deepEqual(r.matched.map(m => m.caseId + ':' + m.by), ['k1:رقم في درجة تقاضٍ أخرى', 'k1:رقم في درجة تقاضٍ أخرى', 'k2:رقم الأساس لدى النيابة']);
+});
