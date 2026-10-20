@@ -40,10 +40,11 @@ V.laws=()=>{
  /* أول عرض، أو العودة للشاشة بعد 20 ثانية (قد يكون زميل أضاف تشريعات) */
  if(!LG.loading&&!LG.err&&(!LG.res||Date.now()-(LG.at||0)>20e3)){LG.at=Date.now();setTimeout(load,0)}
  if(!online())return `<div class="head"><div><h1>التشريعات الفلسطينية</h1></div></div><section class="panel"><div class="bd lg-empty">مكتبة التشريعات محفوظة في خادم المكتب، وتعمل حين يكون ميثاق متصلاً بالخادم.</div></section>`;
- const m=M_();
- return `<div class="head"><div><h1>التشريعات الفلسطينية</h1><p class="sub">مكتبة المكتب من القوانين والقرارات بقانون والأنظمة والمراسيم: بحث في العناوين والملخصات والنصوص، مع فلاتر النوع والجهة والحالة والسنة</p></div>
-  <div class="toolbar">${canM()?`<button class="btn pri" data-act="lgNew">إضافة تشريع</button><button class="btn" data-act="lgImport">استيراد ملف</button>`:''}${canM()?`<button class="btn" data-act="lgExport">تصدير JSON</button>`:''}</div></div>
- <div class="lg-note">يُدخل المكتب هذه التشريعات بنفسه. طابِق النص مع المنشور في الجريدة الرسمية (الوقائع الفلسطينية) قبل الاستشهاد به، وتأكد من آخر تعديلاته.</div>
+ const m=M_(),web=webOk()&&LG.mode!=='lib';
+ return `<div class="head"><div><h1>التشريعات الفلسطينية</h1><p class="sub">${web?'بحث مباشر في مصادر التشريعات الفلسطينية الرسمية على الإنترنت، وعرض النصوص الكاملة داخل ميثاق':'مكتبة المكتب من القوانين والقرارات بقانون والأنظمة والمراسيم: بحث في العناوين والملخصات والنصوص، مع فلاتر النوع والجهة والحالة والسنة'}</p></div>
+  <div class="toolbar">${!web&&canM()?`<button class="btn pri" data-act="lgNew">إضافة تشريع</button><button class="btn" data-act="lgImport">استيراد ملف</button><button class="btn" data-act="lgExport">تصدير JSON</button>`:''}</div></div>
+ ${webOk()?`<div class="lg-tabs" role="tablist"><button role="tab" aria-selected="${web}" class="${web?'on':''}" data-act="lgMode" data-v="web">البحث في المصادر</button><button role="tab" aria-selected="${!web}" class="${web?'':'on'}" data-act="lgMode" data-v="lib">مكتبة المكتب${LG.facets&&LG.facets.total?' <small>'+LG.facets.total+'</small>':''}</button></div>`:''}
+ ${web?webView():`<div class="lg-note">يُدخل المكتب هذه التشريعات بنفسه أو يحفظها من نتائج البحث في المصادر. طابِق النص مع المنشور في الجريدة الرسمية (الوقائع الفلسطينية) قبل الاستشهاد به، وتأكد من آخر تعديلاته.</div>
  <div id="lgStats">${stats()}</div>
  <section class="panel"><div class="bd lg-filters">
   <input class="field" id="lgq" type="search" placeholder="ابحث في العنوان أو الرقم أو الملخص أو نص التشريع…" value="${e(LG.q)}" autocomplete="off">
@@ -53,7 +54,7 @@ V.laws=()=>{
   <div class="lg-years"><input class="field" id="lgY1" inputmode="numeric" maxlength="4" placeholder="من سنة" aria-label="من سنة" value="${e(LG.y1)}"><span>–</span><input class="field" id="lgY2" inputmode="numeric" maxlength="4" placeholder="إلى سنة" aria-label="إلى سنة" value="${e(LG.y2)}"></div>
   <select class="field" id="lgSort">${SORTS.map(([k,v])=>`<option value="${k}" ${LG.sort===k?'selected':''}>${v}</option>`).join('')}</select>
  </div></section>
- <div id="lgRes">${results()}</div>`};
+ <div id="lgRes">${results()}</div>`}`};
 
 function stats(){const f=LG.facets;if(!f||!f.total)return '';const m=M_();
  const chip=(k,v,n,on)=>`<button class="lg-st ${on?'on':''}" data-act="${k}" data-v="${e(v)}"><b>${n}</b><span>${e(v)}</span></button>`;
@@ -92,6 +93,68 @@ function pager(r){if(r.pages<=1)return '';const p=r.page,b=[];
  const set=new Set([1,r.pages,p-1,p,p+1].filter(n=>n>=1&&n<=r.pages));let last=0;[...set].sort((a,b)=>a-b).forEach(n=>{if(n-last>1)b.push('<span class="m">…</span>');b.push(btn(n));last=n});
  if(p<r.pages)b.push(btn(p+1,'التالي'));
  return `<nav class="lg-pager" aria-label="الصفحات">${b.join('')}</nav>`}
+
+/* ── البحث المباشر في المصادر على الإنترنت (اسم المصدر لا يظهر) ── */
+const webOk=()=>online()&&!document.body.classList.contains('mq-private');
+const W={q:'',page:1,items:[],srcs:{},busy:0,err:'',sel:new Map(),done:false,q2:''};
+const SRCS=['s1','s2'];
+A.lgMode=v=>{LG.mode=v;render();if(v==='lib')load()};
+async function webSearch(more){const q=W.q.trim();if(q.length<2)return toast('اكتب كلمة من حرفين على الأقل');
+ if(!more){W.page=1;W.items=[];W.srcs={};W.err='';W.q2='';W.searched=q}else W.page++;
+ const page=W.page,seq=W.seq=(W.seq||0)+1;W.busy=0;
+ SRCS.forEach(src=>{if(more&&!(W.srcs[src]&&W.srcs[src].pages>=page))return;W.busy++;
+  api2('search?'+new URLSearchParams({q,src,page})).then(r=>{if(seq!==W.seq)return;W.srcs[src]={pages:r.pages||0};if(r.q2)W.q2=r.q2;
+   const have=new Set(W.items.map(x=>x.title.replace(/[\s()م.]/g,'')));r.items.forEach(x=>{const k=x.title.replace(/[\s()م.]/g,'');if(!have.has(k)){have.add(k);W.items.push(x)}})})
+  .catch(er=>{if(seq!==W.seq)return;W.srcs[src]=W.srcs[src]||{pages:0};if(!W.items.length)W.err=er.message})
+  .finally(()=>{if(seq!==W.seq)return;W.busy--;webPaint()})});
+ webPaint()}
+async function api2(path){const r=await fetch('/api/admin/lawsearch/'+path);if(r.status===401){location.replace('/login.html');throw new Error('انتهت الجلسة')}
+ const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||('HTTP '+r.status));return j}
+const webMore=()=>SRCS.some(s=>W.srcs[s]&&W.srcs[s].pages>W.page);
+function webView(){return `<section class="panel"><form class="bd lg-wform" id="fLgWeb"><input class="field" id="lgwq" type="search" placeholder="ابحث عن قانون أو قرار بقانون أو نظام… مثال: قانون العمل، الأسلحة النارية، التنفيذ" value="${e(W.q)}" autocomplete="off" required minlength="2"><button class="btn pri">بحث</button></form></section>
+ <div class="lg-note">النتائج من مصادر التشريعات الفلسطينية المنشورة على الإنترنت، وتُعرض كما نُشرت. طابِق النص مع الجريدة الرسمية (الوقائع الفلسطينية) قبل الاستشهاد به.</div>
+ <div id="lgWeb">${webResults()}</div>`}
+function webPaint(){const el=document.getElementById('lgWeb');if(el)el.innerHTML=webResults()}
+function webResults(){
+ if(!W.searched)return `<section class="panel"><div class="bd lg-empty"><h2>ابحث في التشريعات الفلسطينية</h2><p>اكتب اسم التشريع أو موضوعه أو كلمة من نصه، ثم اضغط «بحث». تفتح النصوص الكاملة هنا، ويمكنك تحديد ما تريد واستخراجه في صفحة مستقلة للطباعة والحفظ، أو حفظه في مكتبة المكتب.</p></div></section>`;
+ const words=nrm(W.q2||W.searched).split(/\s+/).filter(Boolean),n=W.sel.size,pageOn=W.items.length&&W.items.every(x=>W.sel.has(x.id));
+ const bar=`<div class="lg-bar">${W.items.length?`<button class="lg-ck ${pageOn?'on':''}" data-act="lgwSelAll" aria-pressed="${pageOn}" title="تحديد كل النتائج المعروضة"></button>`:''}<span>${W.items.length?nLaws(W.items.length)+(webMore()?' (والمزيد)':''):W.busy?'':'لا نتائج'}${W.busy?' · <span class="m">جارٍ البحث…</span>':''}${W.q2?` · <span class="m">عُرضت نتائج «${e(W.q2)}»</span>`:''}${n?` · <b>${n} محدد</b> <button class="link" data-act="lgwSelNone">إلغاء التحديد</button>`:''}</span>
+  <span style="flex:1"></span>${n?`<button class="btn sm pri" data-act="lgwExtract">استخراج المحدد (${n}) في صفحة مستقلة</button>`:''}</div>`;
+ if(!W.items.length)return bar+(W.busy?`<section class="panel"><div class="bd lg-empty">جارٍ البحث في المصادر…</div></section>`:`<section class="panel"><div class="bd lg-empty">${W.err?e(W.err):'لا تشريعات تطابق بحثك. جرّب كلمة أخرى أو اكتب الهمزات كما في النص الرسمي (مثل «الأسلحة»).'}</div></section>`);
+ return bar+`<div class="lg-list">${W.items.map(x=>{const on=W.sel.has(x.id);return `<article class="lg-card ${on?'sel':''}" data-act="lgwOpen" data-v="${e(x.id)}" tabindex="0">
+  <div class="lg-top"><button class="lg-ck ${on?'on':''}" data-act="lgwSel" data-v="${e(x.id)}" aria-pressed="${on}" aria-label="تحديد للاستخراج"></button><span class="pill">${e(x.type)}</span><span class="pill ${ST_CLS[x.status]||''}" title="${e(x.statusRaw||'')}">${e(x.statusRaw||x.status)}</span>${x.ref?`<span class="mono lg-ref">${e(x.ref)}</span>`:''}${x.articles?`<span class="m">${x.articles} مادة</span>`:''}${x.subject?`<span class="m lg-src">${e(x.subject)}</span>`:''}</div>
+  <h3>${mark(x.title,words)}</h3>${x.hit?`<p class="lg-hit">${mark(x.hit,words)}</p>`:''}</article>`}).join('')}</div>
+  ${webMore()?`<div class="lg-pager"><button class="btn" data-act="lgwMore" ${W.busy?'disabled':''}>${W.busy?'جارٍ التحميل…':'المزيد من النتائج'}</button></div>`:''}`}
+A.lgwMore=()=>{if(!W.busy)webSearch(true)};
+A.lgwSel=v=>{const x=W.items.find(i=>i.id===v);if(W.sel.has(v))W.sel.delete(v);else if(W.sel.size>=20)return toast('الحد الأقصى 20 تشريعاً في الاستخراج الواحد من المصادر');else W.sel.set(v,x);webPaint()};
+A.lgwSelAll=()=>{const all=W.items.every(x=>W.sel.has(x.id));W.items.forEach(x=>{if(all)W.sel.delete(x.id);else if(W.sel.size<20)W.sel.set(x.id,x)});webPaint()};
+A.lgwSelNone=()=>{W.sel.clear();webPaint()};
+const asRec=x=>({id:x.id,title:x.title,type:x.type,ref:x.ref,year:x.year,source:x.source,status:x.status,summary:x.summary,content:x.content,tags:String(x.subject||'').split(' / ').filter(Boolean),web:true});
+async function webItem(id){const j=await api2('item?id='+encodeURIComponent(id));j.item.rec=j.rec;return j.item}
+A.lgwOpen=async v=>{LG.open=v;const box=document.getElementById('modal');
+ box.innerHTML=`<div class="modal-bg" data-act="close"><div class="modal lg-modal" role="dialog"><div class="bd lg-empty">جارٍ جلب النص الكامل…</div></div></div>`;
+ try{const x=await webItem(v);if(LG.open!==v)return;LG.wcur=x;box.innerHTML=webDetail(x)}
+ catch(er){box.innerHTML=`<div class="modal-bg" data-act="close"><div class="modal lg-modal"><div class="head"><h1 style="font-size:22px">تعذّر جلب التشريع</h1><button class="btn sm" data-act="close">إغلاق</button></div><p>${e(er.message)}</p></div></div>`}};
+function webDetail(x){const words=nrm(W.q2||W.searched||'').split(/\s+/).filter(Boolean);
+ const body=(x.parts&&x.parts.length?x.parts:[{t:x.content||''}]).map(p=>p.h?`<h3 class="lg-ph">${e(p.h)}</h3>`:p.a?`<p><b class="lg-art">${e(p.a)}</b> ${mark(p.t,words).replace(/\n/g,'<br>')}</p>`:paras(p.t).map(t=>`<p>${mark(t,words)}</p>`).join('')).join('');
+ return `<div class="modal-bg" data-act="close"><div class="modal lg-modal" role="dialog" aria-label="${e(x.title)}">
+ <div class="head"><div><h1 style="font-size:23px">${e(x.title)}</h1></div><button class="btn sm" data-act="close">إغلاق</button></div>
+ <div class="toolbar" style="margin-bottom:10px"><button class="btn pri" data-act="lgwPrint">معاينة وطباعة</button><button class="btn" data-act="lgwExtractOne">صفحة مستقلة</button><button class="btn" data-act="lgwCite">نسخ الإشارة</button>${canM()?'<button class="btn" data-act="lgwSave">حفظ في مكتبة المكتب</button>':''}<button class="btn" data-act="lgwSel" data-v="${e(x.id)}">${W.sel.has(x.id)?'إلغاء التحديد':'تحديد للاستخراج'}</button></div>
+ <dl class="lg-kv">${[['النوع',e(x.kind||x.type)],['الرقم',x.ref?`<span class="mono">${e(x.ref)}</span>`:'—'],['الجهة',e(x.source)],['الحالة',e(x.statusRaw||x.status)],['السنة',x.year||'—'],['عدد المواد',x.articles||'—'],['التصنيف',e(x.subject||'—')]].map(([k,v])=>`<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>
+ <h2 class="lg-h">نص التشريع</h2><div class="lg-text">${body||'<p class="m">لا يتوفر نص مفصّل لهذا التشريع في المصدر.</p>'}</div>
+ <p class="m" style="margin-top:12px;font-size:12.5px">النص كما نُشر في مصدره على الإنترنت. طابِقه مع الجريدة الرسمية (الوقائع الفلسطينية) قبل الاستشهاد به.</p></div></div>`}
+A.lgwPrint=()=>{if(LG.wcur&&window.MQP)MQP.open(lawDoc(asRec(LG.wcur)))};
+A.lgwCite=()=>{const x=LG.wcur;if(!x)return;const t=x.title;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('نُسخت الإشارة: '+t)).catch(()=>toast(t))};
+A.lgwSave=async()=>{const x=LG.wcur;if(!x||ro()||!canM())return;
+ try{const r=await api('import',{records:[x.rec],mode:'skip',file:'online'});toast(r.added?'حُفظ في مكتبة المكتب':r.duplicates?'موجود مسبقاً في مكتبة المكتب':(r.errors[0]||{}).message||'لم يُحفظ');LG.at=0}catch(er){toast(er.message)}};
+A.lgwExtractOne=()=>{const x=LG.wcur;if(!x)return;EX.recs=[asRec(x)];EX.crit='';EX.web=true;viewer()};
+A.lgwExtract=async()=>{const ids=[...W.sel.keys()];if(!ids.length)return;const out=[];
+ document.getElementById('modal').innerHTML=`<div class="modal-bg"><div class="modal lg-modal" role="dialog"><div class="bd lg-empty"><h2>جارٍ جلب النصوص الكاملة</h2><p id="lgwProg">0 من ${ids.length}</p><p class="m">بعض المصادر تطلب التمهّل بين الطلبات، فقد يستغرق ذلك قليلاً.</p><button class="btn" data-act="close">إلغاء</button></div></div></div>`;
+ const tok=W.exTok=(W.exTok||0)+1;
+ try{for(const id of ids){if(W.exTok!==tok||!document.getElementById('lgwProg'))return;out.push(asRec(await webItem(id)));const p=document.getElementById('lgwProg');if(p)p.textContent=out.length+' من '+ids.length}
+  EX.recs=out;EX.crit=W.searched?'البحث: «'+W.searched+'»':'';EX.web=true;if(out.length>60)EX.tpl='brief';viewer()}
+ catch(er){A.close();toast(er.message)}};
+document.addEventListener('submit',ev=>{if(ev.target.id!=='fLgWeb')return;ev.preventDefault();ev.stopImmediatePropagation();W.q=document.getElementById('lgwq').value;W.sel.clear();webSearch(false)},true);
 
 /* ── التفاصيل ── */
 const paras=t=>String(t||'').split(/\n+/).map(s=>s.trim()).filter(Boolean);
@@ -135,7 +198,7 @@ A.lgExtract=async()=>{try{let ids=[...LG.sel.keys()];
   if(!ids.length)return toast('لا تشريعات لاستخراجها');
   toast('جارٍ تجهيز '+nLaws(ids.length)+'…');
   const {recs}=await api('items?ids='+encodeURIComponent(ids.join(',')));
-  EX.recs=recs;EX.crit=LG.sel.size?'':[LG.q?'البحث: «'+LG.q+'»':'',LG.type,LG.source,LG.status,LG.y1||LG.y2?'السنوات '+(LG.y1||'…')+'–'+(LG.y2||'…'):''].filter(Boolean).join(' · ');
+  EX.recs=recs;EX.web=false;EX.crit=LG.sel.size?'':[LG.q?'البحث: «'+LG.q+'»':'',LG.type,LG.source,LG.status,LG.y1||LG.y2?'السنوات '+(LG.y1||'…')+'–'+(LG.y2||'…'):''].filter(Boolean).join(' · ');
   if(!EX.tpl||(recs.length>60&&EX.tpl==='full'))EX.tpl=recs.length>60?'brief':'full';
   viewer()}catch(er){toast(er.message)}};
 const isElectron=/Electron/i.test(navigator.userAgent);
@@ -190,7 +253,7 @@ footer{margin-top:22px;border-top:1px solid #E6D5B8;padding-top:6px;font-size:9.
 <header><div><b>${e(o.officeName||OFFICE.name||'')}</b><div>${e(o.lawyerName||OFFICE.lawyer||'')}${o.city?' · '+e(o.city):''}</div></div><div>تاريخ الاستخراج: ${dmy(iso(TODAY))}</div></header>
 <h1>${e(EX.note||'تشريعات مختارة')}</h1><p class="crit">${nLaws(rs.length)}${EX.crit?' · '+e(EX.crit):''}</p>
 ${toc}${body}
-<footer>مستخرج من مكتبة تشريعات المكتب في نظام ميثاق. يُرجع إلى النص المنشور في الجريدة الرسمية (الوقائع الفلسطينية) للتحقق من النص وآخر تعديلاته قبل الاستشهاد.</footer></div></body></html>`}
+<footer>${EX.web?'مستخرج عبر نظام ميثاق من مصادر التشريعات المنشورة على الإنترنت':'مستخرج من مكتبة تشريعات المكتب في نظام ميثاق'}. يُرجع إلى النص المنشور في الجريدة الرسمية (الوقائع الفلسطينية) للتحقق من النص وآخر تعديلاته قبل الاستشهاد.</footer></div></body></html>`}
 A.lgCite=()=>{const x=LG.cur;if(!x)return;const t=cite(x)+(x.issueDate?' الصادر بتاريخ '+dmy(x.issueDate):x.year?' لسنة '+x.year:'');
  (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('نُسخت الإشارة: '+t)).catch(()=>toast(t))};
 
@@ -363,6 +426,10 @@ const css=document.createElement('style');css.textContent=`
 .lg-okbox{border:1px solid #22C55E;background:#F0FDF4;color:#14532D;border-radius:10px;padding:10px 14px;margin-top:10px;line-height:1.9}
 .lg-warnbox{border:1px solid #F59E0B;background:#FFFBEB;color:#78350F;border-radius:10px;padding:10px 14px;margin-top:10px;line-height:1.9}
 .lg-errs{margin:6px 0 0;padding-inline-start:20px;max-height:200px;overflow:auto;font-size:13px}
+.lg-tabs{display:flex;gap:6px;margin:0 0 12px;border-bottom:1px solid var(--line)}.lg-tabs button{all:unset;cursor:pointer;padding:9px 16px;font-weight:700;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px}
+.lg-tabs button.on{color:var(--ink);border-bottom-color:var(--brass)}.lg-tabs small{background:var(--sunk);border-radius:99px;padding:0 8px;font-weight:600}.lg-tabs button:focus-visible{outline:2px solid var(--brass)}
+.lg-wform{display:flex;gap:10px}.lg-wform .field{flex:1}
+.lg-ph{font-size:15px;text-align:center;color:var(--brass,#8B6F47);margin:16px 0 8px}.lg-art{color:var(--ink);white-space:nowrap}
 .btn.danger{color:#B91C1C;border-color:#FCA5A5}.btn.danger:hover{background:#FEF2F2}
 .lg-ck{all:unset;cursor:pointer;width:20px;height:20px;border:1.5px solid var(--line);border-radius:6px;background:var(--surface);display:inline-flex;align-items:center;justify-content:center;flex:none;box-sizing:border-box}
 .lg-ck.on{background:var(--brass,#B8863D);border-color:var(--brass,#B8863D)}.lg-ck.on::after{content:'';width:5px;height:10px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}

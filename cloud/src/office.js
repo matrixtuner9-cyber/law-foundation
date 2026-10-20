@@ -10,6 +10,7 @@ import { plan, rotate, lawformsGuard } from './merge.js';
 import { fetchJudgment } from './maqam.js';
 import { createService as maqamService } from './maqam-search.js';
 import { createLaws } from './laws.js';
+import { createLawSearch } from './law-sources.js';
 
 /* توقيع داخلي يثبت أن طلب /_ops وصل من الـ Worker بعد التحقق من رمز المشغّل (لا يمكن للزائر إرساله) */
 export const opsSig = env => env.OPS_TOKEN ? crypto.createHash('sha256').update('mq-ops|' + env.OPS_TOKEN).digest('hex') : null;
@@ -433,6 +434,11 @@ export class Office extends DurableObject {
       this.mqSearch ||= maqamService({ audit: e => this.audit(e) });
       const r = await this.mqSearch(p.slice(17), u.searchParams, me);
       if (r.file) return new Response(r.file.body, { headers: { 'Content-Type': r.file.contentType, 'Content-Disposition': `attachment; filename="${r.file.filename}"`, 'Cache-Control': 'no-store', ...CORS, ...SEC } });
+      return json(r.status, r.body, r.status === 429 && r.body.retry ? { 'Retry-After': String(r.body.retry) } : {});
+    }
+    if (p.startsWith('/api/admin/lawsearch/') && M === 'GET') {
+      this.lawSearch ||= createLawSearch({ audit: e => this.audit(e) });
+      const r = await this.lawSearch(p.slice(21), Object.fromEntries(u.searchParams), me);
       return json(r.status, r.body, r.status === 429 && r.body.retry ? { 'Retry-After': String(r.body.retry) } : {});
     }
     if (p.startsWith('/api/admin/laws/')) {

@@ -50,7 +50,9 @@ function mapSource(type, sub, title, year) {
   if (type === 'نظام') return 'مجلس الوزراء';
   return 'جهة أخرى';
 }
-function mapStatus(raw) { return /ملغ/.test(raw) ? 'ملغي' : /معدل/.test(raw) ? 'معدل' : /ساري|نافذ/.test(raw) ? 'ساري' : 'غير محدد' }
+function mapStatus(raw) { return /ملغ/.test(raw) ? 'ملغي' : /معدل/.test(raw) ? 'معدل' : /ساري|نافذ|معمول/.test(raw) ? 'ساري' : 'غير محدد' }
+/* المصدر 1 يطابق الهمزات حرفياً: «الاسلحة» لا تجد «الأسلحة»؛ نجرب الهمزة عند انعدام النتائج */
+const hamza = q => q.split(' ').map(w => { const m = w.match(/^(و?(?:ب|ل|ك)?ال)(.*)$/); if (m) return m[1] + (/^ا[\u0621-\u064A]{2}/.test(m[2]) ? 'أ' + m[2].slice(1) : m[2]); return /^ا[\u0621-\u064A]{2}/.test(w) ? 'أ' + w.slice(1) : w }).join(' ');
 
 /* ── المصدر 1 ── */
 function s1SearchUrl(q, page) { const u = new URL(S1 + '/legislation/search/'); u.searchParams.set('q', q); if (page > 1) u.searchParams.set('page', String(page)); return u.href }
@@ -79,7 +81,7 @@ function s1ParseItem(html, id) {
   const body = html.slice(html.indexOf('</dl>') + 5, html.search(/<div class="col-md-3">\s*<a href="\/media\//) > 0 ? html.search(/<div class="col-md-3">\s*<a href="\/media\//) : undefined);
   const parts = []; const re = /<h5[^>]*>([\s\S]*?)<\/h5>|<h6[^>]*>([\s\S]*?)<\/h6>|<dt[^>]*>\s*<a href="\/legislation\/\d+\/item\/\d+\/">([\s\S]*?)<\/a>[\s\S]*?<\/dt>\s*<dd[^>]*>([\s\S]*?)<\/dd>/g; let m, arts = 0;
   while ((m = re.exec(body))) {
-    if (m[1] || m[2]) parts.push({ h: one(m[1] || m[2]).replace(/\s*\n\s*/g, ' - ') });
+    if (m[1] || m[2]) parts.push({ h: text(m[1] || m[2]).split('\n').map(x => x.trim()).filter(Boolean).join(' - ') });
     else { arts++; parts.push({ a: one(m[3]), t: text(m[4]) }) }
   }
   const content = parts.map(p => p.h ? '— ' + p.h + ' —' : p.a + ': ' + p.t).join('\n');
@@ -99,10 +101,10 @@ function s2Item(x, full) {
   const T = [].concat(...((x._embedded && x._embedded['wp:term']) || [])).filter(Boolean), by = tax => T.filter(t => t.taxonomy === tax).map(t => one(t.name));
   const tt = by('text-type-categories'), st = by('status-categories'), inst = by('institution-categories');
   const year = +((title.match(/لسنة\s*(\d{4})/) || [])[1]) || null, no = (title.match(/رقم\s*\(?\s*(\d+)\s*\)?/) || [])[1] || '';
-  const type = mapType(tt.join(' '), '', title), statusRaw = st.join(' / ');
+  const type = mapType(tt.join(' '), '', title), statusRaw = st.join(' / '), issuer = mapSource(type, tt.join(' ') + ' ' + inst.join(' '), title, year);
   const content = text(html.replace(/<\/(p|h\d|li|div|tr)>/gi, '\n'));
   const articles = (content.match(/(^|\n)\s*(المادة|مادة)\s*\(?\s*\d+/g) || []).length;
-  const out = { id: 's2:' + x.id, title, year, no, ref: no && year ? `${no}/${year}` : no, kind: tt.join(' / '), type, source: mapSource(type, tt.join(' '), title, year), subject: inst.join(' / '),
+  const out = { id: 's2:' + x.id, title, year, no, ref: no && year ? `${no}/${year}` : no, kind: tt.join(' / '), type, source: issuer, subject: inst.join(' / '),
     statusRaw, status: mapStatus(statusRaw), articles,
     summary: [tt.join(' / '), inst.join(' / '), statusRaw, articles ? articles + ' مادة' : ''].filter(Boolean).join(' · ') };
   if (full) { out.content = content; out.parts = content.split('\n').filter(Boolean).map(l => /^(المادة|مادة)\s*\(?\s*\d+/.test(l) ? { a: (l.match(/^((?:المادة|مادة)\s*\(?\s*\d+\s*\)?)/) || [l])[0], t: l.replace(/^((?:المادة|مادة)\s*\(?\s*\d+\s*\)?)\s*[:：-]?\s*/, '') } : /^(الباب|الفصل|القسم)\b/.test(l) && l.length < 120 ? { h: l } : { t: l }) }
@@ -153,7 +155,8 @@ function createLawSearch({ audit, fetchImpl = fetch } = {}) {
   }
   /* بحث في مصدر واحد (الواجهة تطلب المصادر معاً وتعرض كل ما يصل أولاً بأول) */
   async function search(src, q, page) {
-    if (src === 's1') return s1ParseSearch(await polite('s1', s1SearchUrl(q, page)), page);
+    if (src === 's1') { const r = s1ParseSearch(await polite('s1', s1SearchUrl(q, page)), page); const q2 = hamza(q);
+      if (!r.items.length && page === 1 && q2 !== q) { const r2 = s1ParseSearch(await polite('s1', s1SearchUrl(q2, 1)), 1); if (r2.items.length) return { ...r2, q2 } } return r }
     let txt; try { txt = await polite('s2', `${S2}/latest-laws?search=${encodeURIComponent(q)}&per_page=10&page=${page}&${S2_Q}`) }
     catch (e) { if (page > 1) return { items: [], page, pages: page - 1 }; throw e } // تجاوز آخر صفحة
     const j = JSON.parse(txt); const items = Array.isArray(j) ? j.map(x => s2Item(x, false)) : [];
