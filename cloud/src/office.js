@@ -9,6 +9,8 @@ import { courts, STEPS } from './seed.js';
 import { plan, rotate, lawformsGuard } from './merge.js';
 import { fetchJudgment } from './maqam.js';
 import { createService as maqamService } from './maqam-search.js';
+import { createService as muqtafiService, idFromUrl as muqtafiId } from './muqtafi.js';
+import { createService as sjcService } from './sjc.js';
 import { createLaws } from './laws.js';
 import { createLawSearch } from './law-sources.js';
 import { createDrafter, createExtractor, createAssistant, createCalcExtractor, DOC_TYPES, MODEL as AI_MODEL } from './ai-draft.js';
@@ -42,7 +44,7 @@ const SEC = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-orig
 const json = (code, obj, extra = {}) => new Response(JSON.stringify(obj), { status: code, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...CORS, ...SEC, ...extra } });
 const MEDIA_TTL = 7 * 24 * 3600; // صلاحية رابط الملف الموقّع (ثوانٍ)
 
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'sources.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css', 'edition.js']);
 
 /* توحيد الكتابة العربية للبحث في دليل المحامين */
@@ -73,6 +75,7 @@ export class Office extends DurableObject {
 
   /* ── أدوات ── */
   slug() { return this.store.kv.get('slug') }
+  mkMuqtafi() { return muqtafiService({ audit: e => this.audit(e), getCred: async () => this.store.kv.get('muqtafi_cred') || null, setCred: async c => this.store.kv.set('muqtafi_cred', c), can: (u, w) => this.auth.can(u, w) }) }
   audit(e) { try { this.store.audit({ at: stampS(), ...e }) } catch (err) { console.error('[audit]', err.message) } }
   settings() { const s = this.store.kv.get('settings', {}); const g = this.store.kv.get('support_grant'); const b = this.store.kv.get('backup_last'); return { edition: 'office', officeName: '', lawyerName: '', city: '', phone: '', hours: '', ...s, cloud: true, supportUntil: g && g.until > Date.now() ? g.until : null, backupLast: b || null } }
   officeInfo() { const s = this.settings(); return { name: s.officeName, lawyer: s.lawyerName, city: s.city, phone: s.phone, hours: s.hours } }
@@ -426,10 +429,28 @@ export class Office extends DurableObject {
       if (this.importBusy || this.importLog.length >= 60) return json(429, { error: 'استيراد كثير خلال ساعة. حاول بعد قليل.' });
       this.importBusy = true; this.importLog.push(now);
       try {
-        const r = await fetchJudgment(b.url, fetch);
+        const mid = muqtafiId(b.url);
+        const r = mid ? await (async () => { this.muqtafi ||= this.mkMuqtafi(); const x = await this.muqtafi('judgment', { id: mid }, me); if (x.status !== 200) return { ok: false, error: x.body.error, status: x.status }; const q = x.body.ruling; return { ok: true, ruling: { ...q, classifications: x.body.card.paths || [], cited: (q.laws || []).map(l => l.text) } } })() : await fetchJudgment(b.url, fetch);
         this.audit({ ...who, action: r.ok ? 'ruling.import' : 'ruling.import_failed', entity: 'rulings', detail: { url: String(b.url || '').slice(0, 200), ...(r.ok ? { no: r.ruling.no } : { error: r.error }) } });
         return r.ok ? json(200, r) : json(r.status || 400, { error: r.error });
       } finally { this.importBusy = false }
+    }
+    if (p.startsWith('/api/admin/sjc/')) {
+      /* «مبادئ قضائية» – المكتب الفني في مجلس القضاء الأعلى: مصدر عام، بحث بطلب المحامي */
+      this.sjc ||= sjcService({ audit: e => this.audit(e) });
+      const a = p.slice(15), r = a === 'classes' && M === 'GET' ? await this.sjc('classes', {}, me) : a === 'search' && M === 'POST' ? await this.sjc('search', await jbody(), me) : a === 'pdf' && M === 'GET' ? await this.sjc('pdf', { id: u.searchParams.get('id') }, me) : { status: 404, body: { error: 'not found' } };
+      if (r.file) return new Response(r.file.body, { headers: { 'Content-Type': r.file.contentType, 'Content-Disposition': `inline; filename="${r.file.filename}"`, 'Cache-Control': 'no-store', ...CORS, ...SEC } });
+      return json(r.status, r.body, r.status === 429 && r.body.retry ? { 'Retry-After': String(r.body.retry) } : {});
+    }
+    if (p.startsWith('/api/admin/muqtafi/')) {
+      /* «المقتفي» (بيرزيت): اشتراك المكتب في مخزن المكتب ولا يُعاد للمتصفح */
+      this.muqtafi ||= this.mkMuqtafi();
+      const a = p.slice(19);
+      if (a === 'status' && M === 'GET') { const r = await this.muqtafi('status', {}, me); return json(r.status, r.body) }
+      if (a === 'cred' && M === 'POST') { if ((d = deny('manage'))) return d; const r = await this.muqtafi('cred', await jbody(), me); return json(r.status, r.body) }
+      if (a === 'search' && M === 'POST') { const r = await this.muqtafi('search', await jbody(), me); return json(r.status, r.body, r.status === 429 && r.body.retry ? { 'Retry-After': String(r.body.retry) } : {}) }
+      if (a === 'judgment' && M === 'GET') { const r = await this.muqtafi('judgment', { id: u.searchParams.get('id') }, me); return json(r.status, r.body) }
+      return json(404, { error: 'not found' });
     }
     if (p.startsWith('/api/admin/maqam/') && M === 'GET') {
       this.mqSearch ||= maqamService({ audit: e => this.audit(e) });

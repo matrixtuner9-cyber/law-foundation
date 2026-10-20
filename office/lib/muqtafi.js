@@ -89,4 +89,128 @@ function toRuling(r, card, full) {
   };
 }
 
-module.exports = { BASE, parseResults, parseFullText, parseCard, hiddenFields, loginBody, toRuling, isLogin, strip };
+/* ── عميل الجلسة ──
+   كوكي الجلسة (ASP.NET_SessionId + .ASPXAUTH) يبقى في ذاكرة الخادم فقط. تسجيل الدخول بحساب المكتب عند الحاجة، وإعادته مرة واحدة إذا انتهت الجلسة. */
+const UA = 'Mithaq-LawOffice/2.0 (office subscriber; user-initiated search)';
+const COURT_TYPES = { 1: 'النقض', 5: 'الإستئناف', 6: 'العدل العليا', 11: 'العليا بصفتها الدستورية', 13: 'النقض-هيئة عامة', 14: 'العليا-هيئة عامة', 15: 'جرائم الفساد', 16: 'البداية بصفتها الاستئنافية', 17: 'العليا', 18: 'الدستورية' };
+const DOMAINS = { 1: 'جزاء', 2: 'حقوق', 3: 'إداري', 4: 'دستوري', 5: 'تنفيذ', 6: 'فساد' };
+const CASE_TYPES = { 1: 'دعوى', 4: 'طلب', 7: 'اعتراض' };
+const REGIONS = { 1: 'الضفة الغربية', 2: 'قطاع غزة' };
+const MATCH = { any: '1', phrase: '2', all: '3' };
+const F = 'ctl00$ContentPlaceHolder1$';
+
+/* نموذج البحث: يُنسخ ViewState من صفحة النموذج ثم تُرسل الحقول بأسمائها في الموقع */
+function searchBody(formHtml, f = {}) {
+  const b = new URLSearchParams(hiddenFields(formHtml)), d = (s, i) => { const m = String(s || '').match(/^(\d{4})-(\d{2})-(\d{2})$/); return m ? String(Number(m[i])) : '' };
+  const set = (k, v) => b.set(F + k, v == null ? '' : String(v));
+  set('txtCJ_NumNo', /^\d{1,7}$/.test(f.number || '') ? f.number : ''); set('txtCJ_NumYr', /^\d{4}$/.test(f.year || '') ? f.year : '');
+  set('ddlDomains', DOMAINS[f.domain] ? f.domain : '0'); set('ddlCourtType', COURT_TYPES[f.court] ? f.court : '0'); set('ddlRegion', REGIONS[f.region] ? f.region : '0'); set('ddlCaseType', CASE_TYPES[f.caseType] ? f.caseType : '0');
+  set('DDDayFrom', d(f.from, 3)); set('DDMonthFrom', d(f.from, 2)); set('DDYearFrom', d(f.from, 1)); set('DDDayTo', d(f.to, 3)); set('DDMonthTo', d(f.to, 2)); set('DDYearTo', d(f.to, 1));
+  set('ddlSeachFor', MATCH[f.match] || '1'); set('txtSearch', String(f.q || '').slice(0, 200));
+  const inn = f.in && typeof f.in === 'object' ? f.in : { judgment: true };
+  if (inn.judgment !== false) set('chkSearchJudgment', 'on'); if (inn.principles) set('cbSearchPrinciples', 'on'); if (inn.commentary) set('chkSearchCommentary', 'on');
+  set('Button1', 'بحث'); b.delete('__EVENTTARGET'); b.delete('__EVENTARGUMENT'); b.set('__EVENTTARGET', ''); b.set('__EVENTARGUMENT', '');
+  return b;
+}
+
+function createClient({ getCred, fetchImpl = (...a) => fetch(...a), timeout = 20000 } = {}) {
+  let jar = new Map();
+  const cookieHeader = () => [...jar].map(([k, v]) => k + '=' + v).join('; ');
+  const eat = res => { const raw = typeof res.headers.getSetCookie === 'function' ? res.headers.getSetCookie() : [res.headers.get('set-cookie')].filter(Boolean); for (const c of raw.flatMap(x => x.split(/,(?=\s*[\w.]+=)/))) { const m = c.match(/^\s*([^=;]+)=([^;]*)/); if (m) { if (m[2] === '' || /expires=Thu, 01-Jan-1970/i.test(c)) jar.delete(m[1]); else jar.set(m[1], m[2]) } } };
+  async function req(url, init = {}) {
+    const ac = new AbortController(), t = setTimeout(() => ac.abort(), timeout);
+    try {
+      let u = url, hops = 0, r;
+      while (hops++ < 4) {
+        r = await fetchImpl(u, { ...init, redirect: 'manual', signal: ac.signal, headers: { 'user-agent': UA, 'accept-language': 'ar', cookie: cookieHeader(), ...(init.headers || {}) } });
+        eat(r);
+        const loc = r.headers.get('location');
+        if ([301, 302, 303, 307].includes(r.status) && loc) { u = new URL(loc, u).href; init = { method: 'GET' }; continue }
+        break;
+      }
+      return { status: r.status, url: u, html: await r.text() };
+    } catch (e) { throw Object.assign(new Error('تعذّر الوصول إلى موقع المقتفي. حاول لاحقاً.'), { status: 502 }) }
+    finally { clearTimeout(t) }
+  }
+  const loginPage = h => /Login1\$UserName/.test(h);
+  async function login() {
+    const cred = await getCred(); if (!cred || !cred.user || !cred.pass) throw Object.assign(new Error('لم تُضبط بيانات اشتراك المقتفي بعد. يضيفها مدير المكتب من شاشة «البحث في المقتفي».'), { status: 400, needCred: true });
+    jar = new Map();
+    const p = await req(`${BASE}/index.aspx?mid=1`);
+    if (!loginPage(p.html)) throw Object.assign(new Error('صفحة دخول المقتفي تغيّرت ولم يُعثر على نموذج الدخول.'), { status: 502 });
+    const r = await req(`${BASE}/index.aspx?mid=1`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: loginBody(p.html, cred.user, cred.pass).toString() });
+    if (loginPage(r.html) && !/تسجيل خروج/.test(r.html)) throw Object.assign(new Error('رفض المقتفي بيانات الاشتراك (اسم المستخدم أو كلمة المرور). راجعها من إعدادات المكتب.'), { status: 401, badCred: true });
+    return true;
+  }
+  /* يجلب صفحة محمية؛ إن أعادت صفحة الدخول يسجّل الدخول مرة ويعيد المحاولة */
+  async function get(url, init) {
+    if (!jar.size) await login();
+    let r = await req(url, init);
+    if (loginPage(r.html) && !/GridView1|FormView1|<a name="judges">/.test(r.html)) { await login(); r = await req(url, init) }
+    return r;
+  }
+  async function search(f) {
+    const form = await get(`${BASE}/courtjudgments/CJSearch.aspx?mid=1`);
+    if (!/txtSearch/.test(form.html)) throw Object.assign(new Error('نموذج البحث في المقتفي تغيّر. أبلغ الدعم.'), { status: 502 });
+    const r = await req(`${BASE}/courtjudgments/CJSearch.aspx?mid=1`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: searchBody(form.html, f).toString() });
+    const out = parseResults(r.html);
+    if (out.loginRequired) throw Object.assign(new Error('انتهت جلسة المقتفي. أعد المحاولة.'), { status: 502 });
+    return out;
+  }
+  async function judgment(id) {
+    const [c, t] = await Promise.all([get(`${BASE}/courtjudgments/ViewCJCard.aspx?CJID=${id}`), get(`${BASE}/courtjudgments/CJFullText.aspx?CJID=${id}`)]);
+    const card = parseCard(c.html), full = parseFullText(t.html);
+    if (!card.no && !full.text) throw Object.assign(new Error('لم يُعثر على هذا الحكم في المقتفي.'), { status: 404 });
+    return { card, full };
+  }
+  return { login, search, judgment, get, _jar: () => jar, _reset: () => { jar = new Map() } };
+}
+
+/* ── خدمة الخادم: الحدود والسجل. أفعال: status | cred | search | judgment ── */
+const LIMITS = { search: [20, 60e3], judgment: [30, 60e3] };
+function createService({ audit, getCred, setCred, can, client } = {}) {
+  const hits = new Map(); let busy = 0, cl = client;
+  const limit = (key, kind) => { const [max, win] = LIMITS[kind], k = kind + '|' + key, now = Date.now(), a = (hits.get(k) || []).filter(t => now - t < win); if (a.length >= max) { hits.set(k, a); return Math.ceil((win - (now - a[0])) / 1000) } a.push(now); hits.set(k, a); return 0 };
+  return async function run(action, input, user) {
+    const key = String(user && (user.id || user.username) || 'anon'), who = { user_id: user && user.id, username: user && user.username };
+    cl ||= createClient({ getCred });
+    if (action === 'status') { const c = await getCred(); return { status: 200, body: { configured: !!(c && c.user && c.pass), user: c && c.user ? c.user : '', canManage: !!(can && can(user, 'manage')), courts: COURT_TYPES, domains: DOMAINS, caseTypes: CASE_TYPES, regions: REGIONS } } }
+    if (action === 'cred') {
+      if (!(can && can(user, 'manage'))) return { status: 403, body: { error: 'ضبط اشتراك المقتفي لمدير المكتب فقط.' } };
+      const u = String(input.user || '').trim().slice(0, 80), p = String(input.pass || '').slice(0, 200);
+      if (u && !p) return { status: 400, body: { error: 'اكتب كلمة المرور.' } };
+      await setCred(u && p ? { user: u, pass: p } : null); cl._reset();
+      audit && audit({ ...who, action: u ? 'muqtafi.cred_set' : 'muqtafi.cred_removed', entity: 'settings', detail: u ? { user: u } : {} });
+      if (!u) return { status: 200, body: { ok: true, configured: false } };
+      try { await cl.login(); audit && audit({ ...who, action: 'muqtafi.login_ok', entity: 'settings', detail: { user: u } }); return { status: 200, body: { ok: true, configured: true, user: u, verified: true } } }
+      catch (e) { return { status: 200, body: { ok: true, configured: true, user: u, verified: false, warning: e.message } } }
+    }
+    if (busy >= 2) return { status: 429, body: { error: 'الخادم مشغول بطلبات بحث أخرى. حاول بعد لحظات.' } };
+    busy++;
+    try {
+      if (action === 'search') {
+        const w = limit(key, 'search'); if (w) return { status: 429, body: { error: `طلبات بحث كثيرة. حاول بعد ${w} ثانية.`, retry: w } };
+        const f = input || {}; if (!String(f.q || '').trim() && !f.number && !f.year && !f.court && !f.domain && !f.from) return { status: 400, body: { error: 'اكتب عبارة البحث أو حدّد المحكمة أو رقم القضية.' } };
+        const r = await cl.search(f);
+        audit && audit({ ...who, action: 'muqtafi.search', entity: 'muqtafi', detail: { q: String(f.q || '').slice(0, 120), court: f.court || '', n: r.results.length, total: r.total } });
+        return { status: 200, body: { ok: true, ...r } };
+      }
+      if (action === 'judgment') {
+        const w = limit(key, 'judgment'); if (w) return { status: 429, body: { error: `طلبات كثيرة. حاول بعد ${w} ثانية.`, retry: w } };
+        const id = Number(input && input.id); if (!Number.isSafeInteger(id) || id <= 0) return { status: 400, body: { error: 'رقم الحكم غير صحيح.' } };
+        const { card, full } = await cl.judgment(id), ruling = toRuling({ id, court: card.court, city: card.city, no: card.no, year: card.year, litigation: card.litigation }, card, full);
+        audit && audit({ ...who, action: 'muqtafi.judgment', entity: 'muqtafi', entity_id: String(id), detail: { no: card.no, year: card.year, court: card.court } });
+        return { status: 200, body: { ok: true, card, full, ruling } };
+      }
+      return { status: 404, body: { error: 'not found' } };
+    } catch (e) {
+      audit && audit({ ...who, action: 'muqtafi.error', entity: 'muqtafi', detail: { action, error: String(e.message).slice(0, 160) } });
+      return { status: e.status || 502, body: { error: e.message || 'تعذّر الاتصال بالمقتفي', ...(e.needCred ? { needCred: true } : {}), ...(e.badCred ? { badCred: true } : {}) } };
+    } finally { busy-- }
+  };
+}
+
+/* رابط حكم في المقتفي (بطاقة أو نص كامل أو PDF) → رقم الحكم */
+const idFromUrl = u => { const m = String(u || '').match(/^https?:\/\/muqtafi\.birzeit\.edu\/courtjudgments\/(?:ViewCJCard|CJFullText|ShowDoc|CourtJCard)\.aspx\?(?:CJID|ID|id)=J?(\d+)/i); return m ? Number(m[1]) : 0 };
+
+module.exports = { BASE, parseResults, parseFullText, parseCard, hiddenFields, loginBody, searchBody, toRuling, isLogin, strip, createClient, createService, idFromUrl, COURT_TYPES, DOMAINS, CASE_TYPES, REGIONS };

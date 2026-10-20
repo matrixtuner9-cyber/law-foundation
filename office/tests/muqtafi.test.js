@@ -48,3 +48,69 @@ test('المقتفي: نموذج الدخول → تُنسخ الحقول الم
   assert.equal(b.get('__VIEWSTATE'), 'abc=='); assert.equal(b.get('__EVENTVALIDATION'), 'x&y');
   assert.equal(b.get('ctl00$LoginView1$LogInCont1$Login1$UserName'), 'office'); assert.equal(b.get('ctl00$LoginView1$LogInCont1$Login1$Password'), 'p@ss');
 });
+
+/* ── عميل الجلسة والخدمة على موقع وهمي ── */
+const LOGIN = '<form><input type="hidden" name="__VIEWSTATE" value="LV"><input name="ctl00$LoginView1$LogInCont1$Login1$UserName"><input name="ctl00$LoginView1$LogInCont1$Login1$Password"></form>';
+function fakeSite({ user = 'office', pass = 'secret' } = {}) {
+  const log = [], sessions = new Set(); let n = 0;
+  const res = (status, body, headers = {}) => ({ status, headers: { get: k => headers[k.toLowerCase()] || null, getSetCookie: () => headers['set-cookie'] ? [headers['set-cookie']] : [] }, text: async () => body });
+  const authed = h => { const c = (h && h.cookie) || ''; return [...sessions].some(s => c.includes('.ASPXAUTH=' + s)) };
+  const fetchImpl = async (url, init = {}) => {
+    const u = new URL(url), h = init.headers || {}; log.push((init.method || 'GET') + ' ' + u.pathname + u.search);
+    if (u.pathname === '/index.aspx') {
+      if (init.method === 'POST') { const b = new URLSearchParams(init.body); if (b.get('ctl00$LoginView1$LogInCont1$Login1$UserName') === user && b.get('ctl00$LoginView1$LogInCont1$Login1$Password') === pass && b.get('__VIEWSTATE') === 'LV') { const s = 'S' + (++n); sessions.add(s); return res(302, '', { location: '/courtjudgments/CJSearch.aspx?mid=1', 'set-cookie': '.ASPXAUTH=' + s + '; path=/; HttpOnly' }) } return res(200, LOGIN + 'خطأ في الدخول') }
+      return res(200, LOGIN, { 'set-cookie': 'ASP.NET_SessionId=abc; path=/' });
+    }
+    if (!authed(h)) return res(302, '', { location: '/index.aspx?ReturnUrl=' + encodeURIComponent(u.pathname) });
+    if (u.pathname === '/courtjudgments/CJSearch.aspx' && init.method === 'POST') { const b = new URLSearchParams(init.body); log.push('SEARCH q=' + b.get('ctl00$ContentPlaceHolder1$txtSearch') + ' court=' + b.get('ctl00$ContentPlaceHolder1$ddlCourtType') + ' vs=' + b.get('__VIEWSTATE').slice(0, 6)); return res(200, fx('results.html')) }
+    if (u.pathname === '/courtjudgments/CJSearch.aspx') return res(200, fx('form.html'));
+    if (u.pathname === '/courtjudgments/ViewCJCard.aspx') return res(200, fx('card.html'));
+    if (u.pathname === '/courtjudgments/CJFullText.aspx') return res(200, fx('fulltext.html'));
+    return res(404, '');
+  };
+  return { fetchImpl, log, sessions, expire: () => sessions.clear() };
+}
+
+test('المقتفي: العميل يسجّل الدخول بحساب المكتب عند الحاجة ويبحث ويقرأ الحكم، ويعيد الدخول إذا انتهت الجلسة', async () => {
+  const site = fakeSite(), cl = M.createClient({ getCred: async () => ({ user: 'office', pass: 'secret' }), fetchImpl: site.fetchImpl });
+  const r = await cl.search({ q: 'عقد العمل', court: '1', match: 'all' });
+  assert.equal(r.total, 758); assert.equal(r.results[0].id, 104321);
+  assert.ok(site.log.includes('POST /index.aspx?mid=1'), 'دخول'); assert.ok(site.log.some(l => l.startsWith('SEARCH q=عقد العمل court=1 vs=/wEPDw')), 'أُرسل النموذج بحقوله وViewState الصفحة');
+  assert.ok(!site.log.join(' ').includes('secret'), 'كلمة المرور لا تظهر في المسارات');
+  const j = await cl.judgment(104321); assert.equal(j.card.principles.length, 4); assert.match(j.full.sections.verdict, /رد الطعن/);
+  site.expire(); const before = site.log.length;
+  const r2 = await cl.search({ q: 'إيجار' }); assert.equal(r2.results.length, 3);
+  assert.ok(site.log.slice(before).includes('POST /index.aspx?mid=1'), 'أعاد الدخول بعد انتهاء الجلسة');
+});
+
+test('المقتفي: بيانات خاطئة → رسالة واضحة؛ بلا بيانات → needCred', async () => {
+  const site = fakeSite();
+  await assert.rejects(M.createClient({ getCred: async () => ({ user: 'office', pass: 'wrong' }), fetchImpl: site.fetchImpl }).search({ q: 'x' }), e => e.badCred && e.status === 401);
+  await assert.rejects(M.createClient({ getCred: async () => null, fetchImpl: site.fetchImpl }).search({ q: 'x' }), e => e.needCred);
+});
+
+test('المقتفي: الخدمة → الحالة بلا كلمة مرور، ضبط الاشتراك للمدير فقط مع تحقق، البحث والحكم مع السجل والحدود', async () => {
+  const site = fakeSite(), audits = []; let cred = null;
+  const svc = M.createService({ audit: a => audits.push(a), getCred: async () => cred, setCred: async c => { cred = c }, can: (u, w) => u.role === 'admin' || w !== 'manage', client: M.createClient({ getCred: async () => cred, fetchImpl: site.fetchImpl }) });
+  const adm = { id: 1, username: 'adm', role: 'admin' }, law = { id: 2, username: 'law', role: 'lawyer' };
+  let s = await svc('status', {}, law); assert.equal(s.body.configured, false); assert.equal(s.body.canManage, false); assert.ok(s.body.courts['1']);
+  assert.equal((await svc('cred', { user: 'office', pass: 'secret' }, law)).status, 403);
+  assert.equal((await svc('search', { q: 'x' }, law)).body.needCred, true);
+  const c = await svc('cred', { user: 'office', pass: 'secret' }, adm); assert.equal(c.body.verified, true);
+  s = await svc('status', {}, law); assert.equal(s.body.configured, true); assert.equal(s.body.user, 'office'); assert.equal(JSON.stringify(s.body).includes('secret'), false);
+  assert.equal((await svc('search', {}, law)).status, 400);
+  const r = await svc('search', { q: 'عقد', court: '1' }, law); assert.equal(r.status, 200); assert.equal(r.body.results.length, 3); assert.equal(r.body.narrow, true);
+  const j = await svc('judgment', { id: 104321 }, law); assert.equal(j.status, 200); assert.equal(j.body.ruling.court, 'محكمة النقض'); assert.match(j.body.ruling.principle, /^1- /);
+  assert.deepEqual(audits.map(a => a.action), ['muqtafi.error', 'muqtafi.cred_set', 'muqtafi.login_ok', 'muqtafi.search', 'muqtafi.judgment']);
+  assert.ok(!JSON.stringify(audits).includes('secret'));
+  for (let i = 0; i < 20; i++) await svc('search', { q: 'x' }, law);
+  assert.equal((await svc('search', { q: 'x' }, law)).status, 429);
+  const bad = await svc('cred', { user: 'office', pass: 'nope' }, adm); assert.equal(bad.body.verified, false); assert.match(bad.body.warning, /رفض المقتفي/);
+});
+
+test('المقتفي: التعرف على روابط الحكم', () => {
+  assert.equal(M.idFromUrl('http://muqtafi.birzeit.edu/courtjudgments/ViewCJCard.aspx?CJID=104321'), 104321);
+  assert.equal(M.idFromUrl('http://muqtafi.birzeit.edu/courtjudgments/CJFullText.aspx?CJID=55'), 55);
+  assert.equal(M.idFromUrl('http://muqtafi.birzeit.edu/courtjudgments/CourtJCard.aspx?id=J104321.'), 104321);
+  assert.equal(M.idFromUrl('https://maqam.najah.edu/judgments/5158/'), 0);
+});

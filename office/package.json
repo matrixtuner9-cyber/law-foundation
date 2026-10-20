@@ -67,6 +67,7 @@
       "intake.js",
       "rulings.js",
       "maqamsearch.js",
+      "sources.js",
       "fonts/**",
       "edition.js",
       "edition.json",
