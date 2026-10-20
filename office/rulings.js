@@ -115,7 +115,7 @@ function card(r,q){
  const ks=casesOf(r);
  const pend=!String(r.principle||'').trim();
  return `<section class="panel rl-card ${RS.sel.has(r.id)?'sel':''}" id="rl_${r.id}"><header><div class="rl-h"><input type="checkbox" class="rl-ck1" data-act="rSel" data-v="${r.id}" ${RS.sel.has(r.id)?'checked':''} aria-label="تحديد الحكم"><span class="pill mz">${e(r.court)}</span><span class="mono">${e(r.no||'')}</span><span class="m">${dmy2(r.date)}</span>${r.field?`<span class="pill">${e(r.field)}</span>`:''}${r.outcome?`<span class="pill ${/نقض|قبول|فسخ/.test(r.outcome)?'acc':/رد|رفض/.test(r.outcome)?'warn':''}">${e(r.outcome)}</span>`:''}</div>
-  <div class="toolbar">${r.file?`<a class="btn sm" target="_blank" rel="noopener" href="${e(r.file)}">نص الحكم</a>`:''}<button class="btn sm" data-act="rCite" data-v="${r.id}">نسخ الاستشهاد</button>${can2('write')?`<button class="btn sm" data-act="rEdit" data-v="${r.id}">تعديل</button>`:''}</div></header>
+  <div class="toolbar">${r.file?`<a class="btn sm" target="_blank" rel="noopener" href="${e(r.file)}">نص الحكم</a>`:''}<button class="btn sm" data-act="rCite" data-v="${r.id}">نسخ الاستشهاد</button><button class="btn sm" data-act="rPrintOne" data-v="${r.id}">${I_PRINT} طباعة</button>${can2('write')?`<button class="btn sm" data-act="rEdit" data-v="${r.id}">تعديل</button>`:''}</div></header>
   <div class="bd">${pend?`<div class="rl-pend"><span class="pill warn">بانتظار صياغة المبدأ</span>${can2('write')?`<button class="link" data-act="rEdit" data-v="${r.id}">اكتب المبدأ</button>`:''}</div><div class="rl-ti">${hl(r.title||r.no||'',q)}</div>`:`<div class="rl-p">${hl(r.principle,q)}</div>`}
   ${r.summary?`<div class="rl-s">${hl(r.summary,q)}</div>`:''}
   ${RS.open===r.id&&r.text?`<div class="rl-t">${hl(r.text,q)}</div>`:r.text?`<button class="link" data-act="rMore" data-v="${r.id}">عرض نص الحكم (${r.text.length.toLocaleString('en-US')} حرف)</button>`:''}
@@ -271,9 +271,9 @@ function chosen(){const rs=list();if(RS.sel.size){const ids=RS.sel;const a=rs.fi
 const TPLS={brief:['مذكرة استشهاد بأحكام قضائية','المبادئ ومراجعها، جاهزة للإرفاق بملف الدعوى'],full:['ملف الأحكام القضائية','كل حكم في صفحة مستقلة بنصه الكامل'],list:['كشف مراجع الأحكام القضائية','جدول مختصر بالأحكام وبياناتها']};
 const cite=r=>[r.court,r.no,r.date?'بتاريخ '+dmy(r.date):''].filter(Boolean).join(' · ');
 const paras=t=>String(t||'').split(/\n{2,}|\n(?=\S)/).map(x=>x.trim()).filter(Boolean).flatMap(x=>{const o=[];for(let i=0;i<x.length;i+=900){let j=Math.min(x.length,i+900);if(j<x.length){const k=x.lastIndexOf(' ',j);if(k>i+500)j=k}o.push(x.slice(i,j));i=j-900}return o});
-function rulingsDoc(items){
+function rulingsDoc(items,tpl0){
  const M=window.MQP,B=M.B,E=M.esc,today=iso(TODAY);
- return {label:'الاجتهادات القضائية ('+items.length+')',
+ return {label:items.length===1?'حكم '+(items[0].no||''):'الاجتهادات القضائية ('+items.length+')',state:tpl0?{tpl:tpl0}:undefined,
   build(){const st=this.state||{},t=TPLS[st.tpl]?st.tpl:'brief',k=st.k?K(st.k):null,src=st.src!==false,ex=st.ex!==false;
    const head=[k?['القضية','<span class="mono">'+E(k.no)+'</span> · '+E(k.subject||'')]:null,k?['الموكل',E((C(k.client)||{}).name||'')]:null,st.to?['إلى',E(st.to)]:null,['عدد الأحكام',items.length]].filter(Boolean);
    const blocks=[B.kv(head,head.length>1?2:1)];
@@ -294,13 +294,15 @@ function rulingsDoc(items){
    });
    blocks.push(B.p('<small>يرجى مطابقة النصوص مع الأحكام الأصلية قبل الاستشهاد بها.</small>','s'));
    return {title:TPLS[t][0],sub:k?'في القضية رقم '+k.no:TPLS[t][1],ref:'اج/'+today,file:TPLS[t][0]+' - '+today,orient:'port',blocks,sign:t==='brief'?['المحامي']:[]}},
-  opts:()=>`<label>القالب<select data-po="tpl">${Object.entries(TPLS).map(([k,v])=>`<option value="${k}">${v[0]}</option>`).join('')}</select></label>
+  opts(){const st=this.state||{};return `<label>القالب<select data-po="tpl">${Object.entries(TPLS).map(([k,v])=>`<option value="${k}" ${st.tpl===k?'selected':''}>${v[0]}</option>`).join('')}</select></label>
    <label>ربط بقضية (اختياري)<select data-po="k"><option value="">—</option>${cases.map(k=>`<option value="${k.id}">${k.no} · ${e(k.subject||'')}</option>`).join('')}</select></label>
    <label>الجهة المخاطبة (اختياري)<input class="rl-pi" data-po="to" maxlength="120" placeholder="محكمة الاستئناف الموقرة"></label>
    <label>وجه الاستشهاد (اختياري)<textarea class="rl-pi" data-po="note" rows="3" maxlength="1800" placeholder="صلة هذه المبادئ بوقائع الدعوى…"></textarea></label>
    <label class="pvck"><input type="checkbox" data-po="src" checked><span>إظهار مصدر كل حكم</span></label>
-   <label class="pvck"><input type="checkbox" data-po="ex" checked><span>مقتطف من نص الحكم <small>في المذكرة</small></span></label>`};
+   <label class="pvck"><input type="checkbox" data-po="ex" checked><span>مقتطف من نص الحكم <small>في المذكرة</small></span></label>`}};
 }
+/* طباعة حكم واحد بنصه الكامل من بطاقته في المكتبة */
+A.rPrintOne=v=>{const r=rulings.find(x=>x.id===v);if(!r){toast('الحكم غير موجود');return}if(window.MQP)MQP.open(rulingsDoc([r],'full'))};
 A.rPrint=()=>{const it=chosen();if(!it.length){toast('لا أحكام للطباعة');return}
  if(it.length>60){toast('اختر 60 حكماً على الأكثر للطباعة (المحدد/النتائج: '+it.length+')');return}
  if(window.MQP)MQP.open(rulingsDoc(it))};

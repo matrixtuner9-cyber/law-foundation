@@ -47,7 +47,7 @@ function sjcResults(){
  if(!d)return `<section class="panel rl-empty"><div class="bd"><b>مبادئ محكمة النقض كما ينشرها المكتب الفني في مجلس القضاء الأعلى.</b><p>اختر القانون (عمل، التجاري، التأمين، المالكين والمستأجرين…) أو اكتب كلمة، فتظهر المبادئ برقمها، ولكل مبدأ وثيقة PDF بنص الحكم. احفظ ما يفيدك في مكتبة الاجتهادات بضغطة، فيُرفق ملف الوثيقة بالسجل.</p><p class="m">مصدر عام بلا تسجيل دخول. يُسأل الموقع عند ضغطك «بحث» فقط.</p></div></section>`;
  if(!d.results.length)return '<section class="panel"><div class="empty">لا مبادئ مطابقة. جرّب كلمة أخرى أو تصنيفاً آخر.</div></section>';
  const cnt=n=>n===1?'مبدأ واحد':n===2?'مبدآن':n<=10?n+' مبادئ':n+' مبدأً';
- return `<div class="src-top m">${cnt(d.results.length)}${d.cls?` في «${e(d.cls.name)}»`:''} · <a href="https://www.courts.gov.ps/TechnicalOffice/SearchJudicialPrincipl.aspx" target="_blank" rel="noopener noreferrer">فتح الصفحة في موقع المجلس ↗</a></div>
+ return `<div class="src-top m">${cnt(d.results.length)}${d.cls?` في «${e(d.cls.name)}»`:''} · <a href="https://www.courts.gov.ps/TechnicalOffice/SearchJudicialPrincipl.aspx" target="_blank" rel="noopener noreferrer">فتح الصفحة في موقع المجلس ↗</a> · <button class="link" data-act="srcSjcPrint">طباعة القائمة</button></div>
  <div class="stack">${d.rulings.map((r,i)=>{const lib=inLib(r.srcUrl);return `<section class="panel rl-card src-card"><header><div class="rl-h"><span class="pill mz">مبدأ ${e(r.no.replace(/^مبدأ /,''))}</span>${d.cls?`<span class="m">${e(d.cls.name)}</span>`:''}</div>
    <div class="toolbar">${can2('write')?(lib?`<button class="btn sm" data-act="rOpen" data-v="${e(lib.id)}">في المكتبة ✓</button>`:`<button class="btn sm pri" data-act="srcSaveSjc" data-v="${i}" ${s.saving===r.sjcId?'disabled':''}>${s.saving===r.sjcId?'جارٍ جلب الوثيقة…':'حفظ في المكتبة'}</button>`):''}<a class="btn sm" href="${e(r.pdfUrl)}" target="_blank" rel="noopener noreferrer">الوثيقة (PDF) ↗</a></div></header>
    <div class="bd"><div class="rl-p">${hl(r.principle,s.q)}</div></div></section>`}).join('')}</div>`;
@@ -107,7 +107,7 @@ function mqForm(){
 function mqCard(r){
  const m=ST.mq,d=m.detail[r.id],open=m.open===r.id,lib=inLib(r.cardUrl);
  return `<section class="panel rl-card src-card" id="mq_${r.id}"><header><div class="rl-h"><span class="pill mz">${e(r.court)}</span><span class="mono">${e(r.no)}/${e(r.year)}</span><span class="m">${r.date?(typeof dmy==='function'?dmy(r.date):e(r.date)):''}</span><span class="m">${[r.city,r.litigation,r.field].filter(Boolean).map(e).join(' · ')}</span></div>
-  <div class="toolbar"><button class="btn sm" data-act="srcMqOpen" data-v="${r.id}">${open?'إخفاء':'البطاقة والنص الكامل'}</button>${can2('write')?(lib?`<button class="btn sm" data-act="rOpen" data-v="${e(lib.id)}">في المكتبة ✓</button>`:`<button class="btn sm pri" data-act="rImportUrl" data-v="${e(r.cardUrl)}">حفظ في المكتبة</button>`):''}<a class="btn sm" href="${e(r.cardUrl)}" target="_blank" rel="noopener noreferrer">المصدر ↗</a><a class="btn sm" href="${e(r.pdfUrl)}" target="_blank" rel="noopener noreferrer">PDF ↗</a></div></header>
+  <div class="toolbar"><button class="btn sm" data-act="srcMqOpen" data-v="${r.id}">${open?'إخفاء':'البطاقة والنص الكامل'}</button>${d&&d.card?`<button class="btn sm" data-act="srcMqPrint" data-v="${r.id}">طباعة</button>`:''}${can2('write')?(lib?`<button class="btn sm" data-act="rOpen" data-v="${e(lib.id)}">في المكتبة ✓</button>`:`<button class="btn sm pri" data-act="rImportUrl" data-v="${e(r.cardUrl)}">حفظ في المكتبة</button>`):''}<a class="btn sm" href="${e(r.cardUrl)}" target="_blank" rel="noopener noreferrer">المصدر ↗</a><a class="btn sm" href="${e(r.pdfUrl)}" target="_blank" rel="noopener noreferrer">PDF ↗</a></div></header>
   ${open?`<div class="bd">${d==='loading'?'<div class="src-load">جارٍ جلب بطاقة الحكم ونصه من المقتفي…</div>':d&&d.error?`<div class="note" style="color:var(--danger)">${e(d.error)}</div>`:d?mqDetail(d):''}</div>`:''}</section>`;
 }
 function mqDetail(d){
@@ -132,6 +132,23 @@ function mqResults(){
 A.srcMqOpen=async v=>{const m=ST.mq,id=Number(v);if(m.open===id){m.open=null;paint();return}m.open=id;if(m.detail[id]&&!m.detail[id].error){paint();return}
  m.detail[id]='loading';paint();try{m.detail[id]=await j('muqtafi/judgment?id='+id)}catch(x){m.detail[id]={error:x.message}}paint()};
 A.srcMqClear=()=>{Object.assign(ST.mq,{q:'',match:'any',court:'',domain:'',caseType:'',region:'',number:'',year:'',from:'',to:'',inP:false,inC:false,data:null,err:''});paint()};
+
+/* ═══ الطباعة بمحرك الطباعة الموحد (ترويسة المكتب وترقيم الصفحات) ═══ */
+const SEC_T=[['judges','الديباجة'],['facts','الأسباب والوقائع'],['reasoning','التسبيب'],['verdict','منطوق الحكم'],['conclusions','الخاتمة']];
+const paras=t=>String(t||'').split(/\n+/).map(x=>x.trim()).filter(Boolean).flatMap(x=>{const o=[];for(let i=0;i<x.length;i+=900){let j=Math.min(x.length,i+900);if(j<x.length){const k=x.lastIndexOf(' ',j);if(k>i+500)j=k}o.push(x.slice(i,j));i=j-900}return o});
+A.srcMqPrint=v=>{const m=ST.mq,id=Number(v),d=m.detail[id],r=(m.data&&m.data.results||[]).find(x=>x.id===id);if(!d||!d.card||!window.MQP){toast('افتح البطاقة أولاً');return}
+ const c=d.card,f=d.full,M=window.MQP,B=M.B,E=M.esc,today=iso(TODAY),title=`حكم محكمة ${c.court||(r&&r.court)||''} ${c.litigation||''} ${c.no||(r&&r.no)||''}/${c.year||(r&&r.year)||''}`.replace(/\s+/g,' ');
+ MQP.open({label:title,build(){const blocks=[B.kv([['المحكمة',E(c.court||'')+(c.city?' – '+E(c.city):'')],['رقم الدعوى',E((c.litigation?c.litigation+' ':'')+(c.no||'')+'/'+(c.year||''))],['تاريخ الفصل',c.date?dmy(c.date):'—'],['المجال',E(c.domain||(r&&r.field)||'')]],2)];
+   if(c.principles.length)blocks.push(B.box('<b>المبادئ القانونية:</b><br>'+c.principles.map(p=>p.n+'- '+E(p.text)).join('<br>')));
+   if(c.laws.length)blocks.push(B.p('<small><b>النصوص القانونية المذكورة:</b> '+c.laws.map(l=>E(l.text)+(l.kind?' ('+E(l.kind)+')':'')).join('؛ ')+'</small>','s'));
+   if(c.paths.length)blocks.push(B.p('<small><b>الكشاف:</b> '+c.paths.map(E).join(' | ')+'</small>','s'));
+   if(f.protected)blocks.push(B.p('النص الكامل لهذا الحكم معروض في المقتفي بصيغة محمية؛ يُراجع في المصدر.'));
+   SEC_T.forEach(([k,t])=>{if(f.sections[k]){blocks.push(B.h(t));paras(f.sections[k]).forEach(x=>blocks.push(B.p(E(x))))}});
+   blocks.push(B.p('<small>المصدر: المقتفي · معهد الحقوق – جامعة بيرزيت — <span dir="ltr">'+E((r&&r.cardUrl)||'')+'</span> · يرجى مطابقة النص مع الحكم الأصلي قبل الاستشهاد.</small>','s'));
+   return {title,sub:'نسخة من المقتفي (معهد الحقوق – جامعة بيرزيت)',ref:'مق/'+today,file:title+' - '+today,orient:'port',blocks,sign:[]}}})};
+A.srcSjcPrint=()=>{const d=ST.sjc.data;if(!d||!d.results.length||!window.MQP)return;const M=window.MQP,B=M.B,E=M.esc,today=iso(TODAY),title='مبادئ قضائية – المكتب الفني في مجلس القضاء الأعلى';
+ MQP.open({label:title,build(){return {title,sub:(d.cls?'تصنيف «'+d.cls.name+'»':'نتائج البحث')+(ST.sjc.q?' · كلمة البحث: '+ST.sjc.q:''),ref:'مف/'+today,file:title+' - '+today,orient:'port',sign:[],
+   blocks:[B.t(['#','رقم المبدأ','نص المبدأ'],d.results.map((r,i)=>[i+1,E(r.no),E(r.title)]),{w:['5%','14%','81%']}),B.p('<small>المصدر: courts.gov.ps — المكتب الفني · لكل مبدأ وثيقة PDF بنص الحكم في الموقع. يرجى مطابقة النصوص قبل الاستشهاد.</small>','s')]}}})};
 
 /* ═══ الشاشة ═══ */
 A.srcTab=v=>{ST.tab=v;paint();if(v==='mq'&&!ST.mq.st)mqStatus();if(v==='sjc'&&!ST.sjc.classes)sjcClasses()};
