@@ -5,7 +5,7 @@
 //     ويُعطى النموذج هذه النصوص بمعرّفات [R1]…؛ ما يحتاجه ولا يجد له نصاً يُعلَّم «يحتاج تحقق» ولا يُخترع.
 //  3) الناتج مسودة يراجعها المحامي ويعتمدها؛ لا يُحفظ شيء تلقائياً.
 // بلا مكتبات خارجية (Node وCloudflare Workers). نسخة مطابقة في cloud/src/ai-draft.js
-// نسخة السحابة من office/lib/ai-draft.js (المنطق نفسه حرفياً؛ عدّل الاثنين معاً)
+// نسخة السحابة — تُولَّد من office/lib/ai-draft.js
 
 const API = 'https://api.anthropic.com/v1/messages';
 const MODEL = 'claude-sonnet-5-5';
@@ -71,7 +71,9 @@ async function callClaude(key, body, fetchImpl) {
   const j = await r.json().catch(() => ({}));
   if (r.status === 401 || r.status === 403) throw Object.assign(new Error('مفتاح الذكاء الاصطناعي غير صالح أو موقوف. حدّثه من إعدادات الصياغة.'), { status: 400 });
   if (r.status === 429) throw Object.assign(new Error('تجاوزت حد الاستخدام لدى مزوّد الذكاء الاصطناعي. حاول بعد قليل.'), { status: 429 });
-  if (!r.ok) throw Object.assign(new Error('خدمة الصياغة لا تستجيب الآن (' + r.status + ').'), { status: 502 });
+  const em = String((j.error && j.error.message) || '').slice(0, 200);
+  if (/credit balance|billing/i.test(em)) throw Object.assign(new Error('رصيد حساب مزوّد الذكاء الاصطناعي غير كافٍ. أعد تعبئة الرصيد من لوحة Anthropic ثم أعد المحاولة.'), { status: 402 });
+  if (!r.ok) throw Object.assign(new Error('خدمة الصياغة لا تستجيب الآن (' + r.status + (em ? ': ' + em : '') + ').'), { status: 502 });
   return j;
 }
 const toolInput = (j, name) => { const b = (j.content || []).find(x => x.type === 'tool_use' && x.name === name); if (!b) throw Object.assign(new Error('لم تُرجع خدمة الصياغة نتيجة صالحة. أعد المحاولة.'), { status: 502 }); return b.input };
