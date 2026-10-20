@@ -196,3 +196,18 @@ test('استخراج المبدأ من نص حكم: مبدأ وملخص وكلم
   assert.equal(r.status, 200); assert.match(r.body.principle, /^عقد العمل/); assert.deepEqual(r.body.keywords, ['عقد عمل', 'محدد المدة']); assert.equal(r.body.outcome, 'رد الطعن'); assert.equal(r.body.articles.length, 1);
   assert.equal(sent[0].tools[0].name, 'extract_ruling'); assert.match(sent[0].messages[0].content, /المحكمة: محكمة النقض · رقم الحكم: دعوى 520\/2016/);
 });
+
+test('ثغرات مستند وأسباب الطعن: المستند يُرسل نصاً أو ملفاً، والوقائع المملاة تكفي بلا ملف، والمراجع تُجمع', async () => {
+  const sent = [];
+  const fetchImpl = async (u, opt) => { const b = JSON.parse(opt.body); sent.push(b); const tool = b.tools[0].name;
+    const input = tool === 'plan_research' ? { queries: ['قانون أصول المحاكمات المدنية والتجارية'], keywords: ['الإجازة'], ruling_queries: [] } : { sections: [{ heading: 'طريق الطعن ومهلته', items: ['الاستئناف خلال ثلاثين يوماً [R1]'] }], unverified: [] };
+    return new Response(JSON.stringify({ content: [{ type: 'tool_use', name: tool, input }] }), { status: 200 }) };
+  const assist = AI.createAssistant({ getKey: async () => 'sk-ant-test', fetchImpl, laws: LAWS });
+  const r = await assist({ mode: 'appeal', text: 'حكمت المحكمة برد الدعوى لعدم صحة الخصومة وتضمين المدعي الرسوم. '.repeat(3), case: { no: '12/2026', subject: 'مطالبة', client: 'محمد' }, web: false }, { id: 1 });
+  assert.equal(r.status, 200, JSON.stringify(r.body)); assert.equal(r.body.sections[0].heading, 'طريق الطعن ومهلته'); assert.ok(r.body.references.length >= 1);
+  const u = sent[0].messages[0].content; const txt = Array.isArray(u) ? u.map(x => x.text || '').join('\n') : u;
+  assert.match(txt, /الحكم المراد الطعن فيه:/); assert.match(txt, /طريق الطعن المتاح/);
+  const g = await assist({ mode: 'gaps', text: 'قصير' }, { id: 1 }); assert.equal(g.status, 400);
+  const g2 = await assist({ mode: 'gaps', file: { type: 'application/pdf', data: 'AAAA' }, web: false }, { id: 1 }); assert.equal(g2.status, 200);
+  const last = sent[sent.length - 2].messages[0].content; assert.ok(Array.isArray(last) && last[0].type === 'document', 'الملف يُرسل كمستند');
+});
