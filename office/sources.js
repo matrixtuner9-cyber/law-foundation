@@ -116,6 +116,7 @@ function mqDetail(d){
   ${c.laws.length?`<div class="m src-meta">النصوص المذكورة: ${c.laws.map(l=>e(l.text)).join('؛ ')}</div>`:''}
   ${c.paths.length?`<div class="m src-meta">الكشاف: ${c.paths.map(e).join(' | ')}</div>`:''}
   ${c.related.length?`<div class="m src-meta">أحكام ذات علاقة: ${c.related.map(x=>e(x.title)).join('؛ ')}</div>`:''}
+  ${f.protected?`<div class="note">النص الكامل لهذا الحكم معروض في المقتفي بصيغة محمية لا تُنسخ؛ افتحه من زر «المصدر» لقراءته هناك. تُحفظ البطاقة والمبادئ في المكتبة مع الرابط.</div>`:''}
   <div class="ms-t">${SEC.map(([k,t])=>f.sections[k]?`<h4>${t}</h4>${f.sections[k].split(/\n+/).map(x=>`<p>${hl(x,ST.mq.q)}</p>`).join('')}`:'').join('')}</div>`;
 }
 function mqResults(){

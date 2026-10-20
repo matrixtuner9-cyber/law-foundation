@@ -29,15 +29,17 @@ function parseResults(html) {
 /* النص الكامل: أقسام ثابتة بعلامات <a name="…"> */
 const SECTIONS = [['judges', 'الديباجة'], ['facts', 'الأسباب والوقائع'], ['reasoning', 'التسبيب'], ['verdict', 'منطوق الحكم'], ['conclusions', 'الخاتمة']];
 function parseFullText(html) {
-  const h = String(html || ''), out = { sections: {}, laws: [] };
-  const head = h.match(/<center><span[^>]*>([\s\S]*?)<\/span><\/center>/); out.header = head ? strip(head[1]).replace(/\n+/g, ' · ') : '';
+  /* الموقع يرسل الوسوم أحياناً بحروف كبيرة (<a NAME="facts">)؛ وبعض الأحكام القديمة محمية بسكريبت تعمية (hppage protected) فلا يُقرأ نصها هنا بل يُفتح في الموقع */
+  const h = String(html || '').replace(/<a\s+name=/gi, '<a name='), out = { sections: {}, laws: [], protected: /hppage status="protected"/i.test(h) };
+  const head = h.match(/<center><span[^>]*>([\s\S]*?)<\/span><\/center>/i); out.header = head ? strip(head[1]).replace(/\n+/g, ' · ') : '';
+  const pos = k => { const m = h.match(new RegExp(`<a name=["']?${k}["']?>`, 'i')); return m ? m.index : -1 };
   for (let i = 0; i < SECTIONS.length; i++) {
-    const [k] = SECTIONS[i], a = h.indexOf(`<a name="${k}">`); if (a < 0) continue;
-    let end = h.length; for (let j = i + 1; j < SECTIONS.length; j++) { const b = h.indexOf(`<a name="${SECTIONS[j][0]}">`); if (b > a) { end = Math.min(end, b) } }
-    out.sections[k] = strip(h.slice(a, end).replace(/<a name="[^"]*"><\/a>/g, '').replace(/<span[^>]*><font[^>]*><b>[^<]*<\/b><\/font><\/span>/, '').replace(/<font[^>]*><b>[^<]*<\/b><\/font>/, '')).replace(/^\s*(الديباجة|الأسباب والوقائع|التسبيب|منطوق الحكم|الخاتمة)\s*\n?/, '').trim();
+    const [k] = SECTIONS[i], a = pos(k); if (a < 0) continue;
+    let end = h.length; for (let j = i + 1; j < SECTIONS.length; j++) { const b = pos(SECTIONS[j][0]); if (b > a) { end = Math.min(end, b) } }
+    out.sections[k] = strip(h.slice(a, end).replace(/<a name=["']?[^"'>]*["']?><\/a>/gi, '').replace(/<span[^>]*><font[^>]*><b>[^<]*<\/b><\/font><\/span>/i, '').replace(/<font[^>]*><b>[^<]*<\/b><\/font>/i, '')).replace(/^\s*(الديباجة|الأسباب والوقائع|التسبيب|منطوق الحكم|الخاتمة)\s*\n?/, '').trim();
   }
-  const dm = h.match(/بتاريخ\s*(\d{1,2}\/\d{1,2}\/\d{4})\s*<br>/g); out.decided = dm ? (() => { const p = dm[dm.length - 1].match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); return `${p[3]}-${p[2].padStart(2, '0')}-${p[1].padStart(2, '0')}` })() : '';
-  for (const m of h.matchAll(/<a href="[^"]*getLegForJ\.aspx\?id=(\d+)(?:#A\d+_(\d+))?">\s*([^<]+)<\/a>/g)) out.laws.push({ legId: Number(m[1]), article: m[2] ? Number(m[2]) : null, text: unent(m[3]).replace(/\s+/g, ' ').trim() });
+  const dm = h.match(/بتاريخ\s*(\d{1,2}\/\d{1,2}\/\d{4})\.?\s*<br>/gi); out.decided = dm ? (() => { const p = dm[dm.length - 1].match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/); return `${p[3]}-${p[2].padStart(2, '0')}-${p[1].padStart(2, '0')}` })() : '';
+  for (const m of h.matchAll(/<a href=["'][^"']*getLegForJ\.aspx\?id=(\d+)(?:#A\d+_(\d+))?["']\s*>\s*([^<]+)<\/a>/gi)) out.laws.push({ legId: Number(m[1]), article: m[2] ? Number(m[2]) : null, text: unent(m[3]).replace(/\s+/g, ' ').trim() });
   out.text = SECTIONS.map(([k, t]) => out.sections[k] ? `${t}\n${out.sections[k]}` : '').filter(Boolean).join('\n\n');
   out.loginRequired = isLogin(h);
   return out;
@@ -59,7 +61,7 @@ function parseCard(html) {
   }
   for (const m of grid('GridView4').matchAll(/<a[^>]*href="[^"]*CJID=(\d+)"[^>]*>([^<]+)<\/a>/g)) out.related.push({ id: Number(m[1]), title: unent(m[2]).trim() });
   const pi = h.indexOf('المسارات التالية في الكشاف');
-  if (pi > 0) for (const m of h.slice(pi).matchAll(/<td class="text_without_bg">((?:\s*<a href="[^"]*KashafBrowser[^"]*">[^<]*<\/a>&gt;\s*)+)<\/td>/g)) out.paths.push([...m[1].matchAll(/>([^<]+)<\/a>/g)].map(x => unent(x[1]).trim()).join(' > '));
+  if (pi > 0) for (const m of h.slice(pi).matchAll(/<td class="text_without_bg">((?:\s*<a href=["'][^"']*KashafBrowser[^"']*["']\s*>[^<]*<\/a>(?:&gt;|>)\s*)+)<\/td>/g)) out.paths.push([...m[1].matchAll(/>([^<]+)<\/a>/g)].map(x => unent(x[1]).trim()).join(' > '));
   out.loginRequired = isLogin(h);
   return out;
 }
@@ -84,7 +86,7 @@ function toRuling(r, card, full) {
     no: `${card.litigation || r.litigation || ''} ${card.no || r.no}/${card.year || r.year}`.trim(), date: card.date || r.date || full.decided || '',
     field: pick(FIELDS, fieldTxt) || '', keywords: [...new Set((card.paths || []).flatMap(p => p.split(' > ')).filter(w => w && !/^(حقوق|جزاء|إداري|مدني)$/.test(w)))].slice(0, 8),
     classifications: (card.paths || []).join(' | '), principle: (card.principles || []).map(p => `${p.n}- ${p.text}`).join('\n'), summary: full.sections && full.sections.verdict ? full.sections.verdict.slice(0, 600) : '',
-    text: String(full.text || '').slice(0, 200000), laws: card.laws || [], related: card.related || [],
+    text: String(full.text || '').slice(0, 200000), laws: card.laws || [], related: card.related || [], protected: !!full.protected,
     src: 'المقتفي · معهد الحقوق – جامعة بيرزيت', srcUrl: r.cardUrl || `${BASE}/courtjudgments/ViewCJCard.aspx?CJID=${r.id}`, pdfUrl: r.pdfUrl, extracted: true,
   };
 }
@@ -160,7 +162,7 @@ function createClient({ getCred, fetchImpl = (...a) => fetch(...a), timeout = 20
   async function judgment(id) {
     const [c, t] = await Promise.all([get(`${BASE}/courtjudgments/ViewCJCard.aspx?CJID=${id}`), get(`${BASE}/courtjudgments/CJFullText.aspx?CJID=${id}`)]);
     const card = parseCard(c.html), full = parseFullText(t.html);
-    if (!card.no && !full.text) throw Object.assign(new Error('لم يُعثر على هذا الحكم في المقتفي.'), { status: 404 });
+    if (!card.no && !full.text && !full.protected) throw Object.assign(new Error('لم يُعثر على هذا الحكم في المقتفي.'), { status: 404 });
     return { card, full };
   }
   return { login, search, judgment, get, _jar: () => jar, _reset: () => { jar = new Map() } };

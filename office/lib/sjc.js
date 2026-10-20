@@ -72,7 +72,9 @@ function createService({ audit, fetchImpl = (...a) => fetch(...a), timeout = 200
       if (action === 'pdf') {
         const w = limit(key, 'pdf'); if (w) return { status: 429, body: { error: `طلبات كثيرة. حاول بعد ${w} ثانية.`, retry: w } };
         const id = Number(input && input.id); if (!Number.isSafeInteger(id) || id <= 0) return { status: 400, body: { error: 'رقم المبدأ غير صحيح.' } };
-        const r = await req(pdfUrl(id)); const buf = new Uint8Array(await r.arrayBuffer());
+        let r = await req(pdfUrl(id)), loc = r.headers.get('location');
+        if ([301, 302, 303, 307].includes(r.status) && loc && /\.pdf(\?|$)/i.test(loc)) r = await req(new URL(loc, pdfUrl(id)).href); /* الموقع يحوّل إلى ملف الوثيقة */
+        const buf = new Uint8Array(await r.arrayBuffer());
         if (r.status !== 200 || buf.length < 5 || String.fromCharCode(...buf.slice(0, 5)) !== '%PDF-') return { status: 404, body: { error: 'لم يُعثر على وثيقة هذا المبدأ.' } };
         if (buf.length > 8 * 1024 * 1024) return { status: 413, body: { error: 'الوثيقة أكبر من 8 ميغابايت.' } };
         audit && audit({ ...who, action: 'sjc.pdf', entity: 'sjc', entity_id: String(id), detail: { bytes: buf.length } });

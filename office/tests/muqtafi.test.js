@@ -114,3 +114,13 @@ test('المقتفي: التعرف على روابط الحكم', () => {
   assert.equal(M.idFromUrl('http://muqtafi.birzeit.edu/courtjudgments/CourtJCard.aspx?id=J104321.'), 104321);
   assert.equal(M.idFromUrl('https://maqam.najah.edu/judgments/5158/'), 0);
 });
+
+test('المقتفي: صفحات الموقع الحية → وسوم بحروف كبيرة وروابط نسبية بعلامات مفردة، وأحكام محمية بالتعمية تُعلَّم ولا تُفكّ', () => {
+  const live = fx('fulltext.html').replace(/<a name="/g, '<a NAME="').replace(/http:\/\/muqtafi\.birzeit\.edu\/legislation\//g, '../legislation/').replace('بتاريخ 10/02/2019<br>', 'بتاريخ 10/02/2019.  <br>');
+  const f = M.parseFullText(live);
+  assert.deepEqual(Object.keys(f.sections), ['judges', 'facts', 'reasoning', 'verdict', 'conclusions']); assert.equal(f.decided, '2019-02-10'); assert.equal(f.laws.length, 11); assert.equal(f.protected, false);
+  const prot = M.parseFullText('<!--hppage status="protected"--><html><BODY><SCRIPT>hp_d01("...")</SCRIPT></BODY></html>');
+  assert.equal(prot.protected, true); assert.equal(prot.text, '');
+  const card = fx('card.html').replace(/<a href="http:\/\/muqtafi\.birzeit\.edu\/courtjudgments\/KashafBrowser\.aspx\?PID=(\d+)">/g, "<a href='KashafBrowser.aspx?PID=$1' >").replace(/<\/a>&gt;/g, '</a>>');
+  assert.equal(M.parseCard(card).paths.length, 5);
+});
