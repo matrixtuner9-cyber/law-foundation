@@ -101,6 +101,7 @@ async function callRaw(key, body, fetchImpl, meter) {
    نفكّ النصوص المرمّزة، ونحفظ النص الخارجي في _text ليُستعمل احتياطاً. */
 const parseMaybe = v => { if (typeof v !== 'string' || !/^\s*[\[{]/.test(v)) return v; try { return JSON.parse(v) } catch (e) { return v } };
 const toolInput = (j, name) => {
+  if (j.stop_reason === 'max_tokens') throw Object.assign(new Error('الجواب أطول من الحد المسموح فانقطع. أعد المحاولة، أو جزّئ المستند أو الطلب.'), { status: 502 });
   const b = (j.content || []).find(x => x.type === 'tool_use' && x.name === name); if (!b) throw Object.assign(new Error('لم تُرجع خدمة الصياغة نتيجة صالحة. أعد المحاولة.'), { status: 502 });
   const inp = {}; for (const [k, v] of Object.entries(b.input || {})) inp[k] = parseMaybe(v);
   const txt = (j.content || []).filter(x => x.type === 'text').map(x => x.text).join('\n').trim(); if (txt) inp._text = txt;
@@ -202,14 +203,14 @@ function createDrafter({ audit, getKey, laws, lawSearch, rulingSearch, fetchImpl
     const mdl = model || MODEL, meter = meterNew(mdl);
     try {
       /* الخطوة 1: ما الذي يلزم البحث عنه؟ */
-      const plan = toolInput(await callClaude(key, { model: mdl, max_tokens: 800, system: SYSTEM, tools: [PLAN_TOOL], tool_choice: { type: 'tool', name: 'plan_research' },
+      const plan = toolInput(await callClaude(key, { model: mdl, max_tokens: 1500, system: SYSTEM, tools: [PLAN_TOOL], tool_choice: { type: 'tool', name: 'plan_research' },
         messages: [{ role: 'user', content: `نوع المستند: ${docType}\n\nملف القضية:\n${caseTxt}\n\nإملاء المحامي:\n${said}${claimsTxt}\n\nحدّد عبارات البحث عن التشريعات الفلسطينية ذات الصلة والكلمات المفتاحية.` }] }, fetchImpl, meter), 'plan_research');
       /* الخطوة 2: المراجع من مصادر موثقة فقط */
       const refs = await gatherRefs(plan, ctxExtra.rulings, input.web !== false, user);
       let refTxt = refs.map(r => `[${r.id}] ${r.kind === 'ruling' ? 'حكم قضائي' : 'تشريع'}: ${r.title}${r.ref ? ' (' + r.ref + ')' : ''}\n${r.arts.map(a => (a.head ? a.head + ': ' : '') + a.text).join('\n')}`).join('\n\n');
       if (refTxt.length > MAX_CTX) refTxt = refTxt.slice(0, MAX_CTX);
       /* الخطوة 3: الصياغة */
-      const out = toolInput(await callClaude(key, { model: mdl, max_tokens: 8000, system: SYSTEM, tools: [DRAFT_TOOL], tool_choice: { type: 'tool', name: 'submit_draft' },
+      const out = toolInput(await callClaude(key, { model: mdl, max_tokens: 16000, system: SYSTEM, tools: [DRAFT_TOOL], tool_choice: { type: 'tool', name: 'submit_draft' },
         messages: [{ role: 'user', content: `المطلوب: صياغة «${docType}».\n\nملف القضية:\n${caseTxt}\n\nإملاء المحامي (الوقائع والطلبات كما ذكرها):\n${said}${claimsTxt}\n\n${guide ? 'إرشادات البنية: ' + guide + '\n\n' : ''}${tpl ? 'نموذج المكتب الذي يُبنى عليه (التزم ببنيته):\n' + an.hide(tpl) + '\n\n' : ''}المراجع المتاحة (لا يُستشهد بغيرها):\n${refTxt || '(لا توجد مراجع متاحة؛ علّم كل سند قانوني «يحتاج تحقق»)'}` }] }, fetchImpl, meter), 'submit_draft');
       /* إعادة الأسماء، والتحقق من أن كل مرجع مذكور موجود فعلاً */
       const valid = new Set(refs.map(r => r.id));
@@ -258,7 +259,7 @@ function createExtractor({ audit, getKey, fetchImpl = fetch, model } = {}) {
     const meter = meterNew(model || MODEL);
     content.push({ type: 'text', text: 'هذه لائحة مقدمة من الخصم في دعوى أمام المحاكم الفلسطينية. استخرج ادعاءاته ووقائعه بنداً بنداً كما وردت (دون إضافة أو تقييم)، وطلباته.' });
     try {
-      const out = toolInput(await callClaude(key, { model: model || MODEL, max_tokens: 6000, system: 'أنت مساعد قانوني دقيق يقرأ اللوائح القضائية الفلسطينية ويستخرج مضمونها بأمانة.', tools: [EXTRACT_TOOL], tool_choice: { type: 'tool', name: 'extract_pleading' }, messages: [{ role: 'user', content }] }, fetchImpl, meter), 'extract_pleading');
+      const out = toolInput(await callClaude(key, { model: model || MODEL, max_tokens: 10000, system: 'أنت مساعد قانوني دقيق يقرأ اللوائح القضائية الفلسطينية ويستخرج مضمونها بأمانة.', tools: [EXTRACT_TOOL], tool_choice: { type: 'tool', name: 'extract_pleading' }, messages: [{ role: 'user', content }] }, fetchImpl, meter), 'extract_pleading');
       const show = input._an ? input._an.show : (x => x);
       audit && audit({ ...who, action: 'ai.extract', entity: 'docs', detail: { claims: (out.claims || []).length, kind: input.file ? input.file.type : 'text', usage: meterOut(meter) } });
       return { status: 200, body: { ok: true, docType: show(out.doc_type || ''), court: show(out.court || ''), caseNo: show(out.case_no || ''), summary: show(out.summary || ''), claims: (out.claims || []).map(c => show(c.text)).filter(Boolean), requests: (out.requests || []).map(show) } };
@@ -280,8 +281,8 @@ const MODES = {
   client_msg: { refs: false, ask: 'اكتب رسالة قصيرة من المحامي إلى الموكل [الموكل] بلغة عربية بسيطة واضحة غير متخصصة ومهذبة، تطمئنه دون أي وعد بنتيجة: آخر ما جرى في قضيته، والموعد القادم، وما يلزمه إحضاره أو فعله. إن كتب المحامي ملاحظة أعلاه فالتزم بها. قسم واحد عنوانه «الرسالة» وكل فقرة منها عنصر. لا أرقام مواد ولا مصطلحات معقدة، ولا تذكر معلومات لم ترد في السجل.' },
   minutes: { refs: false, need: 'أملِ ملاحظات الاجتماع أولاً.', ask: 'نظّم ملاحظات الاجتماع التي أملاها المحامي أعلاه في محضر اجتماع بأقسام: الحاضرون، موضوع الاجتماع، ما تم بحثه، ما اتُّفق عليه، المهام (المهمة — المسؤول — الموعد)، المستندات المطلوبة من الموكل. لا تضف شيئاً لم يرد في الملاحظات؛ ما لم يُذكر اكتبه بين { }.' },
   translate: { refs: false, doc: 'النص المراد ترجمته', min: 5, ask: 'ترجم النص المرفق ترجمة قانونية دقيقة كاملة إلى {LANG}، مع الحفاظ على البنية والترقيم واستعمال المصطلحات القانونية المقابلة. لا تلخص ولا تعلق ولا تحذف. أبقِ الرموز بين أقواس مربعة مثل [الموكل] و[الخصم 1] كما هي حرفياً. اجعل كل عنوان في النص قسماً، وفقراته عناصره؛ وإن لم يكن فيه عناوين فقسم واحد بعنوان فارغ.' },
-  gaps: { refs: true, doc: 'المستند المراد تحليله', min: 40, ask: 'حلّل المستند المرفق (أو الوقائع المملاة) تحليلاً قانونياً لمصلحة موكلنا، في أقسام: (1) نوع المستند وملخصه وما يراد به، (2) الثغرات القانونية والإجرائية فيه (شكل ناقص، بيانات إلزامية غائبة، مواعيد ومهل، صفة ومصلحة واختصاص، توقيعات وتصديق وتبليغ)، (3) الثغرات الموضوعية (ادعاءات بلا سند، تناقضات، بينات ناقصة أو ضعيفة، نصوص قانونية أُغفلت أو طُبّقت خطأ)، (4) المخاطر على موكلنا وما قد يستغله الخصم، (5) ما يلزم استكماله من مستندات وبينات وشهود، (6) التوصيات والخطوات التالية مرتبة بالأولوية مع المهل إن وجدت، (7) أسئلة يجب طرحها على الموكل. استند في كل ملاحظة قانونية إلى المراجع [Rn] فقط.' },
-  appeal: { refs: true, doc: 'الحكم المراد الطعن فيه', min: 40, ask: 'ادرس الحكم المرفق لمصلحة موكلنا بوصفه الطرف الراغب في الطعن، في أقسام: (1) ملخص الحكم ومنطوقه والمحكمة ودرجتها، (2) طريق الطعن المتاح (استئناف، نقض، اعتراض، التماس إعادة نظر) ومهلته من تاريخ الصدور أو التبليغ ومرجعها القانوني، (3) أسباب الطعن المقترحة، كل سبب في قسم فرعي: وصف السبب (مخالفة القانون أو الخطأ في تطبيقه أو تأويله، القصور في التسبيب، الفساد في الاستدلال، الإخلال بحق الدفاع، بطلان في الإجراءات أو الحكم، مخالفة الثابت بالأوراق) وموضعه في الحكم بعبارته، وسنده القانوني [Rn]، وتقدير قوته، (4) نقاط قوة الحكم التي ستواجه الطعن وكيف تُعالج، (5) ما يلزم إرفاقه وتحضيره وخطوات التقديم، (6) تقدير عام لجدوى الطعن. لا تخترع سبباً لا يظهر في نص الحكم.' },
+  gaps: { refs: true, long: true, doc: 'المستند المراد تحليله', min: 40, ask: 'حلّل المستند المرفق (أو الوقائع المملاة) تحليلاً قانونياً لمصلحة موكلنا، في أقسام: (1) نوع المستند وملخصه وما يراد به، (2) الثغرات القانونية والإجرائية فيه (شكل ناقص، بيانات إلزامية غائبة، مواعيد ومهل، صفة ومصلحة واختصاص، توقيعات وتصديق وتبليغ)، (3) الثغرات الموضوعية (ادعاءات بلا سند، تناقضات، بينات ناقصة أو ضعيفة، نصوص قانونية أُغفلت أو طُبّقت خطأ)، (4) المخاطر على موكلنا وما قد يستغله الخصم، (5) ما يلزم استكماله من مستندات وبينات وشهود، (6) التوصيات والخطوات التالية مرتبة بالأولوية مع المهل إن وجدت، (7) أسئلة يجب طرحها على الموكل. استند في كل ملاحظة قانونية إلى المراجع [Rn] فقط.' },
+  appeal: { refs: true, long: true, doc: 'الحكم المراد الطعن فيه', min: 40, ask: 'ادرس الحكم المرفق لمصلحة موكلنا بوصفه الطرف الراغب في الطعن، في أقسام: (1) ملخص الحكم ومنطوقه والمحكمة ودرجتها، (2) طريق الطعن المتاح (استئناف، نقض، اعتراض، التماس إعادة نظر) ومهلته من تاريخ الصدور أو التبليغ ومرجعها القانوني، (3) أسباب الطعن المقترحة، كل سبب في قسم فرعي: وصف السبب (مخالفة القانون أو الخطأ في تطبيقه أو تأويله، القصور في التسبيب، الفساد في الاستدلال، الإخلال بحق الدفاع، بطلان في الإجراءات أو الحكم، مخالفة الثابت بالأوراق) وموضعه في الحكم بعبارته، وسنده القانوني [Rn]، وتقدير قوته، (4) نقاط قوة الحكم التي ستواجه الطعن وكيف تُعالج، (5) ما يلزم إرفاقه وتحضيره وخطوات التقديم، (6) تقدير عام لجدوى الطعن. لا تخترع سبباً لا يظهر في نص الحكم.' },
   question: { refs: true, ask: 'أجب عن سؤال المحامي أعلاه بدقة وإيجاز، مستنداً فقط إلى المراجع المتاحة [Rn]. إن لم تجد فيها نصاً يجيب فقل صراحة: «لم أجد في المصادر المتاحة نصاً يجيب عن هذا» واذكر ما يلزم البحث عنه. لا تخترع أرقام مواد أو أحكام.' },
 };
 /* ── استخراج معطيات الحاسبة من سرد المحامي (الحساب نفسه حتمي في legal-calc.js) ── */
@@ -374,13 +375,13 @@ function createAssistant({ audit, getKey, laws, lawSearch, rulingSearch, fetchIm
     try {
       let refs = [], refTxt = '';
       if (M.refs) {
-        const plan = toolInput(await callClaude(key, { model: mdl, max_tokens: 800, system: SYSTEM, tools: tools('plan_research'), tool_choice: { type: 'tool', name: 'plan_research' },
+        const plan = toolInput(await callClaude(key, { model: mdl, max_tokens: 1500, system: SYSTEM, tools: tools('plan_research'), tool_choice: { type: 'tool', name: 'plan_research' },
           messages: [{ role: 'user', content: msg(`${head}${M.ask}\n\nحدّد عبارات البحث عن التشريعات الفلسطينية والأحكام ذات الصلة والكلمات المفتاحية.`) }] }, fetchImpl, meter), 'plan_research');
         refs = await gather(plan, extra.rulings, input.web !== false, user, { rulings: M.rulings, liveMax: mode === 'similar' ? 5 : 3 });
         refTxt = refs.map(r => `[${r.id}] ${r.kind === 'ruling' ? 'حكم قضائي' : 'تشريع'}: ${r.title}${r.ref ? ' (' + r.ref + ')' : ''}\n${r.arts.map(x => (x.head ? x.head + ': ' : '') + x.text).join('\n')}`).join('\n\n').slice(0, MAX_CTX);
       }
-      const out = toolInput(await callClaude(key, { model: mdl, max_tokens: 6000, system: SYSTEM, tools: tools('submit_answer'), tool_choice: { type: 'tool', name: 'submit_answer' },
-        messages: [{ role: 'user', content: msg(`${head}${M.ask}${M.refs ? '\n\nالمراجع المتاحة (لا يُستشهد بغيرها):\n' + (refTxt || '(لا توجد)') : ''}`) }] }, fetchImpl, meter), 'submit_answer');
+      const out = toolInput(await callClaude(key, { model: mdl, max_tokens: M.long ? 16000 : 10000, system: SYSTEM, tools: tools('submit_answer'), tool_choice: { type: 'tool', name: 'submit_answer' },
+        messages: [{ role: 'user', content: msg(`${head}${M.ask}${M.refs ? '\n\nالمراجع المتاحة (لا يُستشهد بغيرها):\n' + (refTxt || '(لا توجد)') : ''}\n\nاكتب بإيجاز عملي: كل بند في جملة إلى ثلاث جمل، ولا تكرر نص المستند.`) }] }, fetchImpl, meter), 'submit_answer');
       const valid = new Set(refs.map(r => r.id)), fix = s => an.show(String(s || '')).replace(/\[(R\d+)\]/g, (m, id) => valid.has(id) ? m : '[مرجع يحتاج تحقق]');
       const sections = normSections(out).map(s => ({ heading: fix(s.heading), items: s.items.map(fix) }));
       if (!sections.length) { audit && audit({ ...who, action: 'ai.assist_failed', entity: 'cases', detail: { mode, error: 'empty', shape: Object.keys(out).join(','), usage: meterOut(meter) } }); return { status: 502, body: { error: 'لم يُرجع النموذج جواباً منظماً هذه المرة. أعد المحاولة.' } } }

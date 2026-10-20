@@ -244,3 +244,13 @@ test('مخرجات غير منتظمة من النموذج: أقسام كنص JS
   r = await run({ sections: [], __text: '## طريق الطعن\nالاستئناف خلال ثلاثين يوماً.\n## أسباب الطعن\n- مخالفة القانون.' }); assert.equal(r.status, 200); assert.deepEqual(r.body.sections.map(s => s.heading), ['طريق الطعن', 'أسباب الطعن']);
   r = await run({ sections: [] }); assert.equal(r.status, 502);
 });
+
+test('الجواب المنقطع عند حد الطول يُرفض برسالة واضحة، والتحليلات الطويلة تُمنح مساحة أكبر', async () => {
+  const sent = [];
+  const fetchImpl = async (u, opt) => { const b = JSON.parse(opt.body); sent.push(b); const name = want(b);
+    if (name === 'plan_research') return { ok: true, status: 200, json: async () => ({ content: [{ type: 'tool_use', name, input: { queries: ['قانون العمل'], keywords: ['الإجازة'] } }] }) };
+    return { ok: true, status: 200, json: async () => ({ stop_reason: 'max_tokens', content: [{ type: 'tool_use', name, input: {} }] }) } };
+  const r = await AI.createAssistant({ getKey: () => 'k', laws: LAWS, fetchImpl })({ mode: 'appeal', text: 'حكمت المحكمة برد الدعوى لعدم صحة الخصومة. '.repeat(4), web: false }, { id: 1 });
+  assert.equal(r.status, 502); assert.match(r.body.error, /أطول من الحد/);
+  assert.equal(sent[sent.length - 1].max_tokens, 16000);
+});
