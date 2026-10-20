@@ -189,7 +189,7 @@ class _LockScreenState extends State<LockScreen> {
         SizedBox(
             height: heroH + 60,
             width: double.infinity,
-            child: const PhotoBackdrop(asset: 'assets/images/login_bg.jpg', alignment: Alignment(0, -.3), shade: .55)),
+            child: const PhotoBackdrop(asset: 'assets/images/login_bg.jpg', alignment: Alignment(0, -.3), shade: .6, opacity: .7)),
         Positioned(
           top: mq.padding.top + 40,
           left: 0,

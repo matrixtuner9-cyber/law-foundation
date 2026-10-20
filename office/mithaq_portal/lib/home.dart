@@ -25,11 +25,11 @@ class HomeTab extends StatelessWidget {
           child: CustomScrollView(slivers: [
             SliverToBoxAdapter(child: _Hero(next: next, onGo: onGo)),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
               sliver: SliverToBoxAdapter(child: _Kpis(next: next, onGo: onGo)),
             ),
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
               sliver: SliverToBoxAdapter(child: _QuickActions(onGo: onGo)),
             ),
             const SliverPadding(padding: EdgeInsets.fromLTRB(16, 14, 16, 0), sliver: SliverToBoxAdapter(child: PushPrompt())),
@@ -93,10 +93,10 @@ class HomeTab extends StatelessWidget {
   }
 
   Widget _title(String t, String n, VoidCallback onMore) => SliverPadding(
-        padding: const EdgeInsets.fromLTRB(20, 26, 12, 10),
+        padding: const EdgeInsets.fromLTRB(18, 20, 10, 8),
         sliver: SliverToBoxAdapter(
           child: Row(children: [
-            Text(t, style: MQ.display(24)),
+            Text(t, style: MQ.display(21)),
             if (n.isNotEmpty) ...[const SizedBox(width: 8), Chip2(n, bg: MQ.line, fg: MQ.muted)],
             const Spacer(),
             TextButton(onPressed: onMore, child: Text('عرض الكل', style: MQ.body(13, color: MQ.pine, weight: FontWeight.w600))),
@@ -122,9 +122,9 @@ class _Hero extends StatelessWidget {
       ),
       child: Stack(children: [
         const Positioned.fill(
-            child: PhotoBackdrop(asset: 'assets/images/hero.jpg', alignment: Alignment.centerLeft, shade: .78)),
+            child: PhotoBackdrop(asset: 'assets/images/hero.jpg', alignment: Alignment.centerLeft, shade: .7, opacity: .38)),
         Padding(
-          padding: EdgeInsets.fromLTRB(20, top + 18, 20, 22),
+          padding: EdgeInsets.fromLTRB(18, top + 14, 18, 18),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Row(children: [
               const OfficeLogo(size: 40),
@@ -132,33 +132,40 @@ class _Hero extends StatelessWidget {
               Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('${store.office['name'] ?? ''}',
-                    style: MQ.body(14, color: Colors.white, weight: FontWeight.w700, height: 1.3),
+                    style: MQ.body(13, color: Colors.white, weight: FontWeight.w700, height: 1.3),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
                 Text('${store.client['code'] ?? ''}', style: MQ.mono(11, color: MQ.brassSoft)),
               ])),
               _iconBtn(Icons.notifications_none_rounded, store.unread, () => onGo(2)),
             ]),
-            const SizedBox(height: 18),
-            Text('${greeting()}،', style: MQ.body(15, color: MQ.brassSoft)),
-            Text(store.firstName, style: MQ.display(32, color: Colors.white), maxLines: 2),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
+            Text('${greeting()}،', style: MQ.body(13, color: MQ.brassSoft, height: 1.3)),
+            Text(store.firstName,
+                style: MQ.display(25, color: Colors.white), maxLines: 2, overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 12),
             if (next == null)
               _glass(Text('لا جلسات قادمة حالياً. سنبلغك فور تحديد موعد جديد.', style: MQ.body(14, color: Colors.white)))
             else
               _glass(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Row(children: [
-                  Text('جلستك القادمة', style: MQ.body(12, color: MQ.soft)),
-                  const Spacer(),
-                  Text('${fmtDate(next!.t)} · ', style: MQ.body(12, color: Colors.white)),
-                  Text(next!.h['time'], style: MQ.mono(12, color: Colors.white)),
+                  Expanded(
+                      child: Text('جلستك القادمة',
+                          maxLines: 1, overflow: TextOverflow.ellipsis, style: MQ.body(11.5, color: MQ.soft))),
+                  const SizedBox(width: 8),
+                  Text('${fmtDate(next!.t)} · ', style: MQ.body(11.5, color: Colors.white)),
+                  Text(next!.h['time'], style: MQ.mono(11.5, color: Colors.white)),
                 ]),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Countdown(target: next!.t),
-                const SizedBox(height: 12),
-                Text('${next!.h['purpose']}', style: MQ.body(16, color: Colors.white, weight: FontWeight.w700)),
-                Text('${next!.kase['court']} · القضية ${next!.kase['no']}', style: MQ.body(12.5, color: MQ.soft)),
                 const SizedBox(height: 10),
+                Text('${next!.h['purpose']}',
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: MQ.body(14, color: Colors.white, weight: FontWeight.w700, height: 1.45)),
+                Text('${next!.kase['court']} · القضية ${next!.kase['no']}',
+                    maxLines: 1, overflow: TextOverflow.ellipsis, style: MQ.body(11.5, color: MQ.soft)),
+                const SizedBox(height: 8),
                 next!.h['attend'] == true
                     ? const Chip2('حضورك شخصياً مطلوب', bg: MQ.gold, fg: MQ.forest, icon: Icons.priority_high)
                     : Chip2('يحضر المحامي نيابة عنك', bg: MQ.mint.withValues(alpha: .2), fg: MQ.mint, icon: Icons.check),
@@ -192,7 +199,7 @@ class _Hero extends StatelessWidget {
 
   Widget _glass(Widget child) => Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
             color: MQ.forest.withValues(alpha: .55),
             borderRadius: BorderRadius.circular(20),
@@ -233,8 +240,8 @@ class _CountdownState extends State<Countdown> {
         if (i > 0) const SizedBox(width: 8),
         Expanded(
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            decoration: BoxDecoration(color: Colors.black.withValues(alpha: .22), borderRadius: BorderRadius.circular(14)),
+            padding: const EdgeInsets.symmetric(vertical: 7),
+            decoration: BoxDecoration(color: Colors.black.withValues(alpha: .25), borderRadius: BorderRadius.circular(12)),
             child: Column(children: [
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
@@ -242,9 +249,9 @@ class _CountdownState extends State<Countdown> {
                     position: Tween(begin: const Offset(0, -.4), end: Offset.zero).animate(a),
                     child: FadeTransition(opacity: a, child: c)),
                 child: Text(i == 0 ? '${p.$1}' : p.$1.toString().padLeft(2, '0'),
-                    key: ValueKey(p.$1), style: MQ.mono(26, color: i == 3 ? MQ.brassHi : Colors.white)),
+                    key: ValueKey(p.$1), style: MQ.mono(21, color: i == 3 ? MQ.brassHi : Colors.white)),
               ),
-              Text(p.$2, style: MQ.body(11, color: MQ.soft)),
+              Text(p.$2, style: MQ.body(10.5, color: MQ.soft, height: 1.3)),
             ]),
           ),
         ),
@@ -263,9 +270,9 @@ class _Kpis extends StatelessWidget {
     final days = next == null ? null : next!.t.difference(DateTime.now()).inDays;
     final items = [
       (Icons.gavel_rounded, '${store.cases.length}', 'قضاياي', MQ.goldLo, MQ.brassSoft, () => onGo(1)),
-      (Icons.event_rounded, days == null ? '—' : (days == 0 ? 'اليوم' : '$days'), days == null || days == 0 ? 'الجلسة القادمة' : 'يوم للجلسة',
+      (Icons.event_rounded, days == null ? '—' : (days == 0 ? 'اليوم' : '$days'), days == null || days == 0 ? 'الجلسة' : 'يوم للجلسة',
           const Color(0xFF2563EB), const Color(0xFFE0EAFD), () => onGo(1)),
-      (Icons.mark_chat_unread_outlined, '${store.unread}', 'رسائل جديدة', MQ.danger, const Color(0xFFFDE7E7), () => onGo(2)),
+      (Icons.mark_chat_unread_outlined, '${store.unread}', 'رسائل', MQ.danger, const Color(0xFFFDE7E7), () => onGo(2)),
       (Icons.folder_copy_outlined, '${store.docs.length}', 'المستندات', const Color(0xFF047857), const Color(0xFFDDF5EA), () => onGo(3)),
     ];
     return Row(children: [
@@ -279,24 +286,26 @@ class _Kpis extends StatelessWidget {
               borderRadius: BorderRadius.circular(18),
               onTap: it.$6,
               child: Container(
-                padding: const EdgeInsets.fromLTRB(4, 10, 4, 8),
+                padding: const EdgeInsets.fromLTRB(4, 8, 4, 7),
                 decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(18),
                     border: Border.all(color: MQ.line),
                     boxShadow: const [BoxShadow(color: Color(0x0D3E2F21), blurRadius: 10, offset: Offset(0, 3))]),
                 child: Column(children: [
                   Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(color: it.$5, borderRadius: BorderRadius.circular(10)),
-                    child: Icon(it.$1, color: it.$4, size: 18),
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(color: it.$5, borderRadius: BorderRadius.circular(9)),
+                    child: Icon(it.$1, color: it.$4, size: 16),
                   ),
                   const SizedBox(height: 4),
-                  FittedBox(child: Text(it.$2, style: MQ.body(19, weight: FontWeight.w800, height: 1.25))),
-                  Text(it.$3,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: MQ.body(10.5, color: MQ.muted, weight: FontWeight.w700, height: 1.3)),
+                  FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(it.$2, maxLines: 1, style: MQ.body(16, weight: FontWeight.w800, height: 1.25))),
+                  FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(it.$3,
+                          maxLines: 1, style: MQ.body(10, color: MQ.muted, weight: FontWeight.w700, height: 1.3))),
                 ]),
               ),
             ),
@@ -339,17 +348,19 @@ class _QuickActions extends StatelessWidget {
               borderRadius: BorderRadius.circular(18),
               onTap: it.$4,
               child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
+                padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
                 child: Column(children: [
                   Container(
-                    width: 44,
-                    height: 44,
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
                         color: i == 0 ? MQ.forest : it.$3.withValues(alpha: .1), shape: BoxShape.circle),
-                    child: Icon(it.$1, color: i == 0 ? MQ.gold : it.$3, size: 22),
+                    child: Icon(it.$1, color: i == 0 ? MQ.gold : it.$3, size: 18),
                   ),
-                  const SizedBox(height: 8),
-                  Text(it.$2, textAlign: TextAlign.center, style: MQ.body(12, weight: FontWeight.w700, height: 1.3)),
+                  const SizedBox(height: 6),
+                  FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(it.$2, maxLines: 1, style: MQ.body(11, weight: FontWeight.w700, height: 1.3))),
                 ]),
               ),
               ),

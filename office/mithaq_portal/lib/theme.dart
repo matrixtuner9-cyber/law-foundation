@@ -266,16 +266,21 @@ class OfficeLogo extends StatelessWidget {
 
 /// خلفية فوتوغرافية (صورة التمثال) مع تدرّج كحلي يضمن وضوح النص
 class PhotoBackdrop extends StatelessWidget {
-  const PhotoBackdrop({super.key, required this.asset, this.alignment = Alignment.center, this.shade = .45});
+  const PhotoBackdrop(
+      {super.key, required this.asset, this.alignment = Alignment.center, this.shade = .45, this.opacity = 1});
   final String asset;
   final Alignment alignment;
   final double shade;
+
+  /// شفافية الصورة نفسها (أقل = صورة أهدأ والكحلي أوضح)
+  final double opacity;
   @override
   Widget build(BuildContext context) => Stack(fit: StackFit.expand, children: [
         const DecoratedBox(decoration: BoxDecoration(gradient: MQ.navyGradient)),
         Image.asset(asset,
             fit: BoxFit.cover,
             alignment: alignment,
+            opacity: AlwaysStoppedAnimation(opacity),
             cacheWidth: (MediaQuery.sizeOf(context).width * MediaQuery.devicePixelRatioOf(context)).round().clamp(400, 1200),
             errorBuilder: (_, __, ___) => const SizedBox()),
         DecoratedBox(

@@ -36,6 +36,9 @@ class MithaqPortal extends StatelessWidget {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
+        // الهواتف ذات الخط المكبَّر جداً تكسر التخطيط؛ نسمح بتكبير معتدل فقط
+        builder: (context, child) =>
+            MediaQuery.withClampedTextScaling(minScaleFactor: .9, maxScaleFactor: 1.1, child: child!),
         home: const Gate(),
       );
 }
@@ -205,7 +208,7 @@ class _LoginPageState extends State<LoginPage> {
               SizedBox(
                 height: heroH + 60,
                 width: double.infinity,
-                child: const PhotoBackdrop(asset: 'assets/images/login_bg.jpg', alignment: Alignment(0, -.3), shade: .55),
+                child: const PhotoBackdrop(asset: 'assets/images/login_bg.jpg', alignment: Alignment(0, -.3), shade: .6, opacity: .7),
               ),
               Positioned(
                 top: mq.padding.top + 34,
@@ -214,7 +217,7 @@ class _LoginPageState extends State<LoginPage> {
                 child: Column(children: [
                   const OfficeLogo(size: 84),
                   const SizedBox(height: 12),
-                  Text('بوابة الموكل', style: MQ.display(30, color: Colors.white)),
+                  Text('بوابة الموكل', style: MQ.display(27, color: Colors.white)),
                   Text(_officeName,
                       textAlign: TextAlign.center, style: MQ.body(13.5, color: MQ.brassSoft, weight: FontWeight.w500)),
                 ]),
@@ -240,10 +243,10 @@ class _LoginPageState extends State<LoginPage> {
                                 height: 4,
                                 decoration: BoxDecoration(color: MQ.line, borderRadius: BorderRadius.circular(4)))),
                         const SizedBox(height: 16),
-                        Text('تسجيل الدخول', style: MQ.display(28)),
+                        Text('تسجيل الدخول', style: MQ.display(24)),
                         Text('مرحباً بك، أدخل رمز الدخول الذي وصلك من المكتب لمتابعة قضاياك',
-                            style: MQ.body(13.5, color: MQ.muted)),
-                        const SizedBox(height: 18),
+                            style: MQ.body(12.5, color: MQ.muted)),
+                        const SizedBox(height: 16),
                         Text('رمز الدخول', style: MQ.body(13, weight: FontWeight.w700, color: const Color(0xFF3E2F21))),
                         const SizedBox(height: 6),
                         TextField(
@@ -453,11 +456,14 @@ class _NavBar extends StatelessWidget {
           borderRadius: BorderRadius.circular(18),
           onTap: () => onTap(i),
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Icon(sel ? on : off, color: c, size: 23),
+            Icon(sel ? on : off, color: c, size: 22),
             const SizedBox(height: 3),
-            Text(label,
-                maxLines: 1,
-                style: MQ.body(11, color: c, weight: sel ? FontWeight.w800 : FontWeight.w600, height: 1.2)),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(label,
+                  maxLines: 1,
+                  style: MQ.body(10.5, color: c, weight: sel ? FontWeight.w800 : FontWeight.w600, height: 1.2)),
+            ),
           ]),
         ),
       ),
