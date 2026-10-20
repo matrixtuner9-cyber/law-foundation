@@ -214,6 +214,29 @@ const MODES = {
   translate: { refs: false, doc: 'النص المراد ترجمته', min: 5, ask: 'ترجم النص المرفق ترجمة قانونية دقيقة كاملة إلى {LANG}، مع الحفاظ على البنية والترقيم واستعمال المصطلحات القانونية المقابلة. لا تلخص ولا تعلق ولا تحذف. أبقِ الرموز بين أقواس مربعة مثل [الموكل] و[الخصم 1] كما هي حرفياً. اجعل كل عنوان في النص قسماً، وفقراته عناصره؛ وإن لم يكن فيه عناوين فقسم واحد بعنوان فارغ.' },
   question: { refs: true, ask: 'أجب عن سؤال المحامي أعلاه بدقة وإيجاز، مستنداً فقط إلى المراجع المتاحة [Rn]. إن لم تجد فيها نصاً يجيب فقل صراحة: «لم أجد في المصادر المتاحة نصاً يجيب عن هذا» واذكر ما يلزم البحث عنه. لا تخترع أرقام مواد أو أحكام.' },
 };
+/* ── استخراج معطيات الحاسبة من سرد المحامي (الحساب نفسه حتمي في legal-calc.js) ── */
+const CALC_TOOL = { name: 'extract_calc', description: 'استخراج معطيات الحساب من سرد الوقائع', input_schema: { type: 'object', required: ['kind', 'fields', 'missing'], properties: {
+  kind: { type: 'string', enum: ['insurance', 'labour'] },
+  fields: { type: 'object', description: 'المفاتيح المتاحة فقط. insurance: disability(%) functionalDisability(%) nights operations(0/1) monthlyWage sectorAvgWage tempDays accidentDate(YYYY-MM-DD) returnDate age workEndAge medical advancePaid died(0/1) dependantsShare(%) notified(0/1). labour: monthlyWage start(YYYY-MM-DD) end years termination(dismissal|arbitrary|resignation|end_of_term|agreed) contract(fixed|open) noticeGiven(0/1) justifiedLeave(0/1) hazardous(0/1) unusedLeaveYears unpaidWages overtime other otherLabel injury(0/1) injuryTempDays injuryDisability injuryDeath(0/1) age avg3Wage commission(0/1)', additionalProperties: true },
+  missing: { type: 'array', items: { type: 'string' }, description: 'معطيات لازمة للحساب لم ترد في السرد' },
+  assumptions: { type: 'array', items: { type: 'string' }, description: 'ما استُنتج ولم يُذكر صراحة' },
+} } };
+function createCalcExtractor({ audit, getKey, fetchImpl = fetch, model } = {}) {
+  return async function extractCalc(input, user) {
+    const key = await getKey(); if (!key) return { status: 400, body: { error: 'لم يُضبط مفتاح الذكاء الاصطناعي بعد.', needKey: true } };
+    const kind = input.kind === 'labour' ? 'labour' : 'insurance', t = String(input.text || '').slice(0, 20000).trim();
+    if (t.length < 20) return { status: 400, body: { error: 'اسرد الوقائع أولاً.' } };
+    const an = anonymizer(input.case || {});
+    try {
+      const out = toolInput(await callClaude(key, { model: model || MODEL, max_tokens: 1500, system: 'أنت مساعد قانوني فلسطيني دقيق. تستخرج من سرد المحامي المعطيات الرقمية فقط ولا تحسب شيئاً ولا تخترع رقماً لم يُذكر. التواريخ بصيغة YYYY-MM-DD. النسب أرقام بلا علامة %.', tools: [CALC_TOOL], tool_choice: { type: 'tool', name: 'extract_calc' },
+        messages: [{ role: 'user', content: `نوع الحساب: ${kind === 'labour' ? 'حقوق عمالية (قانون العمل 7/2000)' : 'تعويض حادث طرق (قانون التأمين 20/2005)'}\n\nسرد المحامي:\n${an.hide(t)}\n\nاستخرج المعطيات المتاحة في السرد فقط، واذكر الناقص منها.` }] }, fetchImpl), 'extract_calc');
+      const fields = {}; for (const [k, v] of Object.entries(out.fields || {})) if (v !== '' && v != null) fields[k] = typeof v === 'string' ? an.show(v) : v;
+      audit && audit({ user_id: user && user.id, username: user && user.username, action: 'ai.calc_extract', entity: 'cases', detail: { kind, fields: Object.keys(fields).length } });
+      return { status: 200, body: { ok: true, kind, fields, missing: (out.missing || []).map(x => an.show(String(x))), assumptions: (out.assumptions || []).map(x => an.show(String(x))) } };
+    } catch (e) { return { status: e.status || 500, body: { error: e.status ? e.message : 'تعذّر الاستخراج.' } } }
+  };
+}
+
 function createAssistant({ audit, getKey, laws, lawSearch, fetchImpl = fetch, model } = {}) {
   const gather = createDrafter({ getKey, laws, lawSearch, fetchImpl, model })._gather;
   const hits = new Map();
@@ -266,4 +289,4 @@ function createAssistant({ audit, getKey, laws, lawSearch, fetchImpl = fetch, mo
   };
 }
 
-module.exports = { createDrafter, createExtractor, createAssistant, anonymizer, pickArticles, DOC_TYPES, MODEL };
+module.exports = { createDrafter, createExtractor, createAssistant, createCalcExtractor, anonymizer, pickArticles, DOC_TYPES, MODEL };

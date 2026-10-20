@@ -11,7 +11,7 @@ import { fetchJudgment } from './maqam.js';
 import { createService as maqamService } from './maqam-search.js';
 import { createLaws } from './laws.js';
 import { createLawSearch } from './law-sources.js';
-import { createDrafter, createExtractor, createAssistant, DOC_TYPES, MODEL as AI_MODEL } from './ai-draft.js';
+import { createDrafter, createExtractor, createAssistant, createCalcExtractor, DOC_TYPES, MODEL as AI_MODEL } from './ai-draft.js';
 
 /* توقيع داخلي يثبت أن طلب /_ops وصل من الـ Worker بعد التحقق من رمز المشغّل (لا يمكن للزائر إرساله) */
 export const opsSig = env => env.OPS_TOKEN ? crypto.createHash('sha256').update('mq-ops|' + env.OPS_TOKEN).digest('hex') : null;
@@ -42,7 +42,7 @@ const SEC = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-orig
 const json = (code, obj, extra = {}) => new Response(JSON.stringify(obj), { status: code, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...CORS, ...SEC, ...extra } });
 const MEDIA_TTL = 7 * 24 * 3600; // صلاحية رابط الملف الموقّع (ثوانٍ)
 
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css', 'edition.js']);
 
 /* توحيد الكتابة العربية للبحث في دليل المحامين */
@@ -451,6 +451,11 @@ export class Office extends DurableObject {
         if ((d = deny('write'))) return d;
         this.extractor ||= createExtractor({ audit: e => this.audit(e), getKey: aiKey, model: this.env.MQ_AI_MODEL });
         const r = await this.extractor(await jbody(16 * 1024 * 1024), me); return json(r.status, r.body);
+      }
+      if (a === 'calc' && M === 'POST') {
+        if ((d = deny('write'))) return d;
+        this.calcExtract ||= createCalcExtractor({ audit: e => this.audit(e), getKey: aiKey, model: this.env.MQ_AI_MODEL });
+        const r = await this.calcExtract(await jbody(), me); return json(r.status, r.body);
       }
       if (a === 'assist' && M === 'POST') {
         if ((d = deny('write'))) return d;

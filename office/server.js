@@ -40,6 +40,7 @@ const lawSearch = LawSources.createLawSearch({ audit }); /* البحث المب�
 const aiKey = () => store.kv.get('ai_key') || process.env.ANTHROPIC_API_KEY || '';
 const drafter = AiDraft.createDrafter({ audit, getKey: aiKey, laws, lawSearch, model: process.env.MQ_AI_MODEL });
 const extractor = AiDraft.createExtractor({ audit, getKey: aiKey, model: process.env.MQ_AI_MODEL });
+const calcExtract = AiDraft.createCalcExtractor({ audit, getKey: aiKey, model: process.env.MQ_AI_MODEL });
 const assistant = AiDraft.createAssistant({ audit, getKey: aiKey, laws, lawSearch, model: process.env.MQ_AI_MODEL });
 (function migrate() {
   if (store.kv.get('migrated_v1')) return;
@@ -515,6 +516,7 @@ async function api(req, res, u) {
       return json(res, 200, { ok: true, configured: !!k, last4: k ? k.slice(-4) : '' });
     }
     if (a === 'extract' && M === 'POST') { if (!need('write')) return; const r = await extractor(await jbody(req, 16 * 1024 * 1024), me); return json(res, r.status, r.body) }
+    if (a === 'calc' && M === 'POST') { if (!need('write')) return; const r = await calcExtract(await jbody(req), me); return json(res, r.status, r.body) }
     if (a === 'assist' && M === 'POST') { if (!need('write')) return; const r = await assistant(await jbody(req, 16 * 1024 * 1024), me, { rulings: cur().rulings || [] }); return json(res, r.status, r.body) }
     if (a === 'draft' && M === 'POST') { if (!need('write')) return; const r = await drafter(await jbody(req, 2 * 1024 * 1024), me, { rulings: cur().rulings || [] }); return json(res, r.status, r.body) }
     return json(res, 404, { error: 'غير موجود' });
@@ -588,7 +590,7 @@ async function rulingFile(req, res, u, who) {
 }
 
 /* ملفات شاشة المكتب: قائمة محددة فقط، وكلها تتطلب تسجيل الدخول عدا صفحة الدخول */
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css', 'edition.js']);
 
 http.createServer((req, res) => {

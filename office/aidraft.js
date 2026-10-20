@@ -19,10 +19,10 @@ const vcase=V.case;V.case=()=>{const h=vcase();if(!online())return h;
 
 /* اختصار في الشاشة الرئيسية: مساعد المحامي الذكي */
 const vdash=V.dash;V.dash=()=>{const h=vdash();if(!online()||!can2('write'))return h;
- const Q=[['brief','📋','ملخص قبل الجلسة'],['question','❓','سؤال قانوني'],['defences','🛡','الدفوع والمهل'],['contract','📑','مراجعة عقد'],['opponent','🔍','تحليل مستند للخصم'],['minutes','📝','محضر اجتماع'],['client_msg','💬','رسالة للموكل'],['translate','🌐','ترجمة']];
+ const Q=[['brief','📋','ملخص قبل الجلسة'],['question','❓','سؤال قانوني'],['defences','🛡','الدفوع والمهل'],['contract','📑','مراجعة عقد'],['opponent','🔍','تحليل مستند للخصم'],['minutes','📝','محضر اجتماع'],['client_msg','💬','رسالة للموكل'],['translate','🌐','ترجمة'],['calc','🧮','الحاسبات القانونية']];
  const card=`<section class="card reveal as-home" aria-label="مساعد المحامي الذكي"><div class="as-home-h"><div><h2>مساعد المحامي الذكي</h2><p>صياغة اللوائح بالصوت، وتحليل القضايا والمستندات، والإجابة من نصوص التشريعات</p></div>
   <button class="btn pri" data-act="aiOpen" data-v="${e(homeCase())}">🎙 صياغة بالصوت</button></div>
-  <div class="as-home-q">${Q.map(([m,i,t])=>`<button class="as-q" data-act="asOpen" data-v="${e(homeCase())}" data-mode="${m}"><span aria-hidden="true">${i}</span>${t}</button>`).join('')}</div></section>`;
+  <div class="as-home-q">${Q.map(([m,i,t])=>m==='calc'?`<button class="as-q" data-act="nav" data-v="calc"><span aria-hidden="true">${i}</span>${t}</button>`:`<button class="as-q" data-act="asOpen" data-v="${e(homeCase())}" data-mode="${m}"><span aria-hidden="true">${i}</span>${t}</button>`).join('')}</div></section>`;
  return h.replace('<div class="dgrid">',card+'<div class="dgrid">')};
 /* القضية الافتراضية: صاحبة أقرب جلسة قادمة */
 function homeCase(){const n=hearings.filter(x=>diff(x.date)>=0).sort((a,b)=>a.date.localeCompare(b.date))[0];return n?n.k:((cases.find(k=>k.status!=='منتهية')||cases[0]||{}).id||'')}
@@ -41,6 +41,7 @@ function caseCtx(k){const cl=C(k.client)||{},ct=CT(k.court)||{},s=(window.MQ&&MQ
 A.aiOpen=async(v,t)=>{if(ro())return;if(!can2('write'))return toast('الصياغة متاحة للمحامين ومدير المكتب');
  D.k=v||D.k||(cases[0]||{}).id;if(t&&t.dataset.tpl){D.tpl=t.dataset.tpl;D.type=tplTitle(D.tpl)||D.type}
  D.res=null;D.err='';draw();try{D.status=await api('status');draw()}catch(er){D.err=er.message;draw()}};
+A.aiOpenWith=(id,text,type)=>{D.text=String(text||'');if(type)D.type=type;D.tpl='';D.claims=[];D.opp=null;return A.aiOpen(id)};
 function draw(){const m=document.getElementById('modal');m.innerHTML=`<div class="modal-bg" data-act="close"><div class="modal ai-modal" role="dialog" aria-label="الصياغة بالصوت">${body()}</div></div>`;bind()}
 A.aiClose=()=>{stopMic();document.getElementById('modal').innerHTML=''};
 const close0=A.close;A.close=()=>{stopMic();close0()};
@@ -236,9 +237,9 @@ const css=document.createElement('style');css.textContent=`
 .ai-modal>*{flex-shrink:0}.as-modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}@media(max-width:700px){.as-modes{grid-template-columns:repeat(2,minmax(0,1fr))}.as-mode span{display:none}}.as-mode{all:unset;cursor:pointer;border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:3px;background:var(--surface);line-height:1.6}
 .as-mode span{font-size:12.5px;color:var(--muted)}.as-mode.on{border-color:var(--brass);box-shadow:0 0 0 2px rgba(184,134,61,.25);background:var(--sunk)}.as-mode:focus-visible{outline:3px solid var(--brass)}
 .as-home{margin:0 0 16px;padding:16px 18px}.as-home-h{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}.as-home-h h2{margin:0;font-size:18px}.as-home-h p{margin:2px 0 0;color:var(--muted);font-size:13.5px}
-.as-home-q{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:8px}.as-q{all:unset;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;padding:10px 6px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font-size:13px;font-weight:600;line-height:1.4}
+.as-home-q{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:8px}.as-q{all:unset;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;padding:10px 6px;border:1px solid var(--line);border-radius:12px;background:var(--surface);font-size:13px;font-weight:600;line-height:1.4}
 .as-q span{font-size:20px}.as-q:hover{border-color:var(--brass);background:var(--sunk)}.as-q:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
-@media(max-width:1100px){.as-home-q{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:1100px){.as-home-q{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .as-case{display:flex;gap:8px;align-items:center;margin:0 0 10px;font-size:14px}.as-case select{flex:1;min-width:0}
 .as-lang{display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:14px}.as-lang select{width:auto}.as-doc ul{margin:0 0 6px;padding-inline-start:20px}.as-doc li{margin-bottom:4px;text-align:justify}.as-txt{white-space:pre-wrap;font-size:13px;background:var(--sunk);border-radius:8px;padding:8px 10px;margin:4px 0 8px;max-height:30vh;overflow:auto}
 @media(max-width:700px){.ai-form{grid-template-columns:1fr}}`;

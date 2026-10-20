@@ -74,6 +74,8 @@
       "lawlib.js",
       "legislation.js",
       "aidraft.js",
+      "calc-engine.js",
+      "calc.js",
       "hdr-banner.jpg",
       "hdr-side.jpg",
       "hdr-side.webp",

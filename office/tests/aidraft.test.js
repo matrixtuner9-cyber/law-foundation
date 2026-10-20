@@ -150,5 +150,7 @@ test('الصياغة تتطلب صلاحية الكتابة، وملف الوا�
   assert.equal((await req('/api/admin/ai/draft', v, { method: 'POST', body: { docType: 'لائحة', dictation: DICT } })).status, 403);
   assert.equal((await req('/api/admin/ai/assist', v, { method: 'POST', body: { mode: 'brief' } })).status, 403);
   assert.equal((await fetch(BASE + '/aidraft.js', { headers: { cookie: admin } })).status, 200);
-  assert.match(fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'), /aidraft\.js/);
+  for (const f of ['calc.js', 'calc-engine.js']) assert.equal((await fetch(BASE + '/' + f, { headers: { cookie: admin } })).status, 200, f);
+  assert.equal((await req('/api/admin/ai/calc', v, { method: 'POST', body: { kind: 'labour', text: 'x'.repeat(40) } })).status, 403);
+  assert.match(fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8'), /aidraft\.js[\s\S]*calc-engine\.js[\s\S]*calc\.js/);
 });
