@@ -8,11 +8,12 @@ const can2=w=>!!(window.MQ&&MQ.user&&({admin:{write:1,manage:1},lawyer:{write:1}
 const ro=()=>{if(window.MQ&&MQ.readOnly){toast('صلاحيتك للاطلاع فقط');return true}return false};
 const RS={q:'',court:'',field:'',sort:'rel',open:null,mode:'all',in:'all',year:'',from:'',to:'',withText:false,pending:false,adv:false,page:1,sel:new Set()};
 const PER=20;
+/* روابط المصادر التي تتطلب تسجيل دخول (المقتفي) لا تُعرض ولا تُطبع؛ الحكم محفوظ في المكتبة أصلاً. يبقى الرابط في السجل داخلياً لمنع التكرار */
+const pubUrl=u=>u&&!/muqtafi\.birzeit\.edu/i.test(String(u))?u:'';
 const COURTS=['محكمة النقض','المحكمة العليا','المحكمة الدستورية العليا','محكمة الاستئناف','محكمة البداية','محكمة الصلح','المحكمة الإدارية','محكمة الجنايات الكبرى','المحكمة الشرعية العليا','محكمة الاستئناف الشرعية','أخرى'];
 const FIELDS=['مدني','تجاري','عمالي','جزائي','أحوال شخصية','إداري','دستوري','تنفيذ','إيجارات','أراضٍ وعقارات','إجراءات وإثبات','ضريبي','تأمين','أخرى'];
 const SOURCES=[
  ['maqam','مقام · جامعة النجاح','https://maqam.najah.edu/judgments/'],
- ['muqtafi','المقتفي · جامعة بيرزيت','http://muqtafi.birzeit.edu/'],
  ['qistas','قسطاس','https://qistas.com/']];
 
 /* ── تطبيع عربي ── */
@@ -86,7 +87,7 @@ V.rulings=()=>{
   <label>إلى تاريخ<input class="field" type="date" id="rTo" value="${e(RS.to)}"></label>
   <div class="rl-chk"><label><input type="checkbox" id="rWT" ${RS.withText?'checked':''}> بنص كامل فقط</label><label><input type="checkbox" id="rPend" ${RS.pending?'checked':''}> بانتظار صياغة المبدأ</label></div>
  </div>`:''}
- <div class="rl-src"><span class="m">ابحث في المصادر العامة:</span><button class="chip" data-act="nav" data-v="maqamsearch">بحث مباشر في الأحكام ←</button>${SOURCES.map(s=>`<a class="chip" target="_blank" rel="noopener" href="${s[2]}" data-act="rSrc" data-v="${s[0]}">${s[1]} ↗</a>`).join('')}<span class="m">يُفتح الموقع في نافذة جديدة وتُنسخ عبارة البحث لتلصقها هناك. لا يُنسخ أي محتوى من هذه المواقع إلى النظام.</span></div></section>
+ <div class="rl-src"><span class="m">ابحث في المصادر العامة:</span><button class="chip" data-act="nav" data-v="maqamsearch">بحث مباشر في الأحكام ←</button><button class="chip" data-act="nav" data-v="sources">المكتب الفني والمقتفي ←</button>${SOURCES.map(s=>`<a class="chip" target="_blank" rel="noopener" href="${s[2]}" data-act="rSrc" data-v="${s[0]}">${s[1]} ↗</a>`).join('')}<span class="m">يُفتح الموقع في نافذة جديدة وتُنسخ عبارة البحث لتلصقها هناك. لا يُنسخ أي محتوى من هذه المواقع إلى النظام.</span></div></section>
  <div id="rlRes">${results(rs)}</div>`;
 };
 const advT=()=>`<button class="link" data-act="rAdv">${RS.adv?'▾ إخفاء البحث المتقدم':'▸ بحث متقدم'}</button>${advCount()?`<span class="pill">${advCount()} ${advCount()===1?'شرط':'شروط'}</span><button class="link" data-act="rAdvClear">مسح الشروط</button>`:''}`;
@@ -120,7 +121,7 @@ function card(r,q){
   ${r.summary?`<div class="rl-s">${hl(r.summary,q)}</div>`:''}
   ${RS.open===r.id&&r.text?`<div class="rl-t">${hl(r.text,q)}</div>`:r.text?`<button class="link" data-act="rMore" data-v="${r.id}">عرض نص الحكم (${r.text.length.toLocaleString('en-US')} حرف)</button>`:''}
   <div class="rl-f"><div class="chips">${(r.keywords||[]).map(k=>`<button class="chip" data-act="rKw" data-v="${e(k)}">${e(k)}</button>`).join('')}</div>
-  <div class="m">${ks.length?'مرتبط بـ: '+ks.map(k=>`<button class="link mono" data-act="openCase" data-v="${k.id}">${k.no}</button>`).join('، '):'غير مرتبط بقضية'}${r.src?' · المصدر: '+(r.srcUrl?`<a href="${e(r.srcUrl)}" target="_blank" rel="noopener">${e(r.src)} ↗</a>`:e(r.src)):''}${r.by?' · أضافه '+e(r.by):''}</div></div>
+  <div class="m">${ks.length?'مرتبط بـ: '+ks.map(k=>`<button class="link mono" data-act="openCase" data-v="${k.id}">${k.no}</button>`).join('، '):'غير مرتبط بقضية'}${r.src?' · المصدر: '+(pubUrl(r.srcUrl)?`<a href="${e(r.srcUrl)}" target="_blank" rel="noopener">${e(r.src)} ↗</a>`:e(r.src)):''}${r.by?' · أضافه '+e(r.by):''}</div></div>
   ${r.notes?`<div class="note">${e(r.notes)}</div>`:''}</div></section>`;
 }
 function redraw(){const el=document.getElementById('rlRes');if(el)el.innerHTML=results(list());const t=document.getElementById('rlAdvT');if(t)t.innerHTML=advT()}
@@ -140,7 +141,7 @@ const vcase=V.case;V.case=()=>vcase().replace('<button class="'+(S.caseTab==='mz
 function form(r,caseId){
  r=r||{};const sel=new Set(r.cases||(caseId?[caseId]:[]));
  return `<div class="modal-bg" data-act="close"><div class="modal rl-modal" role="dialog" aria-label="حكم قضائي"><div class="head"><h1 style="font-size:24px">${r.id?'تعديل حكم':'إضافة حكم إلى المكتبة'}</h1><button class="btn sm" data-act="close">إغلاق</button></div>
- ${r.srcUrl&&!r.id?`<div class="rl-imp">استُخرجت البيانات من <a href="${e(r.srcUrl)}" target="_blank" rel="noopener">${e(r.src||'المصدر')} ↗</a>. راجعها${r.principle?'، و<b>المبدأ</b> كما نشره المصدر فعدّله إن شئت':'، واكتب <b>المبدأ القضائي</b> بصياغتك أو استخرجه بالذكاء الاصطناعي'} ثم اضغط حفظ، فيُضاف الحكم بنصه الكامل إلى شاشة <b>«الاجتهادات القضائية»</b>.${r.fullText?` · <a href="${e(r.fullText)}" target="_blank" rel="noopener">النص الكامل (ملف) ↗</a>`:''}</div>`:''}
+ ${r.srcUrl&&!r.id?`<div class="rl-imp">استُخرجت البيانات من ${pubUrl(r.srcUrl)?`<a href="${e(r.srcUrl)}" target="_blank" rel="noopener">${e(r.src||'المصدر')} ↗</a>`:`<b>${e(r.src||'المصدر')}</b>`}. راجعها${r.principle?'، و<b>المبدأ</b> كما نشره المصدر فعدّله إن شئت':'، واكتب <b>المبدأ القضائي</b> بصياغتك أو استخرجه بالذكاء الاصطناعي'} ثم اضغط حفظ، فيُضاف الحكم بنصه الكامل إلى شاشة <b>«الاجتهادات القضائية»</b>.${r.fullText?` · <a href="${e(r.fullText)}" target="_blank" rel="noopener">النص الكامل (ملف) ↗</a>`:''}</div>`:''}
  <form class="form" id="fRuling" data-id="${e(r.id||'')}" data-src-url="${e(r.srcUrl||'')}">
   <label>المحكمة<select class="field" id="rfCourt">${COURTS.map(c=>`<option ${r.court===c?'selected':''}>${c}</option>`).join('')}</select></label>
   <label>رقم الحكم<input class="field mono" id="rfNo" value="${e(r.no||'')}" placeholder="مثال: نقض مدني 512/2023" required></label>
@@ -278,10 +279,10 @@ function rulingsDoc(items,tpl0){
    const head=[k?['القضية','<span class="mono">'+E(k.no)+'</span> · '+E(k.subject||'')]:null,k?['الموكل',E((C(k.client)||{}).name||'')]:null,st.to?['إلى',E(st.to)]:null,['عدد الأحكام',items.length]].filter(Boolean);
    const blocks=[B.kv(head,head.length>1?2:1)];
    if(String(st.note||'').trim())blocks.push(B.box(E(st.note).replace(/\n/g,'<br>')));
-   const srcLine=r=>src&&(r.srcUrl||r.src)?B.p('<small>المصدر: '+E(r.src||'')+(r.srcUrl?' — <span dir="ltr">'+E(r.srcUrl)+'</span>':'')+'</small>','s'):'';
+   const srcLine=r=>src&&(r.srcUrl||r.src)?B.p('<small>المصدر: '+E(r.src||'')+(pubUrl(r.srcUrl)?' — <span dir="ltr">'+E(r.srcUrl)+'</span>':'')+'</small>','s'):'';
    if(t==='list'){
     blocks.push(B.t(['#','المحكمة','رقم الحكم','التاريخ','الفرع','المبدأ القضائي'],items.map((r,i)=>[i+1,E(r.court),E(r.no||''),r.date?dmy(r.date):'—',E(r.field||'—'),E(String(r.principle||r.title||'').slice(0,220))]),{w:['4%','16%','16%','10%','10%','44%']}));
-    if(src)blocks.push(B.p('<small>'+items.map((r,i)=>r.srcUrl?(i+1)+'. <span dir="ltr">'+E(r.srcUrl)+'</span>':'').filter(Boolean).join('<br>')+'</small>','s'));
+    if(src)blocks.push(B.p('<small>'+items.map((r,i)=>pubUrl(r.srcUrl)?(i+1)+'. <span dir="ltr">'+E(r.srcUrl)+'</span>':'').filter(Boolean).join('<br>')+'</small>','s'));
    }else items.forEach((r,i)=>{
     if(t==='full'&&i)blocks.push(B.br());
     blocks.push(B.h((i+1)+'. '+cite(r)));
@@ -318,7 +319,7 @@ function htmlDoc(items,word){
   ${String(r.principle||'').trim()?`<p class="pr"><b>المبدأ القضائي:</b> ${e(r.principle)}</p>`:r.title?`<p>${e(r.title)}</p>`:''}
   ${r.summary?`<p><b>الملخص:</b> ${e(r.summary)}</p>`:''}
   <table class="kv"><tr><th>الفرع</th><td>${e(r.field||'—')}</td><th>الكلمات المفتاحية</th><td>${e((r.keywords||[]).join('، ')||'—')}</td></tr>
-  <tr><th>القضايا المرتبطة</th><td>${e(linked(r)||'—')}</td><th>المصدر</th><td>${e(r.src||'—')}${r.srcUrl?`<br><span dir="ltr">${e(r.srcUrl)}</span>`:''}</td></tr></table>
+  <tr><th>القضايا المرتبطة</th><td>${e(linked(r)||'—')}</td><th>المصدر</th><td>${e(r.src||'—')}${pubUrl(r.srcUrl)?`<br><span dir="ltr">${e(r.srcUrl)}</span>`:''}</td></tr></table>
   ${r.text?`<h3>نص الحكم</h3>${paras(r.text).map(x=>`<p>${e(x)}</p>`).join('')}`:''}
   ${r.notes?`<p class="nt"><b>ملاحظات المكتب:</b> ${e(r.notes)}</p>`:''}</article>`).join(word?'<br style="page-break-before:always">':'<hr>');
  return `<!doctype html><html lang="ar" dir="rtl"${word?' xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"':''}><head><meta charset="utf-8"><title>الاجتهادات القضائية</title>
@@ -335,7 +336,7 @@ A.rExport=v=>{const it=chosen(),m=document.getElementById('rExpM');if(m)m.hidden
  const d=iso(TODAY),base='mithaq-rulings-'+d; /* اسم لاتيني: بعض المتصفحات تُسقط الأسماء العربية للملفات المنزّلة */
  if(v==='csv'){const cols=['المحكمة','رقم الحكم','التاريخ','الفرع','النتيجة','المبدأ القضائي','الملخص','الكلمات المفتاحية','القضايا المرتبطة','المصدر','رابط المصدر','ملاحظات المكتب','نص الحكم'];
   const c=x=>'"'+String(x??'').replace(/"/g,'""')+'"';
-  save(base+'.csv','text/csv;charset=utf-8','﻿'+[cols.map(c).join(','),...it.map(r=>[r.court,r.no,r.date,r.field,r.outcome,r.principle||r.title,r.summary,(r.keywords||[]).join('، '),linked(r),r.src,r.srcUrl,r.notes,r.text].map(c).join(','))].join('\r\n'))}
+  save(base+'.csv','text/csv;charset=utf-8','﻿'+[cols.map(c).join(','),...it.map(r=>[r.court,r.no,r.date,r.field,r.outcome,r.principle||r.title,r.summary,(r.keywords||[]).join('، '),linked(r),r.src,pubUrl(r.srcUrl),r.notes,r.text].map(c).join(','))].join('\r\n'))}
  else if(v==='json')save(base+'.json','application/json;charset=utf-8',JSON.stringify({exportedAt:new Date().toISOString(),office:(window.MQ&&MQ.settings||{}).officeName||'',count:it.length,rulings:it.map(({_v,...r})=>({...r,cases:(r.cases||[]).map(id=>(K(id)||{}).no||id)}))},null,1));
  else if(v==='doc')save(base+'.doc','application/msword;charset=utf-8','﻿'+htmlDoc(it,true));
  else save(base+'.html','text/html;charset=utf-8',htmlDoc(it,false));

@@ -144,7 +144,7 @@ A.srcMqPrint=v=>{const m=ST.mq,id=Number(v),d=m.detail[id],r=(m.data&&m.data.res
    if(c.paths.length)blocks.push(B.p('<small><b>الكشاف:</b> '+c.paths.map(E).join(' | ')+'</small>','s'));
    if(f.protected)blocks.push(B.p('النص الكامل لهذا الحكم معروض في المقتفي بصيغة محمية؛ يُراجع في المصدر.'));
    SEC_T.forEach(([k,t])=>{if(f.sections[k]){blocks.push(B.h(t));paras(f.sections[k]).forEach(x=>blocks.push(B.p(E(x))))}});
-   blocks.push(B.p('<small>المصدر: المقتفي · معهد الحقوق – جامعة بيرزيت — <span dir="ltr">'+E((r&&r.cardUrl)||'')+'</span> · يرجى مطابقة النص مع الحكم الأصلي قبل الاستشهاد.</small>','s'));
+   blocks.push(B.p('<small>المصدر: المقتفي · معهد الحقوق – جامعة بيرزيت · يرجى مطابقة النص مع الحكم الأصلي قبل الاستشهاد.</small>','s'));
    return {title,sub:'نسخة من المقتفي (معهد الحقوق – جامعة بيرزيت)',ref:'مق/'+today,file:title+' - '+today,orient:'port',blocks,sign:[]}}})};
 A.srcSjcPrint=()=>{const d=ST.sjc.data;if(!d||!d.results.length||!window.MQP)return;const M=window.MQP,B=M.B,E=M.esc,today=iso(TODAY),title='مبادئ قضائية – المكتب الفني في مجلس القضاء الأعلى';
  MQP.open({label:title,build(){return {title,sub:(d.cls?'تصنيف «'+d.cls.name+'»':'نتائج البحث')+(ST.sjc.q?' · كلمة البحث: '+ST.sjc.q:''),ref:'مف/'+today,file:title+' - '+today,orient:'port',sign:[],
