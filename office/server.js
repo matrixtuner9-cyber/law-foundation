@@ -191,6 +191,31 @@ function sendFile(req, res, file) {
   });
 }
 
+/* ── ملفات بوابة الموكل (تطبيق Flutter للويب): ضغط وتخزين مؤقت ──
+   البوابة ~13 ميغابايت (main.dart.js وcanvaskit). كانت تُرسل بلا ضغط وبـ no-store فتُنزَّل كاملة في كل زيارة.
+   الآن: ضغط brotli/gzip يُحسب مرة لكل ملف، وETag فيردّ الخادم 304 إن لم يتغير الملف، وتخزين أسبوع لملفات المحرك والأصول. */
+const zlib = require('zlib');
+const ZCACHE = new Map(), ZTYPES = /\.(js|mjs|css|html|json|wasm|svg|txt|frag|map|symbols|otf|ttf)$|NOTICES$/i;
+const REVALIDATE = /(^|[\\/])(index\.html|flutter_bootstrap\.js|flutter_service_worker\.js|flutter\.js|main\.dart\.js|main\.dart\.wasm|main\.dart\.mjs|version\.json|manifest\.json)$/i;
+function sendPortal(req, res, file) {
+  fs.stat(file, (err, st) => {
+    if (err || !st.isFile()) { res.writeHead(404, CORS); return res.end('Not found') }
+    const type = TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream', etag = `W/"${st.size.toString(36)}-${Math.floor(st.mtimeMs).toString(36)}"`;
+    const head = { 'Content-Type': type, ETag: etag, Vary: 'Accept-Encoding', 'Cache-Control': REVALIDATE.test(file) ? 'no-cache' : 'public, max-age=604800', ...CORS, ...SEC };
+    if (String(req.headers['if-none-match'] || '').split(/\s*,\s*/).includes(etag)) { res.writeHead(304, head); return res.end() }
+    const ae = String(req.headers['accept-encoding'] || ''), enc = !ZTYPES.test(file) || st.size < 1024 ? null : /\bbr\b/.test(ae) ? 'br' : /\bgzip\b/.test(ae) ? 'gzip' : null;
+    if (!enc) { res.writeHead(200, { ...head, 'Content-Length': st.size }); return fs.createReadStream(file).pipe(res) }
+    const key = file + '|' + enc, c = ZCACHE.get(key);
+    const send = buf => { res.writeHead(200, { ...head, 'Content-Encoding': enc, 'Content-Length': buf.length }); res.end(req.method === 'HEAD' ? undefined : buf) };
+    if (c && c.etag === etag) return send(c.buf);
+    fs.readFile(file, (e, raw) => {
+      if (e) { res.writeHead(500); return res.end() }
+      const done = (e2, buf) => { if (e2) { res.writeHead(200, { ...head, 'Content-Length': raw.length }); return res.end(raw) } ZCACHE.set(key, { etag, buf }); send(buf) };
+      enc === 'br' ? zlib.brotliCompress(raw, { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 9, [zlib.constants.BROTLI_PARAM_SIZE_HINT]: raw.length } }, done) : zlib.gzip(raw, { level: 9 }, done);
+    });
+  });
+}
+
 /* ── بيانات بوابة الموكل ── */
 function clientByCode(code) { return cur().clients.find(x => (x.code || '').toUpperCase() === String(code || '').trim().toUpperCase()) }
 /* صفحة رابط الدخول المرسل عبر واتساب: تتحقق من الرمز ثم تحفظه لبوابة الموكل وتفتحها */
@@ -594,7 +619,7 @@ http.createServer((req, res) => {
     let f = path.join(PORTAL, path.normalize(p.slice(7)));
     if (!f.startsWith(PORTAL)) { res.writeHead(403); return res.end() }
     if (p.endsWith('/') || !fs.existsSync(f)) f = path.join(PORTAL, 'index.html');
-    return sendFile(req, res, f);
+    return sendPortal(req, res, f);
   }
   const name = p === '/' ? 'index.html' : p.slice(1);
   if (/^fonts\/[a-z0-9-]+\.(woff2|css|txt)$/.test(name)) return sendFile(req, res, path.join(ROOT, name));

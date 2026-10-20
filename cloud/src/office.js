@@ -164,9 +164,14 @@ export class Office extends DurableObject {
     { const m = /^\/p\/(MQ-[A-Za-z0-9]{3,12})$/i.exec(p); if (m) return new Response(PLINK(m[1].toUpperCase()), { headers: { ...SEC, 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } }) }
     if (p === '/portal') return Response.redirect(new URL('/portal/', u.origin).href, 302);
     if (p.startsWith('/portal/')) {
-      let r = await asset('/app' + p);
-      if (r.status === 404 || p.endsWith('/')) r = await asset('/app/portal/index.html');
-      return noStore(r);
+      /* بوابة الموكل (Flutter للويب، ~13 ميغابايت): تُخزَّن لدى المتصفح ويُتحقق منها بـ ETag بدل التنزيل الكامل في كل زيارة.
+         ملفات الدخول (index وmain.dart.js…) تُراجَع كل مرة (no-cache)، وملفات المحرك والأصول أسبوعاً. Cloudflare يضغطها تلقائياً */
+      const cond = path => this.env.ASSETS.fetch(new Request(new URL(path, u.origin), { headers: { 'accept-encoding': req.headers.get('accept-encoding') || '', 'if-none-match': req.headers.get('if-none-match') || '' } }));
+      let file = p, r = await cond('/app' + p);
+      if (r.status === 404 || p.endsWith('/')) { file = '/portal/index.html'; r = await cond('/app/portal/index.html') }
+      const h = new Headers(r.headers); Object.entries(SEC).forEach(([k, v]) => h.set(k, v));
+      h.set('Cache-Control', /(index\.html|flutter_bootstrap\.js|flutter_service_worker\.js|flutter\.js|main\.dart\.(js|wasm|mjs)|version\.json|manifest\.json)$/.test(file) ? 'no-cache' : 'public, max-age=604800');
+      return new Response(r.status === 304 ? null : r.body, { status: r.status, headers: h });
     }
     const name = p === '/' ? 'index.html' : p.slice(1);
     if (/^fonts\/[a-z0-9-]+\.(woff2|css|txt)$/.test(name)) { const r = await asset('/app/' + name); const h = new Headers(r.headers); h.set('Cache-Control', 'public, max-age=604800'); return new Response(r.body, { status: r.status, headers: h }) }
