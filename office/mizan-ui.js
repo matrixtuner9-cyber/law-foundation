@@ -47,6 +47,7 @@ es.addEventListener('mizan',ev=>{const o=JSON.parse(ev.data);
 
 /* ── ميزان في حقيبة الموكل: بيانات الموكل في ميزان، وأرقام قضاياه هناك، وحسابه (بموافقته) ──
    البيانات التعريفية تُحفظ في ملف الموكل وتُزامن؛ كلمة مرور حساب الموكل تُحفظ مشفّرة على جهاز المكتب فقط ولا تُعرض. */
+const LINK=[['','—'],['none','لم تُقدَّم الوكالة بعد'],['filed','قُدّمت الوكالة لقلم المحكمة'],['linked','أُدرجت: تظهر في حساب المحامي']];
 const ROLES=['مدعٍ','مدعى عليه','مستأنِف','مستأنَف عليه','طاعن','مطعون ضده','مشتكٍ','مشتكى عليه','طالب تنفيذ','منفَّذ ضده','مستدعٍ','متدخل'];
 const MC={id:null,st:null,err:'',editing:false,log:[],busy:false};
 const can3=w=>!!(window.MQ&&MQ.user&&({admin:{write:1,manage:1},lawyer:{write:1}}[MQ.user.role]||{})[w]);
@@ -73,13 +74,17 @@ function mcBody(c){
  <section class="panel"><header><h2>بيانات الموكل في ميزان</h2><span class="m">تُستخدم لمطابقة ما يرد من ميزان مع هذا الموكل</span></header><div class="bd"><form class="form" id="fMcId">
   <label>رقم الهوية / التسجيل في ميزان<input class="field mono" id="mzIdNo" value="${esc2(m.idNo||c.idNo||'')}" dir="ltr" ${ro?'disabled':''}></label>
   <label>الهاتف المسجّل في ميزان<input class="field mono" id="mzPhone" value="${esc2(m.phone||c.phone||'')}" dir="ltr" ${ro?'disabled':''}></label>
-  <label>صفة الموكل الغالبة في دعاواه<select class="field" id="mzRole" ${ro?'disabled':''}><option value="">—</option>${ROLES.map(r=>`<option ${m.role===r?'selected':''}>${r}</option>`).join('')}</select></label>
+  <label>صفة الموكل الغالبة <small class="m">(تُحدد لكل قضية في الجدول)</small><select class="field" id="mzRole" ${ro?'disabled':''}><option value="">—</option>${ROLES.map(r=>`<option ${m.role===r?'selected':''}>${r}</option>`).join('')}</select></label>
   <label>هل للموكل حساب في بوابة ميزان؟<select class="field" id="mzHas" ${ro?'disabled':''}><option value="">لا أعرف</option><option value="yes" ${m.has==='yes'?'selected':''}>نعم</option><option value="no" ${m.has==='no'?'selected':''}>لا</option></select></label>
   <label class="wide">ملاحظات<input class="field" id="mzNote" value="${esc2(m.note||'')}" placeholder="مثل: الوكالة مسجلة في ميزان باسم المحامي…" ${ro?'disabled':''}></label>
   ${ro?'':'<div class="wide toolbar"><button class="btn pri">حفظ بيانات ميزان</button></div>'}</form></div></section>
  <section class="panel"><header><h2>قضايا الموكل في ميزان</h2><span class="m">رقم كل قضية كما هو في ميزان، لربط تحديثاتها بملفها هنا</span></header><div class="bd">
-  ${ks.length?`<table class="mc-t"><thead><tr><th>القضية في المكتب</th><th>رقمها في ميزان</th><th>الحالة</th></tr></thead><tbody>${ks.map(k=>`<tr><td><button class="link mono" data-act="openCase" data-v="${k.id}">${esc2(k.no)}</button><div class="m">${esc2(k.subject||'')}</div></td><td><input class="field mono mc-ref" data-k="${k.id}" value="${esc2(k.mzRef||'')}" placeholder="${esc2(k.no)}" dir="ltr" ${ro?'disabled':''} aria-label="رقم القضية ${esc2(k.no)} في ميزان"></td><td>${k.mzRef||k.mz?'<span class="pill ok">مرتبطة</span>':'<span class="pill">غير مرتبطة</span>'}</td></tr>`).join('')}</tbody></table>${ro?'':'<div class="toolbar" style="margin-top:8px"><button class="btn sm" data-act="mcRefs">حفظ الأرقام</button></div>'}`:'<p class="m">لا قضايا لهذا الموكل بعد.</p>'}
-  <p class="note" style="margin-top:8px">تُقرأ تحديثات هذه القضايا من ميزان بحساب المحامي (شاشة «الربط مع ميزان») أو بحساب الموكل أدناه، وتظهر للمراجعة قبل إضافتها إلى ملف القضية.</p></div></section>
+  ${ks.length?`<table class="mc-t"><thead><tr><th>القضية في المكتب</th><th>رقمها في ميزان</th><th>صفة الموكل فيها</th><th>وكالة المحامي في ميزان</th></tr></thead><tbody>${ks.map(k=>`<tr><td><button class="link mono" data-act="openCase" data-v="${k.id}">${esc2(k.no)}</button><div class="m">${esc2(k.subject||'')}</div></td><td><input class="field mono mc-ref" data-k="${k.id}" value="${esc2(k.mzRef||'')}" placeholder="${esc2(k.no)}" dir="ltr" ${ro?'disabled':''} aria-label="رقم القضية ${esc2(k.no)} في ميزان"></td>
+   <td><select class="field mc-role" data-k="${k.id}" ${ro?'disabled':''} aria-label="صفة الموكل في ${esc2(k.no)}"><option value="">${esc2(m.role?'كالغالبة ('+m.role+')':'—')}</option>${ROLES.map(r=>`<option ${k.mzRole===r?'selected':''}>${r}</option>`).join('')}</select></td>
+   <td><select class="field mc-link" data-k="${k.id}" ${ro?'disabled':''} aria-label="حالة وكالة المحامي في ${esc2(k.no)}">${LINK.map(([v,t])=>`<option value="${v}" ${(k.mzLink||'')===v?'selected':''}>${t}</option>`).join('')}</select>${k.mzLinkAt?`<div class="m">${esc2(k.mzLinkAt)}</div>`:''}${k.mzLink==='filed'&&k.mzLinkAt&&(TODAY-new Date(k.mzLinkAt))/864e5>7?'<div class="mc-late">مرّ أسبوع ولم تُدرج بعد: تحقق من القضية في ميزان، وإن لم يظهر اسم المحامي فقدّم طلب «إدراج وكيل» في القلم.</div>':''}</td></tr>`).join('')}</tbody></table>${ro?'':'<div class="toolbar" style="margin-top:8px"><button class="btn sm" data-act="mcRefs">حفظ بيانات القضايا</button></div>'}`:'<p class="m">لا قضايا لهذا الموكل بعد.</p>'}
+  <div class="toolbar" style="margin-top:8px"><a class="btn sm" href="https://www.courts.gov.ps/EServices/login.aspx" target="_blank" rel="noopener noreferrer">التحقق في بوابة مجلس القضاء ↗</a></div>
+  <div class="note mc-how" style="margin-top:8px"><b>كيف تصل القضية إلى حساب المحامي في ميزان:</b> يقدّم المحامي صك الوكالة لقلم المحكمة ← يُدرج موظف القلم رقم عضويته على القضية ← يتحقق ميزان من النقابة أنه مزاول ← تظهر القضية في حساب المحامي فوراً. قبل ذلك تظهر القضية في حساب الموكل (برقم هويته) فقط، ولذلك يفيد حسابه أدناه في المرحلة الأولى.</div>
+  <p class="m" style="margin-top:6px">تُقرأ التحديثات بحساب المحامي (شاشة «الربط مع ميزان») للقضايا المُدرجة، وبحساب الموكل لما سواها، وتظهر للمراجعة قبل إضافتها إلى ملف القضية.</p></div></section>
  <section class="panel wide-panel"><header><h2>حساب الموكل في ميزان</h2><span class="m">اختياري، بموافقة الموكل</span></header><div class="bd" id="mcAcct">${mcAcct(c)}</div></section>
  </div>`;
 }
@@ -95,7 +100,9 @@ A.mcEdit=()=>{MC.editing=true;mcPaint()};A.mcCancel=()=>{MC.editing=false;mcPain
 A.mcRun=v=>{const cb=document.getElementById('mcShow');MC.busy=true;MC.log=[];mcPaint();post('/api/mizan/client-run',{client:MC.id,mode:v,show:cb?cb.checked:true}).then(st=>{MC.st=st;mcPaint()}).catch(e=>{MC.busy=false;toast(e.message);mcPaint()})};
 A.mcForget=()=>{document.getElementById('modal').innerHTML=`<div class="modal-bg" data-act="close"><div class="modal" role="dialog"><h2>حذف حساب الموكل في ميزان؟</h2><p class="sub">تُحذف كلمة المرور المشفّرة وجلسة المتصفح الخاصة بهذا الموكل من جهاز المكتب.</p><div class="toolbar"><button class="btn danger" data-act="mcForgetOk">حذف</button><button class="btn" data-act="close">إلغاء</button></div></div></div>`};
 A.mcForgetOk=()=>{post('/api/mizan/client',{client:MC.id,forget:true}).then(st=>{MC.st=st;MC.editing=false;MC.log=[];A.close();toast('حُذف حساب الموكل من الجهاز');mcPaint()}).catch(e=>toast(e.message))};
-A.mcRefs=()=>{let n=0;document.querySelectorAll('.mc-ref').forEach(x=>{const k=K(x.dataset.k);const v=x.value.trim();if(k&&(k.mzRef||'')!==v){k.mzRef=v;n++}});toast(n?'حُفظت أرقام ميزان ('+n+')':'لا تغيير');render()};
+A.mcRefs=()=>{let n=0;const set=(sel,f,fn)=>document.querySelectorAll(sel).forEach(x=>{const k=K(x.dataset.k);const v=x.value.trim();if(k&&(k[f]||'')!==v){k[f]=v;if(fn)fn(k,v);n++}});
+ set('.mc-ref','mzRef');set('.mc-role','mzRole');set('.mc-link','mzLink',(k,v)=>{k.mzLinkAt=v?iso(TODAY):''});
+ toast(n?'حُفظت بيانات ميزان للقضايا ('+n+')':'لا تغيير');render()};
 document.addEventListener('submit',e=>{const f=e.target;
  if(f.id==='fMcId'){e.preventDefault();e.stopImmediatePropagation();const c=C(S.clientId);if(!c)return;
   c.mz={...(c.mz||{}),idNo:f.mzIdNo.value.trim(),phone:f.mzPhone.value.trim(),role:f.mzRole.value,has:f.mzHas.value,note:f.mzNote.value.trim(),at:iso(TODAY),by:MQ.user?MQ.user.username:''};toast('حُفظت بيانات الموكل في ميزان');render();return}
@@ -103,5 +110,6 @@ document.addEventListener('submit',e=>{const f=e.target;
   if(!f.mcConsent.checked){toast('وثّق موافقة الموكل أولاً');return}
   post('/api/mizan/client',{client:MC.id,username:f.mcUser.value,password:f.mcPass.value,consent:true,consentHow:f.mcHow.value}).then(st=>{MC.st=st;MC.editing=false;toast('حُفظ حساب الموكل مشفّراً');mcPaint();A.mcRun('test')}).catch(er=>toast(er.message))}},true);
 const mcss=document.createElement('style');mcss.textContent=`.mc .wide-panel{grid-column:1/-1}.mc-t{width:100%;border-collapse:collapse;font-size:14px}.mc-t th,.mc-t td{padding:6px;border-bottom:1px solid var(--line);text-align:right;vertical-align:middle}.mc-t th{color:var(--muted);font-weight:600}.mc-t .field{width:100%;min-width:110px}
+.mc-t .mc-role,.mc-t .mc-link{min-width:130px}.mc-how{line-height:1.9}.mc-late{color:var(--danger,#B42318);font-size:12.5px;line-height:1.6;margin-top:4px;max-width:260px}
 .mc-log{list-style:none;margin:8px 0 0;padding:0;font-size:13.5px;display:flex;flex-direction:column;gap:3px}.mc-log li.bad{color:var(--danger,#B42318)}.mc-log li.good{color:var(--ok)}`;document.head.appendChild(mcss);
 })();
