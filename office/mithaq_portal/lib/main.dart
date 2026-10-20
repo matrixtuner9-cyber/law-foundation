@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
-import 'push.dart' show pushResume, pushForget;
+import 'push.dart' show pushResume;
 import 'store.dart';
 import 'login_scene.dart';
 import 'theme.dart';

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
-import 'push.dart' show pushResume, pushForget;
+import 'push.dart' show pushForget;
 import 'util.dart';
 
 /// حالة التطبيق: بيانات الموكل والمحادثة، مع تحديث دوري من الخادم
