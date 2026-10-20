@@ -273,6 +273,32 @@ function createCalcExtractor({ audit, getKey, fetchImpl = fetch, model } = {}) {
   };
 }
 
+/* ── استخراج المبدأ والملخص من نص حكم منشور (عند حفظه في مكتبة الاجتهادات) ── */
+const RULING_TOOL = { name: 'extract_ruling', description: 'تسليم المبدأ والملخص المستخرجين من نص الحكم', input_schema: { type: 'object', required: ['principle', 'summary', 'keywords', 'outcome'], properties: {
+  principle: { type: 'string', description: 'القاعدة القانونية التي قرّرها الحكم، بصياغة مجرّدة قابلة للاستشهاد (جملة إلى ثلاث)، بلا أسماء أطراف. إن تعددت المبادئ فرقّمها' },
+  summary: { type: 'string', description: 'ملخص الوقائع والتسبيب في فقرة واحدة (حتى 120 كلمة) بلا أسماء الأطراف' },
+  keywords: { type: 'array', maxItems: 8, items: { type: 'string' }, description: 'كلمات مفتاحية قانونية (مصطلحات لا أسماء)' },
+  outcome: { type: 'string', description: 'النتيجة بكلمتين أو ثلاث: نقض الحكم / رد الطعن / تأييد الحكم / قبول الاستئناف…' },
+  articles: { type: 'array', maxItems: 10, items: { type: 'string' }, description: 'المواد القانونية التي طبّقها الحكم كما وردت (مثل: المادة 41 من قانون العمل رقم 7 لسنة 2000)' },
+} } };
+function createRulingExtractor({ audit, getKey, fetchImpl = fetch, model } = {}) {
+  const hits = new Map();
+  return async function extractRuling(input, user) {
+    const key = await getKey(); if (!key) return { status: 400, body: { error: 'لم يُضبط مفتاح الذكاء الاصطناعي بعد.', needKey: true } };
+    const t = String(input.text || '').slice(0, 60000).trim(); if (t.length < 200) return { status: 400, body: { error: 'نص الحكم قصير جداً لاستخراج المبدأ.' } };
+    const now = Date.now(), k = String(user && (user.id || user.username)), a = (hits.get(k) || []).filter(x => now - x < 600e3);
+    if (a.length >= 20) { hits.set(k, a); return { status: 429, body: { error: 'طلبات كثيرة. حاول بعد قليل.' } } } a.push(now); hits.set(k, a);
+    const head = [input.court && `المحكمة: ${input.court}`, input.no && `رقم الحكم: ${input.no}`, input.date && `تاريخ الفصل: ${input.date}`].filter(Boolean).join(' · ');
+    try {
+      const out = toolInput(await callClaude(key, { model: model || MODEL, max_tokens: 1800, system: 'أنت محامٍ فلسطيني خبير يقرأ أحكام المحاكم الفلسطينية المنشورة ويستخرج منها المبدأ القضائي بدقة ودون زيادة على ما قرّره الحكم. لا تذكر أسماء الأطراف ولا الوكلاء ولا القضاة. لا تخترع مواد قانونية لم ترد في النص.', tools: [RULING_TOOL], tool_choice: { type: 'tool', name: 'extract_ruling' },
+        messages: [{ role: 'user', content: `${head ? head + '\n\n' : ''}نص الحكم:\n${t}\n\nاستخرج المبدأ القضائي والملخص والكلمات المفتاحية والنتيجة والمواد المطبّقة.` }] }, fetchImpl), 'extract_ruling');
+      audit && audit({ user_id: user && user.id, username: user && user.username, action: 'ai.ruling_extract', entity: 'rulings', detail: { no: String(input.no || '').slice(0, 40), chars: t.length } });
+      const arr = x => Array.isArray(x) ? x.map(v => String(v).trim()).filter(Boolean) : [];
+      return { status: 200, body: { ok: true, principle: String(out.principle || '').trim(), summary: String(out.summary || '').trim(), keywords: arr(out.keywords).slice(0, 8), outcome: String(out.outcome || '').trim().slice(0, 60), articles: arr(out.articles).slice(0, 10) } };
+    } catch (e) { return { status: e.status || 500, body: { error: e.status ? e.message : 'تعذّر الاستخراج.' } } }
+  };
+}
+
 function createAssistant({ audit, getKey, laws, lawSearch, rulingSearch, fetchImpl = fetch, model } = {}) {
   const gather = createDrafter({ getKey, laws, lawSearch, rulingSearch, fetchImpl, model })._gather;
   const hits = new Map();
@@ -325,4 +351,4 @@ function createAssistant({ audit, getKey, laws, lawSearch, rulingSearch, fetchIm
   };
 }
 
-export { createDrafter, createExtractor, createAssistant, createCalcExtractor, pickPassages, anonymizer, pickArticles, DOC_TYPES, MODEL };
+export { createDrafter, createExtractor, createAssistant, createCalcExtractor, createRulingExtractor, pickPassages, anonymizer, pickArticles, DOC_TYPES, MODEL };

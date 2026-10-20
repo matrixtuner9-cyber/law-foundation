@@ -187,7 +187,7 @@ function createService({ audit, getCred, setCred, can, client } = {}) {
       try { await cl.login(); audit && audit({ ...who, action: 'muqtafi.login_ok', entity: 'settings', detail: { user: u } }); return { status: 200, body: { ok: true, configured: true, user: u, verified: true } } }
       catch (e) { return { status: 200, body: { ok: true, configured: true, user: u, verified: false, warning: e.message } } }
     }
-    if (busy >= 2) return { status: 429, body: { error: 'الخادم مشغول بطلبات بحث أخرى. حاول بعد لحظات.' } };
+    if (busy >= 4) return { status: 429, body: { error: 'الخادم مشغول بطلبات بحث أخرى. حاول بعد لحظات.' } };
     busy++;
     try {
       if (action === 'search') {

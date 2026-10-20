@@ -185,3 +185,14 @@ test('النماذج التي لا تدعم إجبار الأداة: يُرسل 
   assert.equal(sent.length, 2); assert.deepEqual(sent[0].tool_choice, { type: 'auto' }); assert.match(sent[0].system, /أجب حصراً باستدعاء الأداة «extract_calc»/);
   assert.equal(sent[1].messages.length, 3); assert.equal(sent[1].messages[2].role, 'user'); assert.match(sent[1].messages[2].content, /استدعِ الأداة «extract_calc»/);
 });
+
+test('استخراج المبدأ من نص حكم: مبدأ وملخص وكلمات ونتيجة ومواد، ويرفض النص القصير ويطلب المفتاح', async () => {
+  const sent = [];
+  const fetchImpl = async (u, opt) => { const b = JSON.parse(opt.body); sent.push(b); return new Response(JSON.stringify({ content: [{ type: 'tool_use', name: 'extract_ruling', input: { principle: 'عقد العمل محدد المدة يتحول إلى غير محدد المدة إذا تضمن شرط الإنهاء بالإرادة المنفردة.', summary: 'طعن بالنقض على حكم استئنافي…', keywords: ['عقد عمل', 'محدد المدة', ' '], outcome: 'رد الطعن', articles: ['المادة 24 من قانون العمل رقم 7 لسنة 2000'] } }] }), { status: 200 }) };
+  const ex = AI.createRulingExtractor({ getKey: async () => 'sk-ant-test', fetchImpl });
+  assert.equal((await AI.createRulingExtractor({ getKey: async () => '', fetchImpl })({ text: 'x'.repeat(300) }, { id: 1 })).body.needKey, true);
+  assert.equal((await ex({ text: 'قصير' }, { id: 1 })).status, 400);
+  const r = await ex({ text: 'تقدم الطاعن بهذا الطعن '.repeat(30), court: 'محكمة النقض', no: 'دعوى 520/2016' }, { id: 1 });
+  assert.equal(r.status, 200); assert.match(r.body.principle, /^عقد العمل/); assert.deepEqual(r.body.keywords, ['عقد عمل', 'محدد المدة']); assert.equal(r.body.outcome, 'رد الطعن'); assert.equal(r.body.articles.length, 1);
+  assert.equal(sent[0].tools[0].name, 'extract_ruling'); assert.match(sent[0].messages[0].content, /المحكمة: محكمة النقض · رقم الحكم: دعوى 520\/2016/);
+});

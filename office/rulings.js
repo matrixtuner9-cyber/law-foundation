@@ -140,7 +140,7 @@ const vcase=V.case;V.case=()=>vcase().replace('<button class="'+(S.caseTab==='mz
 function form(r,caseId){
  r=r||{};const sel=new Set(r.cases||(caseId?[caseId]:[]));
  return `<div class="modal-bg" data-act="close"><div class="modal rl-modal" role="dialog" aria-label="حكم قضائي"><div class="head"><h1 style="font-size:24px">${r.id?'تعديل حكم':'إضافة حكم إلى المكتبة'}</h1><button class="btn sm" data-act="close">إغلاق</button></div>
- ${r.srcUrl&&!r.id?`<div class="rl-imp">استُخرجت البيانات من <a href="${e(r.srcUrl)}" target="_blank" rel="noopener">${e(r.src||'المصدر')} ↗</a>. راجعها${r.principle?'، و<b>المبدأ</b> كما نشره المصدر فعدّله إن شئت':'، واكتب <b>المبدأ القضائي</b> بصياغتك'} قبل الحفظ.${r.fullText?` · <a href="${e(r.fullText)}" target="_blank" rel="noopener">النص الكامل (ملف) ↗</a>`:''}</div>`:''}
+ ${r.srcUrl&&!r.id?`<div class="rl-imp">استُخرجت البيانات من <a href="${e(r.srcUrl)}" target="_blank" rel="noopener">${e(r.src||'المصدر')} ↗</a>. راجعها${r.principle?'، و<b>المبدأ</b> كما نشره المصدر فعدّله إن شئت':'، واكتب <b>المبدأ القضائي</b> بصياغتك أو استخرجه بالذكاء الاصطناعي'} ثم اضغط حفظ، فيُضاف الحكم بنصه الكامل إلى شاشة <b>«الاجتهادات القضائية»</b>.${r.fullText?` · <a href="${e(r.fullText)}" target="_blank" rel="noopener">النص الكامل (ملف) ↗</a>`:''}</div>`:''}
  <form class="form" id="fRuling" data-id="${e(r.id||'')}" data-src-url="${e(r.srcUrl||'')}">
   <label>المحكمة<select class="field" id="rfCourt">${COURTS.map(c=>`<option ${r.court===c?'selected':''}>${c}</option>`).join('')}</select></label>
   <label>رقم الحكم<input class="field mono" id="rfNo" value="${e(r.no||'')}" placeholder="مثال: نقض مدني 512/2023" required></label>
@@ -148,10 +148,10 @@ function form(r,caseId){
   <label>الفرع<select class="field" id="rfField"><option value="">—</option>${FIELDS.map(c=>`<option ${r.field===c?'selected':''}>${c}</option>`).join('')}</select></label>
   <label>النتيجة<input class="field" id="rfOut" value="${e(r.outcome||'')}" list="rfOutL" placeholder="نقض الحكم / رد الطعن…"><datalist id="rfOutL">${['نقض الحكم','رد الطعن','قبول الاستئناف','رد الاستئناف','فسخ الحكم','تأييد الحكم','إعادة المحاكمة'].map(x=>`<option value="${x}">`).join('')}</datalist></label>
   <label>المصدر<input class="field" id="rfSrc" value="${e(r.src||'')}" placeholder="مقام / المقتفي / مجموعة المبادئ / ملف المكتب"></label>
-  <label class="wide"><span>المبدأ القضائي <b class="rq">*</b></span><textarea class="field" id="rfP" rows="3" required placeholder="القاعدة التي قرّرها الحكم، بصياغة قابلة للاستشهاد">${e(r.principle||'')}</textarea></label>
+  <label class="wide"><span>المبدأ القضائي <b class="rq">*</b>${!r.id&&r.text&&r.text.length>=300?` <button type="button" class="btn sm rl-ai" data-act="rAiExtract">استخراج المبدأ والملخص بالذكاء الاصطناعي</button>`:''}</span><textarea class="field" id="rfP" rows="3" required placeholder="القاعدة التي قرّرها الحكم، بصياغة قابلة للاستشهاد">${e(r.principle||'')}</textarea></label>
   <label class="wide">ملخص الوقائع والتسبيب<textarea class="field" id="rfS" rows="3">${e(r.summary||'')}</textarea></label>
   <label class="wide"><span>الكلمات المفتاحية <small class="m">· مفصولة بفواصل</small></span><input class="field" id="rfK" value="${e((r.keywords||[]).join('، '))}" placeholder="تبليغ، بطلان، ميعاد الطعن"></label>
-  <label class="wide"><span>نص الحكم <small class="m">· اختياري: الصقه هنا ليُبحث فيه</small></span><textarea class="field" id="rfT" rows="5" dir="rtl">${e(r.text||'')}</textarea></label>
+  <label class="wide"><span>نص الحكم <small class="m">${r.text?'· نُقل النص الكامل ('+r.text.length.toLocaleString('ar-EG')+' حرفاً) ويُبحث فيه':'· اختياري: الصقه هنا ليُبحث فيه'}</small></span><textarea class="field" id="rfT" rows="${r.text?10:5}" dir="rtl">${e(r.text||'')}</textarea></label>
   <label class="wide"><span>ملف الحكم <small class="m">· PDF أو Word أو صورة، حتى 25 ميغابايت</small></span><div class="toolbar"><input type="file" id="rfFile" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt"><span id="rfFileN" class="m">${r.file?`ملف مرفق: <a target="_blank" rel="noopener" href="${e(r.file)}">${e(r.fileName||'فتح')}</a>`:''}</span></div></label>
   <label class="wide">ربط بقضايا المكتب<div class="rl-cases">${cases.map(k=>`<label class="rl-ck"><input type="checkbox" name="rfCase" value="${k.id}" ${sel.has(k.id)?'checked':''}> <span class="mono">${k.no}</span> · ${e(k.subject)}</label>`).join('')||'<span class="m">لا قضايا بعد</span>'}</div></label>
   <label class="wide">ملاحظات المكتب<input class="field" id="rfN" value="${e(r.notes||'')}" placeholder="كيف يُستعمل هذا المبدأ، أو تحفّظات عليه"></label>
@@ -207,6 +207,20 @@ document.addEventListener('submit',ev=>{const f=ev.target;if(f.id!=='fRImport')r
  importFrom(f.riUrl.value.trim(),document.getElementById('riGo'))},true);
 A.rImportUrl=v=>{if(ro())return;importFrom(String(v||''),null)};
 /* فتح نموذج الإضافة بسجل جاهز (من شاشة «مصادر الأحكام») مع ملف مرفق اختياري */
+/* استخراج المبدأ والملخص والكلمات المفتاحية من نص الحكم بالذكاء الاصطناعي (داخل نموذج الإضافة) */
+A.rAiExtract=async(v,el)=>{const f=document.getElementById('fRuling');if(!f)return;const text=f.rfT.value.trim();if(text.length<200){toast('نص الحكم قصير جداً');return}
+ const btn=el||document.querySelector('.rl-ai');if(btn){btn.disabled=true;btn.textContent='جارٍ قراءة الحكم…'}
+ try{const r=await fetch('/api/admin/ai/ruling',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({text,court:f.rfCourt.value,no:f.rfNo.value,date:f.rfDate.value})});
+  if(r.status===401){location.replace('/login.html');return}
+  const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'تعذّر الاستخراج');
+  if(j.principle&&!f.rfP.value.trim())f.rfP.value=j.principle;else if(j.principle)f.rfP.value=f.rfP.value.trim()+'\n'+j.principle;
+  if(j.summary&&!f.rfS.value.trim())f.rfS.value=j.summary;
+  if(j.outcome&&!f.rfOut.value.trim())f.rfOut.value=j.outcome;
+  if(j.keywords&&j.keywords.length){const cur=f.rfK.value.split(/[،,]/).map(s=>s.trim()).filter(Boolean);f.rfK.value=[...new Set([...cur,...j.keywords])].join('، ')}
+  if(j.articles&&j.articles.length&&!/النصوص المطبّقة/.test(f.rfN.value))f.rfN.value=(f.rfN.value?f.rfN.value+' · ':'')+'النصوص المطبّقة: '+j.articles.join('؛ ');
+  toast('استُخرج المبدأ والملخص، راجعهما قبل الحفظ');
+ }catch(x){toast(x.message)}
+ if(btn){btn.disabled=false;btn.textContent='استخراج المبدأ والملخص بالذكاء الاصطناعي'}};
 A.rPrefill=(r,file)=>{if(ro())return;const dup=r&&r.srcUrl&&rulings.find(x=>x.srcUrl===r.srcUrl);if(dup){toast('هذا الحكم موجود في المكتبة');A.rOpen(dup.id);return}
  openForm(r);if(file){pendingFile=file;const n=document.getElementById('rfFileN');if(n)n.textContent=file.name+' · '+(file.size/1048576).toFixed(1)+' م.ب'}};
 A.rNewFor=v=>{if(!ro())openForm(null,v)};
@@ -362,5 +376,6 @@ const css=document.createElement('style');css.textContent=`
 .rl-pend{display:flex;gap:10px;align-items:center;margin-bottom:6px}.rl-ti{font-size:15px;font-weight:700;line-height:1.8;color:var(--ink)}
 .rl-pg{display:flex;gap:14px;justify-content:center;align-items:center;margin:16px 0}
 .pv-side .rl-pi{background:#13263A;color:#F9F6EF;border:1px solid rgb(185 150 90/.35);border-radius:8px;padding:7px 8px;font:inherit;font-size:13px;resize:vertical}
+.rl-ai{margin-inline-start:8px;vertical-align:middle}
 .rl-imp{border:1px solid var(--brass);background:var(--brass-soft);border-radius:8px;padding:9px 12px;margin:8px 0 4px;font-size:13.5px;line-height:1.8}`;document.head.appendChild(css);
 })();

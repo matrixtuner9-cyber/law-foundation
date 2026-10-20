@@ -13,7 +13,7 @@ import { createService as muqtafiService, idFromUrl as muqtafiId } from './muqta
 import { createService as sjcService } from './sjc.js';
 import { createLaws } from './laws.js';
 import { createLawSearch } from './law-sources.js';
-import { createDrafter, createExtractor, createAssistant, createCalcExtractor, DOC_TYPES, MODEL as AI_MODEL } from './ai-draft.js';
+import { createDrafter, createExtractor, createAssistant, createCalcExtractor, createRulingExtractor, DOC_TYPES, MODEL as AI_MODEL } from './ai-draft.js';
 
 /* توقيع داخلي يثبت أن طلب /_ops وصل من الـ Worker بعد التحقق من رمز المشغّل (لا يمكن للزائر إرساله) */
 export const opsSig = env => env.OPS_TOKEN ? crypto.createHash('sha256').update('mq-ops|' + env.OPS_TOKEN).digest('hex') : null;
@@ -485,6 +485,11 @@ export class Office extends DurableObject {
         if ((d = deny('write'))) return d;
         this.calcExtract ||= createCalcExtractor({ audit: e => this.audit(e), getKey: aiKey, model: this.env.MQ_AI_MODEL });
         const r = await this.calcExtract(await jbody(), me); return json(r.status, r.body);
+      }
+      if (a === 'ruling' && M === 'POST') {
+        if ((d = deny('write'))) return d;
+        this.rulingExtract ||= createRulingExtractor({ audit: e => this.audit(e), getKey: aiKey, model: this.env.MQ_AI_MODEL });
+        const r = await this.rulingExtract(await jbody(), me); return json(r.status, r.body);
       }
       if (a === 'assist' && M === 'POST') {
         if ((d = deny('write'))) return d;
