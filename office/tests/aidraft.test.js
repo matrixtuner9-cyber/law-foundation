@@ -120,6 +120,24 @@ test('رسالة للموكل ومحضر اجتماع وترجمة: بلا بح�
   assert.equal(c.status, 200);
 });
 
+test('أحكام النقض والاستئناف المنشورة: بحث حي بدل المكتبة الفارغة، والمقتطفات من نص الحكم، ولا اتصال بدون web', async () => {
+  const sent = [], calls = [];
+  const fetchImpl = async (u, opt) => { const b = JSON.parse(opt.body); sent.push(b); const name = b.tool_choice.name;
+    const input = name === 'plan_research' ? { queries: ['قانون التجارة'], keywords: ['شيك', 'كفالة'], ruling_queries: ['شيك بدون رصيد كفالة'] } : { sections: [{ heading: 'نقض حقوق 10/2019', items: ['المبدأ [R1].', 'حكم مختلق [R5].'] }], unverified: [] };
+    return { ok: true, status: 200, json: async () => ({ content: [{ type: 'tool_use', name, input }] }) } };
+  const rulingSearch = async (q, user, max) => { calls.push([q, max]); return [{ id: 7001, title: 'محكمة النقض حقوق 10/2019', date: '2019-05-01', url: 'https://maqam.najah.edu/judgments/7001/', text: 'مقدمة لا علاقة لها بالموضوع وهي فقرة طويلة بما يكفي لتتجاوز الحد الأدنى.\n\nإن الكفالة في الشيك لا تنشئ التزاماً مستقلاً على الكفيل ما لم يوقّع صراحة على صفحة الشيك وفق ما استقر عليه اجتهاد هذه المحكمة.\n\nوعليه تقرر المحكمة قبول الطعن شكلاً.' }] };
+  const as = AI.createAssistant({ getKey: () => 'k', fetchImpl, rulingSearch });
+  const r = await as({ mode: 'similar', case: CASE }, { id: 'w1' }, { rulings: [] });
+  assert.equal(r.status, 200, JSON.stringify(r.body)); assert.deepEqual(calls[0], ['شيك بدون رصيد كفالة', 5]);
+  assert.match(JSON.stringify(sent[1]), /الكفالة في الشيك لا تنشئ/); assert.ok(!JSON.stringify(sent[1]).includes('مقدمة لا علاقة'), 'المقتطف الأقرب للمسألة فقط');
+  assert.equal(r.body.references.length, 1); assert.equal(r.body.references[0].url, 'https://maqam.najah.edu/judgments/7001/'); assert.equal(r.body.references[0].origin, 'web');
+  assert.match(r.body.sections[0].items[1], /يحتاج تحقق/);
+  const off = await as({ mode: 'similar', case: CASE, web: false }, { id: 'w1' }, { rulings: [] }); assert.equal(off.status, 400);
+  const q = await as({ mode: 'question', question: 'هل تلزم الكفالة في الشيك الكفيل؟', case: CASE, web: false }, { id: 'w1' }, { rulings: [] }); assert.equal(q.status, 200); assert.equal(calls.length, 1, 'web=false: لا بحث حي');
+  const down = AI.createAssistant({ getKey: () => 'k', fetchImpl, rulingSearch: async () => { throw new Error('502') } });
+  assert.equal((await down({ mode: 'question', question: 'هل تلزم الكفالة في الشيك الكفيل؟', case: CASE }, { id: 'w2' })).status, 200, 'تعطل المصدر لا يوقف المساعد');
+});
+
 /* ── مسارات الخادم ── */
 const ROOT = path.resolve(__dirname, '..'), TMP = fs.mkdtempSync(path.join(os.tmpdir(), 'mq-ai-'));
 const PORT = 22000 + Math.floor(Math.random() * 1000), BASE = `http://127.0.0.1:${PORT}`;

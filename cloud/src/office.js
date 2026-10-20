@@ -440,6 +440,14 @@ export class Office extends DurableObject {
     if (p.startsWith('/api/admin/ai/')) {
       /* صياغة اللوائح بالذكاء الاصطناعي: مفتاح المكتب (أو مفتاح المنصة) في الخادم فقط */
       const a = p.slice(14), aiKey = () => this.store.kv.get('ai_key') || this.env.ANTHROPIC_API_KEY || '';
+      /* أحكام النقض والاستئناف المنشورة للمساعد: بحث حي عبر خدمة «البحث في الأحكام» نفسها (حدودها وسجلها) ثم النص الكامل لأقرب الأحكام */
+      const liveRulings = async (q, user, max = 3) => {
+        this.mqSearch ||= maqamService({ audit: e => this.audit(e) });
+        const s = await this.mqSearch('search', new URLSearchParams({ q: String(q).slice(0, 120) }), user); if (s.status !== 200) return [];
+        const all = s.body.results || [], hi = all.filter(r => /النقض|استئناف|العليا/.test(r.court || '')), pick = (hi.length >= max ? hi : [...hi, ...all.filter(r => !hi.includes(r))]).slice(0, max), out = [];
+        for (const r of pick) { const j = await this.mqSearch('judgment', new URLSearchParams({ id: String(r.maqamId) }), user); if (j.status === 200 && j.body.judgment) { const x = j.body.judgment; out.push({ id: r.maqamId, title: `${x.court || r.court || ''} ${x.litigationType ? x.litigationType + ' ' : ''}${x.number || ''}${x.year ? '/' + x.year : ''}`.trim(), date: x.decisionDate || '', url: x.sourceUrl, text: x.bodyText }) } }
+        return out;
+      };
       if (a === 'status' && M === 'GET') { const k = aiKey(); return json(200, { configured: !!k, last4: k ? k.slice(-4) : '', model: AI_MODEL, types: DOC_TYPES, canManage: this.auth.can(me, 'manage') }) }
       if (a === 'key' && M === 'POST') {
         if ((d = deny('manage'))) return d; const b = await jbody(); const k = String(b.key || '').trim();
@@ -461,14 +469,14 @@ export class Office extends DurableObject {
         if ((d = deny('write'))) return d;
         this.laws ||= createLaws({ all: this.store.all, run: this.store.run, tx: this.store.tx }, { randomId: () => 'L' + crypto.randomBytes(6).toString('hex'), now: stampS });
         this.lawSearch ||= createLawSearch({ audit: e => this.audit(e) });
-        this.assistant ||= createAssistant({ audit: e => this.audit(e), getKey: aiKey, laws: this.laws, lawSearch: this.lawSearch, model: this.env.MQ_AI_MODEL });
+        this.assistant ||= createAssistant({ audit: e => this.audit(e), getKey: aiKey, laws: this.laws, lawSearch: this.lawSearch, rulingSearch: liveRulings, model: this.env.MQ_AI_MODEL });
         const r = await this.assistant(await jbody(16 * 1024 * 1024), me, { rulings: (this.cur().rulings) || [] }); return json(r.status, r.body);
       }
       if (a === 'draft' && M === 'POST') {
         if ((d = deny('write'))) return d;
         this.laws ||= createLaws({ all: this.store.all, run: this.store.run, tx: this.store.tx }, { randomId: () => 'L' + crypto.randomBytes(6).toString('hex'), now: stampS });
         this.lawSearch ||= createLawSearch({ audit: e => this.audit(e) });
-        this.drafter ||= createDrafter({ audit: e => this.audit(e), getKey: aiKey, laws: this.laws, lawSearch: this.lawSearch, model: this.env.MQ_AI_MODEL });
+        this.drafter ||= createDrafter({ audit: e => this.audit(e), getKey: aiKey, laws: this.laws, lawSearch: this.lawSearch, rulingSearch: liveRulings, model: this.env.MQ_AI_MODEL });
         const r = await this.drafter(await jbody(2 * 1024 * 1024), me, { rulings: (this.cur().rulings) || [] }); return json(r.status, r.body);
       }
       return json(404, { error: 'غير موجود' });

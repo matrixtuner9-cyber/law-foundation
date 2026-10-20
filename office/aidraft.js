@@ -127,13 +127,15 @@ document.addEventListener('change',async ev=>{if(ev.target.id!=='aiOppFile')retu
 
 /* ── النتيجة ── */
 const ORIGIN={library:'مكتبة التشريعات',web:'مصادر التشريعات',rulings:'مكتبة الاجتهادات'};
+const originOf=x=>x.kind==='ruling'&&x.origin==='web'?'حكم منشور':(ORIGIN[x.origin]||'');
+const srcLine=x=>x.url?`<div class="as-src"><a href="${e(x.url)}" target="_blank" rel="noopener">فتح الحكم في المصدر ↗</a>${can2('write')&&x.kind==='ruling'?` <button type="button" class="btn sm" data-act="rImportUrl" data-v="${e(x.url)}">حفظ في مكتبة الاجتهادات</button>`:''}</div>`:'';
 function asText(r){return [r.title,r.court?('لدى '+r.court):'', ...r.sections.flatMap(s=>[s.heading,...s.paragraphs])].filter(Boolean).join('\n')}
 function refsText(r){return r.references.map(x=>`[${x.id}] ${x.title}${x.ref?' ('+x.ref+')':''}${x.arts.length?' — '+x.arts.join('، '):''}`).join('\n')}
 function result(){const r=D.res;const linkR=s=>e(s).replace(/\[(R\d+)\]/g,'<sup class="ai-r">[$1]</sup>').replace(/\[مرجع يحتاج تحقق[^\]]*\]/g,m=>`<mark class="ai-v">${m}</mark>`).replace(/\{[^{}]+\}/g,m=>`<span class="ai-f">${m}</span>`);
  return `<div class="ai-warn"><b>مسودة للمراجعة.</b> راجع الوقائع والأسانيد قبل الإيداع، وأكمل ما بين { }، وتحقق من كل ما عُلّم بالأصفر.</div>
  <div class="ai-doc" id="aiDoc" contenteditable="true" spellcheck="false"><h2>${e(r.title)}</h2>${r.court?`<p class="ai-court">${e('لدى '+r.court)}</p>`:''}${r.sections.map(s=>`<h3>${e(s.heading)}</h3>${s.paragraphs.map(p=>`<p>${linkR(p)}</p>`).join('')}`).join('')}</div>
  <h3 class="ai-h">المراجع المستشهد بها (${r.references.length})</h3>
- ${r.references.length?`<ol class="ai-refs">${r.references.map(x=>`<li><b>[${x.id}]</b> ${e(x.title)}${x.ref?` <span class="mono">${e(x.ref)}</span>`:''}${x.arts.length?' — '+e(x.arts.join('، ')):''} <span class="pill ${x.origin==='library'?'ok':''}">${ORIGIN[x.origin]||''}</span>${x.used_for?`<div class="m">${e(x.used_for)}</div>`:''}</li>`).join('')}</ol>`:'<p class="m">لم يُستشهد بمرجع من المصادر المتاحة.</p>'}
+ ${r.references.length?`<ol class="ai-refs">${r.references.map(x=>`<li><b>[${x.id}]</b> ${e(x.title)}${x.ref?` <span class="mono">${e(x.ref)}</span>`:''}${x.arts.length?' — '+e(x.arts.join('، ')):''} <span class="pill ${x.origin==='library'?'ok':''}">${originOf(x)}</span>${x.url?` <a href="${e(x.url)}" target="_blank" rel="noopener">المصدر ↗</a>`:''}${x.used_for?`<div class="m">${e(x.used_for)}</div>`:''}</li>`).join('')}</ol>`:'<p class="m">لم يُستشهد بمرجع من المصادر المتاحة.</p>'}
  ${r.unverified.length?`<h3 class="ai-h">أسانيد تحتاج تحقق (${r.unverified.length})</h3><ul class="ai-unv">${r.unverified.map(u=>`<li>${e(u)}</li>`).join('')}</ul>`:''}
  <p class="m">فُحص ${r.considered} مرجعاً من المصادر المتاحة.</p>
  <div class="toolbar"><button class="btn pri" data-act="aiSave">حفظ في مستندات القضية</button><button class="btn" data-act="aiPrint">معاينة وطباعة</button><button class="btn" data-act="aiCopy">نسخ النص</button><button class="btn" data-act="aiBack">تعديل الإملاء وإعادة الصياغة</button></div>`}
@@ -198,7 +200,7 @@ const asLink=s=>e(s).replace(/\[(R\d+)\]/g,'<sup class="ai-r">[$1]</sup>').repla
 function asResult(){const r=AS.res;
  const ltr=r.mode==='translate'&&r.lang==='en';
  return `<div class="ai-doc as-doc" id="asDoc" ${ltr?'dir="ltr" style="text-align:left"':''}>${r.sections.map(s=>`${s.heading?`<h3>${e(s.heading)}</h3>`:''}${r.mode==='translate'||r.mode==='client_msg'?s.items.map(i=>`<p>${asLink(i)}</p>`).join(''):`<ul>${s.items.map(i=>`<li>${asLink(i)}</li>`).join('')}</ul>`}`).join('')||'<p class="m">لا نتيجة.</p>'}</div>
- ${r.references.length?`<h3 class="ai-h">المراجع (${r.references.length})</h3><ol class="ai-refs">${r.references.map(x=>`<li><details><summary><b>[${x.id}]</b> ${e(x.title)}${x.ref?` <span class="mono">${e(x.ref)}</span>`:''}${x.arts.length?' — '+e(x.arts.join('، ')):''} <span class="pill ${x.origin==='library'?'ok':''}">${ORIGIN[x.origin]||''}</span></summary><div class="as-txt">${e(x.text||'')}</div></details></li>`).join('')}</ol>`:(AS.mode==='brief'?'':'<p class="m">لم يُعثر على نص في المصادر المتاحة يُستند إليه.</p>')}
+ ${r.references.length?`<h3 class="ai-h">المراجع (${r.references.length})</h3><ol class="ai-refs">${r.references.map(x=>`<li><details><summary><b>[${x.id}]</b> ${e(x.title)}${x.ref?` <span class="mono">${e(x.ref)}</span>`:''}${x.arts.length?' — '+e(x.arts.join('، ')):''} <span class="pill ${x.origin==='library'?'ok':''}">${originOf(x)}</span></summary>${srcLine(x)}<div class="as-txt">${e(x.text||'')}</div></details></li>`).join('')}</ol>`:(AS.mode==='brief'?'':'<p class="m">لم يُعثر على نص في المصادر المتاحة يُستند إليه.</p>')}
  ${r.unverified.length?`<h3 class="ai-h">يحتاج تحقق (${r.unverified.length})</h3><ul class="ai-unv">${r.unverified.map(u=>`<li>${e(u)}</li>`).join('')}</ul>`:''}
  <div class="ai-warn" style="margin-top:10px">${r.mode==='translate'?'ترجمة آلية للمراجعة؛ الأسماء تبقى بلغتها الأصلية. لا تُعتمد رسمياً إلا بعد مراجعة مترجم قانوني.':r.mode==='client_msg'?'راجع الرسالة قبل إرسالها؛ لا تُرسل تلقائياً.':'مساعدة أولية للمحامي، وليست رأياً قانونياً نهائياً. راجع النصوص المرفقة قبل الاعتماد عليها.'}</div>
  <div class="toolbar"><button class="btn pri" data-act="asSave">حفظ في مستندات القضية</button><button class="btn" data-act="asPrint">طباعة</button><button class="btn" data-act="asCopy">نسخ</button>${r.mode==='client_msg'?'<button class="btn" data-act="asToChat">فتح في محادثة الموكل</button>':''}<button class="btn" data-act="asAgain">طلب جديد</button></div>`}
@@ -241,7 +243,7 @@ const css=document.createElement('style');css.textContent=`
 .as-q span{font-size:20px}.as-q:hover{border-color:var(--brass);background:var(--sunk)}.as-q:focus-visible{outline:3px solid var(--brass);outline-offset:2px}
 @media(max-width:1100px){.as-home-q{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .as-case{display:flex;gap:8px;align-items:center;margin:0 0 10px;font-size:14px}.as-case select{flex:1;min-width:0}
-.as-lang{display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:14px}.as-lang select{width:auto}.as-doc ul{margin:0 0 6px;padding-inline-start:20px}.as-doc li{margin-bottom:4px;text-align:justify}.as-txt{white-space:pre-wrap;font-size:13px;background:var(--sunk);border-radius:8px;padding:8px 10px;margin:4px 0 8px;max-height:30vh;overflow:auto}
+.as-lang{display:flex;gap:8px;align-items:center;margin-bottom:8px;font-size:14px}.as-lang select{width:auto}.as-doc ul{margin:0 0 6px;padding-inline-start:20px}.as-doc li{margin-bottom:4px;text-align:justify}.as-src{margin:6px 0;font-size:13.5px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}.as-txt{white-space:pre-wrap;font-size:13px;background:var(--sunk);border-radius:8px;padding:8px 10px;margin:4px 0 8px;max-height:30vh;overflow:auto}
 @media(max-width:700px){.ai-form{grid-template-columns:1fr}}`;
 document.head.appendChild(css);
 })();

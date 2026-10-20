@@ -37,11 +37,18 @@ const maqamSearch = MaqamSearch.createService({ audit });
 const laws = Laws.createLaws({ all: (q, ...a) => store.raw.prepare(q).all(...a), run: (q, ...a) => { store.raw.prepare(q).run(...a) }, tx: store.tx },
   { randomId: () => 'L' + crypto.randomBytes(6).toString('hex'), now: stampS });
 const lawSearch = LawSources.createLawSearch({ audit }); /* البحث المباشر في مصادر التشريعات على الإنترنت */
+/* أحكام النقض والاستئناف المنشورة للمساعد: بحث حي عبر خدمة «البحث في الأحكام» نفسها (حدودها وسجلها)، ثم النص الكامل لأقرب الأحكام */
+const liveRulings = async (q, user, max = 3) => {
+  const s = await maqamSearch('search', new URLSearchParams({ q: String(q).slice(0, 120) }), user); if (s.status !== 200) return [];
+  const all = s.body.results || [], hi = all.filter(r => /النقض|استئناف|العليا/.test(r.court || '')), pick = (hi.length >= max ? hi : [...hi, ...all.filter(r => !hi.includes(r))]).slice(0, max), out = [];
+  for (const r of pick) { const j = await maqamSearch('judgment', new URLSearchParams({ id: String(r.maqamId) }), user); if (j.status === 200 && j.body.judgment) { const x = j.body.judgment; out.push({ id: r.maqamId, title: `${x.court || r.court || ''} ${x.litigationType ? x.litigationType + ' ' : ''}${x.number || ''}${x.year ? '/' + x.year : ''}`.trim(), date: x.decisionDate || '', url: x.sourceUrl, text: x.bodyText }) } }
+  return out;
+};
 const aiKey = () => store.kv.get('ai_key') || process.env.ANTHROPIC_API_KEY || '';
-const drafter = AiDraft.createDrafter({ audit, getKey: aiKey, laws, lawSearch, model: process.env.MQ_AI_MODEL });
+const drafter = AiDraft.createDrafter({ audit, getKey: aiKey, laws, lawSearch, rulingSearch: liveRulings, model: process.env.MQ_AI_MODEL });
 const extractor = AiDraft.createExtractor({ audit, getKey: aiKey, model: process.env.MQ_AI_MODEL });
 const calcExtract = AiDraft.createCalcExtractor({ audit, getKey: aiKey, model: process.env.MQ_AI_MODEL });
-const assistant = AiDraft.createAssistant({ audit, getKey: aiKey, laws, lawSearch, model: process.env.MQ_AI_MODEL });
+const assistant = AiDraft.createAssistant({ audit, getKey: aiKey, laws, lawSearch, rulingSearch: liveRulings, model: process.env.MQ_AI_MODEL });
 (function migrate() {
   if (store.kv.get('migrated_v1')) return;
   const st = readJSON(STATE_F, null); let ms = readJSON(MSG_F, null);

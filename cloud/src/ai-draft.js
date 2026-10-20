@@ -48,6 +48,14 @@ function anonymizer(ctx) {
 /* ── تجميع المراجع الموثقة ── */
 const norm = s => String(s ?? '').toLowerCase().replace(/[ً-ْٰـ]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/\s+/g, ' ').trim();
 /* يقسم نص التشريع إلى مواد ويختار أكثرها صلة بالكلمات */
+/* مقاطع الحكم الأقرب للمسألة: فقرات تتضمن أكثر كلمات البحث، بترتيبها الأصلي وبسقف طول */
+function pickPassages(body, words, max = 3, cap = 1800) {
+  const ps = String(body || '').split(/\n{2,}|\n/).map(x => x.trim()).filter(x => x.length > 40);
+  const ws = [...new Set(words.flatMap(w => norm(w).split(' ')).map(w => w.replace(/^(و?(?:ب|ل|ك)?ال)/, '')).filter(w => w.length >= 3))];
+  const sc = ps.map((t, i) => ({ t, i, s: ws.reduce((n, w) => n + (norm(t).includes(w) ? 1 : 0), 0) })).filter(x => x.s > 0).sort((a, b) => b.s - a.s || a.i - b.i).slice(0, max).sort((a, b) => a.i - b.i);
+  const out = []; let len = 0; for (const x of (sc.length ? sc : ps.slice(0, 1))) { const t = x.t.slice(0, 900); if (len + t.length > cap) break; out.push({ head: 'مقتطف', text: t }); len += t.length }
+  return out;
+}
 function pickArticles(content, words, max = 5) {
   const lines = String(content || '').split('\n'), arts = []; let cur = null;
   for (const l of lines) { if (/^\s*(المادة|مادة)\s*\(?\s*\d+/.test(l)) { if (cur) arts.push(cur); cur = { head: (l.match(/^\s*((?:المادة|مادة)\s*\(?\s*\d+\s*\)?)/) || [])[1] || '', text: l } } else if (cur) cur.text += '\n' + l }
@@ -86,9 +94,10 @@ const DRAFT_TOOL = { name: 'submit_draft', description: 'تسليم المستن
 const PLAN_TOOL = { name: 'plan_research', description: 'تحديد ما يلزم البحث عنه من تشريعات وأحكام', input_schema: { type: 'object', required: ['queries', 'keywords'], properties: {
   queries: { type: 'array', maxItems: 4, description: 'عبارات بحث قصيرة عن تشريعات فلسطينية ذات صلة (مثل: قانون العمل، أصول المحاكمات المدنية)', items: { type: 'string' } },
   keywords: { type: 'array', maxItems: 12, description: 'كلمات مفتاحية لاختيار المواد ذات الصلة داخل نصوص التشريعات', items: { type: 'string' } },
+  ruling_queries: { type: 'array', maxItems: 2, description: 'عبارتان قصيرتان (2-4 كلمات) للبحث عن أحكام النقض والاستئناف في الموضوع نفسه، بمصطلحات المسألة القانونية لا بأسماء الأطراف (مثل: شيك بدون رصيد كفالة، فسخ عقد مقاولة)', items: { type: 'string' } },
 } } };
 
-function createDrafter({ audit, getKey, laws, lawSearch, fetchImpl = fetch, model } = {}) {
+function createDrafter({ audit, getKey, laws, lawSearch, rulingSearch, fetchImpl = fetch, model } = {}) {
   const hits = new Map();
   const limited = key => { const [max, win] = LIMITS.draft, now = Date.now(), a = (hits.get(key) || []).filter(t => now - t < win); if (a.length >= max) { hits.set(key, a); return Math.ceil((win - (now - a[0])) / 1000) } a.push(now); hits.set(key, a); return 0 };
 
@@ -108,6 +117,18 @@ function createDrafter({ audit, getKey, laws, lawSearch, fetchImpl = fetch, mode
     (rulings || []).map(r => ({ r, s: ws.reduce((n, w) => n + (norm([r.principle, r.title, r.summary, (r.keywords || []).join(' ')].join(' ')).includes(w) ? 1 : 0), 0) }))
       .filter(x => x.s > 0).sort((a, b) => b.s - a.s).slice(0, opt.rulings || 4)
       .forEach(({ r }) => refs.push({ id: 'R' + (refs.length + 1), kind: 'ruling', title: `${r.court || ''} ${r.no || ''}`.trim(), ref: r.date || '', origin: 'rulings', arts: [{ head: 'المبدأ', text: String(r.principle || r.summary || r.title || '').slice(0, 1500) }, ...(opt.rulings && r.summary && r.summary !== r.principle ? [{ head: 'الملخص', text: String(r.summary).slice(0, 1500) }] : [])] }));
+    /* 2ب) أحكام النقض والاستئناف المنشورة: بحث حي عند الطلب (أول نتائج لعبارتين فقط، ونص كل حكم يُجلب بطلب واحد) */
+    if (useWeb && rulingSearch && opt.live !== false) {
+      const qs = ((plan.ruling_queries && plan.ruling_queries.length ? plan.ruling_queries : plan.queries) || []).slice(0, 2);
+      for (const q of qs) {
+        let found = []; try { found = await rulingSearch(q, user, opt.liveMax || 3) } catch (e) { found = [] }
+        for (const j of found) {
+          const k = 'r:' + j.id; if (seen.has(k)) continue; seen.add(k);
+          const arts = pickPassages(j.text, words); if (!arts.length) continue;
+          refs.push({ id: 'R' + (refs.length + 1), kind: 'ruling', title: j.title, ref: j.date || '', url: j.url, origin: 'web', arts });
+        }
+      }
+    }
     /* 3) البحث في مصادر التشريعات على الإنترنت (أسرع مصدر، أول نتيجتين لكل عبارة) */
     if (useWeb && lawSearch) for (const q of (plan.queries || []).slice(0, 2)) {
       const s = await lawSearch('search', { q, src: 's1' }, user); if (s.status !== 200) continue;
@@ -150,7 +171,7 @@ function createDrafter({ audit, getKey, laws, lawSearch, fetchImpl = fetch, mode
       const fix = s => an.show(String(s || '')).replace(/\[(R\d+)\]/g, (m, id) => valid.has(id) ? m : '[مرجع يحتاج تحقق]');
       const sections = (out.sections || []).map(s => ({ heading: fix(s.heading), paragraphs: (s.paragraphs || []).map(fix) }));
       const usedIds = new Set(sections.flatMap(s => s.paragraphs.join(' ').match(/R\d+/g) || []));
-      const references = refs.filter(r => usedIds.has(r.id)).map(r => ({ id: r.id, kind: r.kind, title: r.title, ref: r.ref, origin: r.origin, arts: r.arts.map(a => a.head).filter(Boolean),
+      const references = refs.filter(r => usedIds.has(r.id)).map(r => ({ id: r.id, kind: r.kind, title: r.title, ref: r.ref, url: r.url || '', origin: r.origin, arts: r.arts.map(a => a.head).filter(Boolean),
         used_for: fix(((out.references || []).find(x => x.id === r.id) || {}).used_for || '') }));
       const unverified = (out.unverified || []).map(u => fix(u.need)).filter(Boolean);
       audit && audit({ ...who, action: 'ai.draft', entity: 'docs', detail: { docType, refs: references.length, unverified: unverified.length, model: mdl, chars: dict.length } });
@@ -208,7 +229,7 @@ const MODES = {
   defences: { refs: true, ask: 'استعرض الدفوع الشكلية والإجرائية الممكنة لموكلنا في هذه الدعوى (عدم الاختصاص النوعي أو المكاني، التقادم ومرور الزمن، سبق الفصل، انتفاء الصفة أو المصلحة، بطلان التبليغ، فوات مهل الطعن…) ومدى انطباق كل منها على الوقائع، ثم المهل الإجرائية الواجب مراقبتها. اربط كل دفع أو مهلة بالمرجع [Rn] إن وُجد نصه في المراجع المتاحة، وإلا اذكره في unverified. لا تخترع أرقام مواد أو مدداً.' },
   contract: { refs: true, doc: 'عقد', ask: 'راجع العقد المرفق لمصلحة موكلنا، في أقسام: (1) ملخص العقد (الأطراف، الموضوع، البدل، المدة)، (2) بنود تضر بموكلنا أو غير متوازنة ولماذا، (3) بنود ناقصة يُنصح بإضافتها، (4) عبارات غامضة أو متناقضة، (5) صياغة مقترحة للتعديلات بنصها. اربط ما يستند إلى نص بالمرجع [Rn] من المراجع المتاحة فقط.' },
   opponent: { refs: true, doc: 'مستند مقدم من الخصم', ask: 'حلّل المستند المرفق المقدم من الخصم لمصلحة موكلنا، في أقسام: (1) ملخص المستند وما يريد الخصم إثباته به، (2) ما يثبته فعلاً وما لا يثبته، (3) مواطن الضعف والتناقض مع وقائع الدعوى أو مع نفسه، (4) أوجه الطعن الممكنة (إنكار التوقيع أو الخط، الادعاء بالتزوير، عدم الحجية، عدم الصلة بالنزاع…)، (5) ما يُقترح قوله أو طلبه في الجلسة رداً عليه. اربط ما يستند إلى نص بالمرجع [Rn] من المراجع المتاحة فقط.' },
-  similar: { refs: true, rulings: 8, ask: 'من الأحكام القضائية بين المراجع المتاحة، اختر الأقرب إلى وقائع هذه القضية، ولكل حكم قسم مستقل عنوانه المحكمة ورقم الحكم: المبدأ الذي قرره [Rn]، أوجه الشبه والاختلاف مع قضيتنا، وكيف يُستفاد منه في الدفاع. إن لم يوجد بينها حكم مناسب فقل صراحة: «لا توجد في مكتبة الاجتهادات أحكام قريبة من هذه القضية» ولا تذكر أحكاماً من عندك.' },
+  similar: { refs: true, rulings: 8, ask: 'من الأحكام القضائية بين المراجع المتاحة (أحكام مكتبة المكتب والأحكام المنشورة التي جُلبت للتو)، اختر الأقرب إلى وقائع هذه القضية، ولكل حكم قسم مستقل عنوانه المحكمة ورقم الحكم: المبدأ الذي قرره [Rn]، أوجه الشبه والاختلاف مع قضيتنا، وكيف يُستفاد منه في الدفاع. إن لم يوجد بينها حكم مناسب فقل صراحة: «لا توجد في مكتبة الاجتهادات أحكام قريبة من هذه القضية» ولا تذكر أحكاماً من عندك.' },
   client_msg: { refs: false, ask: 'اكتب رسالة قصيرة من المحامي إلى الموكل [الموكل] بلغة عربية بسيطة واضحة غير متخصصة ومهذبة، تطمئنه دون أي وعد بنتيجة: آخر ما جرى في قضيته، والموعد القادم، وما يلزمه إحضاره أو فعله. إن كتب المحامي ملاحظة أعلاه فالتزم بها. قسم واحد عنوانه «الرسالة» وكل فقرة منها عنصر. لا أرقام مواد ولا مصطلحات معقدة، ولا تذكر معلومات لم ترد في السجل.' },
   minutes: { refs: false, need: 'أملِ ملاحظات الاجتماع أولاً.', ask: 'نظّم ملاحظات الاجتماع التي أملاها المحامي أعلاه في محضر اجتماع بأقسام: الحاضرون، موضوع الاجتماع، ما تم بحثه، ما اتُّفق عليه، المهام (المهمة — المسؤول — الموعد)، المستندات المطلوبة من الموكل. لا تضف شيئاً لم يرد في الملاحظات؛ ما لم يُذكر اكتبه بين { }.' },
   translate: { refs: false, doc: 'النص المراد ترجمته', min: 5, ask: 'ترجم النص المرفق ترجمة قانونية دقيقة كاملة إلى {LANG}، مع الحفاظ على البنية والترقيم واستعمال المصطلحات القانونية المقابلة. لا تلخص ولا تعلق ولا تحذف. أبقِ الرموز بين أقواس مربعة مثل [الموكل] و[الخصم 1] كما هي حرفياً. اجعل كل عنوان في النص قسماً، وفقراته عناصره؛ وإن لم يكن فيه عناوين فقسم واحد بعنوان فارغ.' },
@@ -237,8 +258,8 @@ function createCalcExtractor({ audit, getKey, fetchImpl = fetch, model } = {}) {
   };
 }
 
-function createAssistant({ audit, getKey, laws, lawSearch, fetchImpl = fetch, model } = {}) {
-  const gather = createDrafter({ getKey, laws, lawSearch, fetchImpl, model })._gather;
+function createAssistant({ audit, getKey, laws, lawSearch, rulingSearch, fetchImpl = fetch, model } = {}) {
+  const gather = createDrafter({ getKey, laws, lawSearch, rulingSearch, fetchImpl, model })._gather;
   const hits = new Map();
   return async function assist(input, user, extra = {}) {
     const who = { user_id: user && user.id, username: user && user.username }, mode = MODES[input.mode] ? input.mode : '';
@@ -246,7 +267,7 @@ function createAssistant({ audit, getKey, laws, lawSearch, fetchImpl = fetch, mo
     const q = String(input.question || '').slice(0, 2000).trim();
     if (mode === 'question' && q.length < 8) return { status: 400, body: { error: 'اكتب السؤال بوضوح.' } };
     if (MODES[mode].need && q.length < 20) return { status: 400, body: { error: MODES[mode].need } };
-    if (mode === 'similar' && !(extra.rulings || []).length) return { status: 400, body: { error: 'مكتبة الاجتهادات فارغة. أضف أحكاماً من «البحث في الأحكام» أو «الاجتهادات القضائية» أولاً.' } };
+    if (mode === 'similar' && !(extra.rulings || []).length && !(rulingSearch && input.web !== false)) return { status: 400, body: { error: 'مكتبة الاجتهادات فارغة والبحث في الأحكام المنشورة غير مفعّل. أضف أحكاماً من «البحث في الأحكام» أو فعّل البحث على الإنترنت.' } };
     const key = await getKey(); if (!key) return { status: 400, body: { error: 'لم يُضبط مفتاح الذكاء الاصطناعي بعد. يضيفه مدير المكتب من إعدادات الصياغة.', needKey: true } };
     const now = Date.now(), k = String(user && (user.id || user.username)), a = (hits.get(k) || []).filter(t => now - t < 600e3);
     if (a.length >= 15) { hits.set(k, a); return { status: 429, body: { error: 'طلبات كثيرة. حاول بعد قليل.' } } } a.push(now); hits.set(k, a);
@@ -274,7 +295,7 @@ function createAssistant({ audit, getKey, laws, lawSearch, fetchImpl = fetch, mo
       if (M.refs) {
         const plan = toolInput(await callClaude(key, { model: mdl, max_tokens: 800, system: SYSTEM, tools: [PLAN_TOOL], tool_choice: { type: 'tool', name: 'plan_research' },
           messages: [{ role: 'user', content: msg(`${head}${M.ask}\n\nحدّد عبارات البحث عن التشريعات الفلسطينية والأحكام ذات الصلة والكلمات المفتاحية.`) }] }, fetchImpl), 'plan_research');
-        refs = await gather(plan, extra.rulings, input.web !== false && mode !== 'similar', user, { rulings: M.rulings });
+        refs = await gather(plan, extra.rulings, input.web !== false, user, { rulings: M.rulings, liveMax: mode === 'similar' ? 5 : 3 });
         refTxt = refs.map(r => `[${r.id}] ${r.kind === 'ruling' ? 'حكم قضائي' : 'تشريع'}: ${r.title}${r.ref ? ' (' + r.ref + ')' : ''}\n${r.arts.map(x => (x.head ? x.head + ': ' : '') + x.text).join('\n')}`).join('\n\n').slice(0, MAX_CTX);
       }
       const out = toolInput(await callClaude(key, { model: mdl, max_tokens: 6000, system: SYSTEM, tools: [ANSWER_TOOL], tool_choice: { type: 'tool', name: 'submit_answer' },
@@ -282,11 +303,11 @@ function createAssistant({ audit, getKey, laws, lawSearch, fetchImpl = fetch, mo
       const valid = new Set(refs.map(r => r.id)), fix = s => an.show(String(s || '')).replace(/\[(R\d+)\]/g, (m, id) => valid.has(id) ? m : '[مرجع يحتاج تحقق]');
       const sections = (out.sections || []).map(s => ({ heading: fix(s.heading), items: (s.items || []).map(fix) }));
       const used = new Set(sections.flatMap(s => s.items.join(' ').match(/R\d+/g) || []));
-      const references = refs.filter(r => used.has(r.id)).map(r => ({ id: r.id, kind: r.kind, title: r.title, ref: r.ref, origin: r.origin, arts: r.arts.map(x => x.head).filter(Boolean), text: r.arts.map(x => (x.head ? x.head + ': ' : '') + x.text).join('\n').slice(0, 4000) }));
+      const references = refs.filter(r => used.has(r.id)).map(r => ({ id: r.id, kind: r.kind, title: r.title, ref: r.ref, url: r.url || '', origin: r.origin, arts: r.arts.map(x => x.head).filter(Boolean), text: r.arts.map(x => (x.head ? x.head + ': ' : '') + x.text).join('\n').slice(0, 4000) }));
       audit && audit({ ...who, action: 'ai.assist', entity: 'cases', detail: { mode, refs: references.length, file: input.file ? input.file.type : undefined, lang: mode === 'translate' ? lang : undefined } });
       return { status: 200, body: { ok: true, mode, lang: mode === 'translate' ? lang : undefined, sections, references, unverified: (out.unverified || []).map(fix).filter(Boolean) } };
     } catch (e) { return { status: e.status || 500, body: { error: e.status ? e.message : 'تعذّر إتمام الطلب. أعد المحاولة.' } } }
   };
 }
 
-export { createDrafter, createExtractor, createAssistant, createCalcExtractor, anonymizer, pickArticles, DOC_TYPES, MODEL };
+export { createDrafter, createExtractor, createAssistant, createCalcExtractor, pickPassages, anonymizer, pickArticles, DOC_TYPES, MODEL };
