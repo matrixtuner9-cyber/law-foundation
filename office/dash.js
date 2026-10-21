@@ -168,10 +168,10 @@ function revenue(){const fee=clients.reduce((s,c)=>s+(c.fee||0),0),paid=clients.
 const KIND={mz:'ميزان',msg:'رسالة',portal:'البوابة',pay:'دفعة',voice:'صوتية',image:'صورة',file:'مرفق'};
 const FTITLE={msg:'رسالة جديدة من العميل',mz:'تم تحديث حالة القضية',pay:'تم تسجيل دفعة جديدة',portal:'نشاط في بوابة الموكل',voice:'رسالة صوتية جديدة',image:'تم إضافة صورة جديدة',file:'تم إضافة مستند جديد'};
 const since=at=>{const a=ago(at);if(a.startsWith('قبل '))return a.replace(/^قبل /,'منذ ');if(a==='الآن')return a;const d=Math.max(1,Math.round((TODAY-pd(at.slice(0,10)))/864e5));return 'منذ '+(d===1?'يوم':d===2?'يومين':d<=10?d+' أيام':d+' يوماً')};
-window.MQ_buildFeed=()=>{S.feed=[...mzLog.map(l=>({at:l.at,kind:'mz',k:l.k,t:l.t})),...Object.entries(messages).flatMap(([c,ms])=>ms.filter(m=>m.f==='them').map(m=>({at:m.at,kind:m.v?'voice':m.img?'image':m.file?'file':'msg',c,t:m.t})))].sort((a,b)=>b.at.localeCompare(a.at)).slice(0,8)};MQ_buildFeed();
+window.MQ_buildFeed=()=>{S.feed=[...mzLog.filter(l=>K(l.k)).map(l=>({at:l.at,kind:'mz',k:l.k,t:l.t})),...Object.entries(messages).filter(([c])=>C(c)).flatMap(([c,ms])=>ms.filter(m=>m.f==='them').map(m=>({at:m.at,kind:m.v?'voice':m.img?'image':m.file?'file':'msg',c,t:m.t})))].sort((a,b)=>b.at.localeCompare(a.at)).slice(0,8)};MQ_buildFeed();
 const fTime=at=>ampm(at.slice(11,16));
 const FTONE={msg:'blue',mz:'orange',portal:'green',pay:'brown',voice:'blue',image:'green',file:'green'};
-function feedItem(f,fresh){const who=f.c?C(f.c).name:'القضية '+K(f.k).no;
+function feedItem(f,fresh){const who=f.c?((C(f.c)||{}).name||'موكل محذوف'):'القضية '+((K(f.k)||{}).no||'محذوفة');
  const act=f.c?`data-act="bag" data-v="${f.c}"`:`data-act="openCase" data-v="${f.k}"`;
  return `<button class="fi ${FTONE[f.kind]||'blue'} ${fresh?'fresh':''}" ${act}><span class="fic">${I[f.kind]||I.msg}</span><span class="fit"><b>${FTITLE[f.kind]||KIND[f.kind]}</b><span>${esc(who)}${f.t?' · '+esc(f.t):''}</span></span><span class="fdot"></span><time data-at="${f.at}">${fTime(f.at)}</time></button>`}
 function feedCard(){return `<section class="card reveal" style="animation-delay:.4s">${hdr(KI.hist,'الأنشطة الأخيرة','')}<div class="feedlive" id="feed">${S.feed.length?S.feed.slice(0,5).map(f=>feedItem(f)).join(''):'<div class="empty">لا نشاط بعد</div>'}</div></section>`}

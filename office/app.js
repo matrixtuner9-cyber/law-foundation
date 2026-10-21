@@ -266,7 +266,9 @@ V.mizan=()=>`<div class="head"><div><h1>الربط مع ميزان</h1><p class=
   <p class="note">هذه واجهة ربط تجريبية تحاكي البيانات. الربط الفعلي مع ميزان يتطلب صلاحيات وصول واتفاقية مع الجهة المشغلة للنظام، ثم يُوصل هذا القسم بها دون تغيير بقية النظام.</p></div></div>`;
 
 /* ── العرض ── */
-function render(){const p=document.getElementById('page');p.innerHTML=V[S.view]();drawNav();bindLocal()}
+function render(){const p=document.getElementById('page');let h;
+ try{h=(V[S.view]||V.dash)()}catch(e){console.error('render',S.view,e);h=`<section class="panel"><div class="bd"><b>تعذّر عرض هذه الشاشة.</b><p class="m">${esc(String(e&&e.message||e))}</p><button class="btn sm" data-act="nav" data-v="dash">العودة إلى الرئيسية</button></div></section>`}
+ p.innerHTML=h;drawNav();bindLocal()}
 function bindLocal(){
  const cq=document.getElementById('cq');if(cq)cq.oninput=e=>{S.cq=e.target.value;document.getElementById('ctb').innerHTML=caseRows()};
  const cf=document.getElementById('cfq');if(cf)cf.oninput=e=>{document.getElementById('cfr').innerHTML=conflict(e.target.value)};
