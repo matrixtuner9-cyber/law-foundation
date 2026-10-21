@@ -307,7 +307,7 @@ document.addEventListener('submit',e=>{e.preventDefault();const f=e.target;
   if(cid==='new'){cid='c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);clients.push({id:cid,name:f.ncN.value.trim()||'موكل جديد',type:'فرد',idNo:'—',phone:f.ncPh.value.trim()||'—',city:OFFICE.city,ch:'واتساب',portal:false,last:null,fee:Math.max(0,Number(f.ncF.value)||0),paid:0,since:iso(TODAY),code:window.MQ_code?MQ_code():''})}
   else if(Number(f.ncF.value)>0){const cl=C(cid);cl.fee=(Number(cl.fee)||0)+Number(f.ncF.value)} /* أتعاب القضية الجديدة تُضاف لأتعاب الموكل */
   let oid=opponents.find(o=>o.name===f.ncO.value.trim())?.id;if(!oid){oid='o'+Date.now();opponents.push({id:oid,name:f.ncO.value.trim()||'خصم غير محدد',type:'—',lawyer:'—'})}
-  cases.push({id,no:f.ncNo.value||'قيد التسجيل',court:f.ncCt.value,type:f.ncT.value,subject:f.ncS.value,client:cid,opps:[oid],role:f.ncR.value,stage:'قيد التسجيل',step:0,status:'نشطة',value:Number(f.ncV.value)||0,opened:iso(TODAY),mz:'بانتظار الإسناد',pri:'متوسطة'});
+  cases.push({id,no:f.ncNo.value||'قيد التسجيل',court:f.ncCt.value,type:f.ncT.value,subject:f.ncS.value,client:cid,opps:[oid],role:f.ncR.value,stage:'قيد التسجيل',step:0,status:'نشطة',value:Number(f.ncV.value)||0,fee:Math.max(0,Number(f.ncF.value)||0),opened:iso(TODAY),mz:'بانتظار الإسناد',pri:'متوسطة'});
   A.close();A.openCase(id);toast('فُتح ملف القضية')}
 });
 function openModal(){document.getElementById('modal').innerHTML=`<div class="modal-bg" data-act="close"><div class="modal" role="dialog" aria-label="قضية جديدة"><div class="head"><h1 style="font-size:24px">فتح ملف قضية</h1><button class="btn sm" data-act="close">إغلاق</button></div>

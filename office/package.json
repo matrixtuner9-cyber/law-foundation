@@ -75,6 +75,7 @@
       "reader.js",
       "case-hub.js",
       "case-wizard.js",
+      "consistency.js",
       "case360.js",
       "hearing-prep.js",
       "draft-versions.js",

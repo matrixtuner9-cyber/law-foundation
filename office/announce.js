@@ -23,7 +23,8 @@ function casesOf(cid){
  return list;
 }
 function describe(m){
- const c=(typeof C==='function'&&C(m.client))||{},who=c.name||'موكل',ks=casesOf(m.client);
+ const c=(typeof C==='function'&&C(m.client))||{},who=c.name||'موكل';let ks=casesOf(m.client);
+ const tk=m.k&&(typeof cases!=='undefined'?cases:[]).find(k=>k.id===m.k&&k.client===m.client);if(tk)ks=[tk];
  const kind=kindOf(m),via=chOf(m.ch);
  const caseTxt=ks.length===1?'في القضية رقم '+ks[0].no:ks.length>1?(ks.length===2?'وله قضيتان':'وله '+ks.length+(ks.length<=10?' قضايا':' قضية'))+'، أحدثها رقم '+ks[0].no:'';
  const extra=m.type==='file'&&m.name?' باسم '+String(m.name).replace(/\.[a-z0-9]{2,5}$/i,''):m.type==='voice'&&m.dur?' مدتها '+spokenDur(m.dur):'';

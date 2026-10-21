@@ -135,3 +135,8 @@ a.btn{text-decoration:none;color:inherit}
 .bag-push{display:inline-flex;align-items:center;gap:4px}
 .bag-push svg{width:14px;height:14px}
 .bag-push.on{color:#9ff0cf}
+/* وسم القضية على الرسالة */
+.bc-case{display:inline-flex;align-items:center;gap:8px;font-size:11.5px;margin-top:4px;padding:2px 8px;border-radius:999px;background:color-mix(in srgb,var(--acc,#1d4ed8) 10%,transparent);align-self:flex-start}
+.bc-case .link{font-size:inherit;color:inherit}
+.bc-case .link.sub{opacity:.65}
+.bc-case.none{background:transparent;border:1px dashed var(--line);opacity:.85}

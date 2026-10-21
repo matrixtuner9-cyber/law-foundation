@@ -47,7 +47,7 @@ const SEC = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-orig
 const json = (code, obj, extra = {}) => new Response(JSON.stringify(obj), { status: code, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...CORS, ...SEC, ...extra } });
 const MEDIA_TTL = 24 * 3600; // صلاحية رابط الملف الموقّع: يوم واحد، ويتجدد بتحميل المحادثة
 
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'sources.js', 'guide.js', 'announce.js', 'reader.js', 'case-hub.js', 'case-wizard.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'sources.js', 'guide.js', 'announce.js', 'reader.js', 'case-hub.js', 'case-wizard.js', 'consistency.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css', 'edition.js']);
 
 /* توحيد الكتابة العربية للبحث في دليل المحامين */
@@ -149,8 +149,14 @@ export class Office extends DurableObject {
     return new Response(readable, { headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store', 'X-Accel-Buffering': 'no' } });
   }
 
+  /* ربط الرسالة بقضيتها: صريحاً إن أُرسل رقم قضية للموكل نفسه، وإلا تلقائياً إن كانت للموكل قضية جارية واحدة */
+  caseOfMsg(client, k) {
+    const ks = (this.cur().cases || []).filter(x => x.client === client);
+    if (k && ks.some(x => x.id === k)) return k;
+    const act = ks.filter(x => x.status !== 'منتهية'); return act.length === 1 ? act[0].id : undefined;
+  }
   addMsg(m) {
-    const msg = { id: rid(), at: stamp(), read: m.from === 'lawyer', seen: m.from === 'client', ...m };
+    const msg = { id: rid(), at: stamp(), read: m.from === 'lawyer', seen: m.from === 'client', ...m }; msg.k = this.caseOfMsg(msg.client, m.k); if (!msg.k) delete msg.k;
     this.msgs.push(msg); this.store.putMessage(msg); this.broadcast('message', this.pubAdmin(msg));
     if (msg.from === 'lawyer') {
       const oi = this.officeInfo(), pl = { title: msg.type === 'notice' ? 'إشعار من ' + oi.name : 'رسالة من ' + oi.lawyer, body: this.preview(msg), tag: 'mq-' + msg.id, url: './' };
@@ -458,11 +464,21 @@ export class Office extends DurableObject {
       this.store.kv.set('support_grant', null); this.audit({ ...who, action: 'support.revoke' });
       return json(200, { until: null });
     }
+    if (p === '/api/admin/message-case' && M === 'POST') {
+      /* ربط رسالة أو مرفق بقضية من قضايا الموكل نفسه (أو إلغاء الربط) */
+      if ((d = deny('write'))) return d;
+      const { id, k } = await jbody() || {}; const m = this.msgs.find(x => x.id === id);
+      if (!m || !this.canSeeClient(me, m.client)) return json(404, { error: 'الرسالة غير موجودة' });
+      if (k && !(this.cur().cases || []).some(x => x.id === k && x.client === m.client)) return json(400, { error: 'القضية لا تخص هذا الموكل' });
+      if (k) m.k = k; else delete m.k; this.store.putMessage(m); this.broadcast('message', this.pubAdmin(m));
+      this.audit({ ...who, action: 'message.case', entity: 'messages', entity_id: m.id, detail: { client: m.client, k: k || '' } });
+      return json(200, { ok: true, k: m.k || '' });
+    }
     if (p === '/api/admin/messages' && M === 'POST') {
       if ((d = deny('write'))) return d;
-      const { client, text, ch, type } = await jbody(); const t = String(text || '').trim().slice(0, 4000);
+      const { client, text, ch, type, k } = await jbody(); const t = String(text || '').trim().slice(0, 4000);
       if (!client || !t) return json(400, { error: 'missing' });
-      const m = this.addMsg({ client, from: 'lawyer', type: type === 'notice' ? 'notice' : 'text', text: t, ch: ch || 'البوابة', by: me.username });
+      const m = this.addMsg({ client, from: 'lawyer', type: type === 'notice' ? 'notice' : 'text', text: t, ch: ch || 'البوابة', by: me.username, k });
       this.audit({ ...who, action: 'message.send', entity: 'messages', entity_id: m.id, detail: { client, label: (this.cur().clients.find(c => c.id === client) || {}).name, type: m.type, preview: t.slice(0, 80) } });
       return json(201, this.pubAdmin(m));
     }
@@ -684,7 +700,7 @@ export class Office extends DurableObject {
     if (buf.length < 200) return json(400, { error: 'التسجيل قصير جداً.' });
     const id = rid(), file = `${id}.${ext}`; await this.env.MEDIA.put(this.slug() + '/' + file, buf, { httpMetadata: { contentType: type } });
     const dur = Math.max(1, Math.round(+u.searchParams.get('dur') || 0));
-    const m = this.addMsg({ id, client, from, type: 'voice', file, dur, ch: 'البوابة', text: '', ...(from === 'lawyer' ? { by: who.username } : {}) });
+    const m = this.addMsg({ id, client, from, type: 'voice', file, dur, ch: 'البوابة', text: '', k: u.searchParams.get('k') || undefined, ...(from === 'lawyer' ? { by: who.username } : {}) });
     this.audit({ ...who, action: from === 'lawyer' ? 'message.send' : 'message.receive', entity: 'messages', entity_id: id, detail: { client, type: 'voice', dur, sha256: crypto.createHash('sha256').update(buf).digest('hex') } });
     return json(201, from === 'lawyer' ? this.pubAdmin(m) : this.pub(m));
   }
@@ -700,7 +716,7 @@ export class Office extends DurableObject {
     const id = rid(), file = `${id}.${ext}`; await this.env.MEDIA.put(this.slug() + '/' + file, buf, { httpMetadata: { contentType: TYPES[ext] || 'application/octet-stream' } });
     const isImg = ['jpg', 'png', 'webp', 'gif', 'heic'].includes(ext);
     const caption = String(u.searchParams.get('caption') || '').trim().slice(0, 500);
-    const m = this.addMsg({ id, client, from, type: isImg ? 'image' : 'file', file, name, size: buf.length, ext, text: caption, ch: 'البوابة', ...(from === 'lawyer' ? { by: who.username } : {}) });
+    const m = this.addMsg({ id, client, from, type: isImg ? 'image' : 'file', file, name, size: buf.length, ext, text: caption, ch: 'البوابة', k: u.searchParams.get('k') || undefined, ...(from === 'lawyer' ? { by: who.username } : {}) });
     this.audit({ ...who, action: from === 'lawyer' ? 'message.send' : 'message.receive', entity: 'messages', entity_id: id, detail: { client, type: m.type, name, size: buf.length, sha256: crypto.createHash('sha256').update(buf).digest('hex') } });
     return json(201, from === 'lawyer' ? this.pubAdmin(m) : this.pub(m));
   }

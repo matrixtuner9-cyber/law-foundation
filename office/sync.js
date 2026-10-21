@@ -5,7 +5,7 @@ const online=location.protocol.startsWith('http');
 window.MQ={online,ready:false};
 if(!online)return;
 
-const toMsg=m=>({id:m.id,f:m.from==='client'?'them':'me',ch:m.ch,t:m.text||'',at:m.at,unread:m.from==='client'&&!m.read,type:m.type||'text',file:m.file,dur:m.dur,name:m.name,size:m.size,ext:m.ext,seen:m.seen});
+const toMsg=m=>({id:m.id,f:m.from==='client'?'them':'me',ch:m.ch,t:m.text||'',at:m.at,unread:m.from==='client'&&!m.read,type:m.type||'text',file:m.file,dur:m.dur,name:m.name,size:m.size,ext:m.ext,seen:m.seen,k:m.k||''});
 function putMsg(m){const list=(messages[m.client]=messages[m.client]||[]);const i=list.findIndex(x=>x.id===m.id);const v=toMsg(m);if(i>=0){list[i]=v;return false}list.push(v);list.sort((a,b)=>a.at.localeCompare(b.at));return true}
 MQ.putMsg=putMsg;
 const label=m=>m.type==='notice'?'إشعار: '+(m.text||m.t||''):m.type==='voice'?'رسالة صوتية ('+MQ.dur(m.dur)+')':m.type==='image'?'أرسل صورة'+(m.name?': '+m.name:''):m.type==='file'?'أرسل مستنداً: '+(m.name||''):(m.text||m.t||'');
@@ -86,6 +86,7 @@ const r0=render;render=function(){r0();saveState()};
 
 const post=(url,obj)=>fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(obj)}).then(async r=>{if(r.status===401)location.replace('/login.html');const j=await r.json();if(!r.ok)throw new Error(j.error||'تعذّر الإرسال');return j});
 MQ.send=(client,text,ch,type)=>post('/api/admin/messages',{client,text,ch,type}).then(m=>{putMsg(m);return m});
+MQ.msgCase=(id,k)=>post('/api/admin/message-case',{id,k});
 MQ.read=client=>{(messages[client]||[]).forEach(m=>m.unread=false);drawNav();return post('/api/admin/read',{client}).catch(()=>{})};
 MQ.upload=(kind,client,blob,params)=>fetch(`/api/admin/${kind}?client=${encodeURIComponent(client)}&${new URLSearchParams(params||{})}`,{method:'POST',headers:{'content-type':(blob.type||'application/octet-stream').split(';')[0]},body:blob})
  .then(async r=>{if(r.status===401)location.replace('/login.html');const j=await r.json();if(!r.ok)throw new Error(j.error||'تعذّر الرفع');putMsg(j);return j});

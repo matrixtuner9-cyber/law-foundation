@@ -35,7 +35,13 @@ function bubble(m){
  else if(m.type==='file'){const [lb,cls]=FT[m.ext]||[String(m.ext||'ملف').toUpperCase(),'txt'];inner=`<div class="fcard"><span class="ficon ${cls}">${lb}</span><span class="fmeta"><b>${esc(m.name||'مستند')}</b><small>${size(m.size)}</small></span></div><div class="fact"><a class="btn sm" href="${m.file}" target="_blank" rel="noopener">فتح</a>${!me?`<button class="btn sm" data-act="toCase" data-v="${m.id}">إضافة إلى مستندات القضية</button>`:''}</div>${m.t?`<div class="bc-txt">${esc(m.t)}</div>`:''}${window.MQ_canRead&&MQ_canRead(m)?`<button class="bc-read" data-act="rdOpen" data-v="${esc(m.id)}">📖 قراءة النص</button>`:''}`}
  else if(m.type==='notice')inner=`<div class="bc-notice">${I.bell}<span>إشعار رسمي للموكل</span></div><div class="bc-txt">${esc(m.t)}</div>`;
  else inner=`<div class="bc-txt">${esc(m.t)}</div>`;
- return `<div class="bc ${me?'me':'them'} t-${m.type||'text'} ${m.unread?'new':''}" id="m_${m.id}">${inner}${meta}</div>`;
+ return `<div class="bc ${me?'me':'them'} t-${m.type||'text'} ${m.unread?'new':''}" id="m_${m.id}">${inner}${caseTag(m)}${meta}</div>`;
+}
+/* وسم القضية: كل رسالة/مرفق ينتمي لقضية محددة حين يكون للموكل أكثر من قضية */
+function caseTag(m){if(m.type==='notice')return '';const ks=cases.filter(k=>k.client===S.clientId);if(ks.length<2)return '';
+ const k=m.k&&ks.find(x=>x.id===m.k);
+ return k?`<span class="bc-case"><button class="link" data-act="openCase" data-v="${k.id}">⚖ <span class="mono">${esc(k.no)}</span></button><button class="link sub" data-act="msgCase" data-v="${esc(m.id)}" title="تغيير القضية">تغيير</button></span>`
+  :`<span class="bc-case none"><button class="link" data-act="msgCase" data-v="${esc(m.id)}">⚖ ربط بقضية</button></span>`;
 }
 function thread(c){
  const ms=messages[c]||[];let last='';
@@ -139,6 +145,11 @@ A.noticeTgl=()=>{S.bagNotice=!S.bagNotice;const b=document.getElementById('notic
 A.bag=v=>{S.view='client';S.clientId=v;S.bagTab='msgs';window.scrollTo(0,0);render()};
 A.openClient=v=>{S.view='client';S.clientId=v;S.bagTab=unreadOf(v)?'msgs':(S.bagTab||'msgs');window.scrollTo(0,0);render()};
 A.bagTab=v=>{S.bagTab=v;render()};
+A.msgCase=id=>{const m=(messages[S.clientId]||[]).find(x=>x.id===id);if(!m)return;const ks=cases.filter(k=>k.client===S.clientId);
+ document.getElementById('modal').innerHTML=`<div class="modal-bg" data-act="close"><div class="modal" role="dialog"><h2>إلى أي قضية تنتمي هذه ${m.type==='voice'?'الرسالة الصوتية':m.type==='text'?'الرسالة':'الوثيقة'}؟</h2>${ks.map(k=>`<button class="btn ${m.k===k.id?'pri':''}" data-act="msgCaseK" data-v="${k.id}|${id}" style="justify-content:flex-start"><span class="mono">${esc(k.no)}</span> · ${esc(k.subject)}</button>`).join('')}${m.k?`<button class="btn sm" data-act="msgCaseK" data-v="|${id}">إزالة الربط</button>`:''}<button class="btn sm" data-act="close">إلغاء</button></div></div>`};
+A.msgCaseK=v=>{const [k,id]=v.split('|'),m=(messages[S.clientId]||[]).find(x=>x.id===id);if(!m)return;
+ const done=()=>{m.k=k;A.close();render();toast(k?'رُبطت بالقضية '+((cases.find(x=>x.id===k)||{}).no||''):'أُزيل الربط')};
+ if(window.MQ&&MQ.msgCase)MQ.msgCase(id,k).then(done).catch(e=>toast(e.message));else done()};
 const pf=A.portalFor;A.portalFor=v=>{pf(v);if(window.MQ&&MQ.read)MQ.read(v)};
 A.lightbox=src=>{document.getElementById('modal').innerHTML=`<div class="modal-bg lb" data-act="close"><img src="${src}" alt=""><button class="ib lbx" data-act="close" aria-label="إغلاق">${I.x}</button><a class="btn sm lbo" href="${src}" target="_blank" rel="noopener">فتح بالحجم الكامل</a></div>`};
 A.toCase=id=>{const m=(messages[S.clientId]||[]).find(x=>x.id===id);if(!m)return;const ks=cases.filter(k=>k.client===S.clientId);if(!ks.length)return toast('لا قضايا لهذا الموكل');

@@ -37,7 +37,10 @@ function facts(k,data,today){
  const c=(data.clients||[]).find(x=>x.id===k.client)||{},cs=(data.cases||[]).filter(x=>x.client===k.client);
  const un=((data.messages||{})[k.client]||[]).filter(m=>m.unread&&m.f!=='me'&&(!m.k||m.k===k.id)).length;
  const pending=(data.hearings||[]).filter(h=>h.k===k.id&&dOk(h.date)&&h.date<today&&!h.result).length;
- return {next:hs[0]||null,deadline:dl[0]||null,fee:+c.fee||0,paid:+c.paid||0,due:Math.max(0,(+c.fee||0)-(+c.paid||0)),feeShared:cs.length>1,portal:!!c.portal,last:c.last||'',unread:un,pending,mz:(data.mzLog||[]).filter(l=>l.k===k.id).sort((a,b)=>String(b.at).localeCompare(String(a.at)))[0]||null};
+ /* أتعاب القضية نفسها إن سُجّلت لها (القضايا الجديدة)، وإلا أتعاب الموكل الإجمالية كما كانت */
+ const kp=(c.payments||[]).filter(p=>p.k===k.id).reduce((t,p)=>t+(+p.amount||0),0),own=(+k.fee||0)>0;
+ const fee=own?+k.fee:+c.fee||0,paid=own?kp:+c.paid||0;
+ return {next:hs[0]||null,deadline:dl[0]||null,fee,paid,due:Math.max(0,fee-paid),caseFee:own,feeShared:!own&&cs.length>1,portal:!!c.portal,last:c.last||'',unread:un,pending,mz:(data.mzLog||[]).filter(l=>l.k===k.id).sort((a,b)=>String(b.at).localeCompare(String(a.at)))[0]||null};
 }
 if(typeof module!=='undefined'&&module.exports)module.exports={events,facts,TYPES};
 if(!root||!root.document)return;
@@ -54,7 +57,7 @@ function strip(k){const f=facts(k,DATA(),today());
  return `<div class="hub-strip">
   ${cell('الجلسة القادمة',f.next?fmtAt(f.next.date+' '+(f.next.time||'')):'غير محددة',f.next?e(f.next.purpose||''):(f.pending?f.pending+' جلسة سابقة بلا قرار':''),f.next?'':'warn',['hubTab','hearings'])}
   ${cell('أقرب مهلة',f.deadline?fmtAt(f.deadline.due):'لا مهل قادمة',f.deadline?e(f.deadline.title||''):'',f.deadline&&f.deadline.due<=addDays(today(),7)?'urgent':'',['hubTab','deadlines'])}
-  ${cell('الأتعاب المتبقية',f.due?Number(f.due).toLocaleString('en-US')+' ₪':'مسددة',f.feeShared?'على مستوى الموكل (له أكثر من قضية)':'من '+Number(f.fee).toLocaleString('en-US')+' ₪',f.due?'':'ok',['hubPay',k.client])}
+  ${cell('الأتعاب المتبقية',f.due?Number(f.due).toLocaleString('en-US')+' ₪':'مسددة',f.feeShared?'على مستوى الموكل (له أكثر من قضية)':'من '+Number(f.fee).toLocaleString('en-US')+' ₪'+(f.caseFee?' لهذه القضية':''),f.due?'':'ok',['hubPay',k.client])}
   ${cell('رسائل الموكل',f.unread?f.unread+' غير مقروءة':'لا جديد',f.portal?(f.last?'آخر دخول للبوابة '+fmtAt(f.last):'لم يدخل البوابة بعد'):'البوابة غير مفعّلة',f.unread?'urgent':'',['bag',k.client])}
   ${cell('ميزان',f.mz?fmtAt(f.mz.at):'لا تحديثات',f.mz?e(String(f.mz.t||'').slice(0,60)):(k.mz?e(k.mz):''),'',['hubTab','mz'])}
  </div>`}
@@ -88,7 +91,7 @@ S.caseTab='hub';
 A.hubTab=v=>{S.caseTab=v;render();setTimeout(()=>{const f=document.querySelector('#page form');if(f){f.scrollIntoView({block:'center'});const i=f.querySelector('input,select,textarea');if(i)i.focus()}},60)};
 A.hubFilter=v=>{H.filter=v;H.limit=60;render()};
 A.hubMore=()=>{H.limit+=60;render()};
-A.hubPay=cid=>{S.view='client';S.clientId=cid;S.bagTab='acct';window.scrollTo(0,0);render()};
+A.hubPay=cid=>{if(S.view==='case'&&S.caseId)root.MQ_payCase=S.caseId;S.view='client';S.clientId=cid;S.bagTab='acct';window.scrollTo(0,0);render()};
 A.hubDraft=id=>A.aiOpen&&A.aiOpen(id);
 A.hubAssist=id=>A.asOpen&&A.asOpen(id);
 A.hubPrep=()=>A.hpOpen&&A.hpOpen();

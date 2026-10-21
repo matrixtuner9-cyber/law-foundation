@@ -218,8 +218,14 @@ function broadcastRecords(recs, byId, del = []) {
   streams.forEach((u, r) => { if (auth.can(u, 'all')) r.write(s) });
 }
 
+/* ربط الرسالة بقضيتها: صريحاً إن أُرسل رقم قضية للموكل نفسه، وإلا تلقائياً إن كانت للموكل قضية جارية واحدة */
+function caseOfMsg(client, k) {
+  const ks = (cur().cases || []).filter(x => x.client === client);
+  if (k && ks.some(x => x.id === k)) return k;
+  const act = ks.filter(x => x.status !== 'منتهية'); return act.length === 1 ? act[0].id : undefined;
+}
 function addMsg(m) {
-  const msg = { id: rid(), at: stamp(), read: m.from === 'lawyer', seen: m.from === 'client', ...m }; msgs.push(msg); store.putMessage(msg); broadcast('message', pubAdmin(msg));
+  const msg = { id: rid(), at: stamp(), read: m.from === 'lawyer', seen: m.from === 'client', ...m }; msg.k = caseOfMsg(msg.client, m.k); if (!msg.k) delete msg.k; msgs.push(msg); store.putMessage(msg); broadcast('message', pubAdmin(msg));
   if (msg.from === 'lawyer') pushTo(msg.client, { title: msg.type === 'notice' ? 'إشعار من ' + officeInfo().name : 'رسالة من ' + officeInfo().lawyer, body: preview(msg), tag: 'mq-' + msg.id, url: './' });
   return msg;
 }
@@ -565,11 +571,21 @@ async function api(req, res, u) {
     broadcastRecords(done.map(d => ({ kind: 'clients', rec: d.rec })), null);
     return json(res, 200, { ok: true, n: done.length, clients: done.map(d => ({ id: d.rec.id, code: d.rec.code, _v: d.rec._v })) });
   }
+  if (p === '/api/admin/message-case' && M === 'POST') {
+    /* ربط رسالة أو مرفق بقضية من قضايا الموكل نفسه (أو إلغاء الربط) */
+    if (!need('write')) return;
+    const { id, k } = await jbody(req) || {}; const m = msgs.find(x => x.id === id);
+    if (!m || !canSeeClient(me, m.client)) return json(res, 404, { error: 'الرسالة غير موجودة' });
+    if (k && !(cur().cases || []).some(x => x.id === k && x.client === m.client)) return json(res, 400, { error: 'القضية لا تخص هذا الموكل' });
+    if (k) m.k = k; else delete m.k; store.putMessage(m); broadcast('message', pubAdmin(m));
+    audit({ ...who, action: 'message.case', entity: 'messages', entity_id: m.id, detail: { client: m.client, k: k || '' } });
+    return json(res, 200, { ok: true, k: m.k || '' });
+  }
   if (p === '/api/admin/messages' && M === 'POST') {
     if (!need('write')) return;
-    const { client, text, ch, type } = await jbody(req); const t = String(text || '').trim().slice(0, 4000);
+    const { client, text, ch, type, k } = await jbody(req); const t = String(text || '').trim().slice(0, 4000);
     if (!client || !t) return json(res, 400, { error: 'missing' });
-    const m = addMsg({ client, from: 'lawyer', type: type === 'notice' ? 'notice' : 'text', text: t, ch: ch || 'البوابة', by: me.username });
+    const m = addMsg({ client, from: 'lawyer', type: type === 'notice' ? 'notice' : 'text', text: t, ch: ch || 'البوابة', by: me.username, k });
     audit({ ...who, action: 'message.send', entity: 'messages', entity_id: m.id, detail: { client, label: (cur().clients.find(c => c.id === client) || {}).name, type: m.type, preview: t.slice(0, 80) } });
     return json(res, 201, pubAdmin(m));
   }
@@ -714,7 +730,7 @@ async function voice(req, res, u, client, from, who) {
   if (buf.length < 200) return json(res, 400, { error: 'التسجيل قصير جداً.' });
   const id = rid(), file = `${id}.${ext}`; fs.writeFileSync(path.join(MEDIA, file), buf);
   const dur = Math.max(1, Math.round(+u.searchParams.get('dur') || 0));
-  const m = addMsg({ id, client, from, type: 'voice', file, dur, ch: 'البوابة', text: '', ...(from === 'lawyer' ? { by: who.username } : {}) });
+  const m = addMsg({ id, client, from, type: 'voice', file, dur, ch: 'البوابة', text: '', k: u.searchParams.get('k') || undefined, ...(from === 'lawyer' ? { by: who.username } : {}) });
   audit({ ...who, action: from === 'lawyer' ? 'message.send' : 'message.receive', entity: 'messages', entity_id: id, detail: { client, type: 'voice', dur, sha256: crypto.createHash('sha256').update(buf).digest('hex') } });
   return json(res, 201, from === 'lawyer' ? pubAdmin(m) : pub(m));
 }
@@ -731,7 +747,7 @@ async function attach(req, res, u, client, from, who) {
   const id = rid(), file = `${id}.${ext}`; fs.writeFileSync(path.join(MEDIA, file), buf);
   const isImg = ['jpg', 'png', 'webp', 'gif', 'heic'].includes(ext);
   const caption = String(u.searchParams.get('caption') || '').trim().slice(0, 500);
-  const m = addMsg({ id, client, from, type: isImg ? 'image' : 'file', file, name, size: buf.length, ext, text: caption, ch: 'البوابة', ...(from === 'lawyer' ? { by: who.username } : {}) });
+  const m = addMsg({ id, client, from, type: isImg ? 'image' : 'file', file, name, size: buf.length, ext, text: caption, ch: 'البوابة', k: u.searchParams.get('k') || undefined, ...(from === 'lawyer' ? { by: who.username } : {}) });
   audit({ ...who, action: from === 'lawyer' ? 'message.send' : 'message.receive', entity: 'messages', entity_id: id, detail: { client, type: m.type, name, size: buf.length, sha256: crypto.createHash('sha256').update(buf).digest('hex') } });
   return json(res, 201, from === 'lawyer' ? pubAdmin(m) : pub(m));
 }
@@ -753,7 +769,7 @@ async function rulingFile(req, res, u, who) {
 }
 
 /* ملفات شاشة المكتب: قائمة محددة فقط، وكلها تتطلب تسجيل الدخول عدا صفحة الدخول */
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'sources.js', 'guide.js', 'announce.js', 'reader.js', 'case-hub.js', 'case-wizard.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'sources.js', 'guide.js', 'announce.js', 'reader.js', 'case-hub.js', 'case-wizard.js', 'consistency.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css', 'edition.js']);
 
 http.createServer((req, res) => {

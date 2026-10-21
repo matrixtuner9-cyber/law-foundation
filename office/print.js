@@ -395,7 +395,7 @@ function inject(){
  const v=S.view,pg=document.getElementById('page');if(!pg)return;
  if(v==='case'){const tb=pg.querySelector('.head .toolbar');if(tb&&!tb.querySelector('[data-act="printCase"]'))tb.insertAdjacentHTML('beforeend',`<button class="btn" data-act="printCase" data-v="${S.caseId}">${PI} طباعة</button>`)}
  if(v==='client'){const w=document.getElementById('waBar')||pg.querySelector('.bag-head .bag-id>div:last-child');if(w&&!pg.querySelector('[data-act="printClient"]'))w.insertAdjacentHTML('beforeend',`<button class="btn sm" data-act="printClient" data-v="${S.clientId}">${PI} طباعة</button>`);
-  const fp=document.getElementById('fPay');if(fp&&!document.getElementById('payRc')){fp.insertAdjacentHTML('afterend',payBox(C(S.clientId)))}}
+  const fp=document.getElementById('fPay');if(PAYF.c!==S.clientId){PAYF.c=S.clientId;PAYF.k=undefined}if(fp&&!document.getElementById('payRc')){fp.insertAdjacentHTML('afterend',payBox(C(S.clientId)))}}
  if(v==='tpls'){const tb=pg.querySelector('.toolbar');if(tb&&!tb.querySelector('[data-act="printTpl"]'))tb.insertAdjacentHTML('afterbegin',`<button class="btn gold" data-act="printTpl">${PI} طباعة / PDF</button>`)}
  const host=document.getElementById('topIcons');if(host&&!document.getElementById('tbPrint'))host.insertAdjacentHTML('afterbegin',`<button class="ib" id="tbPrint" data-act="print" title="طباعة (Ctrl+P)" aria-label="طباعة">${PI}</button>`);
 }
@@ -413,12 +413,15 @@ function payDet(){const m=PAYF.m;
 const BANKS=['بنك فلسطين','البنك الإسلامي الفلسطيني','البنك العربي','بنك القدس','البنك الوطني','بنك الاستثمار الفلسطيني','البنك الإسلامي العربي','بنك الأردن','بنك القاهرة عمان','بنك الإسكان','البنك التجاري الأردني','مصرف الصفا'];
 const payInfo=p=>{const x=[];if(p.chq)x.push('شيك رقم '+p.chq);if(p.bank)x.push(p.bank);if(p.due)x.push('يستحق '+dm(p.due));if(p.drawer)x.push('الساحب: '+p.drawer);if(p.card4)x.push((p.cardType||'بطاقة')+' ••••'+p.card4);if(p.ref)x.push('مرجع '+p.ref);if(p.tdate)x.push('حُوّل '+dm(p.tdate));return x.join(' · ')};
 P.payInfo=payInfo;
-function payBox(c){const ps=pays(c||{}).slice().reverse();
- return `<div class="pay-x"><label class="pvck"><input type="checkbox" id="payRc" checked><span>إصدار سند قبض</span></label><select class="field" id="payM" aria-label="طريقة الدفع">${METHODS.map(x=>`<option ${PAYF.m===x?'selected':''}>${x}</option>`).join('')}</select></div>
+/* كل دفعة تُنسب إلى قضية (أو «عام» لأتعاب غير مرتبطة)؛ الافتراضي: القضية النشطة الوحيدة */
+const casesOfC=c=>(typeof cases!=='undefined'?cases:[]).filter(k=>k.client===(c&&c.id));
+function payKDefault(c){const ks=casesOfC(c);if(window.MQ_payCase){const pk=window.MQ_payCase;window.MQ_payCase=null;if(ks.some(k=>k.id===pk)){PAYF.k=pk;return pk}}if(PAYF.k!==undefined&&(PAYF.k===''||ks.some(k=>k.id===PAYF.k)))return PAYF.k;const act=ks.filter(k=>k.status!=='منتهية');return act.length===1?act[0].id:''}
+function payBox(c){const ps=pays(c||{}).slice().reverse(),ks=casesOfC(c),dk=payKDefault(c),kno=id=>(ks.find(k=>k.id===id)||{}).no;
+ return `<div class="pay-x"><label class="pvck"><input type="checkbox" id="payRc" checked><span>إصدار سند قبض</span></label><select class="field" id="payM" aria-label="طريقة الدفع">${METHODS.map(x=>`<option ${PAYF.m===x?'selected':''}>${x}</option>`).join('')}</select>${ks.length?`<select class="field" id="payK" aria-label="القضية"><option value="">أتعاب عامة (غير مرتبطة بقضية)</option>${ks.map(k=>`<option value="${e(k.id)}" ${dk===k.id?'selected':''}>القضية ${e(k.no)}</option>`).join('')}</select>`:''}</div>
  <div class="pay-det" id="payDet">${payDet()}</div><datalist id="pdBanks">${BANKS.map(b=>`<option value="${b}">`).join('')}</datalist>
  ${ps.length?`<div class="pay-all"><div class="pay-h"><b>الدفعات (${ps.length})</b><button type="button" class="btn sm" data-act="printPays" data-v="${c.id}">${PI} طباعة كشف الدفعات والمتبقي</button></div>
-  <table class="pay-t"><thead><tr><th>السند</th><th>التاريخ</th><th>المبلغ</th><th>الطريقة</th></tr></thead><tbody>${ps.map(p=>`<tr><td><button class="link mono" data-act="printReceipt" data-v="${c.id}|${p.id}" title="طباعة السند">${e(p.no)}</button></td><td class="num">${dm(p.date)}</td><td class="num">${cur(p.amount)} ₪</td><td>${e(p.method||'نقداً')}${payInfo(p)?`<div class="m">${e(payInfo(p))}</div>`:''}</td></tr>`).join('')}</tbody></table></div>`:''}`}
-document.addEventListener('change',ev=>{const t=ev.target;if(t.id==='payM'){PAYF.m=t.value;const d=document.getElementById('payDet');if(d)d.innerHTML=payDet();const f=d&&d.querySelector('input,select');if(f)f.focus()}
+  <table class="pay-t"><thead><tr><th>السند</th><th>التاريخ</th><th>المبلغ</th><th>الطريقة</th></tr></thead><tbody>${ps.map(p=>`<tr><td><button class="link mono" data-act="printReceipt" data-v="${c.id}|${p.id}" title="طباعة السند">${e(p.no)}</button></td><td class="num">${dm(p.date)}</td><td class="num">${cur(p.amount)} ₪</td><td>${e(p.method||'نقداً')}${payInfo(p)?`<div class="m">${e(payInfo(p))}</div>`:''}${p.k&&kno(p.k)?`<div class="m">القضية <button class="link mono" data-act="openCase" data-v="${e(p.k)}">${e(kno(p.k))}</button></div>`:''}</td></tr>`).join('')}</tbody></table></div>`:''}`}
+document.addEventListener('change',ev=>{const t=ev.target;if(t.id==='payK'){PAYF.k=t.value;return}if(t.id==='payM'){PAYF.m=t.value;const d=document.getElementById('payDet');if(d)d.innerHTML=payDet();const f=d&&d.querySelector('input,select');if(f)f.focus()}
  else if(t.id&&t.id.startsWith('pd'))PAYF.v[t.id]=t.value});
 document.addEventListener('input',ev=>{const t=ev.target;if(t.id&&t.id.startsWith('pd'))PAYF.v[t.id]=t.value});
 A.printPays=v=>{const c=C(v);if(c)P.open([D.statement(c.id),D.client?D.client(c.id):null].filter(Boolean))};
@@ -431,7 +434,7 @@ document.addEventListener('submit',ev=>{const f=ev.target;if(f.id!=='fPay')retur
  if(m==='تحويل بنكي'){if(!need('pdBank','اختر البنك')||!need('pdRef','اكتب رقم الحوالة أو المرجع'))return;Object.assign(det,{bank:g('pdBank'),ref:g('pdRef'),tdate:g('pdDate')})}
  if(m==='بطاقة'){if(!/^\d{4}$/.test(g('pdCard4'))){ev.preventDefault();ev.stopImmediatePropagation();toast('اكتب آخر 4 أرقام من البطاقة');return}if(!need('pdRef','اكتب رقم العملية أو الموافقة'))return;Object.assign(det,{cardType:g('pdCardT')||'بطاقة',card4:g('pdCard4'),ref:g('pdRef')})}
  Object.keys(det).forEach(k=>{if(!det[k])delete det[k]});
- pendingPay={method:m,det,want:!!(document.getElementById('payRc')||{}).checked};PAYF.v={};
+ pendingPay={method:m,det,k:g('payK'),want:!!(document.getElementById('payRc')||{}).checked};PAYF.v={};
 },true);
 
 /* سندات القبض: كل دفعة تُسجَّل برقم متسلسل */
@@ -441,5 +444,5 @@ P.addPayment=(c,amount,o={})=>{const p={id:'p'+Date.now(),no:nextNo(),amount:Num
 document.addEventListener('submit',ev=>{const f=ev.target;if(f.id!=='fPay')return;
  const n=Number(f.payAmt&&f.payAmt.value);if(!(n>0))return;
  const pp=pendingPay||{method:'نقداً',det:{},want:true};pendingPay=null;
- setTimeout(()=>{const c=C(S.clientId);if(!c)return;const p=P.addPayment(c,n,{method:pp.method,det:pp.det});render();if(pp.want)P.open([D.receipt(c.id,p.id),D.statement(c.id)])},0)});
+ setTimeout(()=>{const c=C(S.clientId);if(!c)return;const p=P.addPayment(c,n,{method:pp.method,det:pp.det,k:pp.k});render();if(pp.want)P.open([D.receipt(c.id,p.id),D.statement(c.id)])},0)});
 })();
