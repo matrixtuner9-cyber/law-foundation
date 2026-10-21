@@ -11,7 +11,7 @@ const DATA = process.env.MQ_DATA || path.join(ROOT, 'data'), MEDIA = path.join(D
 fs.mkdirSync(MEDIA, { recursive: true });
 
 const SEED = require('./data.js');
-const Store = require('./lib/db'), Auth = require('./lib/auth'), Merge = require('./lib/merge'), Maqam = require('./lib/maqam'), MaqamSearch = require('./lib/maqam-search'), Laws = require('./lib/laws'), LawSources = require('./lib/law-sources'), AiDraft = require('./lib/ai-draft'), Muqtafi = require('./lib/muqtafi'), Sjc = require('./lib/sjc'), Apns = require('./lib/apns'), WebPush = require('./lib/webpush'), Tts = require('./lib/tts'), Legal = require('./lib/legal-pages'), http2 = require('http2');
+const Store = require('./lib/db'), Auth = require('./lib/auth'), Merge = require('./lib/merge'), Maqam = require('./lib/maqam'), MaqamSearch = require('./lib/maqam-search'), Laws = require('./lib/laws'), LawSources = require('./lib/law-sources'), AiDraft = require('./lib/ai-draft'), Muqtafi = require('./lib/muqtafi'), Sjc = require('./lib/sjc'), Apns = require('./lib/apns'), WebPush = require('./lib/webpush'), Tts = require('./lib/tts'), Legal = require('./lib/legal-pages'), Av = require('./lib/avatar'), http2 = require('http2');
 const OFFICE = { name: 'مكتب الميثاق للمحاماة والاستشارات القانونية', lawyer: 'المحامي سامر عبد الله', city: 'نابلس', phone: '09-233-0000', hours: 'الأحد – الخميس · 8:30 – 16:00' };
 const STATE_F = path.join(DATA, 'state.json'), MSG_F = path.join(DATA, 'messages.json');
 const VAPID_F = path.join(DATA, 'vapid.json'), PUSH_F = path.join(DATA, 'push.json');
@@ -283,7 +283,7 @@ function portalHome(cl) {
   });
   const docs = S.docs.filter(d => d.shared && cases.some(k => k.id === d.k)).sort((a, b) => b.date.localeCompare(a.date))
     .map(d => ({ title: d.title, kind: d.kind, date: d.date, pages: d.pages, caseNo: (S.cases.find(k => k.id === d.k) || {}).no }));
-  return { client: { id: cl.id, name: cl.name, code: cl.code, type: cl.type, fee: cl.fee, paid: cl.paid, ch: cl.ch, phone: cl.phone || '', phone2: cl.phone2 || '', whatsapp: cl.whatsapp || '' }, office: officeInfo(), steps: SEED.STEPS, cases, docs };
+  return { client: { id: cl.id, name: cl.name, code: cl.code, type: cl.type, fee: cl.fee, paid: cl.paid, ch: cl.ch, phone: cl.phone || '', phone2: cl.phone2 || '', whatsapp: cl.whatsapp || '' }, office: { ...officeInfo(), photo: Av.ver((store.kv.get('office_photo') || {}).data) || null }, steps: SEED.STEPS, cases, docs };
 }
 function ensureState() { if (!state) { state = JSON.parse(JSON.stringify(cur())); store.saveState(null, state, 'system', stampS()) } }
 function touchClient(cl) { if (!state) return; const c = state.clients.find(x => x.id === cl.id); if (c) { c.last = stamp().slice(0, 10); c._v = (c._v || 0) + 1; store.putRecord('clients', c, 'portal:' + cl.code, stampS()); broadcastRecords([{ kind: 'clients', rec: c }], null) } }
@@ -336,6 +336,10 @@ async function api(req, res, u) {
     if (!cl || !cl.portal) { if (!cl) pFail(ip); return json(res, 401, { error: 'انتهت الجلسة، يرجى الدخول من جديد.' }) }
     const who = { username: 'portal:' + cl.code, ip };
     if (p === '/api/portal/home') return json(res, 200, portalHome(cl));
+    if (p === '/api/portal/lawyer-photo' && M === 'GET') {
+      const x = Av.parts((store.kv.get('office_photo') || {}).data); if (!x) return json(res, 404, { error: 'لا توجد صورة' });
+      const buf = Buffer.from(x.b64, 'base64'); res.writeHead(200, { 'Content-Type': x.type, 'Content-Length': buf.length, 'Cache-Control': 'private, max-age=86400', ...SEC }); return res.end(buf);
+    }
     if (p === '/api/portal/profile' && M === 'POST') {
       const b = await jbody(req), ok = v => /^[+\d][\d\s-]{5,19}$/.test(v), clean = v => String(v || '').trim().slice(0, 20);
       const upd = { phone: clean(b.phone), phone2: clean(b.phone2), whatsapp: clean(b.whatsapp) };
@@ -611,6 +615,19 @@ async function api(req, res, u) {
     if (r.file) { res.writeHead(200, { 'Content-Type': r.file.contentType, 'Content-Disposition': `inline; filename="${r.file.filename}"`, 'Cache-Control': 'no-store', ...CORS, ...SEC }); return res.end(Buffer.from(r.file.body)) }
     return json(res, r.status, r.body, r.status === 429 && r.body.retry ? { 'Retry-After': String(r.body.retry) } : {});
   }
+    /* الصورة الشخصية، واختيارياً صورة محامي المكتب التي تظهر للموكلين في تطبيقهم */
+    if (p === '/api/admin/me/avatar') {
+      const canC = auth.can(me, 'manage') || me.role === 'lawyer', op = store.kv.get('office_photo');
+      if (M === 'GET') return json(res, 200, { data: (store.kv.get('avatars') || {})[me.username] || null, forClients: !!(op && op.by === me.username), canClients: canC, officePhoto: !!op });
+      if (M === 'POST') {
+        const b = await jbody(req) || {}, r = Av.cleanAvatar(b.data); if (r.error) return json(res, 400, { error: r.error });
+        const av = { ...(store.kv.get('avatars') || {}) }; if (r.data) av[me.username] = r.data; else delete av[me.username]; store.kv.set('avatars', av);
+        if (canC && b.forClients && r.data) store.kv.set('office_photo', { data: r.data, by: me.username, at: Date.now() });
+        else if (op && op.by === me.username && (!b.forClients || !r.data)) store.kv.set('office_photo', null);
+        audit({ ...who, action: 'user.avatar', entity: 'users', entity_id: me.id, detail: { removed: !r.data, forClients: !!(canC && b.forClients && r.data) } });
+        return json(res, 200, { ok: true });
+      }
+    }
   if (p.startsWith('/api/admin/tts')) {
     /* النطق العربي السحابي (ElevenLabs) لتنبيهات الرسائل: المفتاح في الخادم فقط */
     tts = tts || Tts.createTts({ getCfg: async () => store.kv.get('tts_cfg') || null, audit });
@@ -771,7 +788,7 @@ async function rulingFile(req, res, u, who) {
 }
 
 /* ملفات شاشة المكتب: قائمة محددة فقط، وكلها تتطلب تسجيل الدخول عدا صفحة الدخول */
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'sources.js', 'guide.js', 'announce.js', 'reader.js', 'case-hub.js', 'case-wizard.js', 'consistency.js', 'searchsel.js', 'wa-chat.js', 'fulltext.js', 'ai-mark.js', 'night.css', 'qrcode.js', 'app-invite.js', 'wa-skin.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'sources.js', 'guide.js', 'announce.js', 'reader.js', 'case-hub.js', 'case-wizard.js', 'consistency.js', 'searchsel.js', 'wa-chat.js', 'fulltext.js', 'ai-mark.js', 'night.css', 'qrcode.js', 'app-invite.js', 'avatar.js', 'wa-skin.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css', 'edition.js']);
 
 http.createServer((req, res) => {

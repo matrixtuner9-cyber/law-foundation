@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'store.dart';
 import 'push.dart';
 import 'theme.dart';
+import 'lawyer_avatar.dart';
 import 'util.dart';
 
 typedef GoTo = void Function(int i, {String? action});
@@ -132,6 +133,17 @@ class _Hero extends StatelessWidget {
             const SizedBox(height: 18),
             Text('${greeting()}،', style: MQ.body(15, color: MQ.soft)),
             Text(store.firstName, style: MQ.display(32, color: Colors.white), maxLines: 2),
+            const SizedBox(height: 12),
+            if ('${store.office['lawyer'] ?? ''}'.isNotEmpty)
+              Row(children: [
+                const LawyerAvatar(size: 40),
+                const SizedBox(width: 10),
+                Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('محاميك', style: MQ.body(11.5, color: MQ.soft)),
+                  Text('${store.office['lawyer']}', style: MQ.body(15, color: Colors.white, weight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
+                ])),
+              ]),
             const SizedBox(height: 16),
             if (next == null)
               _glass(Text('لا جلسات قادمة حالياً. سنبلغك فور تحديد موعد جديد.', style: MQ.body(14, color: Colors.white)))

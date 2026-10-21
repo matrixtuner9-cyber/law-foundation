@@ -15,6 +15,7 @@ import * as Apns from './apns.js';
 import * as WebPush from './webpush.js';
 import * as Tts from './tts.js';
 import * as Legal from './legal-pages.js';
+import * as Av from './avatar.js';
 import { createLaws } from './laws.js';
 import { createLawSearch } from './law-sources.js';
 import { createDrafter, createExtractor, createTranscriber, createAssistant, createCalcExtractor, createRulingExtractor, usageSummary, PRICES as AI_PRICES, DOC_TYPES, MODEL as AI_MODEL } from './ai-draft.js';
@@ -48,7 +49,7 @@ const SEC = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-orig
 const json = (code, obj, extra = {}) => new Response(JSON.stringify(obj), { status: code, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...CORS, ...SEC, ...extra } });
 const MEDIA_TTL = 24 * 3600; // صلاحية رابط الملف الموقّع: يوم واحد، ويتجدد بتحميل المحادثة
 
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'sources.js', 'guide.js', 'announce.js', 'reader.js', 'case-hub.js', 'case-wizard.js', 'consistency.js', 'searchsel.js', 'wa-chat.js', 'fulltext.js', 'ai-mark.js', 'night.css', 'qrcode.js', 'app-invite.js', 'wa-skin.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'sources.js', 'guide.js', 'announce.js', 'reader.js', 'case-hub.js', 'case-wizard.js', 'consistency.js', 'searchsel.js', 'wa-chat.js', 'fulltext.js', 'ai-mark.js', 'night.css', 'qrcode.js', 'app-invite.js', 'avatar.js', 'wa-skin.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css', 'edition.js']);
 
 /* توحيد الكتابة العربية للبحث في دليل المحامين */
@@ -180,7 +181,7 @@ export class Office extends DurableObject {
     });
     const docs = S.docs.filter(d => d.shared && cases.some(k => k.id === d.k)).sort((a, b) => String(b.date).localeCompare(String(a.date)))
       .map(d => ({ title: d.title, kind: d.kind, date: d.date, pages: d.pages, caseNo: (S.cases.find(k => k.id === d.k) || {}).no }));
-    return { client: { id: cl.id, name: cl.name, code: cl.code, type: cl.type, fee: cl.fee, paid: cl.paid, ch: cl.ch, phone: cl.phone || '', phone2: cl.phone2 || '', whatsapp: cl.whatsapp || '' }, office: this.officeInfo(), steps: STEPS, cases, docs };
+    return { client: { id: cl.id, name: cl.name, code: cl.code, type: cl.type, fee: cl.fee, paid: cl.paid, ch: cl.ch, phone: cl.phone || '', phone2: cl.phone2 || '', whatsapp: cl.whatsapp || '' }, office: { ...this.officeInfo(), photo: Av.ver((this.store.kv.get('office_photo') || {}).data) || null }, steps: STEPS, cases, docs };
   }
   /* بث السجلات المعدّلة لزملاء المكتب فوراً (المحامي الخارجي يراها عند إعادة التحميل) */
   broadcastRecords(recs, byId, del = []) {
@@ -276,6 +277,11 @@ export class Office extends DurableObject {
       if (!cl || !cl.portal) { this.store.hit(failKey, 20, 15 * 60e3); return json(401, { error: 'انتهت الجلسة، يرجى الدخول من جديد.' }) }
       const who = { username: 'portal:' + cl.code, ip };
       if (p === '/api/portal/home') return json(200, this.portalHome(cl));
+      if (p === '/api/portal/lawyer-photo' && M === 'GET') {
+        const x = Av.parts((this.store.kv.get('office_photo') || {}).data); if (!x) return json(404, { error: 'لا توجد صورة' });
+        const bin = Uint8Array.from(atob(x.b64), ch => ch.charCodeAt(0));
+        return new Response(bin, { headers: { ...SEC, 'Content-Type': x.type, 'Cache-Control': 'private, max-age=86400' } });
+      }
       if (p === '/api/portal/profile' && M === 'POST') {
         const b = await jbody(), ok = v => /^[+\d][\d\s-]{5,19}$/.test(v), clean = v => String(v || '').trim().slice(0, 20);
         const upd = { phone: clean(b.phone), phone2: clean(b.phone2), whatsapp: clean(b.whatsapp) };
@@ -509,6 +515,19 @@ export class Office extends DurableObject {
       const a = p.slice(15), r = a === 'classes' && M === 'GET' ? await this.sjc('classes', {}, me) : a === 'search' && M === 'POST' ? await this.sjc('search', await jbody(), me) : a === 'pdf' && M === 'GET' ? await this.sjc('pdf', { id: u.searchParams.get('id') }, me) : { status: 404, body: { error: 'not found' } };
       if (r.file) return new Response(r.file.body, { headers: { 'Content-Type': r.file.contentType, 'Content-Disposition': `inline; filename="${r.file.filename}"`, 'Cache-Control': 'no-store', ...CORS, ...SEC } });
       return json(r.status, r.body, r.status === 429 && r.body.retry ? { 'Retry-After': String(r.body.retry) } : {});
+    }
+    /* الصورة الشخصية، واختيارياً صورة محامي المكتب التي تظهر للموكلين في تطبيقهم */
+    if (p === '/api/admin/me/avatar') {
+      const canC = this.auth.can(me, 'manage') || me.role === 'lawyer', op = this.store.kv.get('office_photo');
+      if (M === 'GET') return json(200, { data: (this.store.kv.get('avatars') || {})[me.username] || null, forClients: !!(op && op.by === me.username), canClients: canC, officePhoto: !!op });
+      if (M === 'POST') {
+        const b = await jbody() || {}, r = Av.cleanAvatar(b.data); if (r.error) return json(400, { error: r.error });
+        const av = { ...(this.store.kv.get('avatars') || {}) }; if (r.data) av[me.username] = r.data; else delete av[me.username]; this.store.kv.set('avatars', av);
+        if (canC && b.forClients && r.data) this.store.kv.set('office_photo', { data: r.data, by: me.username, at: Date.now() });
+        else if (op && op.by === me.username && (!b.forClients || !r.data)) this.store.kv.set('office_photo', null);
+        this.audit({ ...who, action: 'user.avatar', entity: 'users', entity_id: me.id, detail: { removed: !r.data, forClients: !!(canC && b.forClients && r.data) } });
+        return json(200, { ok: true });
+      }
     }
     if (p.startsWith('/api/admin/tts')) {
       /* النطق العربي السحابي (ElevenLabs) لتنبيهات الرسائل: المفتاح في الخادم فقط */

@@ -11,6 +11,7 @@ import 'api.dart';
 import 'attach.dart';
 import 'store.dart';
 import 'theme.dart';
+import 'lawyer_avatar.dart';
 import 'util.dart';
 import 'platform/tmp_web.dart' if (dart.library.io) 'platform/tmp_io.dart';
 
@@ -187,13 +188,7 @@ class ChatTabState extends State<ChatTab> {
       padding: EdgeInsets.fromLTRB(16, top + 10, 16, 12),
       decoration: const BoxDecoration(color: MQ.surface, border: Border(bottom: BorderSide(color: MQ.line))),
       child: Row(children: [
-        Container(
-          width: 46,
-          height: 46,
-          decoration: const BoxDecoration(shape: BoxShape.circle, color: MQ.forest),
-          alignment: Alignment.center,
-          child: Text('س', style: MQ.display(22, color: MQ.brassHi)),
-        ),
+        const LawyerAvatar(size: 46),
         const SizedBox(width: 12),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
