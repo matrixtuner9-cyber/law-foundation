@@ -76,7 +76,7 @@ function caseRows(){
 
 V.case=()=>{
  const k=K(S.caseId),cl=C(k.client),ct=CT(k.court),h=nextH(k.id);
- const tabs=[['c360','ملف القضية 360°'],['track','مسار التقاضي'],['flow','مخطط السير'],['hearings','الجلسات'],['docs','المستندات'],['deadlines','المهل'],['msgs','مراسلات الموكل'],['mz','سجل ميزان']];
+ const tabs=[['c360','ملف القضية 360°'],['track','مسار التقاضي'],['hearings','الجلسات'],['docs','المستندات'],['deadlines','المهل'],['msgs','مراسلات الموكل'],['mz','سجل ميزان']];
  return `<div><button class="link" data-act="nav" data-v="cases">→ كل القضايا</button></div>
  <div class="head"><div><h1>${esc(k.subject)}</h1><p class="sub"><span class="mono">${k.no}</span> · ${esc(k.type)} · فُتحت ${dmy(k.opened)} · قيمة الدعوى ${money(k.value)}</p></div>
   <div class="toolbar">${window.caseBadges?caseBadges(k):''}<span class="pill ${statusPill(k.status)}">${esc(k.status)}</span><span class="pill ${k.pri==='عالية'?'bad':''}">أولوية ${k.pri}</span><button class="btn" data-act="tplFor" data-v="${k.id}">إنشاء مستند</button></div></div>
@@ -96,7 +96,6 @@ V.case=()=>{
 };
 function caseTab(k){
  if(S.caseTab==='track'&&window.trackTab)return trackTab(k);
- if(S.caseTab==='flow'&&window.MQ_flow)return MQ_flow.body(k);
  if(S.caseTab==='c360'&&window.case360Tab)return case360Tab(k);
  if(S.caseTab==='hearings'){
   const hs=hearings.filter(h=>h.k===k.id).sort((a,b)=>a.date.localeCompare(b.date));const nx=nextH(k.id);
