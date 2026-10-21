@@ -1,0 +1,156 @@
+/* ── الوضع الليلي الاحترافي: قالب ألوان موحّد (كحلي عميق + ذهبي) لكل النصوص والحقول والبطاقات والشارات ──
+   يُحمَّل بعد كل الأنماط، فيصحّح الألوان الفاتحة المثبّتة في القوالب الأخرى. معايير التباين: نص أساسي ≥ 7:1، ثانوي ≥ 4.5:1. */
+html.night{
+  --n-bg:#0B1220; --n-surface:#111A2E; --n-card:#152036; --n-raise:#1B2842; --n-sunk:#0E1729; --n-line:#26344F; --n-line2:#33446A;
+  --n-ink:#EEE8DA; --n-sub:#B4BCCD; --n-muted:#8E99B0; --n-gold:#D9B96E; --n-gold2:#E8CD8B; --n-gold-soft:rgb(217 185 110 / .14); --n-gold-line:rgb(217 185 110 / .45);
+  --n-blue:#7FA8FF; --n-green:#4ADE9B; --n-orange:#F7B455; --n-red:#F58C8C; --n-purple:#B9A2FF;
+  /* ربط رموز القوالب القائمة بالقالب الليلي */
+  --bg:var(--n-bg); --surface:var(--n-card); --sunk:var(--n-sunk); --paper:var(--n-surface); --ink:var(--n-ink); --muted:var(--n-sub); --line:var(--n-line);
+  --accent:var(--n-gold); --accent-ink:#0B1220; --accent-soft:var(--n-gold-soft); --brass:var(--n-gold); --brass-soft:var(--n-gold-soft); --gold:var(--n-gold); --gold-hi:var(--n-gold2);
+  --paper-ink:var(--n-ink); --paper-line:var(--n-line);
+  --ok-soft:rgb(74 222 155 / .14); --warn-soft:rgb(247 180 85 / .15); --danger-soft:rgb(245 140 140 / .14); --info-soft:rgb(127 168 255 / .14);
+  color-scheme:dark;
+}
+html.night body:has(#nav){--p-page:var(--n-bg);--p-card:var(--n-card);--p-line:var(--n-line);--p-ink:var(--n-ink);--p-sub:var(--n-sub);--p-hi:var(--n-raise);--p-gold:var(--n-gold);--p-gold2:#C9A87A;--p-navy:#0B1220;--p-navy2:#1B2842}
+html.night body{color:var(--n-ink)}
+html.night ::selection{background:rgb(217 185 110 / .35);color:#fff}
+
+/* ── الشريط العلوي ── */
+html.night body:has(#nav) .top{background:rgb(17 26 46 / .94)!important;border-color:var(--n-line)!important;box-shadow:0 6px 20px rgb(0 0 0 / .35)!important}
+html.night body:has(#nav) .top .me-t b,html.night body:has(#nav) #topDate b,html.night body:has(#nav) .top .who b{color:var(--n-ink)!important}
+html.night body:has(#nav) .top .me-t small,html.night body:has(#nav) #topDate small,html.night body:has(#nav) .top .who small{color:var(--n-sub)!important}
+html.night body:has(#nav) .top .tico{color:var(--n-sub)}html.night body:has(#nav) .top .tico:hover{color:var(--n-gold2);background:var(--n-raise)}
+html.night body:has(#nav) #themeBtn{background:var(--n-raise)!important;color:var(--n-gold2)!important}
+html.night body:has(#nav) .top .search,html.night body:has(#nav) #gq{background:var(--n-sunk)!important;color:var(--n-ink)!important;border-color:var(--n-line2)!important}
+html.night body:has(#nav) .top .search:focus-within{border-color:var(--n-gold-line)!important;box-shadow:0 0 0 3px rgb(217 185 110 / .15)}
+html.night body:has(#nav) .kbd{background:var(--n-raise)!important;color:var(--n-sub)!important;border-color:var(--n-line2)!important}
+html.night body:has(#nav) .top-sep,html.night body:has(#nav) .top .sep{background:var(--n-line)!important}
+
+/* ── الشعار الرئيسي ── */
+html.night body:has(#nav) .bn-txt h1{color:var(--n-gold2)!important;text-shadow:0 2px 12px rgb(0 0 0 / .6)}
+html.night body:has(#nav) .bn-txt p,html.night body:has(#nav) .bn-txt span{color:#F3EEE2!important;text-shadow:0 1px 8px rgb(0 0 0 / .6)}
+
+/* ── النصوص العامة ── */
+html.night body:has(#nav) h1,html.night body:has(#nav) h2,html.night body:has(#nav) h3,html.night body:has(#nav) h4{color:var(--n-ink)}
+html.night body:has(#nav) .sub,html.night body:has(#nav) .m,html.night body:has(#nav) .note,html.night body:has(#nav) small,html.night body:has(#nav) .muted{color:var(--n-sub)}
+html.night body:has(#nav) .note{background:var(--n-sunk);border-color:var(--n-line)}
+html.night body:has(#nav) a{color:var(--n-blue)}html.night body:has(#nav) a.btn{color:inherit}
+html.night body:has(#nav) .link{color:var(--n-gold2)}
+html.night body:has(#nav) .empty{color:var(--n-muted)}
+html.night body:has(#nav) mark{background:rgb(217 185 110 / .35);color:#fff}
+
+/* ── الحقول ── */
+html.night body:has(#nav) .field,html.night body:has(#nav) input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]),html.night body:has(#nav) select,html.night body:has(#nav) textarea{
+  background:var(--n-sunk)!important;color:var(--n-ink)!important;border-color:var(--n-line2)!important}
+html.night body:has(#nav) .field:focus,html.night body:has(#nav) input:focus,html.night body:has(#nav) select:focus,html.night body:has(#nav) textarea:focus{border-color:var(--n-gold)!important;box-shadow:0 0 0 3px rgb(217 185 110 / .18)!important;outline:0}
+html.night body:has(#nav) ::placeholder{color:#7D889F!important;opacity:1}
+html.night body:has(#nav) input:disabled,html.night body:has(#nav) select:disabled,html.night body:has(#nav) textarea:disabled,html.night body:has(#nav) .field[readonly]{background:#0C1424!important;color:var(--n-muted)!important}
+html.night body:has(#nav) select option,html.night body:has(#nav) select optgroup{background:var(--n-card);color:var(--n-ink)}
+html.night body:has(#nav) input[type=date]::-webkit-calendar-picker-indicator,html.night body:has(#nav) input[type=time]::-webkit-calendar-picker-indicator{filter:invert(.85) sepia(.3)}
+html.night body:has(#nav) label{color:var(--n-sub)}
+html.night body:has(#nav) input[type=checkbox],html.night body:has(#nav) input[type=radio]{accent-color:var(--n-gold)}
+html.night body:has(#nav) fieldset{border-color:var(--n-line)!important}html.night body:has(#nav) legend{color:var(--n-sub)!important}
+html.night body:has(#nav) select.ss-on{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23b4bccd' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='m20 20-3.5-3.5'/%3E%3C/svg%3E")!important;background-repeat:no-repeat!important;background-position:left 30px center!important}
+html.night body:has(#nav) .ss-pop{--card:var(--n-card);--line:var(--n-line);--bg:var(--n-sunk);--muted:var(--n-sub);--acc:var(--n-gold)}
+
+/* ── الأزرار العامة ── */
+html.night body:has(#nav) .btn{background:var(--n-raise);color:var(--n-ink);border-color:var(--n-line2)}
+html.night body:has(#nav) .btn:hover{border-color:var(--n-gold-line);color:#fff}
+html.night body:has(#nav) .btn.pri{background:linear-gradient(180deg,#E3C67E,#C9A55A)!important;color:#141A27!important;border-color:#C9A55A!important}
+html.night body:has(#nav) .btn.gold{background:var(--n-gold)!important;color:#141A27!important}
+
+/* ── اللوحات والبطاقات والنوافذ ── */
+html.night body:has(#nav) .panel,html.night body:has(#nav) .card,html.night body:has(#nav) .modal,html.night body:has(#nav) section.panel{background:var(--n-card)!important;border-color:var(--n-line)!important;color:var(--n-ink)}
+html.night body:has(#nav) .panel header,html.night body:has(#nav) .card header{border-color:var(--n-line)!important}
+html.night body:has(#nav) .modal-bg{background:rgb(3 7 15 / .72)!important}
+html.night body:has(#nav) .row{border-color:var(--n-line)}html.night body:has(#nav) .row.clk:hover,html.night body:has(#nav) tbody tr:hover{background:var(--n-raise)}
+
+/* ── الجداول ── */
+html.night body:has(#nav) table{color:var(--n-ink)}
+html.night body:has(#nav) th,html.night body:has(#nav) .ct th,html.night body:has(#nav) thead th{background:var(--n-raise)!important;color:var(--n-sub)!important;border-color:var(--n-line)!important}
+html.night body:has(#nav) td{border-color:var(--n-line)!important}
+html.night body:has(#nav) tfoot td{background:var(--n-sunk)!important}
+
+/* ── التبويبات والشرائح والتبديل ── */
+html.night body:has(#nav) .tabs{background:transparent;border-color:var(--n-line)}
+html.night body:has(#nav) .tabs button{background:var(--n-surface)!important;color:var(--n-sub)!important;border:1px solid var(--n-line)!important}
+html.night body:has(#nav) .tabs button:hover{color:var(--n-ink)!important;border-color:var(--n-line2)!important}
+html.night body:has(#nav) .tabs button.on{background:linear-gradient(180deg,rgb(217 185 110 / .22),rgb(217 185 110 / .10))!important;color:var(--n-gold2)!important;border-color:var(--n-gold-line)!important}
+html.night body:has(#nav) .tabs .n,html.night body:has(#nav) .tabs .tcount{background:var(--n-raise)!important;color:var(--n-ink)!important}
+html.night body:has(#nav) .tabs button.on .n,html.night body:has(#nav) .tabs button.on .tcount{background:var(--n-gold)!important;color:#141A27!important}
+html.night body:has(#nav) .tcount.hot{background:#E25555!important;color:#fff!important}
+html.night body:has(#nav) .chip{background:var(--n-surface);color:var(--n-sub);border-color:var(--n-line)}
+html.night body:has(#nav) .chip.on,html.night body:has(#nav) .chip[aria-selected="true"]{background:var(--n-gold-soft)!important;color:var(--n-gold2)!important;border-color:var(--n-gold-line)!important}
+html.night body:has(#nav) .chip small,html.night body:has(#nav) .chip.on small{color:inherit!important;opacity:.85}
+html.night body:has(#nav) .seg{background:var(--n-sunk)!important;border-color:var(--n-line)!important}
+html.night body:has(#nav) .seg button{color:var(--n-sub)!important;background:transparent!important}
+html.night body:has(#nav) .seg button.on{background:var(--n-raise)!important;color:var(--n-gold2)!important}
+html.night body:has(#nav) .src-tab{background:var(--n-surface)!important;color:var(--n-sub)!important;border-color:var(--n-line)!important}
+html.night body:has(#nav) .src-tab.on{background:var(--n-gold-soft)!important;color:var(--n-gold2)!important;border-color:var(--n-gold-line)!important}
+
+/* ── الشارات الملونة: نسخ ليلية شفافة بألوان مقروءة ── */
+html.night body:has(#nav) .pill{background:var(--n-raise);color:var(--n-ink);border-color:var(--n-line2)}
+html.night body:has(#nav) .pill.ok,html.night body:has(#nav) .pill.green{background:rgb(74 222 155 / .14)!important;color:var(--n-green)!important}
+html.night body:has(#nav) .pill.warn,html.night body:has(#nav) .pill.orange{background:rgb(247 180 85 / .15)!important;color:var(--n-orange)!important}
+html.night body:has(#nav) .pill.bad,html.night body:has(#nav) .pill.danger{background:rgb(245 140 140 / .15)!important;color:var(--n-red)!important}
+html.night body:has(#nav) .pill.acc,html.night body:has(#nav) .pill.mz{background:var(--n-gold-soft)!important;color:var(--n-gold2)!important}
+html.night body:has(#nav) .lvl-0,html.night body:has(#nav) .lvl-1{background:rgb(127 168 255 / .14)!important;color:#C9D7FF!important}
+html.night body:has(#nav) .lvl-2{background:var(--n-gold-soft)!important;color:var(--n-gold2)!important}
+html.night body:has(#nav) .lvl-3{background:#2A3B64!important;color:#F5F0E6!important}
+html.night body:has(#nav) .lvl-4{background:rgb(247 180 85 / .15)!important;color:#F9C98A!important}
+html.night body:has(#nav) [class*="cat-"].pill{background:rgb(127 168 255 / .14)!important;color:#C9D7FF!important}
+html.night body:has(#nav) .stg.orange,html.night body:has(#nav) .kpi.orange .kico,html.night body:has(#nav) .tli.orange .tic,html.night body:has(#nav) .fi.orange .fic{background:rgb(247 180 85 / .15)!important;color:var(--n-orange)!important}
+html.night body:has(#nav) .stg.blue,html.night body:has(#nav) .kpi.blue .kico,html.night body:has(#nav) .tli.blue .tic,html.night body:has(#nav) .fi.blue .fic,html.night body:has(#nav) .fi.portal .fic{background:rgb(127 168 255 / .15)!important;color:var(--n-blue)!important}
+html.night body:has(#nav) .stg.purple,html.night body:has(#nav) .tli.purple .tic{background:rgb(185 162 255 / .15)!important;color:var(--n-purple)!important}
+html.night body:has(#nav) .stg.gold,html.night body:has(#nav) .kpi.gold .kico{background:var(--n-gold-soft)!important;color:var(--n-gold2)!important}
+html.night body:has(#nav) .stg.green,html.night body:has(#nav) .kpi.green .kico,html.night body:has(#nav) .tli.green .tic,html.night body:has(#nav) .fi.green .fic,html.night body:has(#nav) .fi.pay .fic,html.night body:has(#nav) .fi.file .fic,html.night body:has(#nav) .fi.image .fic{background:rgb(74 222 155 / .14)!important;color:var(--n-green)!important}
+html.night body:has(#nav) .kpi.brown .kico,html.night body:has(#nav) .fi.brown .fic,html.night body:has(#nav) .fi.mz .fic{background:rgb(201 168 122 / .15)!important;color:#D8BC92!important}
+html.night body:has(#nav) .role-admin{background:var(--n-gold-soft)!important;color:var(--n-gold2)!important}
+html.night body:has(#nav) .role-lawyer{background:rgb(127 168 255 / .14)!important;color:#C9D7FF!important}
+html.night body:has(#nav) .role-external{background:rgb(247 180 85 / .15)!important;color:#F9C98A!important}
+html.night body:has(#nav) .role-viewer{background:var(--n-raise)!important;color:var(--n-sub)!important}
+html.night body:has(#nav) .role-card{background:var(--n-card)!important}
+html.night body:has(#nav) .av{filter:saturate(.9)}
+
+/* ── ملف القضية الموحّد ── */
+html.night body:has(#nav) .hub-crumbs{color:var(--n-sub)}
+html.night body:has(#nav) .hub-f{background:var(--n-card)!important;border-color:var(--n-line)!important;color:var(--n-ink)!important}
+html.night body:has(#nav) .hub-f span,html.night body:has(#nav) .hub-f small{color:var(--n-sub)!important}
+html.night body:has(#nav) .hub-f b{color:var(--n-ink)!important}
+html.night body:has(#nav) .hub-f.warn{border-inline-start:3px solid var(--n-orange)!important}html.night body:has(#nav) .hub-f.warn b{color:var(--n-orange)!important}
+html.night body:has(#nav) .hub-f.urgent{border-inline-start:3px solid var(--n-red)!important}html.night body:has(#nav) .hub-f.urgent b{color:var(--n-red)!important}
+html.night body:has(#nav) .hub-f.ok b{color:var(--n-green)!important}
+html.night body:has(#nav) .hub-f:hover{border-color:var(--n-gold-line)!important}
+html.night body:has(#nav) .hub-acts{background:var(--n-surface)!important;border-color:var(--n-line)!important}
+html.night body:has(#nav) .hub-ev{background:var(--n-card)!important;border-color:var(--n-line)!important}
+html.night body:has(#nav) .hub-ev .hub-top b{color:var(--n-ink)!important}html.night body:has(#nav) .hub-ev time,html.night body:has(#nav) .hub-ev .hub-txt{color:var(--n-sub)!important}
+html.night body:has(#nav) .hub-ev.unread{border-inline-start:3px solid var(--n-gold)!important}
+html.night body:has(#nav) .hub-ic{background:var(--n-raise)!important;color:var(--n-gold2)!important}
+html.night body:has(#nav) .hub-cases{background:var(--n-card)!important;border-color:var(--n-line)!important}
+html.night body:has(#nav) .hub-cases header b{color:var(--n-ink)!important}html.night body:has(#nav) .hub-cases .m{color:var(--n-sub)!important}
+html.night body:has(#nav) .hub-case{background:var(--n-surface)!important;border-color:var(--n-line)!important;color:var(--n-ink)!important}
+html.night body:has(#nav) .hub-case small{color:var(--n-sub)!important}
+html.night body:has(#nav) .qc-box{background:rgb(247 180 85 / .07)!important;border-color:rgb(247 180 85 / .45)!important}
+html.night body:has(#nav) .ck-box{background:var(--n-sunk)!important;border-color:var(--n-line2)!important;color:var(--n-ink)!important}
+html.night body:has(#nav) .ck-box.bad{border-color:rgb(245 140 140 / .5)!important}html.night body:has(#nav) .ck-box.warn{border-color:rgb(247 180 85 / .5)!important}
+html.night body:has(#nav) .cw-steps{background:rgb(74 222 155 / .08)!important;border-color:rgb(74 222 155 / .45)!important}html.night body:has(#nav) .cw-steps span{color:var(--n-green)!important}
+
+/* ── مكتبتي القانونية، الإعدادات، وغيرها ── */
+html.night body:has(#nav) .kl-stats span,html.night body:has(#nav) .kl-tabs button{background:var(--n-surface)!important;color:var(--n-sub)!important;border-color:var(--n-line)!important}
+html.night body:has(#nav) .kl-stats b{color:var(--n-gold2)!important}
+html.night body:has(#nav) .kl-tabs button.on{background:var(--n-gold-soft)!important;color:var(--n-gold2)!important;border-color:var(--n-gold-line)!important}
+html.night body:has(#nav) .kl-card{background:var(--n-card)!important;border-color:var(--n-line)!important}
+html.night body:has(#nav) .kl-card h3{color:var(--n-ink)!important}html.night body:has(#nav) .kl-card p,html.night body:has(#nav) .kl-meta small,html.night body:has(#nav) .kl-foot small{color:var(--n-sub)!important}
+html.night body:has(#nav) .edition{background:var(--n-surface)!important;border-color:var(--n-line)!important}
+html.night body:has(#nav) .edition.on{background:var(--n-gold-soft)!important;border-color:var(--n-gold)!important}
+html.night body:has(#nav) .edition b{color:var(--n-ink)!important}html.night body:has(#nav) .edition.on b{color:var(--n-gold2)!important}html.night body:has(#nav) .edition span{color:var(--n-sub)!important}
+html.night body:has(#nav) .ll-warn{background:rgb(247 180 85 / .08)!important;border-color:rgb(247 180 85 / .4)!important;color:var(--n-ink)!important}
+html.night body:has(#nav) .wa-btn{background:#1E8F57!important;color:#fff!important}
+html.night body:has(#nav) .bag-head,html.night body:has(#nav) .bag-stats button{border-color:var(--n-line2)}
+html.night body:has(#nav) .tpl-categories .chip.on{color:var(--n-gold2)!important}
+html.night body:has(#nav) .paper{background:#F7F2E6;color:#1C1A16}
+html.night body:has(#nav) .cr-due{color:var(--n-orange)!important}
+html.night body:has(#nav) .bar{background:var(--n-raise)}
+html.night body:has(#nav) .doc-count,html.night body:has(#nav) .cr-count{color:var(--n-sub)}
+html.night body:has(#nav) .ms-sn,html.night body:has(#nav) .rl-s{background:var(--n-sunk)!important;color:var(--n-ink)!important}
+html.night body:has(#nav) .toast,html.night body:has(#nav) #toast{background:#E9E1CD;color:#141A27}
