@@ -70,7 +70,7 @@ V.client=()=>{
  <div id="bagBody">${bagBody(c,ks,tab)}</div>`;
 };
 function bagBody(c,ks,tab){
- if(tab==='msgs')return `<section class="panel chat"><div class="th" id="th">${thread(c.id)}</div>
+ if(tab==='msgs')return `<section class="panel chat wa-skin"><div class="th" id="th">${thread(c.id)}</div>
   <div class="rec" id="rec" hidden><span class="rec-dot"></span><span class="mono" id="recT">0:00</span><span class="rec-l">جارٍ التسجيل…</span><canvas id="recWave" width="240" height="28" aria-hidden="true"></canvas><button class="ib" data-act="recCancel" title="إلغاء">${I.x}</button><button class="ib pri" data-act="recStop" title="إرسال التسجيل">${I.send}</button></div>
   <form class="composer" id="fBag"><label class="ib" title="إرفاق صورة أو مستند">${I.clip}<input type="file" id="bagFile" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt" hidden></label>
    <button type="button" class="ib ${S.bagNotice?'on':''}" id="noticeBtn" data-act="noticeTgl" title="إرسال كإشعار رسمي" aria-pressed="${!!S.bagNotice}">${I.bell}</button>
@@ -89,15 +89,17 @@ function bagBody(c,ks,tab){
 
 /* بعد العرض: تمرير المحادثة للأسفل وتعليم الرسائل كمقروءة */
 function afterBag(){
- if(S.view!=='client'||(S.bagTab||'msgs')!=='msgs')return;
+ if(!((S.view==='client'&&(S.bagTab||'msgs')==='msgs')||(S.view==='chats'&&S.chatOpen&&S.clientId)))return;
  const th=document.getElementById('th');if(th)th.scrollTop=th.scrollHeight;
  if(unreadOf(S.clientId)&&window.MQ&&MQ.read)setTimeout(()=>MQ.read(S.clientId),1200);
  const t=document.getElementById('bagT');if(t){t.oninput=()=>{t.style.height='auto';t.style.height=Math.min(140,t.scrollHeight)+'px'};t.onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();t.form.requestSubmit()}}}
  const f=document.getElementById('bagFile');if(f)f.onchange=e=>{const file=e.target.files[0];if(file)upFile(file);e.target.value=''};
 }
 const r0=render;render=function(){r0();afterBag()};
+window.MQ_bag={thread,bubble,bagBody:(c,tab)=>bagBody(c,cases.filter(k=>k.client===c.id),tab||'msgs'),refreshThread,unreadOf:id=>unreadOf(id),I};
 function refreshThread(){const th=document.getElementById('th');if(!th)return render();const atEnd=th.scrollHeight-th.scrollTop-th.clientHeight<80;th.innerHTML=thread(S.clientId);if(atEnd)th.scrollTop=th.scrollHeight}
 window.MQ_onMsg=m=>{
+ if(S.view==='chats'&&window.MQ_chatMsg)return MQ_chatMsg(m);
  if(S.view==='client'&&S.clientId===m.client){if((S.bagTab||'msgs')==='msgs'){refreshThread();if(m.from==='client'&&MQ.read)setTimeout(()=>MQ.read(m.client),1200)}else render()}
  else if((S.view==='portal'&&S.pc===m.client)||(S.view==='case'&&S.caseTab==='msgs'&&K(S.caseId).client===m.client))render();
 };

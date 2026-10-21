@@ -77,6 +77,8 @@
       "case-wizard.js",
       "consistency.js",
       "searchsel.js",
+      "wa-chat.js",
+      "wa-skin.js",
       "case360.js",
       "hearing-prep.js",
       "draft-versions.js",
