@@ -18,7 +18,7 @@ const MZ_INCOMING=[
  {k:'k5',kind:'قرار',t:'قرار بتكليف النيابة إحضار الشاهد بمذكرة إحضار للجلسة القادمة',apply(){docs.push({id:'d'+Date.now(),k:'k5',title:'قرار تكليف بإحضار شاهد',kind:'قرار',date:iso(TODAY),src:'ميزان',pages:1,shared:true})}},
  {k:'k2',kind:'مستند',t:'إيداع لائحة جوابية من وكيل المدعى عليه (6 صفحات)',apply(){docs.push({id:'d'+Date.now()+1,k:'k2',title:'اللائحة الجوابية للمدعى عليه',kind:'لائحة',date:iso(TODAY),src:'ميزان',pages:6,shared:false})}}];
 
-const S={view:'dash',caseId:null,caseTab:'hearings',clientId:null,cf:'الكل',cq:'',tpl:'t1',tplCase:'k1',tplVals:{},pc:'c2',pch:'البوابة',syncing:false,pending:[],lastSync:'2026-10-12 08:15',docK:'all',rules:{mz:true,remind:true,doc:true,pay:false}};
+const S={view:'dash',caseId:null,caseTab:'c360',clientId:null,cf:'الكل',cq:'',tpl:'t1',tplCase:'k1',tplVals:{},pc:'c2',pch:'البوابة',syncing:false,pending:[],lastSync:'2026-10-12 08:15',docK:'all',rules:{mz:true,remind:true,doc:true,pay:false}};
 
 const C=id=>clients.find(x=>x.id===id), K=id=>cases.find(x=>x.id===id), O=id=>opponents.find(x=>x.id===id), CT=id=>courts.find(x=>x.id===id);
 const oppNames=k=>k.opps.map(o=>O(o).name).join(' و');
@@ -76,7 +76,7 @@ function caseRows(){
 
 V.case=()=>{
  const k=K(S.caseId),cl=C(k.client),ct=CT(k.court),h=nextH(k.id);
- const tabs=[['track','مسار التقاضي'],['hearings','الجلسات'],['docs','المستندات'],['deadlines','المهل'],['msgs','مراسلات الموكل'],['mz','سجل ميزان']];
+ const tabs=[['c360','ملف القضية 360°'],['track','مسار التقاضي'],['hearings','الجلسات'],['docs','المستندات'],['deadlines','المهل'],['msgs','مراسلات الموكل'],['mz','سجل ميزان']];
  return `<div><button class="link" data-act="nav" data-v="cases">→ كل القضايا</button></div>
  <div class="head"><div><h1>${esc(k.subject)}</h1><p class="sub"><span class="mono">${k.no}</span> · ${esc(k.type)} · فُتحت ${dmy(k.opened)} · قيمة الدعوى ${money(k.value)}</p></div>
   <div class="toolbar">${window.caseBadges?caseBadges(k):''}<span class="pill ${statusPill(k.status)}">${esc(k.status)}</span><span class="pill ${k.pri==='عالية'?'bad':''}">أولوية ${k.pri}</span><button class="btn" data-act="tplFor" data-v="${k.id}">إنشاء مستند</button></div></div>
@@ -96,6 +96,7 @@ V.case=()=>{
 };
 function caseTab(k){
  if(S.caseTab==='track'&&window.trackTab)return trackTab(k);
+ if(S.caseTab==='c360'&&window.case360Tab)return case360Tab(k);
  if(S.caseTab==='hearings'){
   const hs=hearings.filter(h=>h.k===k.id).sort((a,b)=>a.date.localeCompare(b.date));const nx=nextH(k.id);
   return `<div class="grid2"><section class="panel"><header><h2>سير الجلسات</h2><span class="pill">${hs.length}</span></header><div class="bd"><div class="timeline">${hs.map(h=>`<div class="tl ${nx&&h.id===nx.id?'next':''}"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><b>${fmt(h.date)}</b><span class="pill mono">${h.time}</span>${h.mz?'<span class="pill mz">ميزان</span>':''}${diff(h.date)>=0?`<span class="pill acc">${rel(h.date)}</span>`:''}</div><div>${esc(h.purpose)}</div>${h.result?`<div class="m">القرار: ${esc(h.result)}</div>`:''}</div>`).join('')}</div></div></section>
@@ -106,7 +107,7 @@ function caseTab(k){
  if(S.caseTab==='mz'){const ls=mzLog.filter(l=>l.k===k.id);return `<section class="panel"><div class="feed">${ls.map(l=>`<div><time>${l.at}</time>${esc(l.t)}</div>`).join('')||'<div class="empty">لا أحداث من ميزان لهذه القضية بعد.</div>'}</div></section>`}
 }
 function bubble(m){return `<div class="bubble ${m.f}">${esc(m.t)}<small>${esc(m.ch)} · ${m.at.slice(5).replace('-','/')}</small></div>`}
-function docTable(ds,showCase){return `<section class="panel tablewrap"><table><thead><tr><th>المستند</th>${showCase?'<th>القضية</th>':''}<th>النوع</th><th>المصدر</th><th>التاريخ</th><th>الصفحات</th><th>في بوابة الموكل</th></tr></thead><tbody>${ds.map(d=>`<tr><td style="font-weight:500">${esc(d.title)}${d.text?` <button type="button" class="link" data-act="tplDraftOpen" data-v="${esc(d.id)}">عرض المسودة</button>`:''}</td>${showCase?`<td><button class="link mono" data-act="openCase" data-v="${d.k}">${K(d.k).no}</button><div class="m">${esc(C(K(d.k).client).name)}</div></td>`:''}<td>${esc(d.kind)}</td><td><span class="pill ${d.src==='ميزان'?'mz':d.src==='مولّد من نموذج'?'acc':''}">${esc(d.src)}</span></td><td class="num">${dmy(d.date)}</td><td class="num">${d.pages}</td><td><button class="sw ${d.shared?'on':''}" data-act="share" data-v="${d.id}" aria-label="مشاركة مع الموكل" aria-pressed="${d.shared}"></button></td></tr>`).join('')||'<tr><td colspan="7" class="empty">لا مستندات.</td></tr>'}</tbody></table></section>`}
+function docTable(ds,showCase){return `<section class="panel tablewrap"><table><thead><tr><th>المستند</th>${showCase?'<th>القضية</th>':''}<th>النوع</th><th>المصدر</th><th>التاريخ</th><th>الصفحات</th><th>في بوابة الموكل</th></tr></thead><tbody>${ds.map(d=>`<tr><td style="font-weight:500">${esc(d.title)}${d.text?` <button type="button" class="link" data-act="tplDraftOpen" data-v="${esc(d.id)}">عرض المسودة</button> <button type="button" class="link" data-act="qaOpenDoc" data-v="${esc(d.id)}">تدقيق قانوني</button>${(d.aiDraft||d.templateStatus==='draft'||d.tplStatus==='draft')?` <button type="button" class="link" data-act="dvOpenDoc" data-v="${esc(d.id)}">إصدارات المسودة</button>`:''}`:''}</td>${showCase?`<td><button class="link mono" data-act="openCase" data-v="${d.k}">${K(d.k).no}</button><div class="m">${esc(C(K(d.k).client).name)}</div></td>`:''}<td>${esc(d.kind)}</td><td><span class="pill ${d.src==='ميزان'?'mz':d.src==='مولّد من نموذج'?'acc':''}">${esc(d.src)}</span></td><td class="num">${dmy(d.date)}</td><td class="num">${d.pages}</td><td><button class="sw ${d.shared?'on':''}" data-act="share" data-v="${d.id}" aria-label="مشاركة مع الموكل" aria-pressed="${d.shared}"></button></td></tr>`).join('')||'<tr><td colspan="7" class="empty">لا مستندات.</td></tr>'}</tbody></table></section>`}
 
 const clientCards=list=>`<div class="grid-eq">${list.map(c=>{const ks=cases.filter(k=>k.client===c.id);const p=Math.round(c.paid/c.fee*100);return `<button class="client-card" data-act="openClient" data-v="${c.id}"><div style="display:flex;justify-content:space-between;gap:8px"><span class="nm">${esc(c.name)}</span><span class="pill">${c.type}</span></div>
  <dl class="kv"><dt>القضايا</dt><dd>${ks.map(k=>`<span class="mono">${k.no}</span>`).join('، ')}</dd><dt>التواصل</dt><dd>${esc(c.ch)}</dd><dt>البوابة</dt><dd>${c.portal?`<span class="pill ok">مفعّلة</span>`:'<span class="pill">غير مفعّلة</span>'}</dd></dl>
@@ -242,7 +243,7 @@ const A={
  crSort:v=>{if(CR.sort===v)CR.dir=-CR.dir;else{CR.sort=v;CR.dir=['fee','paid','due','cases','portal'].includes(v)?-1:1}const b=document.getElementById('crBody');if(b)b.innerHTML=clientRecords()},
  crPrint:()=>{if(!window.MQP)return;const rs=crList(),M=MQP,B=M.B,E=M.esc;MQP.open({label:'سجل الموكلين',build(){return {title:'سجل الموكلين',sub:rs.length+' موكلاً'+(CR.q?' · بحث: '+CR.q:''),ref:'مك/'+iso(TODAY),file:'سجل الموكلين - '+iso(TODAY),orient:'land',sign:[],blocks:[B.t(['#','الموكل','الهاتف','القضايا','الأتعاب','المحصّل','المتبقي','قناة التواصل','البوابة'],rs.map((r,i)=>[i+1,E(r.c.name),'<span dir="ltr">'+E(r.c.phone||'')+'</span>',E(r.ks.map(k=>k.no).join('، ')||'—'),money(r.fee),money(r.paid),r.due?money(r.due):'—',E(r.c.ch||'—'),r.c.portal?('مفعّلة'+(r.c.last?' · '+dmy(r.c.last):'')):'غير مفعّلة']),{w:['4%','18%','12%','16%','10%','10%','10%','10%','10%']})]}}})},
  nav:v=>{S.view=v;window.scrollTo(0,0);render()},
- openCase:v=>{S.view='case';S.caseId=v;S.caseTab='hearings';window.scrollTo(0,0);render()},
+ openCase:v=>{S.view='case';S.caseId=v;S.caseTab='c360';window.scrollTo(0,0);render()},
  openClient:v=>{S.view='client';S.clientId=v;window.scrollTo(0,0);render()},
  caseTab:v=>{S.caseTab=v;render()},
  cf:v=>{S.cf=v;render()},

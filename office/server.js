@@ -632,12 +632,35 @@ async function api(req, res, u) {
       store.kv.set('ai_key', k || null); audit({ ...who, action: k ? 'ai.key_set' : 'ai.key_removed', entity: 'settings', detail: k ? { last4: k.slice(-4) } : {} });
       return json(res, 200, { ok: true, configured: !!k, last4: k ? k.slice(-4) : '' });
     }
-    if (a === 'extract' && M === 'POST') { if (!need('write')) return; const r = await extractor(await jbody(req, 16 * 1024 * 1024), me); return json(res, r.status, r.body) }
+    /* بيانات القضية تُقرأ من الخادم بمعرّفها وصلاحية المستخدم، ولا تُقبل أسماء أو خصوم يرسلها المتصفح */
+    const aiScoped = input => {
+      const id = String(input.caseId || '').trim();
+      if (!id) return input.case && Object.keys(input.case).length ? { status: 400, error: 'معرّف القضية مطلوب لحماية بيانات القضية.' } : { body: input };
+      const S = cur(), k = S.cases.find(c => c.id === id);
+      if (!k || (!auth.can(me, 'all') && !(me.cases || []).includes(id))) return { status: 403, error: 'لا تملك صلاحية الوصول إلى هذه القضية.' };
+      const c = (S.clients || []).find(x => x.id === k.client) || {}, ct = (SEED.courts || []).find(x => x.id === k.court) || {};
+      const opp = (k.opps || []).map(o => (S.opponents || []).find(x => x.id === o)).filter(Boolean), cfg = settings();
+      return { body: { ...input, case: { no: k.no, court: ct.name || '', type: k.type, subject: k.subject, role: k.role, stage: k.stage, value: k.value, client: c.name || '', opponents: opp.map(o => o.name), opponentLawyers: opp.map(o => o.lawyer).filter(Boolean), lawyer: cfg.lawyerName || '', office: cfg.officeName || '' } } };
+    };
+    if (a === 'extract' && M === 'POST') { if (!need('write')) return; const b = aiScoped(await jbody(req, 16 * 1024 * 1024)); if (b.error) return json(res, b.status, { error: b.error }); const r = await extractor(b.body, me); return json(res, r.status, r.body) }
     if (a === 'calc' && M === 'POST') { if (!need('write')) return; const r = await calcExtract(await jbody(req), me); return json(res, r.status, r.body) }
     if (a === 'usage' && M === 'GET') { if (!need('manage')) return; const m = /^\d{4}-\d{2}$/.test(u.searchParams.get('month') || '') ? u.searchParams.get('month') : stampS().slice(0, 7); const next = (() => { const [y, mo] = m.split('-').map(Number); return mo === 12 ? `${y + 1}-01` : `${y}-${String(mo + 1).padStart(2, '0')}` })(); return json(res, 200, { month: m, prices: AiDraft.PRICES, model: AiDraft.MODEL, ...AiDraft.usageSummary(store.aiAudit(m + '-01').filter(r => r.at < next + '-01')) }) }
     if (a === 'ruling' && M === 'POST') { if (!need('write')) return; const r = await rulingExtract(await jbody(req), me); return json(res, r.status, r.body) }
-    if (a === 'assist' && M === 'POST') { if (!need('write')) return; const r = await assistant(await jbody(req, 16 * 1024 * 1024), me, { rulings: cur().rulings || [] }); return json(res, r.status, r.body) }
-    if (a === 'draft' && M === 'POST') { if (!need('write')) return; const r = await drafter(await jbody(req, 2 * 1024 * 1024), me, { rulings: cur().rulings || [] }); return json(res, r.status, r.body) }
+    if (a === 'legal-review' && M === 'POST') {
+      /* تدقيق مسودة محفوظة بالذكاء الاصطناعي: موافقة صريحة، والنص يُقرأ من المسودة المحفوظة في القضية نفسها */
+      if (!need('write')) return;
+      const input = await jbody(req, 32 * 1024);
+      if (input.consent !== true) return json(res, 422, { error: 'يلزم التصريح الصريح بإرسال نص المسودة إلى مزود الذكاء الاصطناعي.' });
+      if (!input.caseId || !input.docId) return json(res, 400, { error: 'يجب تحديد القضية والمسودة.' });
+      const sc = aiScoped({ caseId: input.caseId }); if (sc.error) return json(res, sc.status, { error: sc.error });
+      const doc = (cur().docs || []).find(d => String(d.id) === String(input.docId) && String(d.k) === String(input.caseId));
+      if (!doc) return json(res, 404, { error: 'المسودة غير موجودة ضمن هذه القضية.' });
+      if (String(doc.text || '').trim().length < 50) return json(res, 400, { error: 'المستند لا يحتوي نصاً كافياً للتدقيق.' });
+      const r = await assistant({ ...sc.body, mode: 'gaps', text: doc.text, web: false, question: '' }, me, { rulings: cur().rulings || [] });
+      return json(res, r.status, { ...r.body, docId: doc.id, docVersion: doc._v || 0 });
+    }
+    if (a === 'assist' && M === 'POST') { if (!need('write')) return; const b = aiScoped(await jbody(req, 16 * 1024 * 1024)); if (b.error) return json(res, b.status, { error: b.error }); const r = await assistant(b.body, me, { rulings: cur().rulings || [] }); return json(res, r.status, r.body) }
+    if (a === 'draft' && M === 'POST') { if (!need('write')) return; const b = aiScoped(await jbody(req, 2 * 1024 * 1024)); if (b.error) return json(res, b.status, { error: b.error }); const r = await drafter(b.body, me, { rulings: cur().rulings || [] }); return json(res, r.status, r.body) }
     return json(res, 404, { error: 'غير موجود' });
   }
   if (p.startsWith('/api/admin/lawsearch/') && M === 'GET') { const r = await lawSearch(p.slice(21), Object.fromEntries(u.searchParams), me); return json(res, r.status, r.body, r.status === 429 && r.body.retry ? { 'Retry-After': String(r.body.retry) } : {}) }
@@ -709,7 +732,7 @@ async function rulingFile(req, res, u, who) {
 }
 
 /* ملفات شاشة المكتب: قائمة محددة فقط، وكلها تتطلب تسجيل الدخول عدا صفحة الدخول */
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'sources.js', 'guide.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'sources.js', 'guide.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css', 'edition.js']);
 
 http.createServer((req, res) => {

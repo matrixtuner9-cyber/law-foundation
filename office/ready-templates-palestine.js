@@ -66,9 +66,9 @@ A.saveTpl=function(){
  if(window.MQ&&MQ.saveState)MQ.saveState();
  toast('حُفظت المسودة ونصها في مستندات القضية '+k.no);drawNav();
 };
-/* المسودات غير المعتمدة لا تُرسل إلى بوابة الموكل */
+/* المسودات غير المعتمدة (من النماذج أو الذكاء الاصطناعي) لا تُرسل إلى بوابة الموكل */
 const share0=A.share;
-A.share=function(id){const d=docs.find(x=>x.id===id);if(d&&d.templateStatus==='draft'&&!d.shared)return toast('هذه مسودة غير معتمدة؛ لا يمكن مشاركتها في بوابة الموكل');return share0(id)};
+A.share=function(id){const d=docs.find(x=>x.id===id);if(d&&(d.templateStatus==='draft'||d.tplStatus==='draft'||d.aiDraft)&&!d.shared)return toast('هذه مسودة غير معتمدة؛ لا يمكن مشاركتها في بوابة الموكل');return share0(id)};
 A.tplDraftOpen=function(id){
  const d=docs.find(x=>x.id===id);if(!d||!d.text)return toast('لا يتوفر نص محفوظ لهذا المستند');
  const url=okSrc(d.templateSource)?d.templateSource:'';

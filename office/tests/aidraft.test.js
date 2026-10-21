@@ -51,11 +51,30 @@ test('لائحة الخصم: الاستخراج من نص بعد إخفاء ال
   assert.equal(r.status, 200); assert.ok(!JSON.stringify(sent[0]).includes('الشكعة'));
   assert.match(r.body.claims[0], /أحمد محمود الشكعة/); assert.match(r.body.claims[0], /شركة الزيتون/);
   const d = AI.createDrafter({ getKey: () => 'k', fetchImpl });
-  const r2 = await d({ docType: 'لائحة جوابية', dictation: '', case: CASE, web: false, claims: [{ text: r.body.claims[0], response: 'الراتب 3000 بموجب الكشوف' }] }, { id: 'y' });
+  const r2 = await d({ docType: 'لائحة جوابية', dictation: '', case: CASE, web: false, claims: [{ text: r.body.claims[0], stance: 'partial', response: 'الراتب 3000 بموجب الكشوف' }] }, { id: 'y' });
   assert.equal(r2.status, 200, JSON.stringify(r2.body));
   const draftReq = JSON.stringify(sent[sent.length - 1]);
-  assert.match(draftReq, /رد المحامي: الراتب 3000/); assert.ok(!draftReq.includes('الشكعة')); assert.match(draftReq, /الدفوع الشكلية أولاً/);
+  assert.match(draftReq, /موقف المحامي الصريح: إقرار جزئي/); assert.match(draftReq, /تفاصيل المحامي: الراتب 3000/); assert.ok(!draftReq.includes('الشكعة')); assert.match(draftReq, /الدفوع الشكلية أولاً/);
 });
+test('الادعاءات: لا إنكار تلقائي ولا صياغة حتى اعتماد موقف صريح لكل ادعاء', async () => {
+  const sent = [];
+  const model = { title: 'لائحة جوابية', sections: [{ heading: 'الرد', paragraphs: ['ينكر [الموكل] الواقعة وفق الموقف المعتمد.'] }], references: [], unverified: [] };
+  const d = AI.createDrafter({ getKey: () => 'sk-ant-test-key-1234567890abcdef', fetchImpl: fakeClaude(sent, model) });
+  const base = { docType: 'لائحة جوابية', dictation: DICT, case: CASE, web: false };
+  for (const stance of ['', 'clarify', 'invalid']) {
+    const r = await d({ ...base, claims: [{ text: 'يدعي الخصم استلام مبلغ', stance, response: 'رد نصي' }] }, { id: 'check-'+stance });
+    assert.equal(r.status, 422, stance);
+  }
+  assert.equal(sent.length, 0, 'لا إرسال إلى مزود AI قبل اكتمال مراجعة الادعاءات');
+  const partial = await d({ ...base, claims: [{ text: 'يدعي الخصم استلام مبلغ', stance: 'partial', response: '' }] }, { id: 'check-partial' });
+  assert.equal(partial.status, 422);
+  const ok = await d({ ...base, claims: [{ text: 'يدعي الخصم استلام مبلغ', stance: 'deny', response: '' }] }, { id: 'check-deny' });
+  assert.equal(ok.status, 200, JSON.stringify(ok.body));
+  const wire = JSON.stringify(sent);
+  assert.match(wire, /موقف المحامي الصريح: إنكار صريح/);
+  assert.doesNotMatch(wire, /لم يملِ رداً؛ أنكره إنكاراً عاماً/);
+});
+
 test('بلا مفتاح: رسالة واضحة، وإملاء قصير يُرفض قبل أي اتصال', async () => {
   const d0 = AI.createDrafter({ getKey: () => '', fetchImpl: () => { throw new Error('no call') } });
   const r0 = await d0({ docType: 'x', dictation: DICT }, { id: 'u' }); assert.equal(r0.status, 400); assert.ok(r0.body.needKey);
@@ -155,6 +174,29 @@ before(async () => {
 });
 after(async () => { if (srv && srv.exitCode === null) { const g = new Promise(r => srv.once('exit', r)); srv.kill(); await g } try { fs.rmSync(TMP, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }) } catch (e) {} });
 
+test('مسارات AI: ترفض بيانات قضية من المتصفح دون معرف، وترفض القضية غير المصرح بها قبل استخدام النموذج', async () => {
+  const input = { docType: 'لائحة جوابية', dictation: DICT, case: CASE, web: false };
+  const missing = await req('/api/admin/ai/draft', admin, { method: 'POST', body: input });
+  assert.equal(missing.status, 400, JSON.stringify(missing.j));
+  const forbidden = await req('/api/admin/ai/draft', lawyer, { method: 'POST', body: { ...input, caseId: 'nonexistent-private-case' } });
+  assert.equal(forbidden.status, 403, JSON.stringify(forbidden.j));
+  const x = await req('/api/admin/ai/extract', lawyer, { method: 'POST', body: { caseId: 'nonexistent-private-case', text: 'عريضة تجريبية '.repeat(20) } });
+  assert.equal(x.status, 403);
+  const y = await req('/api/admin/ai/assist', lawyer, { method: 'POST', body: { caseId: 'nonexistent-private-case', mode: 'brief' } });
+  assert.equal(y.status, 403);
+});
+
+test('التدقيق القانوني: الموافقة الخادمية إلزامية والمسودة لا تُقرأ خارج قضيتها', async () => {
+  const api='/api/admin/ai/legal-review';
+  const noConsent=await req(api,lawyer,{method:'POST',body:{caseId:'k1',docId:'d1'}});
+  assert.equal(noConsent.status,422,JSON.stringify(noConsent.j));
+  const denied=await req(api,lawyer,{method:'POST',body:{consent:true,caseId:'private-case',docId:'d1'}});
+  assert.equal(denied.status,403,JSON.stringify(denied.j));
+  const wrongDoc=await req(api,lawyer,{method:'POST',body:{consent:true,caseId:'k2',docId:'d1'}});
+  assert.equal(wrongDoc.status,404,JSON.stringify(wrongDoc.j));
+  const noText=await req(api,lawyer,{method:'POST',body:{consent:true,caseId:'k1',docId:'d1'}});
+  assert.equal(noText.status,400,JSON.stringify(noText.j));
+});
 test('المفتاح: المدير فقط يضبطه، ولا يُعاد أبداً (آخر 4 خانات فقط)، ومسجّل في التدقيق', async () => {
   assert.equal((await req('/api/admin/ai/status', lawyer)).j.configured, false);
   assert.equal((await req('/api/admin/ai/key', lawyer, { method: 'POST', body: { key: 'sk-ant-abcdefghijklmnopqrstuvwxyz' } })).status, 403);

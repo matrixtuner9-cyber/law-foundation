@@ -46,7 +46,7 @@ const SEC = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-orig
 const json = (code, obj, extra = {}) => new Response(JSON.stringify(obj), { status: code, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...CORS, ...SEC, ...extra } });
 const MEDIA_TTL = 24 * 3600; // صلاحية رابط الملف الموقّع: يوم واحد، ويتجدد بتحميل المحادثة
 
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'sources.js', 'guide.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'sources.js', 'guide.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css', 'edition.js']);
 
 /* توحيد الكتابة العربية للبحث في دليل المحامين */
@@ -539,10 +539,39 @@ export class Office extends DurableObject {
         this.store.kv.set('ai_key', k || null); this.audit({ ...who, action: k ? 'ai.key_set' : 'ai.key_removed', entity: 'settings', detail: k ? { last4: k.slice(-4) } : {} });
         return json(200, { ok: true, configured: !!k, last4: k ? k.slice(-4) : '' });
       }
+      /* بيانات القضية تُقرأ من الخادم بمعرّفها وصلاحية المستخدم، ولا تُقبل أسماء أو خصوم يرسلها المتصفح */
+      const aiScoped = input => {
+        const id = String(input.caseId || '').trim();
+        if (!id) return input.case && Object.keys(input.case).length ? { status: 400, error: 'معرّف القضية مطلوب لحماية بيانات القضية.' } : { body: input };
+        const S = this.cur(), k = (S.cases || []).find(c => c.id === id);
+        if (!k || (!this.auth.can(me, 'all') && !(me.cases || []).includes(id))) return { status: 403, error: 'لا تملك صلاحية الوصول إلى هذه القضية.' };
+        const c = (S.clients || []).find(x => x.id === k.client) || {}, ct = (courts || []).find(x => x.id === k.court) || {};
+        const opp = (k.opps || []).map(o => (S.opponents || []).find(x => x.id === o)).filter(Boolean), cfg = this.settings();
+        return { body: { ...input, case: { no: k.no, court: ct.name || '', type: k.type, subject: k.subject, role: k.role, stage: k.stage, value: k.value, client: c.name || '', opponents: opp.map(o => o.name), opponentLawyers: opp.map(o => o.lawyer).filter(Boolean), lawyer: cfg.lawyerName || '', office: cfg.officeName || '' } } };
+      };
+      const mkAssistant = () => {
+        this.laws ||= createLaws({ all: this.store.all, run: this.store.run, tx: this.store.tx }, { randomId: () => 'L' + crypto.randomBytes(6).toString('hex'), now: stampS });
+        this.lawSearch ||= createLawSearch({ audit: e => this.audit(e) });
+        return (this.assistant ||= createAssistant({ audit: e => this.audit(e), getKey: aiKey, laws: this.laws, lawSearch: this.lawSearch, rulingSearch: liveRulings, model: this.env.MQ_AI_MODEL }));
+      };
       if (a === 'extract' && M === 'POST') {
         if ((d = deny('write'))) return d;
         this.extractor ||= createExtractor({ audit: e => this.audit(e), getKey: aiKey, model: this.env.MQ_AI_MODEL });
-        const r = await this.extractor(await jbody(16 * 1024 * 1024), me); return json(r.status, r.body);
+        const b = aiScoped(await jbody(16 * 1024 * 1024)); if (b.error) return json(b.status, { error: b.error });
+        const r = await this.extractor(b.body, me); return json(r.status, r.body);
+      }
+      if (a === 'legal-review' && M === 'POST') {
+        /* تدقيق مسودة محفوظة: موافقة صريحة، والنص يُقرأ من المسودة المحفوظة في القضية نفسها */
+        if ((d = deny('write'))) return d;
+        const input = await jbody(32 * 1024);
+        if (input.consent !== true) return json(422, { error: 'يلزم التصريح الصريح بإرسال نص المسودة إلى مزود الذكاء الاصطناعي.' });
+        if (!input.caseId || !input.docId) return json(400, { error: 'يجب تحديد القضية والمسودة.' });
+        const sc = aiScoped({ caseId: input.caseId }); if (sc.error) return json(sc.status, { error: sc.error });
+        const doc = (this.cur().docs || []).find(x => String(x.id) === String(input.docId) && String(x.k) === String(input.caseId));
+        if (!doc) return json(404, { error: 'المسودة غير موجودة ضمن هذه القضية.' });
+        if (String(doc.text || '').trim().length < 50) return json(400, { error: 'المستند لا يحتوي نصاً كافياً للتدقيق.' });
+        const r = await mkAssistant()({ ...sc.body, mode: 'gaps', text: doc.text, web: false, question: '' }, me, { rulings: this.cur().rulings || [] });
+        return json(r.status, { ...r.body, docId: doc.id, docVersion: doc._v || 0 });
       }
       if (a === 'calc' && M === 'POST') {
         if ((d = deny('write'))) return d;
@@ -563,15 +592,16 @@ export class Office extends DurableObject {
         if ((d = deny('write'))) return d;
         this.laws ||= createLaws({ all: this.store.all, run: this.store.run, tx: this.store.tx }, { randomId: () => 'L' + crypto.randomBytes(6).toString('hex'), now: stampS });
         this.lawSearch ||= createLawSearch({ audit: e => this.audit(e) });
-        this.assistant ||= createAssistant({ audit: e => this.audit(e), getKey: aiKey, laws: this.laws, lawSearch: this.lawSearch, rulingSearch: liveRulings, model: this.env.MQ_AI_MODEL });
-        const r = await this.assistant(await jbody(16 * 1024 * 1024), me, { rulings: (this.cur().rulings) || [] }); return json(r.status, r.body);
+        const b = aiScoped(await jbody(16 * 1024 * 1024)); if (b.error) return json(b.status, { error: b.error });
+        const r = await mkAssistant()(b.body, me, { rulings: (this.cur().rulings) || [] }); return json(r.status, r.body);
       }
       if (a === 'draft' && M === 'POST') {
         if ((d = deny('write'))) return d;
         this.laws ||= createLaws({ all: this.store.all, run: this.store.run, tx: this.store.tx }, { randomId: () => 'L' + crypto.randomBytes(6).toString('hex'), now: stampS });
         this.lawSearch ||= createLawSearch({ audit: e => this.audit(e) });
         this.drafter ||= createDrafter({ audit: e => this.audit(e), getKey: aiKey, laws: this.laws, lawSearch: this.lawSearch, rulingSearch: liveRulings, model: this.env.MQ_AI_MODEL });
-        const r = await this.drafter(await jbody(2 * 1024 * 1024), me, { rulings: (this.cur().rulings) || [] }); return json(r.status, r.body);
+        const b = aiScoped(await jbody(2 * 1024 * 1024)); if (b.error) return json(b.status, { error: b.error });
+        const r = await this.drafter(b.body, me, { rulings: (this.cur().rulings) || [] }); return json(r.status, r.body);
       }
       return json(404, { error: 'غير موجود' });
     }
