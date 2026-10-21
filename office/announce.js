@@ -38,8 +38,12 @@ function spokenDur(s){s=Math.max(1,Math.round(s||0));const mi=Math.floor(s/60),s
 let ac=null;
 function chime(vol){try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();const t=ac.currentTime;
  [[880,0],[1318.5,.16]].forEach(([f,d])=>{const o=ac.createOscillator(),g=ac.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(0,t+d);g.gain.linearRampToValueAtTime(.18*vol,t+d+.02);g.gain.exponentialRampToValueAtTime(.0001,t+d+.45);o.connect(g).connect(ac.destination);o.start(t+d);o.stop(t+d+.5)})}catch(x){}}
-function speak(text,c){if(!hasTTS())return false;const v=arVoice();if(!v)return false;
- try{const u=new SpeechSynthesisUtterance(text);u.voice=v;u.lang=v.lang;u.rate=c.rate;u.volume=c.vol;speechSynthesis.speak(u);return true}catch(x){return false}}
+/* النطق: بصوت عربي إن وُجد. إن كانت قائمة الأصوات فارغة (أندرويد وآيفون أحياناً) نطلب العربية من النظام مباشرة.
+   إن وُجدت أصوات بلا عربية (كروم على ويندوز بلا حزمة عربية) لا ننطق نصاً عربياً بصوت أجنبي، ونخبر المحامي مرة واحدة */
+let warned=false;
+function speak(text,c){if(!hasTTS())return false;const vs=speechSynthesis.getVoices()||[],v=arVoice();
+ if(!v&&vs.length){if(!warned){warned=true;setTimeout(()=>toast('التنبيه الصوتي يحتاج صوتاً عربياً: افتح ميثاق في متصفح Edge، أو ثبّت الصوت العربي في ويندوز (الإعدادات ← الوقت واللغة ← الكلام).'),2500)}return false}
+ try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);if(v){u.voice=v;u.lang=v.lang}else u.lang='ar-SA';u.rate=c.rate;u.volume=c.vol;speechSynthesis.speak(u);try{speechSynthesis.resume()}catch(x){}return true}catch(x){return false}}
 
 /* لا يُعاد التنبيه في أكثر من نافذة مفتوحة لنفس الرسالة */
 function firstTab(id){try{const k='mq_ann_'+id;if(localStorage.getItem(k))return false;localStorage.setItem(k,'1');setTimeout(()=>{try{localStorage.removeItem(k)}catch(x){}},60000);return true}catch(x){return true}}
@@ -61,7 +65,7 @@ function box(){const c=cfg(),v=arVoice(),tts=hasTTS();
  <div class="ann-row ann-grid"><label>سرعة النطق<select class="field" id="annRate">${[[0.85,'هادئة'],[1,'عادية'],[1.15,'أسرع']].map(([x,l])=>`<option value="${x}" ${c.rate==x?'selected':''}>${l}</option>`).join('')}</select></label>
  <label>مستوى الصوت<select class="field" id="annVol">${[[0.5,'منخفض'],[0.8,'متوسط'],[1,'مرتفع']].map(([x,l])=>`<option value="${x}" ${c.vol==x?'selected':''}>${l}</option>`).join('')}</select></label>
  <button type="button" class="btn" data-act="annTest">تجربة التنبيه</button></div>
- <div class="m">${!tts?'هذا المتصفح لا يدعم النطق؛ تعمل النغمة والإشعار المكتوب فقط.':v?'الصوت المستخدم: '+e(v.name):'لا يوجد صوت عربي مثبت على هذا الجهاز، فتعمل النغمة والإشعار المكتوب فقط. في ويندوز: الإعدادات ← الوقت واللغة ← الكلام ← إضافة أصوات ← العربية، ثم أعد فتح ميثاق.'} الإعداد خاص بهذا الجهاز.</div></div>`}
+ <div class="m">${!tts?'هذا المتصفح لا يدعم النطق؛ تعمل النغمة والإشعار المكتوب فقط.':v?'الصوت المستخدم: '+e(v.name):tts&&!speechSynthesis.getVoices().length?'سيُطلب الصوت العربي من نظام الجهاز مباشرة.':'لا يوجد صوت عربي مثبت على هذا الجهاز، فتعمل النغمة والإشعار المكتوب فقط. في ويندوز: الإعدادات ← الوقت واللغة ← الكلام ← إضافة أصوات ← العربية، ثم أعد فتح ميثاق.'} الإعداد خاص بهذا الجهاز.</div></div>`}
 function paint(){const el=document.getElementById('annBox');if(el)el.innerHTML=box()}
 if(typeof V.settings==='function'){const vs=V.settings;V.settings=()=>vs()+`<section class="panel" style="margin-top:16px"><header><h2>التنبيه الصوتي للرسائل</h2><span class="m">يعلن وصول رسائل الموكلين ومرفقاتهم بالصوت</span></header><div id="annBox">${box()}</div></section>`}
 document.addEventListener('change',ev=>{const id=ev.target.id;if(!['annVoice','annChime','annRate','annVol'].includes(id))return;const c=cfg();
