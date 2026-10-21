@@ -113,11 +113,17 @@ const clientCards=list=>`<div class="grid-eq">${list.map(c=>{const ks=cases.filt
  <dl class="kv"><dt>القضايا</dt><dd>${ks.map(k=>`<span class="mono">${k.no}</span>`).join('، ')}</dd><dt>التواصل</dt><dd>${esc(c.ch)}</dd><dt>البوابة</dt><dd>${c.portal?`<span class="pill ok">مفعّلة</span>`:'<span class="pill">غير مفعّلة</span>'}</dd></dl>
  <div style="display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted)"><span>الأتعاب المحصّلة</span><span class="num">${money(c.paid)} / ${money(c.fee)}</span></div><div class="bar"><span style="width:${p}%"></span></div></button>`}).join('')}</div>`;
 /* ── سجلات الموكلين: جدول قابل للبحث والفرز والطباعة، بديلاً عن البطاقات ── */
-const CR={mode:(()=>{try{return localStorage.getItem('mq_clients_view')||'cards'}catch(e){return 'cards'}})(),q:'',sort:'name',dir:1,f:'all'};
+const CR={mode:(()=>{try{return localStorage.getItem('mq_clients_view')||'cards'}catch(e){return 'cards'}})(),q:'',sort:'new',dir:1,f:'all',type:'',city:'',ch:'',from:'',to:''};
+/* وقت إضافة الموكل: تاريخ «موكل منذ»، ثم وقت الإنشاء المضمَّن في معرّفه لترتيب من أُضيفوا في اليوم نفسه */
+const crAdded=c=>{const d=String(c.since||'');let t=0;const m=/^c([0-9a-z]{8})/.exec(String(c.id||''));if(m){const v=parseInt(m[1],36);if(v>1.5e12&&v<4e12)t=v}return d+'|'+String(t).padStart(14,'0')};
 const crRow=c=>{const ks=cases.filter(k=>k.client===c.id),act=ks.filter(k=>k.status!=='منتهية'),fee=+c.fee||0,paid=+c.paid||0,un=(messages[c.id]||[]).filter(m=>m.unread&&m.f!=='me').length;
  return {c,ks,act,fee,paid,due:Math.max(0,fee-paid),pct:fee?Math.round(paid/fee*100):0,un,weak:window.MQ_isWeak?MQ_isWeak(c):false}};
 function crList(){const q=CR.q.trim();let rs=clients.map(crRow).filter(r=>(!q||[r.c.name,r.c.phone,r.c.idNo,r.c.ch,...r.ks.map(k=>k.no+' '+(k.subject||''))].join(' ').includes(q))
-  &&(CR.f==='all'||(CR.f==='portal'&&r.c.portal)||(CR.f==='noportal'&&!r.c.portal)||(CR.f==='due'&&r.due>0)||(CR.f==='active'&&r.act.length)));
+  &&(CR.f==='all'||(CR.f==='portal'&&r.c.portal)||(CR.f==='noportal'&&!r.c.portal)||(CR.f==='due'&&r.due>0)||(CR.f==='active'&&r.act.length)||(CR.f==='unread'&&r.un)||(CR.f==='nocase'&&!r.ks.length)||(CR.f==='weak'&&r.weak&&r.c.portal))
+  &&(!CR.type||r.c.type===CR.type)&&(!CR.city||r.c.city===CR.city)&&(!CR.ch||(r.c.ch||'')===CR.ch)
+  &&(!CR.from||String(r.c.since||'')>=CR.from)&&(!CR.to||String(r.c.since||'')<=CR.to));
+ if(CR.sort==='new'||CR.sort==='old'){const d=CR.sort==='new'?-1:1;return rs.sort((a,b)=>crAdded(a.c).localeCompare(crAdded(b.c))*d||a.c.name.localeCompare(b.c.name,'ar'))}
+ if(CR.sort==='last')return rs.sort((a,b)=>String(b.c.last||'').localeCompare(String(a.c.last||'')));
  const key={name:r=>r.c.name,cases:r=>r.ks.length,fee:r=>r.fee,paid:r=>r.paid,due:r=>r.due,ch:r=>r.c.ch||'',portal:r=>(r.c.portal?1:0)*1e9+(r.c.last?Date.parse(r.c.last)/1e3:0)}[CR.sort]||(r=>r.c.name);
  return rs.sort((a,b)=>{const x=key(a),y=key(b);return (typeof x==='string'?x.localeCompare(y,'ar'):x-y)*CR.dir})}
 const crTh=(k,t,cls)=>`<th class="${cls||''}"><button class="crs ${CR.sort===k?'on':''}" data-act="crSort" data-v="${k}">${t}${CR.sort===k?(CR.dir>0?' ▲':' ▼'):''}</button></th>`;
@@ -129,11 +135,23 @@ function clientRecords(){const rs=crList(),T=rs.reduce((t,r)=>({fee:t.fee+r.fee,
   <td>${esc(c.ch||'—')}</td>
   <td>${c.portal?`<span class="pill ok">مفعّلة</span><div class="m">${c.last?'آخر دخول '+dmy(c.last):'لم يدخل بعد'}</div>`:'<span class="pill">غير مفعّلة</span>'}${r.weak&&c.portal?'<div class="m cr-weak">رمز ضعيف</div>':''}</td></tr>`}).join('')||'<tr><td colspan="7" class="empty">لا موكلين مطابقين.</td></tr>'}</tbody>
  ${rs.length?`<tfoot><tr><td><b>${rs.length} موكلاً</b></td><td>${T.ks} قضية</td><td class="num">${money(T.fee)}</td><td class="num">${money(T.paid)}</td><td class="num">${money(T.due)}</td><td colspan="2"></td></tr></tfoot>`:''}</table></section>`}
+const crUniq=f=>[...new Set(clients.map(f).filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'ar'));
+const crOpt=(v,list,all)=>`<option value="">${all}</option>`+list.map(x=>`<option value="${esc(x)}" ${v===x?'selected':''}>${esc(x)}</option>`).join('');
+function crFilters(){const n=crList().length,on=!!(CR.q||CR.f!=='all'||CR.type||CR.city||CR.ch||CR.from||CR.to);
+ return `<div class="cr-bar-top cr-filters"><input class="field" id="crQ" value="${esc(CR.q)}" placeholder="بحث بالاسم أو الهاتف أو الهوية أو رقم القضية…" aria-label="بحث في الموكلين">
+ <select class="field" id="crSortSel" aria-label="الترتيب">${[['new','الأحدث أولاً'],['old','الأقدم أولاً'],['name','الاسم (أ-ي)'],['due','الأعلى متبقياً'],['cases','الأكثر قضايا'],['last','آخر دخول للبوابة']].map(([v,t])=>`<option value="${v}" ${CR.sort===v?'selected':''}>${t}</option>`).join('')}</select>
+ <select class="field" id="crF" aria-label="الحالة">${[['all','كل الحالات'],['active','لهم قضايا جارية'],['nocase','بلا قضايا'],['due','عليهم أتعاب متبقية'],['unread','لهم رسائل غير مقروءة'],['portal','البوابة مفعّلة'],['noportal','البوابة غير مفعّلة'],['weak','رمز بوابة ضعيف']].map(([v,t])=>`<option value="${v}" ${CR.f===v?'selected':''}>${t}</option>`).join('')}</select>
+ <select class="field" id="crType" aria-label="النوع">${crOpt(CR.type,crUniq(c=>c.type),'كل الأنواع')}</select>
+ <select class="field" id="crCity" aria-label="المدينة">${crOpt(CR.city,crUniq(c=>c.city),'كل المدن')}</select>
+ <select class="field" id="crCh" aria-label="قناة التواصل">${crOpt(CR.ch,crUniq(c=>c.ch),'كل القنوات')}</select>
+ <label class="cr-date">من <input type="date" class="field" id="crFrom" value="${esc(CR.from)}"></label><label class="cr-date">إلى <input type="date" class="field" id="crTo" value="${esc(CR.to)}"></label>
+ <span class="m cr-count">${n} من ${clients.length}</span>${on?'<button class="btn sm" data-act="crClear">مسح الفلاتر</button>':''}</div>`}
+function crRefresh(){const b=document.getElementById('crBody');if(!b)return render();b.innerHTML=CR.mode==='records'?clientRecords():clientCards(crList().map(r=>r.c));const n=document.querySelector('.cr-count');if(n)n.textContent=crList().length+' من '+clients.length;const clr=document.querySelector('[data-act="crClear"]'),on=!!(CR.q||CR.f!=='all'||CR.type||CR.city||CR.ch||CR.from||CR.to);if(!!clr!==on){const f=document.querySelector('.cr-filters');if(f)f.outerHTML=crFilters()}}
 V.clients=()=>{const rec=CR.mode==='records';return `<div class="head"><div><h1>الموكلون</h1><p class="sub">ملف كل موكل يجمع قضاياه وأتعابه وقناة تواصله المفضلة وحالة دخوله للبوابة</p></div>
  <div class="toolbar"><div class="seg" role="group" aria-label="طريقة العرض"><button class="${rec?'':'on'}" data-act="crMode" data-v="cards" aria-pressed="${!rec}">بطاقات</button><button class="${rec?'on':''}" data-act="crMode" data-v="records" aria-pressed="${rec}">سجلات</button></div>${rec?'<button class="btn sm" data-act="crPrint">طباعة السجل</button>':''}</div></div>
- ${rec?`<div class="cr-bar-top"><input class="field" id="crQ" value="${esc(CR.q)}" placeholder="بحث بالاسم أو الهاتف أو رقم القضية…" aria-label="بحث في الموكلين"><select class="field" id="crF" aria-label="تصفية">${[['all','كل الموكلين'],['active','لهم قضايا جارية'],['due','عليهم أتعاب متبقية'],['portal','البوابة مفعّلة'],['noportal','البوابة غير مفعّلة']].map(([v,t])=>`<option value="${v}" ${CR.f===v?'selected':''}>${t}</option>`).join('')}</select></div><div id="crBody">${clientRecords()}</div>`:clientCards(clients)}`};
-document.addEventListener('input',ev=>{if(ev.target.id!=='crQ')return;CR.q=ev.target.value;const b=document.getElementById('crBody');if(b)b.innerHTML=clientRecords()});
-document.addEventListener('change',ev=>{if(ev.target.id!=='crF')return;CR.f=ev.target.value;const b=document.getElementById('crBody');if(b)b.innerHTML=clientRecords()});
+ ${crFilters()}<div id="crBody">${rec?clientRecords():clientCards(crList().map(r=>r.c))}</div>`};
+document.addEventListener('input',ev=>{if(ev.target.id!=='crQ')return;CR.q=ev.target.value;crRefresh()});
+document.addEventListener('change',ev=>{const k={crF:'f',crType:'type',crCity:'city',crCh:'ch',crFrom:'from',crTo:'to',crSortSel:'sort'}[ev.target.id];if(!k)return;CR[k]=ev.target.value;if(k==='sort')CR.dir=['fee','paid','due','cases'].includes(CR.sort)?-1:1;crRefresh()});
 
 V.client=()=>{const c=C(S.clientId),ks=cases.filter(k=>k.client===c.id);
  return `<div><button class="link" data-act="nav" data-v="clients">→ كل الموكلين</button></div>
@@ -240,7 +258,8 @@ function sendMsg(cid,t,ch){(messages[cid]=messages[cid]||[]).push({f:'me',ch,t,a
 
 const A={
  crMode:v=>{CR.mode=v==='records'?'records':'cards';try{localStorage.setItem('mq_clients_view',CR.mode)}catch(e){}render()},
- crSort:v=>{if(CR.sort===v)CR.dir=-CR.dir;else{CR.sort=v;CR.dir=['fee','paid','due','cases','portal'].includes(v)?-1:1}const b=document.getElementById('crBody');if(b)b.innerHTML=clientRecords()},
+ crSort:v=>{if(CR.sort===v)CR.dir=-CR.dir;else{CR.sort=v;CR.dir=['fee','paid','due','cases','portal'].includes(v)?-1:1}const b=document.getElementById('crBody');if(b)b.innerHTML=clientRecords();const sel=document.getElementById('crSortSel');if(sel)sel.value=['new','old','name','due','cases','last'].includes(v)?v:''},
+ crClear:()=>{Object.assign(CR,{q:'',f:'all',type:'',city:'',ch:'',from:'',to:''});render()},
  crPrint:()=>{if(!window.MQP)return;const rs=crList(),M=MQP,B=M.B,E=M.esc;MQP.open({label:'سجل الموكلين',build(){return {title:'سجل الموكلين',sub:rs.length+' موكلاً'+(CR.q?' · بحث: '+CR.q:''),ref:'مك/'+iso(TODAY),file:'سجل الموكلين - '+iso(TODAY),orient:'land',sign:[],blocks:[B.t(['#','الموكل','الهاتف','القضايا','الأتعاب','المحصّل','المتبقي','قناة التواصل','البوابة'],rs.map((r,i)=>[i+1,E(r.c.name),'<span dir="ltr">'+E(r.c.phone||'')+'</span>',E(r.ks.map(k=>k.no).join('، ')||'—'),money(r.fee),money(r.paid),r.due?money(r.due):'—',E(r.c.ch||'—'),r.c.portal?('مفعّلة'+(r.c.last?' · '+dmy(r.c.last):'')):'غير مفعّلة']),{w:['4%','18%','12%','16%','10%','10%','10%','10%','10%']})]}}})},
  nav:v=>{S.view=v;window.scrollTo(0,0);render()},
  openCase:v=>{S.view='case';S.caseId=v;S.caseTab='c360';window.scrollTo(0,0);render()},
