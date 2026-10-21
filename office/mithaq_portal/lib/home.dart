@@ -94,50 +94,47 @@ class _Header extends StatelessWidget {
     final top = MediaQuery.of(context).padding.top;
     final unread = store.unread;
     return Container(
-      padding: EdgeInsets.fromLTRB(Sp.page, top + Sp.s, Sp.page, Sp.l),
+      padding: EdgeInsets.fromLTRB(Sp.page, top + Sp.m, Sp.page, Sp.l),
       decoration: BoxDecoration(
-        color: MQ.forestDeep,
-        image: const DecorationImage(image: AssetImage('assets/images/hdr.jpg'), fit: BoxFit.cover, alignment: Alignment.centerLeft),
+        gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF0B1B2B), Color(0xFF173452)]),
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(R.sheet)),
+        border: Border(bottom: BorderSide(color: MQ.gold.withValues(alpha: .8), width: 2)),
       ),
-      foregroundDecoration: BoxDecoration(
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(R.sheet)),
-        gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [MQ.forestDeep.withValues(alpha: .55), MQ.forestDeep.withValues(alpha: .94)]),
-      ),
-      child: Column(children: [
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(children: [
           Stack(clipBehavior: Clip.none, children: [
             IconButton(
               tooltip: 'الإشعارات',
               onPressed: () => onGo(2),
-              style: IconButton.styleFrom(backgroundColor: Colors.white.withValues(alpha: .1), side: BorderSide(color: Colors.white.withValues(alpha: .25))),
+              style: IconButton.styleFrom(backgroundColor: Colors.white.withValues(alpha: .12), minimumSize: const Size(44, 44)),
               icon: const Icon(Icons.notifications_none_rounded, color: Colors.white),
             ),
             if (unread > 0)
               PositionedDirectional(
-                  top: -2,
-                  end: -2,
+                  top: -3,
+                  end: -3,
                   child: Container(
                       constraints: const BoxConstraints(minWidth: 18),
                       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                       decoration: BoxDecoration(color: MQ.danger, borderRadius: BorderRadius.circular(R.pill)),
                       child: Text('$unread', textAlign: TextAlign.center, style: MQ.caption(color: Colors.white, weight: FontWeight.w700)))),
           ]),
-          const Spacer(),
+          Expanded(
+            child: Column(children: [
+              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                const Icon(Icons.balance_rounded, color: MQ.gold, size: 26),
+                const SizedBox(width: Sp.s),
+                Text('ميثاق', style: MQ.title1(color: Colors.white)),
+              ]),
+              Text('بوابة الموكل الآمنة', style: MQ.footnote(color: MQ.brassHi, weight: FontWeight.w600)),
+            ]),
+          ),
           const LawyerAvatar(size: 44),
         ]),
-        const SizedBox(height: Sp.xs),
-        const Icon(Icons.balance_rounded, color: MQ.gold, size: 34),
-        Text('ميثاق', style: MQ.title1(color: MQ.brassHi)),
-        Text('بوابة الموكل الآمنة', style: MQ.footnote(color: Colors.white.withValues(alpha: .9))),
-        const SizedBox(height: Sp.m),
-        Align(
-          alignment: AlignmentDirectional.centerStart,
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('${greeting()}، ${store.firstName}', style: MQ.title2(color: Colors.white), maxLines: 1, overflow: TextOverflow.ellipsis),
-            Text('شريكك القانوني في طريق العدالة', style: MQ.subhead(color: Colors.white.withValues(alpha: .9))),
-          ]),
-        ),
+        const SizedBox(height: Sp.l),
+        Text('${greeting()}، ${store.firstName}', style: MQ.title1(color: Colors.white), maxLines: 1, overflow: TextOverflow.ellipsis),
+        const SizedBox(height: 2),
+        Text('شريكك القانوني في طريق العدالة', style: MQ.callout(color: const Color(0xFFD5DEE9))),
       ]),
     );
   }
