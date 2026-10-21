@@ -605,7 +605,7 @@ async function api(req, res, u) {
     }
     if (p === '/api/admin/tts/voices' && M === 'GET') { if (!need('manage')) return; const r = await tts.voices(); return json(res, r.status, r.body) }
     if (p === '/api/admin/tts/speak' && M === 'POST') {
-      const r = await tts.speak((await jbody(req, 8 * 1024) || {}).text, me);
+      const sb = await jbody(req, 8 * 1024) || {}; const r = await tts.speak(sb.text, me, sb.kind === 'read' ? 'read' : 'alert');
       if (!r.audio) return json(res, r.status, r.body);
       res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Content-Length': r.audio.length, 'Cache-Control': 'private, no-store', ...CORS, ...SEC }); return res.end(Buffer.from(r.audio));
     }

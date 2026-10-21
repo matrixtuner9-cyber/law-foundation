@@ -19,10 +19,11 @@ function cleanCfg(b, prev) {
   if (b.voiceName !== undefined) out.voiceName = String(b.voiceName || '').slice(0, 80);
   if (b.model !== undefined) out.model = Object.hasOwn(MODELS, b.model) ? b.model : 'flash';
   if (b.always !== undefined) out.always = !!b.always;
+  if (b.alertsOnly !== undefined) out.alertsOnly = !!b.alertsOnly;
   out.savedAt = new Date().toISOString();
   return { cfg: out };
 }
-const pubCfg = c => c && c.key ? { configured: true, last4: c.key.slice(-4), voiceId: c.voiceId || '', voiceName: c.voiceName || '', model: c.model || 'flash', always: !!c.always, savedAt: c.savedAt } : { configured: false };
+const pubCfg = c => c && c.key ? { configured: true, last4: c.key.slice(-4), voiceId: c.voiceId || '', voiceName: c.voiceName || '', model: c.model || 'flash', always: !!c.always, alertsOnly: c.alertsOnly !== false, savedAt: c.savedAt } : { configured: false };
 
 /* سبب الرفض كما يعيده ElevenLabs، بعبارة يفهمها المدير */
 function why(status, j) {
@@ -48,8 +49,10 @@ function createTts({ getCfg, fetchImpl, now = () => Date.now(), audit }) {
     return { status: 200, body: { voices: (j.voices || []).slice(0, 200).map(v => ({ id: v.voice_id, name: v.name, category: v.category || '', labels: v.labels || {} })) } };
   }
 
-  async function speak(text, user) {
+  async function speak(text, user, kind = 'alert') {
     const c = await getCfg(); if (!c || !c.key) return { status: 400, body: { error: 'لم يُضبط النطق السحابي.' } };
+    /* «للتنبيهات فقط» (الافتراضي): لا تُقرأ النصوص الطويلة عبر ElevenLabs */
+    if (kind === 'read' && c.alertsOnly !== false) return { status: 403, body: { error: 'ElevenLabs مضبوط للتنبيهات فقط.', alertsOnly: true } };
     const t = String(text || '').replace(/\s+/g, ' ').trim().slice(0, MAX_TEXT);
     if (t.length < 3) return { status: 400, body: { error: 'نص قصير.' } };
     if (limited(String(user && user.id || 'x'))) return { status: 429, body: { error: 'تنبيهات كثيرة متتالية.' } };

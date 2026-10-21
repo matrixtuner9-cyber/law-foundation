@@ -82,11 +82,12 @@ function chunks(text,max=900){const out=[];let cur='';
   if((cur+' '+p).length>max){if(cur)out.push(cur);if(p.length>max){for(let i=0;i<p.length;i+=max)out.push(p.slice(i,i+max));cur=''}else cur=p}else cur=cur?cur+' '+p:p}
  if(cur)out.push(cur);return out}
 const RD={run:0};
-async function cloudAudio(text){const r=await fetch('/api/admin/tts/speak',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({text})});if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.error||'تعذّر النطق')}return URL.createObjectURL(await r.blob())}
+async function cloudAudio(text){const r=await fetch('/api/admin/tts/speak',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({text,kind:'read'})});if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.error||'تعذّر النطق')}return URL.createObjectURL(await r.blob())}
 /* يعيد طريقة القراءة المتاحة: browser | cloud | null */
 /* preferFree: للنصوص الطويلة نفضّل صوت المتصفح المجاني حتى لو اختار المدير ElevenLabs «دائماً» للتنبيهات */
 window.MQ_readMode=async(o={})=>{const st=await ttsStatus();const vs=hasTTS()?speechSynthesis.getVoices()||[]:[];const br=hasTTS()&&(arVoice()||!vs.length);
  if(o.preferFree&&br)return 'browser';
+ if(o.preferFree&&st.alertsOnly)return br?'browser':null; // ElevenLabs للتنبيهات فقط
  return st.configured&&(st.always||!br)?'cloud':br?'browser':null};
 window.MQ_readStop=()=>{RD.run++;try{speechSynthesis.cancel()}catch(x){}if(player){try{player.pause()}catch(x){}}};
 window.MQ_readAloud=async(text,{onProgress,onEnd,preferFree}={})=>{
@@ -119,15 +120,16 @@ function elBox(){const st=TT.st;if(!st)return '<div class="m">جارٍ القر�
   <label>الصوت<select class="field" id="annElVoice"><option value="">${TT.voices?'— أول صوت في الحساب —':'احفظ المفتاح ثم اختر الصوت'}</option>${(TT.voices||[]).map(v=>`<option value="${e(v.id)}" data-n="${e(v.name)}" ${st.voiceId===v.id?'selected':''}>${e(v.name)}${v.category?' · '+e(v.category):''}</option>`).join('')}</select></label>
   <label>أو معرّف الصوت (Voice ID)<input class="field mono" id="annElVoiceId" dir="ltr" placeholder="من ElevenLabs ← Voices ← ID" value="${e(st.voiceId&&!(TT.voices||[]).some(v=>v.id===st.voiceId)?st.voiceId:'')}"></label>
   <label>النموذج<select class="field" id="annElModel"><option value="flash" ${st.model!=='quality'?'selected':''}>سريع وأرخص (Flash v2.5)</option><option value="quality" ${st.model==='quality'?'selected':''}>أعلى جودة (Multilingual v2)</option><option value="v3" ${st.model==='v3'?'selected':''}>الأكثر تعبيراً (Eleven v3)</option></select></label>
+  <label class="wide rl-ck"><input type="checkbox" id="annElAlerts" ${st.alertsOnly!==false?'checked':''}> للتنبيهات فقط (لا يُستخدم لقراءة نصوص المرفقات الطويلة، فتُقرأ بصوت المتصفح المجاني)</label>
   <label class="wide rl-ck"><input type="checkbox" id="annElAlways" ${st.always?'checked':''}> استخدمه دائماً حتى لو وُجد صوت عربي في المتصفح (صوت موحّد على كل الأجهزة)</label>
   <div class="wide toolbar"><button class="btn pri">حفظ</button>${st.configured?'<button type="button" class="btn" data-act="annElX">إلغاء</button>':''}</div></form>`;
- return `<div class="ann-el">${head}<div class="st-row"><div><span class="pill ok">مفعّل</span> المفتاح ينتهي بـ <span class="mono">${e(st.last4)}</span> · الصوت: ${e(st.voiceName||'أول صوت في الحساب')} · ${st.model==='quality'?'أعلى جودة':st.model==='v3'?'Eleven v3':'سريع'}${st.always?' · دائماً':' · عند غياب الصوت العربي'}</div><div class="toolbar"><button type="button" class="btn sm" data-act="annElEdit">تغيير</button><button type="button" class="btn sm" data-act="annElRm">إزالة</button></div></div></div>`}
+ return `<div class="ann-el">${head}<div class="st-row"><div><span class="pill ok">مفعّل</span> المفتاح ينتهي بـ <span class="mono">${e(st.last4)}</span> · الصوت: ${e(st.voiceName||'أول صوت في الحساب')} · ${st.model==='quality'?'أعلى جودة':st.model==='v3'?'Eleven v3':'سريع'}${st.always?' · دائماً':' · عند غياب الصوت العربي'}${st.alertsOnly!==false?' · للتنبيهات فقط':''}</div><div class="toolbar"><button type="button" class="btn sm" data-act="annElEdit">تغيير</button><button type="button" class="btn sm" data-act="annElRm">إزالة</button></div></div></div>`}
 function paint(){const el=document.getElementById('annBox');if(el)el.innerHTML=box()}
 async function loadVoices(){try{const r=await fetch('/api/admin/tts/voices',{credentials:'same-origin'});const j=await r.json();if(r.ok)TT.voices=j.voices;else toast(j.error||'تعذّر جلب الأصوات')}catch(x){}paint()}
 A.annElEdit=()=>{TT.open=true;paint();loadVoices()};A.annElX=()=>{TT.open=false;paint()};
 A.annElRm=async()=>{if(!confirm('إزالة مفتاح ElevenLabs؟ سيعود التنبيه لصوت المتصفح فقط.'))return;try{const r=await fetch('/api/admin/tts',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({clear:true})});if(r.ok){toast('أُزيل المفتاح');await ttsStatus(true);paint()}}catch(x){}};
 document.addEventListener('submit',async ev=>{const f=ev.target;if(f.id!=='annElForm')return;ev.preventDefault();ev.stopImmediatePropagation();
- const sel=f.annElVoice,opt=sel.options[sel.selectedIndex],manual=f.annElVoiceId.value.trim(),body={key:f.annElKey.value.trim(),voiceId:manual||sel.value,voiceName:manual?'':(opt&&opt.dataset.n||''),model:f.annElModel.value,always:f.annElAlways.checked};
+ const sel=f.annElVoice,opt=sel.options[sel.selectedIndex],manual=f.annElVoiceId.value.trim(),body={key:f.annElKey.value.trim(),voiceId:manual||sel.value,voiceName:manual?'':(opt&&opt.dataset.n||''),model:f.annElModel.value,always:f.annElAlways.checked,alertsOnly:f.annElAlerts.checked};
  const btn=f.querySelector('.btn.pri');btn.disabled=true;
  try{const r=await fetch('/api/admin/tts',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify(body)});const j=await r.json().catch(()=>({}));
   if(!r.ok){toast(j.error||'تعذّر الحفظ');btn.disabled=false;return}

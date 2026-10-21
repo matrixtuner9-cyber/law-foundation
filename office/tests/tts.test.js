@@ -32,3 +32,12 @@ test('النطق السحابي: طلب ElevenLabs صحيح، وذاكرة مؤ�
   const bad = T.createTts({ getCfg: async () => ({ key: KEY, voiceId: 'VOICE1234567' }), fetchImpl: async () => ({ ok: false, status: 401, json: async () => ({}) }) });
   assert.match((await bad.speak(text, { id: 'z' })).body.error, /غير مقبول/);
 });
+test('النطق السحابي: «للتنبيهات فقط» افتراضياً، فلا تُقرأ النصوص الطويلة عبر ElevenLabs', async () => {
+  const fetchImpl = async () => ({ ok: true, status: 200, arrayBuffer: async () => new Uint8Array([1]).buffer });
+  const on = T.createTts({ getCfg: async () => ({ key: KEY, voiceId: 'VOICE1234567' }), fetchImpl });
+  assert.equal((await on.speak('نص طويل من مرفق الموكل', { id: 'a' }, 'read')).status, 403);
+  assert.equal((await on.speak('تنبيه قصير', { id: 'a' })).status, 200);
+  const off = T.createTts({ getCfg: async () => ({ key: KEY, voiceId: 'VOICE1234567', alertsOnly: false }), fetchImpl });
+  assert.equal((await off.speak('نص طويل من مرفق الموكل', { id: 'b' }, 'read')).status, 200);
+  assert.equal(T.pubCfg({ key: KEY }).alertsOnly, true);
+});

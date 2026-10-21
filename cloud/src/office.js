@@ -500,7 +500,7 @@ export class Office extends DurableObject {
       }
       if (p === '/api/admin/tts/voices' && M === 'GET') { if ((d = deny('manage'))) return d; const r = await this.tts.voices(); return json(r.status, r.body) }
       if (p === '/api/admin/tts/speak' && M === 'POST') {
-        const r = await this.tts.speak((await jbody(8 * 1024) || {}).text, me);
+        const sb = await jbody(8 * 1024) || {}; const r = await this.tts.speak(sb.text, me, sb.kind === 'read' ? 'read' : 'alert');
         if (!r.audio) return json(r.status, r.body);
         return new Response(r.audio, { headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'private, no-store', ...CORS, ...SEC } });
       }
