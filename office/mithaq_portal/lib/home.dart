@@ -24,11 +24,13 @@ class HomeTab extends StatelessWidget {
         builder: (context, _) {
           final next = store.nextHearing;
           final fromLawyer = store.msgs.where((m) => !m.mine).toList().reversed.take(3).toList();
-          return RefreshIndicator(
+          return Column(children: [
+            _Header(onGo: onGo),
+            Expanded(
+              child: RefreshIndicator(
             color: MQ.forest,
             onRefresh: () => store.load(),
             child: CustomScrollView(slivers: [
-              SliverToBoxAdapter(child: _Header()),
               SliverPadding(
                 padding: const EdgeInsets.symmetric(horizontal: Sp.page),
                 sliver: SliverToBoxAdapter(child: _NextHearing(next: next)),
@@ -89,7 +91,8 @@ class HomeTab extends StatelessWidget {
               ],
               const SliverToBoxAdapter(child: SizedBox(height: Sp.xl)),
             ]),
-          );
+          )),
+          ]);
         },
       ),
     );
@@ -98,20 +101,57 @@ class HomeTab extends StatelessWidget {
 
 /* ── الرأس: المكتب والتحية ── */
 class _Header extends StatelessWidget {
+  const _Header({required this.onGo});
+  final GoTo onGo;
   @override
   Widget build(BuildContext context) {
     final top = MediaQuery.of(context).padding.top;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(Sp.page, top + Sp.m, Sp.page, Sp.l),
+    final unread = store.unread;
+    return Container(
+      padding: EdgeInsets.fromLTRB(Sp.page, top + Sp.s, Sp.page, Sp.l),
+      decoration: BoxDecoration(
+        color: MQ.forest,
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(R.sheet)),
+        image: const DecorationImage(image: AssetImage('assets/images/hdr.jpg'), fit: BoxFit.cover, alignment: Alignment.centerRight),
+        boxShadow: [BoxShadow(color: MQ.forest.withValues(alpha: .25), blurRadius: 16, offset: const Offset(0, 6))],
+        border: const Border(bottom: BorderSide(color: MQ.gold, width: 1.5)),
+      ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          const Seal(size: 36, filled: true),
-          const SizedBox(width: Sp.s + 2),
-          Expanded(child: Text('${store.office['name'] ?? ''}', style: MQ.footnote(), maxLines: 2, overflow: TextOverflow.ellipsis)),
+          Stack(clipBehavior: Clip.none, children: [
+            IconButton(
+              tooltip: 'الإشعارات',
+              onPressed: () => onGo(2),
+              style: IconButton.styleFrom(side: BorderSide(color: MQ.gold.withValues(alpha: .7)), minimumSize: const Size(44, 44)),
+              icon: const Icon(Icons.notifications_none_rounded, color: MQ.brassHi),
+            ),
+            if (unread > 0) PositionedDirectional(top: 6, end: 6, child: Container(width: 10, height: 10, decoration: const BoxDecoration(color: MQ.gold, shape: BoxShape.circle))),
+          ]),
+          const SizedBox(width: Sp.m),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('بوابة الموكل', style: MQ.title1(color: MQ.brassHi)),
+              Text('${store.office['name'] ?? ''}', style: MQ.footnote(color: MQ.soft), maxLines: 1, overflow: TextOverflow.ellipsis),
+            ]),
+          ),
+          const SizedBox(width: 56),
         ]),
-        const SizedBox(height: Sp.l),
-        Text(greeting(), style: MQ.subhead(color: MQ.muted)),
-        Text(store.firstName, style: MQ.largeTitle(), maxLines: 2, overflow: TextOverflow.ellipsis),
+        const SizedBox(height: Sp.m),
+        Row(children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withValues(alpha: .08), border: Border.all(color: MQ.gold.withValues(alpha: .7))),
+            child: const Icon(Icons.person_outline_rounded, color: MQ.brassHi),
+          ),
+          const SizedBox(width: Sp.m),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('${greeting()}، ${store.firstName}', style: MQ.headline(color: Colors.white), maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text('نحن هنا لدعمك في كل خطوة من قضيتك', style: MQ.footnote(color: MQ.soft)),
+            ]),
+          ),
+        ]),
       ]),
     );
   }

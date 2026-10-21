@@ -21,7 +21,7 @@ class LargeTitlePage extends StatelessWidget {
             leading: leading,
             actions: actions,
             expandedHeight: 120,
-            backgroundColor: MQ.ivory,
+            backgroundColor: Colors.transparent,
             surfaceTintColor: Colors.transparent,
           ),
           ...slivers,

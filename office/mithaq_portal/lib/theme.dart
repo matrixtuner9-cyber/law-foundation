@@ -101,7 +101,7 @@ class MQ {
       outlineVariant: line,
       error: danger,
     );
-    final base = ThemeData(useMaterial3: true, brightness: Brightness.light, colorScheme: scheme, scaffoldBackgroundColor: ivory, fontFamily: bodyFont);
+    final base = ThemeData(useMaterial3: true, brightness: Brightness.light, colorScheme: scheme, scaffoldBackgroundColor: Colors.transparent, fontFamily: bodyFont);
     OutlineInputBorder border(Color c, [double w = 1]) =>
         OutlineInputBorder(borderRadius: BorderRadius.circular(R.control), borderSide: BorderSide(color: c, width: w));
     return base.copyWith(
@@ -114,7 +114,7 @@ class MQ {
             labelLarge: subhead(weight: FontWeight.w600),
           ),
       appBarTheme: AppBarTheme(
-          backgroundColor: ivory,
+          backgroundColor: Colors.transparent,
           surfaceTintColor: Colors.transparent,
           elevation: 0,
           scrolledUnderElevation: .5,
