@@ -13,9 +13,10 @@ class ApiError implements Exception {
 
 /// الاتصال بخادم المكتب
 class Api {
-  /// على الويب: نفس عنوان الصفحة. على الهاتف: يُمرَّر عند البناء
-  /// flutter build apk --dart-define=API=http://192.168.1.20:8080
-  static String base = kIsWeb ? Uri.base.origin : const String.fromEnvironment('API', defaultValue: 'http://10.0.2.2:8080');
+  /// على الويب: نفس عنوان الصفحة. على الهاتف: يختاره الموكل (رمز المكتب أو رابط الدعوة)،
+  /// أو يُثبَّت عند البناء لمكتب واحد:  flutter build apk --dart-define=API=https://office.palgaz.net
+  static String base = kIsWeb ? Uri.base.origin : const String.fromEnvironment('API', defaultValue: '');
+  static bool get hasOffice => base.isNotEmpty;
   static String? code;
 
   static Map<String, String> get _h => {'x-client': code ?? ''};
@@ -36,6 +37,23 @@ class Api {
     }
     if (r.statusCode >= 400) throw ApiError(b is Map && b['error'] != null ? '${b['error']}' : 'حدث خطأ، حاول مجدداً.');
     return b;
+  }
+
+  /// اسم المكتب من عنوان خادمه (قبل الدخول)
+  static Future<Map<String, dynamic>> officeInfo(String b) async {
+    late http.Response r;
+    try {
+      r = await http.get(Uri.parse('$b/api/portal/office')).timeout(const Duration(seconds: 20));
+    } catch (_) {
+      throw ApiError('تعذّر الوصول إلى هذا المكتب. تأكد من الرمز أو الرابط ومن اتصالك بالإنترنت.');
+    }
+    if (r.statusCode == 404) throw ApiError('لا يوجد مكتب بهذا الرمز. تأكد منه مع مكتب المحاماة.');
+    if (r.statusCode >= 400) throw ApiError('المكتب غير متاح الآن، حاول بعد قليل.');
+    try {
+      return Map<String, dynamic>.from(jsonDecode(utf8.decode(r.bodyBytes)));
+    } catch (_) {
+      throw ApiError('هذا العنوان ليس خادم مكتب يعمل بنظام ميثاق.');
+    }
   }
 
   static Future<Map<String, dynamic>> login(String c) async {

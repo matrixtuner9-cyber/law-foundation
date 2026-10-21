@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
 import 'notify_panel.dart';
+import 'office_pick.dart';
 import 'push.dart';
 import 'store.dart';
 import 'theme.dart';
@@ -145,8 +146,12 @@ class _SettingsPageState extends State<SettingsPage> {
             const NotifyPanel(),
         ]),
         if (!kIsWeb)
-          _section('الاتصال', 'عنوان خادم المكتب الذي يتصل به التطبيق', [
-            SelectableText(Api.base, style: MQ.mono(14), textDirection: TextDirection.ltr),
+          _section('مكتبك', 'المكتب الذي يتصل به التطبيق. لتغييره سجّل الخروج ثم اختر «تغيير» في شاشة الدخول.', [
+            FutureBuilder<String>(
+                future: OfficePick.savedName(),
+                builder: (_, s) => Text(s.data?.isNotEmpty == true ? s.data! : '${store.office['name'] ?? ''}', style: MQ.body(15, weight: FontWeight.w700))),
+            const SizedBox(height: 4),
+            SelectableText(Api.base, style: MQ.mono(13, color: MQ.muted), textDirection: TextDirection.ltr),
           ]),
       ]),
     );

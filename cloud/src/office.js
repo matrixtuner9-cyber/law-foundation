@@ -14,6 +14,7 @@ import { createService as sjcService } from './sjc.js';
 import * as Apns from './apns.js';
 import * as WebPush from './webpush.js';
 import * as Tts from './tts.js';
+import * as Legal from './legal-pages.js';
 import { createLaws } from './laws.js';
 import { createLawSearch } from './law-sources.js';
 import { createDrafter, createExtractor, createTranscriber, createAssistant, createCalcExtractor, createRulingExtractor, usageSummary, PRICES as AI_PRICES, DOC_TYPES, MODEL as AI_MODEL } from './ai-draft.js';
@@ -47,7 +48,7 @@ const SEC = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-orig
 const json = (code, obj, extra = {}) => new Response(JSON.stringify(obj), { status: code, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...CORS, ...SEC, ...extra } });
 const MEDIA_TTL = 24 * 3600; // صلاحية رابط الملف الموقّع: يوم واحد، ويتجدد بتحميل المحادثة
 
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'sources.js', 'guide.js', 'announce.js', 'reader.js', 'case-hub.js', 'case-wizard.js', 'consistency.js', 'searchsel.js', 'wa-chat.js', 'fulltext.js', 'ai-mark.js', 'night.css', 'wa-skin.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'sources.js', 'guide.js', 'announce.js', 'reader.js', 'case-hub.js', 'case-wizard.js', 'consistency.js', 'searchsel.js', 'wa-chat.js', 'fulltext.js', 'ai-mark.js', 'night.css', 'qrcode.js', 'app-invite.js', 'wa-skin.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css', 'edition.js']);
 
 /* توحيد الكتابة العربية للبحث في دليل المحامين */
@@ -210,6 +211,9 @@ export class Office extends DurableObject {
     let p; try { p = decodeURIComponent(u.pathname) } catch (e) { return new Response('bad', { status: 400 }) }
     const asset = path => this.env.ASSETS.fetch(new Request(new URL(path, u.origin), { headers: { 'accept-encoding': req.headers.get('accept-encoding') || '' } }));
     const noStore = async r => { const h = new Headers(r.headers); h.set('Cache-Control', 'no-store'); Object.entries(SEC).forEach(([k, v]) => h.set(k, v)); return new Response(r.body, { status: r.status, headers: h }) };
+    /* صفحات عامة لتطبيق الموكل في متجر Apple: الخصوصية والدعم وملف ربط الروابط */
+    if (p === '/privacy' || p === '/support') return new Response((p === '/privacy' ? Legal.privacyPage : Legal.supportPage)(this.officeInfo()), { headers: { ...SEC, 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=600' } });
+    if (p === '/.well-known/apple-app-site-association' || p === '/apple-app-site-association') return new Response(Legal.aasa(Legal.appIdsFrom(this.apnsCfg(), this.env.APPLE_APP_ID)), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' } });
     { const m = /^\/p\/(MQ-[A-Za-z0-9]{3,12})$/i.exec(p); if (m) return new Response(PLINK(m[1].toUpperCase()), { headers: { ...SEC, 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } }) }
     if (p === '/portal') return Response.redirect(new URL('/portal/', u.origin).href, 302);
     if (p.startsWith('/portal/')) {
@@ -239,6 +243,8 @@ export class Office extends DurableObject {
     if (p === '/api/health') return json(200, { ok: true, at: stamp() });
     /* السحابة دائماً «ميثاق متصل» */
     if (p === '/api/edition') return json(200, { id: 'connected', name: 'ميثاق متصل', tagline: 'مكتبك وموكّلوك على اتصال دائم', offline: false, features: { portal: true, push: true, mizan: true, judgmentSearch: true, rulingImport: true, barRefresh: true, externalLinks: true } });
+    /* تعريف المكتب لتطبيق الآيفون قبل الدخول (اسمه فقط، دون بيانات موكلين) */
+    if (p === '/api/portal/office' && M === 'GET') { const o = this.officeInfo(); return json(200, { app: 'mithaq', name: o.name || '', city: o.city || '' }) }
     if (p === '/api/portal/push-key') return json(200, { enabled: true, key: (await this.vapid()).publicKey });
 
     /* الملفات: لموظفي المكتب بجلستهم، وللموكل برابط موقّع مؤقت */

@@ -6,6 +6,8 @@
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>ar</string>
+	<key>FlutterDeepLinkingEnabled</key>
+	<false/>
 	<key>CFBundleDisplayName</key>
 	<string>ميثاق</string>
 	<key>CFBundleExecutable</key>

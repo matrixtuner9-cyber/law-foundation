@@ -3,6 +3,8 @@
 # المتغيرات السرية في مجموعة mithaq_ios داخل Codemagic (لا تُكتب هنا أبداً):
 #   APP_STORE_CONNECT_ISSUER_ID, APP_STORE_CONNECT_KEY_IDENTIFIER, APP_STORE_CONNECT_PRIVATE_KEY  ← مفتاح API من App Store Connect
 #   CERTIFICATE_PRIVATE_KEY  ← مفتاح RSA لشهادة التوزيع (يولّده Codemagic أو: ssh-keygen -t rsa -b 2048 -m PEM -f cert_key -q -N "")
+# قبل أول بناء: فعّل في حساب Apple Developer ← Identifiers ← ps.mithaq.mithaqPortal القدرتين
+#   Push Notifications و Associated Domains (لفتح روابط الدعوة داخل التطبيق)
 workflows:
   mithaq-client-ios:
     name: ميثاق — تطبيق الموكل (آيفون)
@@ -14,9 +16,10 @@ workflows:
         - mithaq_ios
       vars:
         BUNDLE_ID: ps.mithaq.mithaqPortal
-        # عنوان خادم المكتب الذي يتصل به التطبيق (يجب أن يكون https)
-        API_URL: https://demo.palgaz.net
-        BUILD_NAME: 1.0.1
+        # تطبيق واحد لكل المكاتب: يختار الموكل مكتبه برمز المكتب أو رابط الدعوة، فيُترك فارغاً.
+        # (لتثبيت التطبيق على مكتب واحد فقط ضع عنوانه هنا، مثل https://office.palgaz.net)
+        API_URL: ""
+        BUILD_NAME: 1.1.0
       flutter: stable
       xcode: latest
       cocoapods: default
