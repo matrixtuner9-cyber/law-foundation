@@ -20,11 +20,11 @@ class MQ {
   static const brassHi = Color(0xFFE3C98E); // ذهبي مقروء على الكحلي
   static const brassSoft = Color(0xFFF6EEDC);
   // ── الأسطح
-  static const ivory = Color(0xFFF4F1EA); // خلفية الشاشات
+  static const ivory = Color(0xFFF1F4F8); // خلفية الشاشات
   static const surface = Color(0xFFFFFFFF); // البطاقات والقوائم
-  static const surfaceAlt = Color(0xFFF8F6F1); // الحقول
-  static const sunk = Color(0xFFF0ECE3);
-  static const line = Color(0xFFE5DECF); // الحدود والفواصل
+  static const surfaceAlt = Color(0xFFF6F8FB); // الحقول
+  static const sunk = Color(0xFFE9EEF4);
+  static const line = Color(0xFFE0E6EE); // الحدود والفواصل
   // ── النصوص
   static const ink = Color(0xFF111B27); // أساسي (16:1)
   static const muted = Color(0xFF55606E); // ثانوي (6.4:1)

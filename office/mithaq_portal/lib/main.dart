@@ -49,7 +49,6 @@ class MithaqPortal extends StatelessWidget {
               data: mq.copyWith(textScaler: mq.textScaler.clamp(minScaleFactor: .9, maxScaleFactor: 1.3)),
               child: Stack(fit: StackFit.expand, children: [
                 const ColoredBox(color: MQ.ivory),
-                Image.asset('assets/images/stone.jpg', fit: BoxFit.cover, alignment: Alignment.topCenter, errorBuilder: (_, __, ___) => const SizedBox()),
                 child ?? const SizedBox(),
               ]));
         },
