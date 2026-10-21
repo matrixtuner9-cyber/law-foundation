@@ -11,7 +11,7 @@ const DATA = process.env.MQ_DATA || path.join(ROOT, 'data'), MEDIA = path.join(D
 fs.mkdirSync(MEDIA, { recursive: true });
 
 const SEED = require('./data.js');
-const Store = require('./lib/db'), Auth = require('./lib/auth'), Merge = require('./lib/merge'), Maqam = require('./lib/maqam'), MaqamSearch = require('./lib/maqam-search'), Laws = require('./lib/laws'), LawSources = require('./lib/law-sources'), AiDraft = require('./lib/ai-draft'), Muqtafi = require('./lib/muqtafi'), Sjc = require('./lib/sjc'), Apns = require('./lib/apns'), WebPush = require('./lib/webpush'), http2 = require('http2');
+const Store = require('./lib/db'), Auth = require('./lib/auth'), Merge = require('./lib/merge'), Maqam = require('./lib/maqam'), MaqamSearch = require('./lib/maqam-search'), Laws = require('./lib/laws'), LawSources = require('./lib/law-sources'), AiDraft = require('./lib/ai-draft'), Muqtafi = require('./lib/muqtafi'), Sjc = require('./lib/sjc'), Apns = require('./lib/apns'), WebPush = require('./lib/webpush'), Tts = require('./lib/tts'), http2 = require('http2');
 const OFFICE = { name: 'مكتب الميثاق للمحاماة والاستشارات القانونية', lawyer: 'المحامي سامر عبد الله', city: 'نابلس', phone: '09-233-0000', hours: 'الأحد – الخميس · 8:30 – 16:00' };
 const STATE_F = path.join(DATA, 'state.json'), MSG_F = path.join(DATA, 'messages.json');
 const VAPID_F = path.join(DATA, 'vapid.json'), PUSH_F = path.join(DATA, 'push.json');
@@ -112,6 +112,7 @@ function h2Send({ host, path: pth, headers, body }) {
     r.end(body);
   });
 }
+let tts = null;
 const apns = Apns.createApns({ getCfg: async () => apnsCfg(), transport: h2Send, subtle: crypto.webcrypto.subtle });
 async function apnsTo(client, payload) {
   const list = apnsDevs()[client] || [], out = [];
@@ -590,6 +591,24 @@ async function api(req, res, u) {
     const a = p.slice(15), r = a === 'classes' && M === 'GET' ? await sjc('classes', {}, me) : a === 'search' && M === 'POST' ? await sjc('search', await jbody(req), me) : a === 'pdf' && M === 'GET' ? await sjc('pdf', { id: u.searchParams.get('id') }, me) : { status: 404, body: { error: 'not found' } };
     if (r.file) { res.writeHead(200, { 'Content-Type': r.file.contentType, 'Content-Disposition': `inline; filename="${r.file.filename}"`, 'Cache-Control': 'no-store', ...CORS, ...SEC }); return res.end(Buffer.from(r.file.body)) }
     return json(res, r.status, r.body, r.status === 429 && r.body.retry ? { 'Retry-After': String(r.body.retry) } : {});
+  }
+  if (p.startsWith('/api/admin/tts')) {
+    /* النطق العربي السحابي (ElevenLabs) لتنبيهات الرسائل: المفتاح في الخادم فقط */
+    tts = tts || Tts.createTts({ getCfg: async () => store.kv.get('tts_cfg') || null, audit });
+    if (p === '/api/admin/tts' && M === 'GET') return json(res, 200, { ...Tts.pubCfg(store.kv.get('tts_cfg')), canManage: auth.can(me, 'manage') });
+    if (p === '/api/admin/tts' && M === 'POST') {
+      if (!need('manage')) return; const r = Tts.cleanCfg(await jbody(req) || {}, store.kv.get('tts_cfg'));
+      if (r.error) return json(res, 400, { error: r.error });
+      store.kv.set('tts_cfg', r.cfg); audit({ ...who, action: r.cfg ? 'tts.cfg_set' : 'tts.cfg_removed', entity: 'settings', detail: r.cfg ? { last4: r.cfg.key.slice(-4), voice: r.cfg.voiceName || r.cfg.voiceId || '', model: r.cfg.model } : {} });
+      return json(res, 200, Tts.pubCfg(r.cfg));
+    }
+    if (p === '/api/admin/tts/voices' && M === 'GET') { if (!need('manage')) return; const r = await tts.voices(); return json(res, r.status, r.body) }
+    if (p === '/api/admin/tts/speak' && M === 'POST') {
+      const r = await tts.speak((await jbody(req, 8 * 1024) || {}).text, me);
+      if (!r.audio) return json(res, r.status, r.body);
+      res.writeHead(200, { 'Content-Type': 'audio/mpeg', 'Content-Length': r.audio.length, 'Cache-Control': 'private, no-store', ...CORS, ...SEC }); return res.end(Buffer.from(r.audio));
+    }
+    return json(res, 404, { error: 'not found' });
   }
   if (p === '/api/admin/apns' || p === '/api/admin/apns/test') {
     /* إعداد إشعارات آيفون من حساب Apple Developer: المفتاح يُحفظ هنا ولا يُعاد */

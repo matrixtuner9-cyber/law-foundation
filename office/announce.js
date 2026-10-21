@@ -38,12 +38,30 @@ function spokenDur(s){s=Math.max(1,Math.round(s||0));const mi=Math.floor(s/60),s
 let ac=null;
 function chime(vol){try{ac=ac||new (window.AudioContext||window.webkitAudioContext)();const t=ac.currentTime;
  [[880,0],[1318.5,.16]].forEach(([f,d])=>{const o=ac.createOscillator(),g=ac.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(0,t+d);g.gain.linearRampToValueAtTime(.18*vol,t+d+.02);g.gain.exponentialRampToValueAtTime(.0001,t+d+.45);o.connect(g).connect(ac.destination);o.start(t+d);o.stop(t+d+.5)})}catch(x){}}
-/* النطق: بصوت عربي إن وُجد. إن كانت قائمة الأصوات فارغة (أندرويد وآيفون أحياناً) نطلب العربية من النظام مباشرة.
-   إن وُجدت أصوات بلا عربية (كروم على ويندوز بلا حزمة عربية) لا ننطق نصاً عربياً بصوت أجنبي، ونخبر المحامي مرة واحدة */
-let warned=false;
-function speak(text,c){if(!hasTTS())return false;const vs=speechSynthesis.getVoices()||[],v=arVoice();
- if(!v&&vs.length){if(!warned){warned=true;setTimeout(()=>toast('التنبيه الصوتي يحتاج صوتاً عربياً: افتح ميثاق في متصفح Edge، أو ثبّت الصوت العربي في ويندوز (الإعدادات ← الوقت واللغة ← الكلام).'),2500)}return false}
+/* النطق بالترتيب: (1) صوت عربي في المتصفح (Edge، الهواتف)؛ (2) ElevenLabs عبر خادم المكتب إن ضبطه المدير
+   (يعمل في كروم على الكمبيوتر)، أو دائماً إن اختار المدير ذلك؛ (3) إن تعذّر الاثنان: إشعار مكتوب مرة واحدة بالحل */
+const TT={st:null};
+async function ttsStatus(force){if(TT.st&&!force)return TT.st;try{const r=await fetch('/api/admin/tts',{credentials:'same-origin'});TT.st=r.ok?await r.json():{configured:false}}catch(x){TT.st={configured:false}}return TT.st}
+setTimeout(()=>ttsStatus(),1500);
+let player=null;
+async function cloudSpeak(text,c){
+ const st=await ttsStatus();if(!st.configured)return false;
+ try{const r=await fetch('/api/admin/tts/speak',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({text})});
+  if(!r.ok){const j=await r.json().catch(()=>({}));if(j.error)toast('النطق السحابي: '+j.error);return false}
+  const url=URL.createObjectURL(await r.blob());if(player){try{player.pause()}catch(x){}}
+  player=new Audio(url);player.volume=Math.min(1,c.vol);player.playbackRate=c.rate;player.onended=()=>URL.revokeObjectURL(url);
+  await player.play();return true}catch(x){if(x&&x.name==='NotAllowedError')toast('اضغط في أي مكان في ميثاق مرة واحدة ليُسمح بتشغيل التنبيه الصوتي.');return false}}
+function browserSpeak(text,c){if(!hasTTS())return false;const vs=speechSynthesis.getVoices()||[],v=arVoice();
+ if(!v&&vs.length)return false; // أصوات بلا عربية: لا نقرأ العربية بصوت أجنبي
  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);if(v){u.voice=v;u.lang=v.lang}else u.lang='ar-SA';u.rate=c.rate;u.volume=c.vol;speechSynthesis.speak(u);try{speechSynthesis.resume()}catch(x){}return true}catch(x){return false}}
+let warned=false;
+async function speak(text,c){
+ const st=await ttsStatus();
+ if(st.configured&&st.always&&await cloudSpeak(text,c))return true;
+ if(browserSpeak(text,c))return true;
+ if(st.configured&&!st.always&&await cloudSpeak(text,c))return true;
+ if(!warned){warned=true;toast(st.configured?'تعذّر النطق؛ تحقّق من إعداد ElevenLabs في الإعدادات.':'لا يوجد صوت عربي في هذا المتصفح. افتح ميثاق في Edge، أو يضبط المدير النطق السحابي (ElevenLabs) من الإعدادات.')}
+ return false}
 
 /* لا يُعاد التنبيه في أكثر من نافذة مفتوحة لنفس الرسالة */
 function firstTab(id){try{const k='mq_ann_'+id;if(localStorage.getItem(k))return false;localStorage.setItem(k,'1');setTimeout(()=>{try{localStorage.removeItem(k)}catch(x){}},60000);return true}catch(x){return true}}
@@ -65,13 +83,32 @@ function box(){const c=cfg(),v=arVoice(),tts=hasTTS();
  <div class="ann-row ann-grid"><label>سرعة النطق<select class="field" id="annRate">${[[0.85,'هادئة'],[1,'عادية'],[1.15,'أسرع']].map(([x,l])=>`<option value="${x}" ${c.rate==x?'selected':''}>${l}</option>`).join('')}</select></label>
  <label>مستوى الصوت<select class="field" id="annVol">${[[0.5,'منخفض'],[0.8,'متوسط'],[1,'مرتفع']].map(([x,l])=>`<option value="${x}" ${c.vol==x?'selected':''}>${l}</option>`).join('')}</select></label>
  <button type="button" class="btn" data-act="annTest">تجربة التنبيه</button></div>
- <div class="m">${!tts?'هذا المتصفح لا يدعم النطق؛ تعمل النغمة والإشعار المكتوب فقط.':v?'الصوت المستخدم: '+e(v.name):tts&&!speechSynthesis.getVoices().length?'سيُطلب الصوت العربي من نظام الجهاز مباشرة.':'لا يوجد صوت عربي مثبت على هذا الجهاز، فتعمل النغمة والإشعار المكتوب فقط. في ويندوز: الإعدادات ← الوقت واللغة ← الكلام ← إضافة أصوات ← العربية، ثم أعد فتح ميثاق.'} الإعداد خاص بهذا الجهاز.</div></div>`}
+ <div class="m">${!tts?'هذا المتصفح لا يدعم النطق؛ تعمل النغمة والإشعار المكتوب فقط.':v?'الصوت المستخدم: '+e(v.name):tts&&!speechSynthesis.getVoices().length?'سيُطلب الصوت العربي من نظام الجهاز مباشرة.':(TT.st&&TT.st.configured?'لا يوجد صوت عربي في هذا المتصفح؛ يُستخدم النطق السحابي (ElevenLabs) المضبوط أدناه.':'لا يوجد صوت عربي في هذا المتصفح (كروم على الكمبيوتر غالباً). استخدم Edge، أو يضبط المدير النطق السحابي أدناه.')} الإعداد خاص بهذا الجهاز.</div>${elBox()}</div>`}
+function elBox(){const st=TT.st;if(!st)return '<div class="m">جارٍ القراءة…</div>';
+ const head='<b>النطق السحابي (ElevenLabs)</b> <span class="m">· يعمل في كل المتصفحات ومنها كروم. يُرسَل نص التنبيه (ومعه اسم الموكل ورقم القضية) إلى ElevenLabs لتوليد الصوت، ويُحسب من رصيد حسابك هناك.</span>';
+ if(!st.canManage)return `<div class="ann-el">${head}<div class="m">${st.configured?'<span class="pill ok">مفعّل</span> يضبطه مدير المكتب.':'غير مفعّل. يضبطه مدير المكتب.'}</div></div>`;
+ if(TT.open||!st.configured)return `<form class="form ann-el" id="annElForm" autocomplete="off"><div class="wide">${head}</div>
+  <label class="wide">مفتاح ElevenLabs API ${st.configured?'<small class="m">(اتركه فارغاً لإبقاء المفتاح المحفوظ ‎…'+e(st.last4)+')</small>':''}<input class="field mono" id="annElKey" type="password" autocomplete="new-password" dir="ltr" placeholder="sk_…"></label>
+  <label>الصوت<select class="field" id="annElVoice"><option value="">${TT.voices?'— أول صوت في الحساب —':'احفظ المفتاح ثم اختر الصوت'}</option>${(TT.voices||[]).map(v=>`<option value="${e(v.id)}" data-n="${e(v.name)}" ${st.voiceId===v.id?'selected':''}>${e(v.name)}${v.category?' · '+e(v.category):''}</option>`).join('')}</select></label>
+  <label>النموذج<select class="field" id="annElModel"><option value="flash" ${st.model!=='quality'?'selected':''}>سريع وأرخص (Flash v2.5)</option><option value="quality" ${st.model==='quality'?'selected':''}>أعلى جودة (Multilingual v2)</option></select></label>
+  <label class="wide rl-ck"><input type="checkbox" id="annElAlways" ${st.always?'checked':''}> استخدمه دائماً حتى لو وُجد صوت عربي في المتصفح (صوت موحّد على كل الأجهزة)</label>
+  <div class="wide toolbar"><button class="btn pri">حفظ</button>${st.configured?'<button type="button" class="btn" data-act="annElX">إلغاء</button>':''}</div></form>`;
+ return `<div class="ann-el">${head}<div class="st-row"><div><span class="pill ok">مفعّل</span> المفتاح ينتهي بـ <span class="mono">${e(st.last4)}</span> · الصوت: ${e(st.voiceName||'أول صوت في الحساب')} · ${st.model==='quality'?'أعلى جودة':'سريع'}${st.always?' · دائماً':' · عند غياب الصوت العربي'}</div><div class="toolbar"><button type="button" class="btn sm" data-act="annElEdit">تغيير</button><button type="button" class="btn sm" data-act="annElRm">إزالة</button></div></div></div>`}
 function paint(){const el=document.getElementById('annBox');if(el)el.innerHTML=box()}
-if(typeof V.settings==='function'){const vs=V.settings;V.settings=()=>vs()+`<section class="panel" style="margin-top:16px"><header><h2>التنبيه الصوتي للرسائل</h2><span class="m">يعلن وصول رسائل الموكلين ومرفقاتهم بالصوت</span></header><div id="annBox">${box()}</div></section>`}
+async function loadVoices(){try{const r=await fetch('/api/admin/tts/voices',{credentials:'same-origin'});const j=await r.json();if(r.ok)TT.voices=j.voices;else toast(j.error||'تعذّر جلب الأصوات')}catch(x){}paint()}
+A.annElEdit=()=>{TT.open=true;paint();loadVoices()};A.annElX=()=>{TT.open=false;paint()};
+A.annElRm=async()=>{if(!confirm('إزالة مفتاح ElevenLabs؟ سيعود التنبيه لصوت المتصفح فقط.'))return;try{const r=await fetch('/api/admin/tts',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({clear:true})});if(r.ok){toast('أُزيل المفتاح');await ttsStatus(true);paint()}}catch(x){}};
+document.addEventListener('submit',async ev=>{const f=ev.target;if(f.id!=='annElForm')return;ev.preventDefault();ev.stopImmediatePropagation();
+ const sel=f.annElVoice,opt=sel.options[sel.selectedIndex],body={key:f.annElKey.value.trim(),voiceId:sel.value,voiceName:opt&&opt.dataset.n||'',model:f.annElModel.value,always:f.annElAlways.checked};
+ const btn=f.querySelector('.btn.pri');btn.disabled=true;
+ try{const r=await fetch('/api/admin/tts',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify(body)});const j=await r.json().catch(()=>({}));
+  if(!r.ok){toast(j.error||'تعذّر الحفظ');btn.disabled=false;return}
+  toast('حُفظ إعداد النطق السحابي');await ttsStatus(true);if(!TT.voices){TT.open=true;await loadVoices();return}TT.open=false;paint()}catch(x){btn.disabled=false;toast('تعذّر الاتصال')}},true);
+if(typeof V.settings==='function'){const vs=V.settings;V.settings=()=>{setTimeout(()=>ttsStatus(true).then(paint),0);return vs()+`<section class="panel" style="margin-top:16px"><header><h2>التنبيه الصوتي للرسائل</h2><span class="m">يعلن وصول رسائل الموكلين ومرفقاتهم بالصوت</span></header><div id="annBox">${box()}</div></section>`}}
 document.addEventListener('change',ev=>{const id=ev.target.id;if(!['annVoice','annChime','annRate','annVol'].includes(id))return;const c=cfg();
  if(id==='annVoice')c.voice=ev.target.checked;if(id==='annChime')c.chime=ev.target.checked;if(id==='annRate')c.rate=Number(ev.target.value)||1;if(id==='annVol')c.vol=Number(ev.target.value)||1;saveCfg(c)});
 A.annTest=()=>{const c=cfg(),k=(typeof cases!=='undefined'?cases:[])[0],cl=k&&typeof C==='function'?C(k.client):null;
  const d=describe({from:'client',client:cl?cl.id:'',type:'voice',dur:42,ch:'البوابة'});
- if(c.chime)chime(c.vol);setTimeout(()=>{if(!speak(d.speech,c))toast(d.speech)},c.chime?650:0)};
-const css=document.createElement('style');css.textContent='.ann-box{display:grid;gap:10px}.ann-grid{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}.ann-grid label{display:grid;gap:5px;font-size:13px}.ann-grid .field{min-width:130px}';document.head.appendChild(css);
+ if(c.chime)chime(c.vol);setTimeout(async()=>{if(!await speak(d.speech,c))toast(d.speech)},c.chime?650:0)};
+const css=document.createElement('style');css.textContent='.ann-box{display:grid;gap:10px}.ann-grid{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}.ann-grid label{display:grid;gap:5px;font-size:13px}.ann-grid .field{min-width:130px}.ann-el{border-top:1px solid var(--line);padding-top:12px;display:grid;gap:8px}';document.head.appendChild(css);
 })();

@@ -1,0 +1,34 @@
+'use strict';
+const test = require('node:test'), assert = require('node:assert/strict');
+const T = require('../lib/tts.js');
+const KEY = 'sk_' + 'a1'.repeat(24);
+test('النطق السحابي: التحقق من الإعداد ولا يُعاد المفتاح', () => {
+  assert.match(T.cleanCfg({ key: 'bad' }).error, /غير صحيح/);
+  assert.match(T.cleanCfg({}).error, /أدخل/);
+  const r = T.cleanCfg({ key: KEY, voiceId: 'pNInz6obpgDQGcFmaJgB', voiceName: 'Adam', model: 'quality', always: true });
+  assert.equal(r.cfg.model, 'quality'); assert.equal(r.cfg.always, true);
+  const pub = T.pubCfg(r.cfg); assert.equal(pub.last4, KEY.slice(-4)); assert.ok(!JSON.stringify(pub).includes(KEY));
+  assert.equal(T.cleanCfg({ voiceId: '' }, r.cfg).cfg.key, KEY, 'تغيير الصوت يبقي المفتاح');
+  assert.equal(T.cleanCfg({ clear: true }, r.cfg).cfg, null);
+  assert.match(T.cleanCfg({ voiceId: 'x/../y' }, r.cfg).error, /الصوت/);
+});
+test('النطق السحابي: طلب ElevenLabs صحيح، وذاكرة مؤقتة، وحد للطلبات، ولا يُسجَّل النص', async () => {
+  const calls = [], logs = [];
+  const fetchImpl = async (u, o = {}) => { calls.push({ u, o }); if (u.endsWith('/voices')) return { ok: true, status: 200, json: async () => ({ voices: [{ voice_id: 'VOICE1234567', name: 'Rana', category: 'premade' }] }) }; return { ok: true, status: 200, arrayBuffer: async () => new Uint8Array([73, 68, 51]).buffer } };
+  const tts = T.createTts({ getCfg: async () => ({ key: KEY }), fetchImpl, audit: x => logs.push(x) });
+  const text = 'رسالة صوتية من الموكل عماد محمد سليم، في القضية رقم 8000، عبر بوابة الموكل.';
+  const r = await tts.speak(text, { id: 'u1', username: 'demo' });
+  assert.equal(r.status, 200); assert.deepEqual([...r.audio], [73, 68, 51]);
+  const c = calls.find(x => x.u.includes('/text-to-speech/'));
+  assert.match(c.u, /\/text-to-speech\/VOICE1234567\?output_format=mp3_44100_64$/);
+  assert.equal(c.o.headers['xi-api-key'], KEY);
+  const b = JSON.parse(c.o.body); assert.equal(b.model_id, 'eleven_flash_v2_5'); assert.equal(b.language_code, 'ar'); assert.equal(b.text, text);
+  const again = await tts.speak(text, { id: 'u1' }); assert.equal(again.cached, true);
+  assert.equal(calls.filter(x => x.u.includes('/text-to-speech/')).length, 1, 'الجملة نفسها لا تُدفع مرتين');
+  assert.ok(!JSON.stringify(logs).includes('عماد'), 'السجل لا يحفظ نص التنبيه');
+  let last; for (let i = 0; i < 31; i++) last = await tts.speak('تنبيه رقم ' + i, { id: 'u2' });
+  assert.equal(last.status, 429);
+  const none = T.createTts({ getCfg: async () => null, fetchImpl }); assert.equal((await none.speak(text, {})).status, 400);
+  const bad = T.createTts({ getCfg: async () => ({ key: KEY, voiceId: 'VOICE1234567' }), fetchImpl: async () => ({ ok: false, status: 401, json: async () => ({}) }) });
+  assert.match((await bad.speak(text, { id: 'z' })).body.error, /غير مقبول/);
+});

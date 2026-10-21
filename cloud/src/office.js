@@ -13,6 +13,7 @@ import { createService as muqtafiService, idFromUrl as muqtafiId } from './muqta
 import { createService as sjcService } from './sjc.js';
 import * as Apns from './apns.js';
 import * as WebPush from './webpush.js';
+import * as Tts from './tts.js';
 import { createLaws } from './laws.js';
 import { createLawSearch } from './law-sources.js';
 import { createDrafter, createExtractor, createAssistant, createCalcExtractor, createRulingExtractor, usageSummary, PRICES as AI_PRICES, DOC_TYPES, MODEL as AI_MODEL } from './ai-draft.js';
@@ -487,6 +488,24 @@ export class Office extends DurableObject {
       if (r.file) return new Response(r.file.body, { headers: { 'Content-Type': r.file.contentType, 'Content-Disposition': `inline; filename="${r.file.filename}"`, 'Cache-Control': 'no-store', ...CORS, ...SEC } });
       return json(r.status, r.body, r.status === 429 && r.body.retry ? { 'Retry-After': String(r.body.retry) } : {});
     }
+    if (p.startsWith('/api/admin/tts')) {
+      /* النطق العربي السحابي (ElevenLabs) لتنبيهات الرسائل: المفتاح في الخادم فقط */
+      this.tts ||= Tts.createTts({ getCfg: async () => this.store.kv.get('tts_cfg') || null, audit: e => this.audit(e) });
+      if (p === '/api/admin/tts' && M === 'GET') return json(200, { ...Tts.pubCfg(this.store.kv.get('tts_cfg')), canManage: this.auth.can(me, 'manage') });
+      if (p === '/api/admin/tts' && M === 'POST') {
+        if ((d = deny('manage'))) return d; const r = Tts.cleanCfg(await jbody() || {}, this.store.kv.get('tts_cfg'));
+        if (r.error) return json(400, { error: r.error });
+        this.store.kv.set('tts_cfg', r.cfg); this.audit({ ...who, action: r.cfg ? 'tts.cfg_set' : 'tts.cfg_removed', entity: 'settings', detail: r.cfg ? { last4: r.cfg.key.slice(-4), voice: r.cfg.voiceName || r.cfg.voiceId || '', model: r.cfg.model } : {} });
+        return json(200, Tts.pubCfg(r.cfg));
+      }
+      if (p === '/api/admin/tts/voices' && M === 'GET') { if ((d = deny('manage'))) return d; const r = await this.tts.voices(); return json(r.status, r.body) }
+      if (p === '/api/admin/tts/speak' && M === 'POST') {
+        const r = await this.tts.speak((await jbody(8 * 1024) || {}).text, me);
+        if (!r.audio) return json(r.status, r.body);
+        return new Response(r.audio, { headers: { 'Content-Type': 'audio/mpeg', 'Cache-Control': 'private, no-store', ...CORS, ...SEC } });
+      }
+      return json(404, { error: 'not found' });
+    }
     if (p === '/api/admin/apns' || p === '/api/admin/apns/test') {
       /* إعداد إشعارات آيفون من حساب Apple Developer: المفتاح يُحفظ هنا ولا يُعاد */
       if ((d = deny('manage'))) return d;
@@ -802,7 +821,7 @@ export class Office extends DurableObject {
     /* تصدير بيانات المكتب لمزود الخدمة: فقط بإذن مؤقت من مدير المكتب، ودون أسرار (كلمات المرور ومفاتيح التدقيق والتوقيع)، ويُسجّل في سجل المكتب */
     if (p === '/_ops/export') {
       if (!granted()) { this.audit({ username: 'ops', action: 'ops.export_denied' }); return json(403, { error: 'لم يمنح المكتب إذن وصول للدعم الفني. يمنحه مدير المكتب من الإعدادات.' }) }
-      const S = this.store, SECRET = ['setup', 'media_key', 'audit_key', 'support_grant', 'ai_key', 'muqtafi_cred', 'apns_cfg', 'vapid'];
+      const S = this.store, SECRET = ['setup', 'media_key', 'audit_key', 'support_grant', 'ai_key', 'muqtafi_cred', 'apns_cfg', 'vapid', 'tts_cfg'];
       this.audit({ username: 'ops', action: 'ops.export' });
       return json(200, { slug: this.slug(), at: stampS(), records: S.all('SELECT * FROM records'), kv: S.all('SELECT * FROM kv').filter(k => !SECRET.includes(k.key)), messages: S.all('SELECT * FROM messages'), users: S.all('SELECT id, username, name, role, active, must_change, cases, created_at, last_login FROM users'), audit: S.all('SELECT * FROM audit ORDER BY seq') });
     }
