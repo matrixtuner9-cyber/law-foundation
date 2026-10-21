@@ -110,6 +110,7 @@ function oppBox(){
   ${D.opp&&D.opp.requests&&D.opp.requests.length?`<div class="m">طلبات الخصم: ${e(D.opp.requests.join('؛ '))}</div>`:''}</div>`}
 A.aiOppClear=()=>{keep();D.claims=[];D.opp=null;draw()};
 const b64=buf=>{let s='';const u=new Uint8Array(buf);for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s)};
+window.MQ_docxText=buf=>docxText(buf);
 async function docxText(buf){const u8=new Uint8Array(buf),dv=new DataView(buf),td=new TextDecoder();let eocd=-1;
  for(let i=u8.length-22;i>=Math.max(0,u8.length-65557);i--)if(dv.getUint32(i,true)===0x06054b50){eocd=i;break}if(eocd<0)throw new Error('ملف Word غير صالح');
  const n=dv.getUint16(eocd+10,true);let p=dv.getUint32(eocd+16,true);

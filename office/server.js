@@ -51,6 +51,7 @@ const muqtafi = Muqtafi.createService({ audit, getCred: async () => store.kv.get
 const sjc = Sjc.createService({ audit });
 const drafter = AiDraft.createDrafter({ audit, getKey: aiKey, laws, lawSearch, rulingSearch: liveRulings, model: process.env.MQ_AI_MODEL });
 const extractor = AiDraft.createExtractor({ audit, getKey: aiKey, model: process.env.MQ_AI_MODEL });
+const transcriber0 = AiDraft.createTranscriber({ audit, getKey: aiKey, model: process.env.MQ_AI_MODEL });
 const calcExtract = AiDraft.createCalcExtractor({ audit, getKey: aiKey, model: process.env.MQ_AI_MODEL });
 const rulingExtract = AiDraft.createRulingExtractor({ audit, getKey: aiKey, model: process.env.MQ_AI_MODEL });
 const assistant = AiDraft.createAssistant({ audit, getKey: aiKey, laws, lawSearch, rulingSearch: liveRulings, model: process.env.MQ_AI_MODEL });
@@ -665,6 +666,7 @@ async function api(req, res, u) {
     if (a === 'calc' && M === 'POST') { if (!need('write')) return; const r = await calcExtract(await jbody(req), me); return json(res, r.status, r.body) }
     if (a === 'usage' && M === 'GET') { if (!need('manage')) return; const m = /^\d{4}-\d{2}$/.test(u.searchParams.get('month') || '') ? u.searchParams.get('month') : stampS().slice(0, 7); const next = (() => { const [y, mo] = m.split('-').map(Number); return mo === 12 ? `${y + 1}-01` : `${y}-${String(mo + 1).padStart(2, '0')}` })(); return json(res, 200, { month: m, prices: AiDraft.PRICES, model: AiDraft.MODEL, ...AiDraft.usageSummary(store.aiAudit(m + '-01').filter(r => r.at < next + '-01')) }) }
     if (a === 'ruling' && M === 'POST') { if (!need('write')) return; const r = await rulingExtract(await jbody(req), me); return json(res, r.status, r.body) }
+    if (a === 'transcribe' && M === 'POST') { if (!need('write')) return; const r = await transcriber0(await jbody(req, 16 * 1024 * 1024), me); return json(res, r.status, r.body) }
     if (a === 'legal-review' && M === 'POST') {
       /* تدقيق مسودة محفوظة بالذكاء الاصطناعي: موافقة صريحة، والنص يُقرأ من المسودة المحفوظة في القضية نفسها */
       if (!need('write')) return;
@@ -751,7 +753,7 @@ async function rulingFile(req, res, u, who) {
 }
 
 /* ملفات شاشة المكتب: قائمة محددة فقط، وكلها تتطلب تسجيل الدخول عدا صفحة الدخول */
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'sources.js', 'guide.js', 'announce.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'sources.js', 'guide.js', 'announce.js', 'reader.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css', 'edition.js']);
 
 http.createServer((req, res) => {

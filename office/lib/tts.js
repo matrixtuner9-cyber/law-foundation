@@ -6,7 +6,7 @@
 
 const API = 'https://api.elevenlabs.io/v1';
 const MODELS = { flash: 'eleven_flash_v2_5', quality: 'eleven_multilingual_v2' };
-const MAX_TEXT = 320;
+const MAX_TEXT = 1000; // قراءة المرفقات تُقسَّم إلى مقاطع حتى 1000 حرف
 const okKey = k => /^(sk_)?[A-Za-z0-9]{24,80}$/.test(String(k || ''));
 const okVoice = v => /^[A-Za-z0-9]{10,40}$/.test(String(v || ''));
 
@@ -70,8 +70,8 @@ function createTts({ getCfg, fetchImpl, now = () => Date.now(), audit }) {
       return { status: 502, body: { error: msg } };
     }
     const bytes = new Uint8Array(await r.arrayBuffer());
-    if (cache.size > 200) cache.delete(cache.keys().next().value);
-    cache.set(ck, { at: now(), bytes });
+    // الذاكرة المؤقتة للتنبيهات القصيرة فقط (المقاطع الطويلة كبيرة الحجم ولا تتكرر)
+    if (t.length <= 320) { if (cache.size > 200) cache.delete(cache.keys().next().value); cache.set(ck, { at: now(), bytes }) }
     audit && audit({ username: user && user.username, action: 'tts.speak', detail: { chars: t.length, model } });
     return { status: 200, audio: bytes };
   }

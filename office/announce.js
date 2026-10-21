@@ -76,6 +76,31 @@ window.MQ_announce=m=>{
 };
 window.MQ_describeMsg=describe;
 
+/* ── قراءة نص طويل (مرفقات الموكل): مقاطع متتابعة، بصوت المتصفح العربي أو ElevenLabs، مع إيقاف ── */
+function chunks(text,max=900){const out=[];let cur='';
+ for(const part of String(text||'').replace(/\r/g,'').split(/(?<=[.!؟?؛:\n])\s*/)){const p=part.trim();if(!p)continue;
+  if((cur+' '+p).length>max){if(cur)out.push(cur);if(p.length>max){for(let i=0;i<p.length;i+=max)out.push(p.slice(i,i+max));cur=''}else cur=p}else cur=cur?cur+' '+p:p}
+ if(cur)out.push(cur);return out}
+const RD={run:0};
+async function cloudAudio(text){const r=await fetch('/api/admin/tts/speak',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({text})});if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.error||'تعذّر النطق')}return URL.createObjectURL(await r.blob())}
+/* يعيد طريقة القراءة المتاحة: browser | cloud | null */
+window.MQ_readMode=async()=>{const st=await ttsStatus();const vs=hasTTS()?speechSynthesis.getVoices()||[]:[];const br=hasTTS()&&(arVoice()||!vs.length);
+ return st.configured&&(st.always||!br)?'cloud':br?'browser':null};
+window.MQ_readStop=()=>{RD.run++;try{speechSynthesis.cancel()}catch(x){}if(player){try{player.pause()}catch(x){}}};
+window.MQ_readAloud=async(text,{onProgress,onEnd}={})=>{
+ MQ_readStop();const id=++RD.run,c=cfg(),parts=chunks(text),mode=await MQ_readMode();
+ if(!mode){toast('لا يوجد صوت عربي في هذا المتصفح، ولم يُضبط النطق السحابي.');onEnd&&onEnd();return}
+ try{
+  if(mode==='browser'){for(let i=0;i<parts.length;i++){if(id!==RD.run)return;onProgress&&onProgress(i,parts.length);
+    await new Promise(res=>{const u=new SpeechSynthesisUtterance(parts[i]),v=arVoice();if(v){u.voice=v;u.lang=v.lang}else u.lang='ar-SA';u.rate=c.rate;u.volume=c.vol;u.onend=u.onerror=res;speechSynthesis.speak(u)})}}
+  else{let next=cloudAudio(parts[0]);
+   for(let i=0;i<parts.length;i++){if(id!==RD.run)return;onProgress&&onProgress(i,parts.length);
+    const url=await next;next=i+1<parts.length?cloudAudio(parts[i+1]):null;if(id!==RD.run){URL.revokeObjectURL(url);return}
+    await new Promise(res=>{player=new Audio(url);player.volume=Math.min(1,c.vol);player.playbackRate=c.rate;player.onended=player.onerror=()=>{URL.revokeObjectURL(url);res()};player.play().catch(res)})}}
+ }catch(er){toast(er.message)}
+ finally{if(id===RD.run)onEnd&&onEnd()}};
+window.MQ_readChunks=chunks;
+
 /* ── قسم الإعدادات (لكل مستخدم على هذا الجهاز) ── */
 function box(){const c=cfg(),v=arVoice(),tts=hasTTS();
  return `<div class="bd ann-box"><div class="ann-row"><label class="rl-ck"><input type="checkbox" id="annVoice" ${c.voice?'checked':''}> نطق صوتي عند وصول رسالة أو تسجيل أو مستند من موكل (اسم الموكل ورقم القضية ونوع ما وصل وقناته)</label></div>

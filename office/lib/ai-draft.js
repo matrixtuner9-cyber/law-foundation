@@ -277,6 +277,35 @@ function createExtractor({ audit, getKey, fetchImpl = fetch, model } = {}) {
   };
 }
 
+/* ── قراءة نص مرفق من الموكل (صورة أو PDF ممسوح) حرفياً، ليُعرض للمحامي ويُقرأ له صوتياً ── */
+const TRANSCRIBE_TOOL = { name: 'transcribe_document', description: 'النص الحرفي للمستند', input_schema: { type: 'object', required: ['text'], properties: {
+  text: { type: 'string', description: 'نص المستند حرفياً كما هو مكتوب، بترتيب القراءة، مع فقرات بأسطر جديدة. لا تلخّص ولا تصحّح ولا تضف شيئاً.' },
+  kind: { type: 'string', enum: ['typed', 'handwritten', 'mixed', 'no_text'], description: 'نوع الكتابة' },
+  title: { type: 'string', description: 'عنوان المستند أو نوعه إن ظهر (عقد، إيصال، كتاب رسمي…)' },
+  unclear: { type: 'array', items: { type: 'string' }, description: 'مواضع غير مقروءة أو مشكوك في قراءتها' },
+} } };
+function createTranscriber({ audit, getKey, fetchImpl = fetch, model } = {}) {
+  const hits = new Map();
+  return async function transcribe(input, user) {
+    const who = { user_id: user && user.id, username: user && user.username };
+    const key = await getKey(); if (!key) return { status: 400, body: { error: 'لم يُضبط مفتاح الذكاء الاصطناعي بعد.', needKey: true } };
+    const f = input.file || {}, kind = MEDIA[f.type];
+    if (!kind || !f.data) return { status: 400, body: { error: 'تُقرأ الصور وملفات PDF فقط بهذه الطريقة.' } };
+    if (String(f.data).length > 14e6) return { status: 413, body: { error: 'الملف أكبر من 10 ميغابايت.' } };
+    const now = Date.now(), k = String(user && (user.id || user.username)), a = (hits.get(k) || []).filter(t => now - t < 600e3);
+    if (a.length >= 15) return { status: 429, body: { error: 'طلبات قراءة كثيرة. حاول بعد قليل.' } }; a.push(now); hits.set(k, a);
+    const meter = meterNew(model || MODEL);
+    const content = [{ type: kind, source: { type: 'base64', media_type: f.type, data: String(f.data) } },
+      { type: 'text', text: 'انسخ نص هذا المستند المرسل من موكل إلى مكتب محاماة فلسطيني حرفياً كما هو، بالعربية أو بلغته الأصلية، دون تلخيص أو تفسير. إن لم يكن فيه نص فاذكر ذلك في kind.' }];
+    try {
+      const out = toolInput(await callClaude(key, { model: model || MODEL, max_tokens: 12000, system: 'أنت ناسخ دقيق للمستندات العربية المطبوعة والمكتوبة بخط اليد. تنقل النص حرفياً ولا تضيف شيئاً.', tools: [TRANSCRIBE_TOOL], tool_choice: { type: 'tool', name: 'transcribe_document' }, messages: [{ role: 'user', content }] }, fetchImpl, meter), 'transcribe_document');
+      const text = String(out.text || '').trim();
+      audit && audit({ ...who, action: 'ai.transcribe', entity: 'messages', detail: { kind: f.type, chars: text.length, usage: meterOut(meter) } });
+      return { status: 200, body: { ok: true, text, kind: out.kind || (text ? 'typed' : 'no_text'), title: String(out.title || ''), unclear: (out.unclear || []).slice(0, 20) } };
+    } catch (e) { return { status: e.status || 500, body: { error: e.status ? e.message : 'تعذّرت قراءة المستند.' } } }
+  };
+}
+
 /* ── مساعد القضية: ملخص قبل الجلسة، الدفوع الشكلية والمهل، السؤال القانوني ── */
 const ANSWER_TOOL = { name: 'submit_answer', description: 'تسليم الجواب', input_schema: { type: 'object', required: ['sections'], properties: {
   sections: { type: 'array', items: { type: 'object', required: ['heading', 'items'], properties: { heading: { type: 'string' }, items: { type: 'array', items: { type: 'string' } } } } },
@@ -408,7 +437,7 @@ function createAssistant({ audit, getKey, laws, lawSearch, rulingSearch, fetchIm
 }
 
 /* ── ملخص الاستهلاك من سجل التدقيق: لكل مستخدم ولكل نوع عملية، بالتكلفة التقديرية ── */
-const AI_LABELS = { 'ai.draft': 'صياغة', 'ai.draft_failed': 'صياغة (لم تكتمل)', 'ai.assist': 'المساعد', 'ai.assist_failed': 'المساعد (لم يكتمل)', 'ai.extract': 'قراءة لائحة الخصم', 'ai.calc_extract': 'الحاسبات', 'ai.ruling_extract': 'استخراج المبادئ' };
+const AI_LABELS = { 'ai.draft': 'صياغة', 'ai.draft_failed': 'صياغة (لم تكتمل)', 'ai.assist': 'المساعد', 'ai.assist_failed': 'المساعد (لم يكتمل)', 'ai.extract': 'قراءة لائحة الخصم', 'ai.transcribe': 'قراءة مرفقات الموكلين', 'ai.calc_extract': 'الحاسبات', 'ai.ruling_extract': 'استخراج المبادئ' };
 function usageSummary(rows) {
   const by = new Map(), kinds = new Map(), tot = { ops: 0, calls: 0, in: 0, out: 0, usd: 0, unmetered: 0 };
   for (const r of rows || []) {
@@ -423,4 +452,4 @@ function usageSummary(rows) {
   return { total: { ...tot, usd: r4(tot.usd) }, users: [...by.values()].map(x => ({ ...x, usd: r4(x.usd) })).sort((a, b) => b.usd - a.usd), kinds: [...kinds.values()].map(x => ({ ...x, usd: r4(x.usd) })).sort((a, b) => b.usd - a.usd) };
 }
 
-module.exports = { createDrafter, createExtractor, createAssistant, createCalcExtractor, createRulingExtractor, usageSummary, meterUsd, PRICES, pickPassages, anonymizer, pickArticles, DOC_TYPES, MODEL };
+module.exports = { createDrafter, createExtractor, createTranscriber, createAssistant, createCalcExtractor, createRulingExtractor, usageSummary, meterUsd, PRICES, pickPassages, anonymizer, pickArticles, DOC_TYPES, MODEL };

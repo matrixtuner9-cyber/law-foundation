@@ -16,7 +16,7 @@ import * as WebPush from './webpush.js';
 import * as Tts from './tts.js';
 import { createLaws } from './laws.js';
 import { createLawSearch } from './law-sources.js';
-import { createDrafter, createExtractor, createAssistant, createCalcExtractor, createRulingExtractor, usageSummary, PRICES as AI_PRICES, DOC_TYPES, MODEL as AI_MODEL } from './ai-draft.js';
+import { createDrafter, createExtractor, createTranscriber, createAssistant, createCalcExtractor, createRulingExtractor, usageSummary, PRICES as AI_PRICES, DOC_TYPES, MODEL as AI_MODEL } from './ai-draft.js';
 
 /* توقيع داخلي يثبت أن طلب /_ops وصل من الـ Worker بعد التحقق من رمز المشغّل (لا يمكن للزائر إرساله) */
 export const opsSig = env => env.OPS_TOKEN ? crypto.createHash('sha256').update('mq-ops|' + env.OPS_TOKEN).digest('hex') : null;
@@ -47,7 +47,7 @@ const SEC = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-orig
 const json = (code, obj, extra = {}) => new Response(JSON.stringify(obj), { status: code, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...CORS, ...SEC, ...extra } });
 const MEDIA_TTL = 24 * 3600; // صلاحية رابط الملف الموقّع: يوم واحد، ويتجدد بتحميل المحادثة
 
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'sources.js', 'guide.js', 'announce.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'sources.js', 'guide.js', 'announce.js', 'reader.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css', 'edition.js']);
 
 /* توحيد الكتابة العربية للبحث في دليل المحامين */
@@ -578,6 +578,11 @@ export class Office extends DurableObject {
         this.extractor ||= createExtractor({ audit: e => this.audit(e), getKey: aiKey, model: this.env.MQ_AI_MODEL });
         const b = aiScoped(await jbody(16 * 1024 * 1024)); if (b.error) return json(b.status, { error: b.error });
         const r = await this.extractor(b.body, me); return json(r.status, r.body);
+      }
+      if (a === 'transcribe' && M === 'POST') {
+        if ((d = deny('write'))) return d;
+        this.transcriber ||= createTranscriber({ audit: e => this.audit(e), getKey: aiKey, model: this.env.MQ_AI_MODEL });
+        const r = await this.transcriber(await jbody(16 * 1024 * 1024), me); return json(r.status, r.body);
       }
       if (a === 'legal-review' && M === 'POST') {
         /* تدقيق مسودة محفوظة: موافقة صريحة، والنص يُقرأ من المسودة المحفوظة في القضية نفسها */
