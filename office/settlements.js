@@ -160,11 +160,21 @@ A.stPrint=v=>{const f=find(v);if(!f||!root.MQP)return;const M=MQP,B=M.B,E=M.esc,
  blocks.push(B.p('<small>يُلتزم بسداد كل قسط في موعده. هذه نسخة من جدول السداد المتفق عليه، وتُسجَّل الدفعات فور استلامها.</small>','s'));
  M.open({label:'جدول سداد اتفاقية تسوية',build(){return {title:a.title||'جدول سداد اتفاقية تسوية',sub:'قضية رقم '+k.no,ref:'تس/'+k.no,file:'جدول سداد - '+k.no,orient:'port',blocks,sign:['الدائن (الموكل)','المدين','المحامي']}}})};
 /* رسالة للموكل: واتساب / بريد / نسخ */
-function msgText(f){const a=f.a,k=f.k,s=summary(a,today()),cu=a.cur||'₪',cl=C(k.client)||{},nx=(a.installments||[]).filter(x=>instState(x,today())!=='paid').sort((p,q)=>p.due.localeCompare(q.due));
- const L=['السيد/ة '+(cl.name||'')+' المحترم/ة،','تحية طيبة، بخصوص اتفاقية التسوية في القضية رقم '+k.no+(a.debtor?' (الطرف الملتزم: '+a.debtor+')':'')+':','','إجمالي المبلغ: '+cm(s.total,cu),'المسدّد حتى الآن: '+cm(s.paid,cu),'المتبقي: '+cm(s.rem,cu)];
- if(nx.length){L.push('','الأقساط القادمة:');nx.slice(0,4).forEach(x=>L.push('• '+dmy(x.due)+' — '+cm(Math.max(0,x.amount-(x.paid||0)),cu)))}
- L.push('','مكتب المحاماة');return L.join('\n')}
-A.stSend=v=>{const [how,id]=v.split('|'),f=find(id);if(!f)return;const cl=C(f.k.client)||{},txt=msgText(f),sub='اتفاقية التسوية - قضية '+f.k.no;
+function msgText(f,how){const a=f.a,k=f.k,T=today(),s=summary(a,T),cu=a.cur||'₪',cl=C(k.client)||{},st=(root.MQ&&MQ.settings)||{};
+ const B=t=>how==='wa'?'*'+t+'*':t,ofc=st.officeName||OFFICE.name,lw=st.lawyerName||OFFICE.lawyer,ph=st.phone||'';
+ const all=(a.installments||[]).slice().sort((p,q)=>p.due.localeCompare(q.due));
+ const paid=all.filter(x=>instState(x,T)==='paid'),late=all.filter(x=>['late','due','part'].includes(instState(x,T))),rest=all.filter(x=>instState(x,T)==='wait');
+ const row=x=>{const r=Math.max(0,x.amount-(x.paid||0)),q=instState(x,T);return '• '+dmy(x.due)+' — '+cm(r,cu)+(q==='late'?' (متأخر)':q==='due'?' (يستحق اليوم)':q==='part'?' (سُدّد منه '+cm(x.paid||0,cu)+')':'')};
+ const L=[B(ofc),'','السيد/ة '+(cl.name||'')+' المحترم/ة،','تحية طيبة وبعد،','',
+  'نفيدكم بموقف اتفاقية التسوية والتقسيط في القضية رقم '+k.no+(k.subject?' ('+k.subject+')':'')+(a.debtor?'، المبرمة مع '+a.debtor:'')+(a.date?' بتاريخ '+dmy(a.date):'')+(a.wit?' بحضور '+a.wit:'')+'، حتى تاريخ '+dmy(T)+':','',
+  B('الملخص المالي'),'إجمالي المبلغ المتفق عليه: '+cm(s.total,cu),'المحصّل حتى الآن: '+cm(s.paid,cu)+(s.total?' ('+Math.round(s.paid/s.total*100)+'%)':''),'المتبقي: '+cm(s.rem,cu),''];
+ if(paid.length){L.push(B('الأقساط المسدّدة ('+paid.length+')'));paid.forEach(x=>L.push('✓ '+dmy(x.due)+' — '+cm(x.amount,cu)));L.push('')}
+ if(late.length){L.push(B('أقساط مستحقة غير مسدّدة ('+late.length+')'));late.forEach(x=>L.push(row(x)));L.push('')}
+ if(rest.length){L.push(B('الأقساط القادمة ('+rest.length+')'));rest.forEach(x=>L.push(row(x)));L.push('')}
+ if(a.accel)L.push('تنبيه: وفق الاتفاقية، التخلف عن سداد '+a.accelN+' أقساط أو أكثر يجعل المبلغ المتبقي كله مستحق الأداء فوراً.','');
+ L.push('سنوافيكم بأي دفعة فور استلامها، ونرجو التواصل معنا لأي استفسار.','','مع فائق الاحترام،',lw,ofc,ph?'هاتف: '+ph:'');
+ return L.filter((x,i,arr)=>x!==''||arr[i-1]!=='').join('\n').trim()}
+A.stSend=v=>{const [how,id]=v.split('|'),f=find(id);if(!f)return;const cl=C(f.k.client)||{},txt=msgText(f,how),sub='اتفاقية التسوية - قضية '+f.k.no;
  if(how==='copy'){(navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>toast('نُسخ نص الرسالة')).catch(()=>toast('تعذّر النسخ'));return}
  const a=document.createElement('a');a.target='_blank';a.rel='noopener';
  if(how==='wa'){let d=String(cl.whatsapp||cl.phone||'').replace(/\D/g,'');if(d.startsWith('00'))d=d.slice(2);else if(d.startsWith('0'))d='970'+d.slice(1);a.href='https://wa.me/'+(d.length>=11?d:'')+'?text='+encodeURIComponent(txt);if(d.length<11)toast('لا رقم واتساب للموكل؛ اختر جهة الاتصال في واتساب')}
