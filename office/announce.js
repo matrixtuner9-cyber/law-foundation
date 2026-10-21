@@ -84,11 +84,13 @@ function chunks(text,max=900){const out=[];let cur='';
 const RD={run:0};
 async function cloudAudio(text){const r=await fetch('/api/admin/tts/speak',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({text})});if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(j.error||'تعذّر النطق')}return URL.createObjectURL(await r.blob())}
 /* يعيد طريقة القراءة المتاحة: browser | cloud | null */
-window.MQ_readMode=async()=>{const st=await ttsStatus();const vs=hasTTS()?speechSynthesis.getVoices()||[]:[];const br=hasTTS()&&(arVoice()||!vs.length);
+/* preferFree: للنصوص الطويلة نفضّل صوت المتصفح المجاني حتى لو اختار المدير ElevenLabs «دائماً» للتنبيهات */
+window.MQ_readMode=async(o={})=>{const st=await ttsStatus();const vs=hasTTS()?speechSynthesis.getVoices()||[]:[];const br=hasTTS()&&(arVoice()||!vs.length);
+ if(o.preferFree&&br)return 'browser';
  return st.configured&&(st.always||!br)?'cloud':br?'browser':null};
 window.MQ_readStop=()=>{RD.run++;try{speechSynthesis.cancel()}catch(x){}if(player){try{player.pause()}catch(x){}}};
-window.MQ_readAloud=async(text,{onProgress,onEnd}={})=>{
- MQ_readStop();const id=++RD.run,c=cfg(),parts=chunks(text),mode=await MQ_readMode();
+window.MQ_readAloud=async(text,{onProgress,onEnd,preferFree}={})=>{
+ MQ_readStop();const id=++RD.run,c=cfg(),parts=chunks(text),mode=await MQ_readMode({preferFree});
  if(!mode){toast('لا يوجد صوت عربي في هذا المتصفح، ولم يُضبط النطق السحابي.');onEnd&&onEnd();return}
  try{
   if(mode==='browser'){for(let i=0;i<parts.length;i++){if(id!==RD.run)return;onProgress&&onProgress(i,parts.length);
