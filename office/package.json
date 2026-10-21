@@ -33,6 +33,7 @@
       "app.js",
       "dash.js",
       "briefcase.js",
+      "settlements.js",
       "sync.js",
       "mizan-ui.js",
       "style.css",
