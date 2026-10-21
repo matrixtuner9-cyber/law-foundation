@@ -218,7 +218,7 @@ class ChatTabState extends State<ChatTab> {
             Container(
                 width: 76,
                 height: 76,
-                decoration: const BoxDecoration(color: MQ.forestSoft, shape: BoxShape.circle),
+                decoration: const BoxDecoration(color: MQ.pineSoft, shape: BoxShape.circle),
                 child: const Icon(Icons.forum_outlined, color: MQ.forest, size: 36)),
             const SizedBox(height: 14),
             Text('ابدأ محادثتك مع المحامي', style: MQ.title2()),
