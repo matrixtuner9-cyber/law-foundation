@@ -308,7 +308,7 @@ body:has(#nav) .cl .wa-mini:hover{background:#12A150;color:#fff}
 
 /* الملفات والقضايا */
 body:has(#nav) .tabs{background:transparent;padding:0;margin:4px 16px 0;gap:8px;overflow:visible;flex-wrap:wrap}
-body:has(#nav) .tabs button{flex:1 1 0;padding:7px 10px;border-radius:14px;background:#EFEBE3;color:var(--p-ink);font-weight:700;font-size:13.5px;border:1px solid transparent;border-bottom:1px solid transparent;gap:8px;min-width:0}
+body:has(#nav) .tabs button{flex:1 1 auto;white-space:nowrap;padding:7px 10px;border-radius:14px;background:#EFEBE3;color:var(--p-ink);font-weight:700;font-size:13.5px;border:1px solid transparent;border-bottom:1px solid transparent;gap:8px;min-width:0}
 body:has(#nav) .tabs button .n{min-width:30px;height:28px;padding:0 6px;border-radius:9px;display:grid;place-items:center;background:#fff;font-size:15px;font-weight:800;color:#6B7280}
 body:has(#nav) .tabs button:nth-child(2) .n{color:#2563EB;background:#E4EEFF}
 body:has(#nav) .tabs button:nth-child(3) .n{color:#8B5CF6;background:#EEE6FD}

@@ -35,6 +35,7 @@
       "briefcase.js",
       "settlements.js",
       "workflow.js",
+      "casework.js",
       "sync.js",
       "mizan-ui.js",
       "style.css",
