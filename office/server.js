@@ -168,7 +168,24 @@ const sockIp = req => String(req.socket.remoteAddress || '').replace('::ffff:', 
 const ipOf = req => (['127.0.0.1', '::1'].includes(sockIp(req)) && req.headers['cf-connecting-ip']) || sockIp(req);
 
 const cur = () => state || { clients: SEED.clients, opponents: SEED.opponents, cases: SEED.cases, hearings: SEED.hearings, deadlines: SEED.deadlines, docs: SEED.docs, mzLog: SEED.mzLog };
-const pub = m => ({ ...m, file: m.file ? '/api/media/' + m.file : null });
+/* روابط الملفات موقّعة ومؤقتة: تفتحها تطبيقات الهاتف دون وضع رمز الموكل في الرابط،
+   وتبطل عند تجديد رمز الموكل لأن الرمز داخل في التوقيع */
+const MEDIA_TTL = 24 * 3600;
+const mediaKey = (() => { let k = store.kv.get('media_key'); if (!k) { k = crypto.randomBytes(32).toString('hex'); store.kv.set('media_key', k) } return k })();
+function mediaSign(file, exp) {
+  const m = msgs.find(x => x.file === file), code = m ? ((cur().clients || []).find(c => c.id === m.client) || {}).code || '' : '';
+  return crypto.createHmac('sha256', mediaKey).update(file + '|' + exp + '|' + code).digest('base64url').slice(0, 32);
+}
+const mediaUrl = file => { const exp = Math.ceil(Date.now() / 3600e3) * 3600 + MEDIA_TTL; return `/api/media/${file}?e=${exp}&s=${mediaSign(file, exp)}` };
+function mediaSigned(file, sp) {
+  const e = sp.get('e') || '', sig = sp.get('s') || '';
+  if (!/^\d{10}$/.test(e) || !/^[A-Za-z0-9_-]{32}$/.test(sig)) return false;
+  const exp = Number(e), now = Date.now() / 1000;
+  if (exp <= now || exp > now + MEDIA_TTL + 3600) return false;
+  return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(mediaSign(file, exp)));
+}
+const pubAdmin = m => ({ ...m, file: m.file ? mediaUrl(m.file) : null });
+const pub = m => { const { by, ...x } = m; return pubAdmin(x) }; // للموكل: بلا اسم مستخدم الموظف
 const labelOf = r => r && (r.name || r.no || r.title || r.purpose || r.subject || r.id);
 
 /* ── الصلاحيات حسب الدور: المحامي الخارجي يرى القضايا المسندة إليه فقط ── */
@@ -177,7 +194,7 @@ function scope(u, S) {
   const ids = new Set(u.cases || []), cases = S.cases.filter(k => ids.has(k.id));
   const cl = new Set(cases.map(k => k.client)), op = new Set(cases.flatMap(k => k.opps || []));
   return { clients: S.clients.filter(c => cl.has(c.id)), opponents: S.opponents.filter(o => op.has(o.id)), cases,
-    hearings: S.hearings.filter(h => ids.has(h.k)), deadlines: S.deadlines.filter(d => ids.has(d.k)), docs: S.docs.filter(d => ids.has(d.k)), mzLog: (S.mzLog || []).filter(l => ids.has(l.k)), rulings: S.rulings || [], lawforms: S.lawforms || [] };
+    hearings: S.hearings.filter(h => ids.has(h.k)), deadlines: S.deadlines.filter(d => ids.has(d.k)), docs: S.docs.filter(d => ids.has(d.k)), mzLog: (S.mzLog || []).filter(l => ids.has(l.k)), rulings: S.rulings || [], lawforms: S.lawforms || [], legalRefs: S.legalRefs || [] };
 }
 const canSeeClient = (u, cid) => auth.can(u, 'all') || cur().cases.some(k => k.client === cid && (u.cases || []).includes(k.id));
 
@@ -200,7 +217,7 @@ function broadcastRecords(recs, byId, del = []) {
 }
 
 function addMsg(m) {
-  const msg = { id: rid(), at: stamp(), read: m.from === 'lawyer', seen: m.from === 'client', ...m }; msgs.push(msg); store.putMessage(msg); broadcast('message', pub(msg));
+  const msg = { id: rid(), at: stamp(), read: m.from === 'lawyer', seen: m.from === 'client', ...m }; msgs.push(msg); store.putMessage(msg); broadcast('message', pubAdmin(msg));
   if (msg.from === 'lawyer') pushTo(msg.client, { title: msg.type === 'notice' ? 'إشعار من ' + officeInfo().name : 'رسالة من ' + officeInfo().lawyer, body: preview(msg), tag: 'mq-' + msg.id, url: './' });
   return msg;
 }
@@ -227,10 +244,10 @@ function sendFile(req, res, file) {
     if (range) {
       const start = range[1] ? +range[1] : 0, end = range[2] ? Math.min(+range[2], st.size - 1) : st.size - 1;
       if (!st.size || start > end || start >= st.size) { res.writeHead(416, { 'Content-Range': `bytes */${st.size}`, ...CORS }); return res.end() } // نطاق خاطئ كان يُسقط الخادم
-      res.writeHead(206, { 'Content-Type': type, 'Content-Range': `bytes ${start}-${end}/${st.size}`, 'Accept-Ranges': 'bytes', 'Content-Length': end - start + 1, ...CORS });
+      res.writeHead(206, { 'Content-Type': type, 'Content-Range': `bytes ${start}-${end}/${st.size}`, 'Cache-Control': 'private, no-store', ...SEC, 'Accept-Ranges': 'bytes', 'Content-Length': end - start + 1, ...CORS });
       return fs.createReadStream(file, { start, end }).pipe(res);
     }
-    res.writeHead(200, { 'Content-Type': type, 'Content-Length': st.size, 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-store', ...CORS, ...SEC });
+    res.writeHead(200, { 'Content-Type': type, 'Content-Length': st.size, 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, no-store', ...CORS, ...SEC });
     fs.createReadStream(file).pipe(res);
   });
 }
@@ -282,7 +299,17 @@ async function api(req, res, u) {
   if (p === '/api/portal/push-key') return json(res, 200, { enabled: !!webpush, key: vapid ? vapid.publicKey : null });
 
   // ملفات الرسائل الصوتية والمرفقات (أسماؤها عشوائية غير قابلة للتخمين)
-  if (p.startsWith('/api/media/')) { const f = path.basename(p); return sendFile(req, res, path.join(MEDIA, f)) }
+  if (p.startsWith('/api/media/')) {
+    /* الملف يُفتح برابط موقّع ساري، أو بجلسة موظف يرى موكل الملف؛ ملفات الأحكام غير المرتبطة بمحادثة لمن يملك صلاحية المكتب كله */
+    const f = p.slice(11);
+    if (!/^[a-f0-9]{12}\.[a-z0-9]{2,5}$/.test(f)) return json(res, 404, { error: 'الملف غير موجود.' });
+    if (!mediaSigned(f, u.searchParams)) {
+      const me = auth.fromReq(req), m = msgs.find(x => x.file === f);
+      if (!me) return json(res, 403, { error: 'لا تملك صلاحية لهذا الملف.' });
+      if (!auth.can(me, 'all') && (!m || !canSeeClient(me, m.client))) return json(res, 403, { error: 'لا تملك صلاحية لهذا الملف.' });
+    }
+    return sendFile(req, res, path.join(MEDIA, f));
+  }
 
   /* ── بوابة الموكل ── */
   if (p.startsWith('/api/portal/') && pBlocked(ip)) return json(res, 429, { error: 'محاولات كثيرة. حاول بعد قليل.' });
@@ -506,7 +533,7 @@ async function api(req, res, u) {
   /* ── شاشة المكتب ── */
   if (p === '/api/admin/bootstrap') {
     const st = auth.can(me, 'all') ? state : scope(me, cur());
-    return json(res, 200, { state: st, messages: msgs.filter(m => canSeeClient(me, m.client)).map(pub), push: pushCount(), pushReady: !!webpush || !!(apnsCfg() || {}).p8, user: { ...me, token: undefined }, settings: settings(), edition: ED.pub() });
+    return json(res, 200, { state: st, messages: msgs.filter(m => canSeeClient(me, m.client)).map(pubAdmin), push: pushCount(), pushReady: !!webpush || !!(apnsCfg() || {}).p8, user: { ...me, token: undefined }, settings: settings(), edition: ED.pub() });
   }
   /* الحفظ الآمن: المتصفح يرسل السجلات المتغيرة فقط مع رقم إصدار كل سجل (lib/merge.js) */
   if (p === '/api/admin/state' && M === 'POST') {
@@ -542,7 +569,7 @@ async function api(req, res, u) {
     if (!client || !t) return json(res, 400, { error: 'missing' });
     const m = addMsg({ client, from: 'lawyer', type: type === 'notice' ? 'notice' : 'text', text: t, ch: ch || 'البوابة', by: me.username });
     audit({ ...who, action: 'message.send', entity: 'messages', entity_id: m.id, detail: { client, label: (cur().clients.find(c => c.id === client) || {}).name, type: m.type, preview: t.slice(0, 80) } });
-    return json(res, 201, pub(m));
+    return json(res, 201, pubAdmin(m));
   }
   if (p === '/api/admin/voice' && M === 'POST') { if (!need('write')) return; return voice(req, res, u, u.searchParams.get('client'), 'lawyer', who) }
   if (p === '/api/admin/file' && M === 'POST') { if (!need('write')) return; return attach(req, res, u, u.searchParams.get('client'), 'lawyer', who) }
@@ -645,7 +672,7 @@ async function voice(req, res, u, client, from, who) {
   const dur = Math.max(1, Math.round(+u.searchParams.get('dur') || 0));
   const m = addMsg({ id, client, from, type: 'voice', file, dur, ch: 'البوابة', text: '', ...(from === 'lawyer' ? { by: who.username } : {}) });
   audit({ ...who, action: from === 'lawyer' ? 'message.send' : 'message.receive', entity: 'messages', entity_id: id, detail: { client, type: 'voice', dur, sha256: crypto.createHash('sha256').update(buf).digest('hex') } });
-  return json(res, 201, pub(m));
+  return json(res, 201, from === 'lawyer' ? pubAdmin(m) : pub(m));
 }
 
 // المرفقات: صور الكاميرا والمعرض والوثائق (PDF وWord وغيرها)
@@ -662,7 +689,7 @@ async function attach(req, res, u, client, from, who) {
   const caption = String(u.searchParams.get('caption') || '').trim().slice(0, 500);
   const m = addMsg({ id, client, from, type: isImg ? 'image' : 'file', file, name, size: buf.length, ext, text: caption, ch: 'البوابة', ...(from === 'lawyer' ? { by: who.username } : {}) });
   audit({ ...who, action: from === 'lawyer' ? 'message.send' : 'message.receive', entity: 'messages', entity_id: id, detail: { client, type: m.type, name, size: buf.length, sha256: crypto.createHash('sha256').update(buf).digest('hex') } });
-  return json(res, 201, pub(m));
+  return json(res, 201, from === 'lawyer' ? pubAdmin(m) : pub(m));
 }
 
 /* استيراد حكم برابطه: طلب واحد في كل مرة، وبحد 60 في الساعة للمكتب (ليس أداة جمع جماعي) */
@@ -682,7 +709,7 @@ async function rulingFile(req, res, u, who) {
 }
 
 /* ملفات شاشة المكتب: قائمة محددة فقط، وكلها تتطلب تسجيل الدخول عدا صفحة الدخول */
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'sources.js', 'guide.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'sources.js', 'guide.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css', 'edition.js']);
 
 http.createServer((req, res) => {
@@ -724,7 +751,7 @@ http.createServer((req, res) => {
     res.writeHead(401); return res.end();
   }
   sendFile(req, res, path.join(ROOT, name));
-}).listen(PORT, ED.offline ? (process.env.MQ_BIND || '127.0.0.1') : '0.0.0.0', () => {
+}).listen(PORT, process.env.MQ_BIND || (ED.offline ? '127.0.0.1' : '0.0.0.0'), () => {
   audit({ action: 'system.start', detail: { pid: process.pid, electron: process.versions.electron || null, edition: ED.id } });
   console.log('Mithaq is running — ' + ED.name + (ED.offline ? ' (بلا إنترنت، للجهاز نفسه فقط)' : ''));
   console.log('  شاشة المكتب:    http://localhost:' + PORT + (auth.hasUsers() ? '' : '  (أول مرة: أنشئ حساب مدير النظام)'));

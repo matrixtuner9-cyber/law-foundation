@@ -8,6 +8,18 @@ const can2=w=>!!(window.MQ&&MQ.user&&({admin:{write:1,manage:1},lawyer:{write:1}
 const ro=()=>{if(window.MQ&&MQ.readOnly){toast('صلاحيتك للاطلاع فقط');return true}return false};
 const RS={q:'',court:'',field:'',sort:'rel',open:null,mode:'all',in:'all',year:'',from:'',to:'',withText:false,pending:false,adv:false,page:1,sel:new Set()};
 const PER=20;
+/* عدد الأحكام المحفوظة لكل مصدر (لأزرار شاشات البحث) */
+window.MQ_rulingCounts=()=>{const n={total:rulings.length,maqam:0,mq:0,sjc:0,other:0};
+ for(const r of rulings){const s=String(r.src||'')+' '+String(r.srcUrl||'');
+  if(/muqtafi\.birzeit\.edu|المقتفي/i.test(s))n.mq++;else if(/courts\.gov\.ps|المكتب الفني|مجلس القضاء الأعلى/i.test(s))n.sjc++;else if(/maqam\.najah\.edu|مقام/i.test(s))n.maqam++;else n.other++}
+ return n};
+/* بعد الحفظ من شاشة بحث: رسالة ثابتة أعلى الصفحة فيها مكان الحكم وزر لفتحه */
+function savedNotice(r){const page=document.getElementById('page');if(!page)return;
+ document.getElementById('rlSavedNote')?.remove();
+ const box=document.createElement('div');box.id='rlSavedNote';box.className='src-note';box.setAttribute('role','status');
+ box.innerHTML=`<span><b>حُفظ الحكم في مكتبة الاجتهادات القضائية ✓</b> · ${e(r.court||'')} ${e(r.no||'')}</span><div class="toolbar"><button class="btn sm pri" data-act="rOpen" data-v="${e(r.id)}">عرض في مكتبتي</button><button class="btn sm" data-act="rNoteX">إغلاق</button></div>`;
+ page.prepend(box)}
+A.rNoteX=()=>document.getElementById('rlSavedNote')?.remove();
 /* روابط المصادر التي تتطلب تسجيل دخول (المقتفي) لا تُعرض ولا تُطبع؛ الحكم محفوظ في المكتبة أصلاً. يبقى الرابط في السجل داخلياً لمنع التكرار */
 const pubUrl=u=>u&&!/muqtafi\.birzeit\.edu/i.test(String(u))?u:'';
 const COURTS=['محكمة النقض','المحكمة العليا','المحكمة الدستورية العليا','محكمة الاستئناف','محكمة البداية','محكمة الصلح','المحكمة الإدارية','محكمة الجنايات الكبرى','المحكمة الشرعية العليا','محكمة الاستئناف الشرعية','أخرى'];
@@ -87,7 +99,7 @@ V.rulings=()=>{
   <label>إلى تاريخ<input class="field" type="date" id="rTo" value="${e(RS.to)}"></label>
   <div class="rl-chk"><label><input type="checkbox" id="rWT" ${RS.withText?'checked':''}> بنص كامل فقط</label><label><input type="checkbox" id="rPend" ${RS.pending?'checked':''}> بانتظار صياغة المبدأ</label></div>
  </div>`:''}
- <div class="rl-src"><span class="m">ابحث في المصادر العامة:</span><button class="chip" data-act="nav" data-v="maqamsearch">بحث مباشر في الأحكام ←</button><button class="chip" data-act="nav" data-v="sources">المكتب الفني والمقتفي ←</button>${SOURCES.map(s=>`<a class="chip" target="_blank" rel="noopener" href="${s[2]}" data-act="rSrc" data-v="${s[0]}">${s[1]} ↗</a>`).join('')}<span class="m">يُفتح الموقع في نافذة جديدة وتُنسخ عبارة البحث لتلصقها هناك. لا يُنسخ أي محتوى من هذه المواقع إلى النظام.</span></div></section>
+ </section>
  <div id="rlRes">${results(rs)}</div>`;
 };
 const advT=()=>`<button class="link" data-act="rAdv">${RS.adv?'▾ إخفاء البحث المتقدم':'▸ بحث متقدم'}</button>${advCount()?`<span class="pill">${advCount()} ${advCount()===1?'شرط':'شروط'}</span><button class="link" data-act="rAdvClear">مسح الشروط</button>`:''}`;
@@ -178,8 +190,13 @@ document.addEventListener('submit',async ev=>{const f=ev.target;if(f.id!=='fRuli
    cases:[...f.querySelectorAll('input[name=rfCase]:checked')].map(x=>x.value)});
   if(pendingFile){if(!(window.MQ&&MQ.online))throw new Error('رفع الملف يحتاج اتصالاً بالخادم');const up=await upload(pendingFile);r.file=up.file;r.fileName=up.name;r.fileSize=up.size}
   if(isNew)rulings.push(r);
-  A.close();toast(isNew?'أُضيف الحكم إلى المكتبة':'حُفظ التعديل');if(S.view!=='rulings'&&S.view!=='case')S.view='rulings';render();
-  if(S.view==='rulings'){const el=document.getElementById('rl_'+r.id);if(el)el.scrollIntoView({block:'center'})}
+  const fromExternal=isNew&&(S.view==='sources'||S.view==='maqamsearch');
+  A.close();toast(isNew?'أُضيف الحكم إلى المكتبة':'حُفظ التعديل');
+  // من شاشات البحث الخارجية يبقى المحامي مكانه ليكمل البحث، مع رسالة وزر «عرض في مكتبتي»
+  if(!fromExternal&&S.view!=='rulings'&&S.view!=='case')S.view='rulings';
+  render();
+  if(fromExternal)savedNotice(r);
+  else if(S.view==='rulings'){const el=document.getElementById('rl_'+r.id);if(el)el.scrollIntoView({block:'center'})}
  }catch(x){toast(x.message);btn.disabled=false}
 });
 
@@ -256,7 +273,11 @@ if(gq){const g0=gq.oninput;gq.oninput=()=>{g0();const q=gq.value.trim();if(q.len
  const hits=rulings.map(r=>({r,s:score(r,qn,qt)})).filter(x=>x.s>-1e8).sort((a,b)=>b.s-a.s).slice(0,3);
  if(!hits.length)return;if(gr.querySelector('.empty'))gr.innerHTML='';
  gr.insertAdjacentHTML('beforeend',hits.map(({r})=>`<button data-act="rOpen" data-v="${r.id}"><span>${e(r.principle).slice(0,90)}</span><small>اجتهاد · ${e(r.court)} ${e(r.no||'')}</small></button>`).join(''));gr.hidden=false}}
-A.rOpen=v=>{RS.q='';S.view='rulings';render();const el=document.getElementById('rl_'+v);if(el){el.scrollIntoView({block:'center'});el.classList.add('flash')}};
+/* يفتح الحكم في المكتبة: يذهب إلى صفحته، ويلغي المرشحات إن كانت تخفيه */
+A.rOpen=v=>{RS.q='';let items=list(),i=items.findIndex(r=>r.id===v);
+ if(i<0){Object.assign(RS,{q:'',court:'',field:'',mode:'all',in:'all',year:'',from:'',to:'',withText:false,pending:false,sort:'added'});items=list();i=items.findIndex(r=>r.id===v)}
+ if(i>=0)RS.page=Math.floor(i/PER)+1;
+ S.view='rulings';render();const el=document.getElementById('rl_'+v);if(el){el.scrollIntoView({block:'center'});el.classList.add('flash')}};
 
 /* ── البحث المتقدم والتحديد والترقيم ── */
 A.rAdv=()=>{RS.adv=!RS.adv;render()};

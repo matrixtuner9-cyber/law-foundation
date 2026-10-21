@@ -9,6 +9,9 @@ const ROOT = path.join(__dirname, '..');
 const ED = require(path.join(ROOT, 'lib', 'edition.js')).load();
 // منفذ مختلف لكل نسخة، فيمكن تثبيت «ميثاق خاص» و«ميثاق متصل» على جهاز واحد دون تداخل
 const PORT = ED.offline ? 8181 : 8080, BASE = ED.offline ? `http://127.0.0.1:${PORT}` : `http://localhost:${PORT}`;
+// صفحات التطبيق نفسه فقط (نفس الأصل)، والروابط الخارجية تُفتح في المتصفح إن كانت http/https فقط
+const isAppUrl = u => { try { return new URL(u).origin === new URL(BASE).origin } catch (e) { return false } };
+const isWebUrl = u => { try { return ['http:', 'https:'].includes(new URL(u).protocol) } catch (e) { return false } };
 const isLocalUrl = u => { try { const x = new URL(u); return !/^(https?|wss?):$/.test(x.protocol) || ['127.0.0.1', 'localhost', '[::1]'].includes(x.hostname) } catch (e) { return false } };
 const ICON = path.join(__dirname, 'icon.png');
 
@@ -71,10 +74,10 @@ function createWindow() {
   // الروابط الخارجية وفتح الملفات تذهب للمتصفح الافتراضي
   // في النسخة الخاصة: لا يُفتح أي رابط خارجي (لا متصفح ولا إنترنت)؛ ملفات المكتب المحلية تُفتح في نافذة داخلية
   win.webContents.setWindowOpenHandler(({ url }) => {
-    if (!ED.offline) { shell.openExternal(url); return { action: 'deny' } }
-    return isLocalUrl(url) ? { action: 'allow', overrideBrowserWindowOptions: { autoHideMenuBar: true, icon: ICON } } : { action: 'deny' };
+    if (!ED.offline) { if (isWebUrl(url)) shell.openExternal(url); return { action: 'deny' } }
+    return isAppUrl(url) ? { action: 'allow', overrideBrowserWindowOptions: { autoHideMenuBar: true, icon: ICON } } : { action: 'deny' };
   });
-  win.webContents.on('will-navigate', (e, url) => { if (!url.startsWith(BASE)) { e.preventDefault(); if (!ED.offline) shell.openExternal(url) } });
+  win.webContents.on('will-navigate', (e, url) => { if (!isAppUrl(url)) { e.preventDefault(); if (!ED.offline && isWebUrl(url)) shell.openExternal(url) } });
   win.on('close', e => {
     if (quitting) return;
     e.preventDefault(); win.hide();

@@ -62,17 +62,16 @@ function createService({ audit, now = () => Date.now() } = {}) {
     if (busy >= MAX_BUSY) return { status: 429, body: { error: 'الخادم مشغول بطلبات بحث أخرى. حاول بعد لحظات.' } };
     busy++;
     try {
-      const M = await load();
       if (action === 'search') {
         const d = deny('search'); if (d) return d;
-        const f = filtersOf(sp), r = await M.searchJudgments(f);
+        const f = filtersOf(sp), M = await load(), r = await M.searchJudgments(f);
         audit && audit({ ...who, action: 'maqam.search', entity: 'maqam', detail: { q: (f.q || '').slice(0, 120), page: r.page, n: r.results.length } });
         return { status: 200, body: { ok: true, ...r } };
       }
       if (action === 'judgment') {
         const d = deny('judgment'); if (d) return d;
         const id = Number(sp.get('id')); if (!Number.isSafeInteger(id) || id <= 0) return { status: 400, body: { error: 'رقم الحكم غير صحيح.' } };
-        const j = await M.getJudgment(id);
+        const M = await load(), j = await M.getJudgment(id);
         audit && audit({ ...who, action: 'maqam.judgment', entity: 'maqam', entity_id: String(id), detail: { no: j.number, year: j.year } });
         return { status: 200, body: { ok: true, judgment: j } };
       }
@@ -81,14 +80,14 @@ function createService({ audit, now = () => Date.now() } = {}) {
         const full = sp.get('full') === '1', fmt = ['html', 'csv', 'json'].includes(sp.get('format')) ? sp.get('format') : 'html';
         let pages = Math.min(Math.max(Number(sp.get('pages')) || 1, 1), 5);
         if (full) { const d2 = deny('full'); if (d2) return d2; pages = Math.min(pages, 2) }
-        const f = filtersOf(sp), bundle = await M.collectJudgments(f, { pages, fullText: full }), file = M.buildDownload(bundle, fmt);
+        const f = filtersOf(sp), M = await load(), bundle = await M.collectJudgments(f, { pages, fullText: full }), file = M.buildDownload(bundle, fmt);
         audit && audit({ ...who, action: 'maqam.download', entity: 'maqam', detail: { q: (f.q || '').slice(0, 120), format: fmt, pages, full, n: bundle.results.length, failed: bundle.failures.length } });
         return { status: 200, file };
       }
       if (action === 'extract') {
         /* استخراج صفحة نتائج واحدة مع النص الكامل لكل حكم، لتُحفظ في مكتبة المكتب. صفحة لكل طلب، و6 صفحات كل 10 دقائق */
         const d = deny('extract'); if (d) return d;
-        const f = filtersOf(sp), bundle = await M.collectJudgments(f, { pages: 1, fullText: sp.get('full') !== '0' });
+        const f = filtersOf(sp), M = await load(), bundle = await M.collectJudgments(f, { pages: 1, fullText: sp.get('full') !== '0' });
         const rulings = bundle.results.map(j => toRuling(j, M));
         audit && audit({ ...who, action: 'maqam.extract', entity: 'rulings', detail: { q: (f.q || '').slice(0, 120), page: Number(f.page) || 1, n: rulings.length, failed: bundle.failures.length } });
         return { status: 200, body: { ok: true, page: Number(f.page) || 1, totalPages: bundle.totalPages, rulings, failures: bundle.failures } };

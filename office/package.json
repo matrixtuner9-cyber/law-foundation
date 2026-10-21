@@ -68,6 +68,8 @@
       "rulings.js",
       "maqamsearch.js",
       "sources.js",
+      "legal-shelf.js",
+      "ready-templates-palestine.js",
       "guide.js",
       "fonts/**",
       "edition.js",

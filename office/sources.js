@@ -44,7 +44,7 @@ function sjcResults(){
  if(s.busy)return '<section class="panel"><div class="empty src-load">جارٍ البحث في مبادئ المكتب الفني…</div></section>';
  if(s.err)return `<section class="panel"><div class="bd"><div class="note" style="color:var(--danger)">${e(s.err)}</div></div></section>`;
  const d=s.data;
- if(!d)return `<section class="panel rl-empty"><div class="bd"><b>مبادئ محكمة النقض كما ينشرها المكتب الفني في مجلس القضاء الأعلى.</b><p>اختر القانون (عمل، التجاري، التأمين، المالكين والمستأجرين…) أو اكتب كلمة، فتظهر المبادئ برقمها، ولكل مبدأ وثيقة PDF بنص الحكم. احفظ ما يفيدك في مكتبة الاجتهادات بضغطة، فيُرفق ملف الوثيقة بالسجل.</p><p class="m">مصدر عام بلا تسجيل دخول. يُسأل الموقع عند ضغطك «بحث» فقط.</p></div></section>`;
+ if(!d)return '';
  if(!d.results.length)return '<section class="panel"><div class="empty">لا مبادئ مطابقة. جرّب كلمة أخرى أو تصنيفاً آخر.</div></section>';
  const cnt=n=>n===1?'مبدأ واحد':n===2?'مبدآن':n<=10?n+' مبادئ':n+' مبدأً';
  return `<div class="src-top m">${cnt(d.results.length)}${d.cls?` في «${e(d.cls.name)}»`:''} · <a href="https://www.courts.gov.ps/TechnicalOffice/SearchJudicialPrincipl.aspx" target="_blank" rel="noopener noreferrer">فتح الصفحة في موقع المجلس ↗</a> · <button class="link" data-act="srcSjcPrint">طباعة القائمة</button></div>
@@ -121,13 +121,13 @@ function mqDetail(d){
 }
 function mqResults(){
  const m=ST.mq,st=m.st||{};
- if(!st.configured)return `<section class="panel rl-empty"><div class="bd"><b>المقتفي: قاعدة الأحكام النظامية في معهد الحقوق – جامعة بيرزيت.</b><p>أحكام النقض والاستئناف والعدل العليا والدستورية مع بطاقة لكل حكم فيها المبادئ القانونية والنصوص المطبّقة ومسار الكشاف، والنص الكامل مقسّماً (الديباجة، الوقائع، التسبيب، المنطوق). يحتاج اشتراكاً من المعهد.</p></div></section>`;
+ if(!st.configured)return '<section class="panel"><div class="empty">يلزم إعداد اشتراك المقتفي لتفعيل البحث.</div></section>';
  if(m.busy)return '<section class="panel"><div class="empty src-load">جارٍ البحث في المقتفي…</div></section>';
  if(m.err)return `<section class="panel"><div class="bd"><div class="note" style="color:var(--danger)">${e(m.err)}</div></div></section>`;
  const d=m.data;
- if(!d)return `<section class="panel rl-empty"><div class="bd"><b>ابحث في أحكام المقتفي.</b><p>اكتب عبارة من نص الحكم، وحدّد المحكمة والمجال وتاريخ الفصل لتضييق النتائج (يعرض المقتفي 30 حكماً في البحث الواحد). افتح «البطاقة والنص الكامل» لقراءة المبادئ والتسبيب، ثم «حفظ في المكتبة» فيُنقل الحكم بمبادئه ونصه إلى مكتبة الاجتهادات.</p></div></section>`;
+ if(!d)return '';
  if(!d.results.length)return '<section class="panel"><div class="empty">لا أحكام مطابقة في المقتفي. جرّب كلمات أقل أو أزل بعض القيود.</div></section>';
- return `<div class="src-top m">${d.total?`${d.total} نتيجة في المقتفي، `:''}${d.results.length} حكماً معروضاً${d.narrow?' · <b style="color:var(--danger)">ضيّق البحث لترى الأحكام الأقرب (المقتفي يعرض أول 30 فقط)</b>':''}</div><div class="stack">${d.results.map(mqCard).join('')}</div>`;
+ return `<div class="src-top m">${d.total?`${d.total} نتيجة في المقتفي، `:''}${d.results.length} حكماً معروضاً</div><div class="stack">${d.results.map(mqCard).join('')}</div>`;
 }
 A.srcMqOpen=async v=>{const m=ST.mq,id=Number(v);if(m.open===id){m.open=null;paint();return}m.open=id;if(m.detail[id]&&!m.detail[id].error){paint();return}
  m.detail[id]='loading';paint();try{m.detail[id]=await j('muqtafi/judgment?id='+id)}catch(x){m.detail[id]={error:x.message}}paint()};
@@ -153,12 +153,13 @@ A.srcSjcPrint=()=>{const d=ST.sjc.data;if(!d||!d.results.length||!window.MQP)ret
 /* ═══ الشاشة ═══ */
 A.srcTab=v=>{ST.tab=v;paint();if(v==='mq'&&!ST.mq.st)mqStatus();if(v==='sjc'&&!ST.sjc.classes)sjcClasses()};
 function body(){
- return `<div class="src-tabs"><button class="src-tab ${ST.tab==='sjc'?'on':''}" data-act="srcTab" data-v="sjc">مبادئ المكتب الفني <small>مجلس القضاء الأعلى · عام</small></button><button class="src-tab ${ST.tab==='mq'?'on':''}" data-act="srcTab" data-v="mq">المقتفي <small>معهد الحقوق – بيرزيت · اشتراك</small></button></div>
+ return `<div class="src-tabs"><button class="src-tab ${ST.tab==='sjc'?'on':''}" data-act="srcTab" data-v="sjc">المصدر الأول</button><button class="src-tab ${ST.tab==='mq'?'on':''}" data-act="srcTab" data-v="mq">المصدر الثاني</button></div>
  ${ST.tab==='sjc'?`<section class="panel">${sjcForm()}</section>${sjcResults()}`:`${credBox()}<section class="panel">${mqForm()}</section>${mqResults()}`}`;
 }
 V.sources=()=>{setTimeout(()=>{if(ST.tab==='sjc')sjcClasses();else mqStatus()},0);
- return `<div class="head"><div><h1>مصادر الأحكام</h1><p class="sub">بحث مباشر في مبادئ المكتب الفني (مجلس القضاء الأعلى) وفي أحكام المقتفي (بيرزيت)، وحفظ ما يفيدك في مكتبة الاجتهادات بمبادئه ونصه ورابط مصدره</p></div>
- <div class="toolbar"><button class="btn" data-act="nav" data-v="maqamsearch">البحث في الأحكام (مقام)</button><button class="btn" data-act="nav" data-v="rulings">مكتبة الاجتهادات</button></div></div><div id="srcBody">${body()}</div>`};
+ const n=window.MQ_rulingCounts?MQ_rulingCounts():{total:0,maqam:0,mq:0,sjc:0};
+ return `<div class="head"><div><h1>مصادر الأحكام</h1></div>
+ <div class="toolbar"><button class="btn" data-act="nav" data-v="maqamsearch">البحث في الأحكام (مقام) · محفوظ ${n.maqam}</button><button class="btn" data-act="nav" data-v="rulings">مكتبة الاجتهادات (${n.total})</button></div></div><div id="srcBody">${body()}</div>`};
 function paint(){const el=document.getElementById('srcBody');if(el&&S.view==='sources')el.innerHTML=body();paintSettings()}
 
 /* ═══ قسم في شاشة الإعدادات: اشتراكات المصادر والخدمات الخارجية (لمدير المكتب) ═══ */

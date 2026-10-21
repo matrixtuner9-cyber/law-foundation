@@ -27,7 +27,7 @@ const pad = n => String(n).padStart(2, '0');
 const local = (d = new Date()) => { const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Hebron', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).formatToParts(d).map(x => [x.type, x.value])); return p };
 const stamp = (d = new Date()) => { const p = local(d); return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}` };
 const stampS = (d = new Date()) => stamp(d) + ':' + local(d).second;
-const EMPTY = () => ({ clients: [], opponents: [], cases: [], hearings: [], deadlines: [], docs: [], rulings: [], lawforms: [], mzLog: [] });
+const EMPTY = () => ({ clients: [], opponents: [], cases: [], hearings: [], deadlines: [], docs: [], rulings: [], lawforms: [], legalRefs: [], mzLog: [] });
 
 const DEFAULT_RULES = [
   { id: 'civ-appeal', name: 'استئناف حكم حقوقي', nature: 'civil', to: 'استئناف', from: ['صلح', 'بداية'], urgent: false, days: 30, start: 'judgment', ref: 'م205/1 وم193 من قانون أصول المحاكمات المدنية والتجارية رقم 2 لسنة 2001', verified: true },
@@ -44,9 +44,9 @@ const AUDIO_EXT = { 'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/mp4': 'm4a'
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'content-type, x-client', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS' };
 const SEC = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', 'X-Frame-Options': 'SAMEORIGIN' };
 const json = (code, obj, extra = {}) => new Response(JSON.stringify(obj), { status: code, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...CORS, ...SEC, ...extra } });
-const MEDIA_TTL = 7 * 24 * 3600; // صلاحية رابط الملف الموقّع (ثوانٍ)
+const MEDIA_TTL = 24 * 3600; // صلاحية رابط الملف الموقّع: يوم واحد، ويتجدد بتحميل المحادثة
 
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'sources.js', 'guide.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'sources.js', 'guide.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css', 'edition.js']);
 
 /* توحيد الكتابة العربية للبحث في دليل المحامين */
@@ -109,7 +109,11 @@ export class Office extends DurableObject {
   rules() { const saved = this.store.kv.get('appeal_rules', {}); return DEFAULT_RULES.map(r => ({ ...r, ...(saved[r.id] || {}) })) }
   cur() { return this.state || EMPTY() }
   mediaKey() { let k = this.store.kv.get('media_key'); if (!k) { k = crypto.randomBytes(32).toString('hex'); this.store.kv.set('media_key', k) } return k }
-  sign(file, exp) { return crypto.createHmac('sha256', this.mediaKey()).update(file + '|' + exp).digest('base64url').slice(0, 32) }
+  /* رمز الموكل داخل التوقيع: تجديد الرمز يبطل الروابط القديمة فوراً */
+  sign(file, exp) {
+    const m = this.msgs.find(x => x.file === file), code = m ? ((this.cur().clients || []).find(c => c.id === m.client) || {}).code || '' : '';
+    return crypto.createHmac('sha256', this.mediaKey()).update(file + '|' + exp + '|' + code).digest('base64url').slice(0, 32);
+  }
   mediaUrl(file) { const exp = Math.floor(Date.now() / 1000 / 3600) * 3600 + MEDIA_TTL; return `/api/media/${file}?e=${exp}&s=${this.sign(file, exp)}` }
   pub(m) { const { by, ...rest } = m; return { ...rest, file: m.file ? this.mediaUrl(m.file) : null } } // لا تُكشف أسماء مستخدمي المكتب للموكل
   pubAdmin(m) { return { ...m, file: m.file ? this.mediaUrl(m.file) : null } }
@@ -120,7 +124,7 @@ export class Office extends DurableObject {
     const ids = new Set(u.cases || []), cases = S.cases.filter(k => ids.has(k.id));
     const cl = new Set(cases.map(k => k.client)), op = new Set(cases.flatMap(k => k.opps || []));
     return { clients: S.clients.filter(c => cl.has(c.id)), opponents: S.opponents.filter(o => op.has(o.id)), cases,
-      hearings: S.hearings.filter(h => ids.has(h.k)), deadlines: S.deadlines.filter(d => ids.has(d.k)), docs: S.docs.filter(d => ids.has(d.k)), mzLog: (S.mzLog || []).filter(l => ids.has(l.k)), rulings: S.rulings || [], lawforms: S.lawforms || [] };
+      hearings: S.hearings.filter(h => ids.has(h.k)), deadlines: S.deadlines.filter(d => ids.has(d.k)), docs: S.docs.filter(d => ids.has(d.k)), mzLog: (S.mzLog || []).filter(l => ids.has(l.k)), rulings: S.rulings || [], lawforms: S.lawforms || [], legalRefs: S.legalRefs || [] };
   }
 
   /* ── البث المباشر لشاشة المكتب (SSE) ── */
@@ -611,6 +615,7 @@ export class Office extends DurableObject {
     if (range) {
       const head = await this.env.MEDIA.head(key); if (!head) return new Response('Not found', { status: 404, headers: CORS });
       const size = head.size, start = range[1] ? +range[1] : 0, end = range[2] ? Math.min(+range[2], size - 1) : size - 1;
+      if (!size || start >= size || start > end) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${size}`, ...CORS } });
       const obj = await this.env.MEDIA.get(key, { range: { offset: start, length: end - start + 1 } });
       return new Response(obj.body, { status: 206, headers: { 'Content-Type': type, 'Content-Range': `bytes ${start}-${end}/${size}`, 'Accept-Ranges': 'bytes', 'Content-Length': String(end - start + 1), 'Cache-Control': 'private, no-store', ...CORS } });
     }

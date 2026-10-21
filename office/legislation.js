@@ -6,6 +6,7 @@
 const e=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const online=()=>!!(window.MQ&&MQ.online);
 const canM=()=>!!(window.MQ&&MQ.user&&MQ.user.role==='admin'); /* صلاحية manage في الخادم */
+const canRef=()=>!!(window.MQ&&MQ.user&&['admin','lawyer'].includes(MQ.user.role)&&!MQ.readOnly); /* حفظ مادة في «مكتبتي القانونية» */
 const ro=()=>{if(window.MQ&&MQ.readOnly){toast('صلاحيتك للاطلاع فقط');return true}return false};
 const nrm=s=>String(s??'').toLowerCase().replace(/[ً-ْٰـ]/g,'').replace(/[أإآٱ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه').replace(/ؤ/g,'و').replace(/ئ/g,'ي');
 const plural=(n,one,two,few,many)=>n===1?one:n===2?two:n>=3&&n<=10?n+' '+few:n+' '+many;
@@ -139,14 +140,23 @@ function webDetail(x){const words=nrm(W.q2||W.searched||'').split(/\s+/).filter(
  const body=(x.parts&&x.parts.length?x.parts:[{t:x.content||''}]).map(p=>p.h?`<h3 class="lg-ph">${e(p.h)}</h3>`:p.a?`<p><b class="lg-art">${e(p.a)}</b> ${mark(p.t,words).replace(/\n/g,'<br>')}</p>`:paras(p.t).map(t=>`<p>${mark(t,words)}</p>`).join('')).join('');
  return `<div class="modal-bg" data-act="close"><div class="modal lg-modal" role="dialog" aria-label="${e(x.title)}">
  <div class="head"><div><h1 style="font-size:23px">${e(x.title)}</h1></div><button class="btn sm" data-act="close">إغلاق</button></div>
- <div class="toolbar" style="margin-bottom:10px"><button class="btn pri" data-act="lgwPrint">معاينة وطباعة</button><button class="btn" data-act="lgwExtractOne">صفحة مستقلة</button><button class="btn" data-act="lgwCite">نسخ الإشارة</button>${canM()?'<button class="btn" data-act="lgwSave">حفظ في مكتبة المكتب</button>':''}<button class="btn" data-act="lgwSel" data-v="${e(x.id)}">${W.sel.has(x.id)?'إلغاء التحديد':'تحديد للاستخراج'}</button></div>
+ <div class="toolbar" style="margin-bottom:10px"><button class="btn pri" data-act="lgwPrint">معاينة وطباعة</button><button class="btn" data-act="lgwExtractOne">صفحة مستقلة</button><button class="btn" data-act="lgwCite">نسخ الإشارة</button>${canM()?'<button class="btn" data-act="lgwSave">حفظ في مكتبة المكتب</button>':''}${canRef()?'<button class="btn" data-act="lgwSaveArticle">حفظ مادة في مكتبتي</button>':''}<button class="btn" data-act="lgwSel" data-v="${e(x.id)}">${W.sel.has(x.id)?'إلغاء التحديد':'تحديد للاستخراج'}</button></div>
  <dl class="lg-kv">${[['النوع',e(x.kind||x.type)],['الرقم',x.ref?`<span class="mono">${e(x.ref)}</span>`:'—'],['الجهة',e(x.source)],['الحالة',e(x.statusRaw||x.status)],['السنة',x.year||'—'],['عدد المواد',x.articles||'—'],['التصنيف',e(x.subject||'—')]].map(([k,v])=>`<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>
  <h2 class="lg-h">نص التشريع</h2><div class="lg-text">${body||'<p class="m">لا يتوفر نص مفصّل لهذا التشريع في المصدر.</p>'}</div>
  <p class="m" style="margin-top:12px;font-size:12.5px">النص كما نُشر في مصدره على الإنترنت. طابِقه مع الجريدة الرسمية (الوقائع الفلسطينية) قبل الاستشهاد به.</p></div></div>`}
 A.lgwPrint=()=>{if(LG.wcur&&window.MQP)MQP.open(lawDoc(asRec(LG.wcur)))};
 A.lgwCite=()=>{const x=LG.wcur;if(!x)return;const t=x.title;(navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('نُسخت الإشارة: '+t)).catch(()=>toast(t))};
 A.lgwSave=async()=>{const x=LG.wcur;if(!x||ro()||!canM())return;
- try{const r=await api('import',{records:[x.rec],mode:'skip',file:'online'});toast(r.added?'حُفظ في مكتبة المكتب':r.duplicates?'موجود مسبقاً في مكتبة المكتب':(r.errors[0]||{}).message||'لم يُحفظ');LG.at=0}catch(er){toast(er.message)}};
+ try{const r=await api('import',{records:[x.rec],mode:'skip',file:'online'});toast(r.added?'حُفظ في مكتبة المكتب':r.duplicates?'موجود مسبقاً في مكتبة المكتب':(r.errors[0]||{}).message||'لم يُحفظ');LG.at=0;if((r.added||r.duplicates)&&!document.querySelector('.lg-modal [data-act="klGo"]'))document.querySelector('.lg-modal .toolbar')?.insertAdjacentHTML('beforeend','<button class="btn pri" data-act="klGo">عرض في مكتبتي</button>')}catch(er){toast(er.message)}};
+/* حفظ مادة منفردة في «مكتبتي القانونية»: النص المحدَّد بالفأرة ورقم المادة إن وُجد فيه؛ لا يُنسخ القانون كله */
+function articleFromLaw(x){
+ if(!x||!window.MQ_openRefForm)return toast('أعد تحميل الصفحة وحاول مرة أخرى');
+ const sel=String(window.getSelection&&window.getSelection()||'').trim().slice(0,30000),m=sel.match(/(?:المادة|مادة)\s*\(?\s*(\d+)/),no=m?m[1]:'';
+ MQ_openRefForm({referenceType:'article',authorityType:x.type||'قانون',natureType:'مادة قانونية',lawName:x.title||'',lawNumber:x.ref||'',lawYear:String(x.year||''),
+  title:(no?'المادة '+no+' من ':'مادة من ')+(x.title||''),articleNumber:no,text:sel,source:x.source||'',srcUrl:x.srcUrl||x.url||''});
+}
+A.lgSaveArticle=()=>articleFromLaw(LG.cur);
+A.lgwSaveArticle=()=>articleFromLaw(LG.wcur);
 A.lgwExtractOne=()=>{const x=LG.wcur;if(!x)return;EX.recs=[asRec(x)];EX.crit='';EX.web=true;viewer()};
 A.lgwExtract=async()=>{const ids=[...W.sel.keys()];if(!ids.length)return;const out=[];
  document.getElementById('modal').innerHTML=`<div class="modal-bg"><div class="modal lg-modal" role="dialog"><div class="bd lg-empty"><h2>جارٍ جلب النصوص الكاملة</h2><p id="lgwProg">0 من ${ids.length}</p><p class="m">بعض المصادر تطلب التمهّل بين الطلبات، فقد يستغرق ذلك قليلاً.</p><button class="btn" data-act="close">إلغاء</button></div></div></div>`;
@@ -168,7 +178,7 @@ function detail(x){const words=nrm(LG.q).split(/\s+/).filter(Boolean);
   ['تاريخ الإصدار',x.issueDate?dmy(x.issueDate):'—'],['تاريخ النشر',x.publishDate?dmy(x.publishDate):'—'],['السنة',x.year||'—'],['أُضيف',`${e(x.addedAt||'')} · ${e(x.addedBy||'')}`]];
  return `<div class="modal-bg" data-act="close"><div class="modal lg-modal" role="dialog" aria-label="${e(x.title)}">
  <div class="head"><div>${x.titleEn?`<div class="m" dir="ltr" style="text-align:right">${e(x.titleEn)}</div>`:''}<h1 style="font-size:23px">${e(x.title)}</h1></div><button class="btn sm" data-act="close">إغلاق</button></div>
- <div class="toolbar" style="margin-bottom:10px"><button class="btn pri" data-act="lgPrint">معاينة وطباعة</button><button class="btn" data-act="lgCite">نسخ الإشارة</button>${canM()?`<button class="btn" data-act="lgEdit">تعديل</button><button class="btn danger" data-act="lgDel">حذف</button>`:''}</div>
+ <div class="toolbar" style="margin-bottom:10px"><button class="btn pri" data-act="lgPrint">معاينة وطباعة</button><button class="btn" data-act="lgCite">نسخ الإشارة</button>${canRef()?'<button class="btn" data-act="lgSaveArticle">حفظ مادة في مكتبتي</button>':''}${canM()?`<button class="btn" data-act="lgEdit">تعديل</button><button class="btn danger" data-act="lgDel">حذف</button>`:''}</div>
  <dl class="lg-kv">${kv.map(([k,v])=>`<div><dt>${k}</dt><dd>${v}</dd></div>`).join('')}</dl>
  <div class="lg-sumbox"><b>الملخص</b><p>${mark(x.summary,words)}</p></div>
  <h2 class="lg-h">نص التشريع</h2>

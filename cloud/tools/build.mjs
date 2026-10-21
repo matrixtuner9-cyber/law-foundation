@@ -1,7 +1,7 @@
-// يجهّز مجلد public من ملفات واجهة ميثاق (المصدر: ../mithaq) ويولّد src/seed.js
+// يجهّز مجلد public من ملفات واجهة ميثاق (المصدر: ../office أو MQ_SRC) ويولّد src/seed.js
 import fs from 'node:fs'; import path from 'node:path';
-const SRC = process.env.MQ_SRC || path.resolve('../mithaq'), OUT = path.resolve('public');
-const UI = ['index.html','app.js','print.js','intake.js','rulings.js','maqamsearch.js','sources.js','guide.js','lawlib-data.js','lawlib.js','legislation.js','aidraft.js','calc-engine.js','calc.js','dash.js','briefcase.js','sync.js','mizan-ui.js','data.js','admin.js','phase2.js','phase2.css','bar.js','bar.css','responsive.js','responsive.css','style.css','dash.css','briefcase.css','mizan.css','admin.css','prestige.css','login.html','login.js','login.css','scales.js','edition.js','hdr-banner.jpg','hdr-side.jpg','hdr-side.webp','hdr-emblem.jpg','hdr-logo.jpg'];
+const SRC = process.env.MQ_SRC || path.resolve('../office'), OUT = path.resolve('public');
+const UI = ['index.html','app.js','ready-templates-palestine.js','legal-shelf.js','print.js','intake.js','rulings.js','maqamsearch.js','sources.js','guide.js','lawlib-data.js','lawlib.js','legislation.js','aidraft.js','calc-engine.js','calc.js','dash.js','briefcase.js','sync.js','mizan-ui.js','data.js','admin.js','phase2.js','phase2.css','bar.js','bar.css','responsive.js','responsive.css','style.css','dash.css','briefcase.css','mizan.css','admin.css','prestige.css','login.html','login.js','login.css','scales.js','edition.js','hdr-banner.jpg','hdr-side.jpg','hdr-side.webp','hdr-emblem.jpg','hdr-logo.jpg'];
 fs.rmSync(path.join(OUT, 'app'), { recursive: true, force: true }); fs.mkdirSync(path.join(OUT, 'app'), { recursive: true });
 for (const f of UI) fs.copyFileSync(path.join(SRC, f), path.join(OUT, 'app', f));
 // الخطوط المضمّنة محلياً
@@ -16,8 +16,9 @@ rep("إنشاء حساب مدير النظام متاح من جهاز المكت
 fs.writeFileSync(lj, s);
 // بوابة الموكل (نسخة الويب من تطبيق فلاتر) إن وُجدت
 const portal = process.env.MQ_PORTAL || path.join(SRC, 'portal');
-if (fs.existsSync(portal)) fs.cpSync(portal, path.join(OUT, 'app', 'portal'), { recursive: true });
-else { fs.mkdirSync(path.join(OUT, 'app', 'portal'), { recursive: true }); fs.writeFileSync(path.join(OUT, 'app', 'portal', 'index.html'), '<!doctype html><meta charset="utf-8"><title>بوابة الموكل</title><p dir="rtl">بوابة الموكل</p>') }
+// لا تُنشر صفحة بديلة وهمية: إن غابت نسخة Flutter Web يتوقف البناء برسالة واضحة
+if (!fs.existsSync(path.join(portal, 'main.dart.js'))) throw new Error('بوابة الموكل غير موجودة في ' + portal + ': شغّل flutter build web --release --base-href /portal/ وانسخ build/web إليها قبل بناء السحابة.');
+fs.cpSync(portal, path.join(OUT, 'app', 'portal'), { recursive: true });
 // صفحة الموقع الرئيسية
 fs.mkdirSync(path.join(OUT, 'site'), { recursive: true });
 if (!fs.existsSync(path.join(OUT, 'site', 'index.html'))) fs.writeFileSync(path.join(OUT, 'site', 'index.html'), '<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ميثاق</title><body style="font-family:Cairo,Tahoma,sans-serif;background:#F5F0E6;color:#121B2E;display:grid;place-items:center;min-height:100vh;margin:0"><div style="text-align:center"><h1>ميثاق</h1><p>نظام إدارة مكاتب المحاماة</p></div>');

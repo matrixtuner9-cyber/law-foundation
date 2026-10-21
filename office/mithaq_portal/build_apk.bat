@@ -1,18 +1,26 @@
 @echo off
-rem بناء تطبيق بوابة الموكل لأندرويد (APK)
-rem الاستخدام: build_apk.bat [عنوان الخادم]   مثال: build_apk.bat http://192.168.1.11:8080
-cd /d "%~dp0"
-set API=%1
-if "%API%"=="" set API=http://192.168.1.11:8080
-echo === licenses
-(for /l %%i in (1,1,30) do @echo y) | call flutter doctor --android-licenses
-echo === icons
-call flutter pub add --dev flutter_launcher_icons
-call dart run flutter_launcher_icons
-echo === build (%API%)
-call flutter build apk --release --dart-define=API=%API%
-echo APK_EXIT %ERRORLEVEL%
-if exist build\app\outputs\flutter-apk\app-release.apk (
-  copy /y build\app\outputs\flutter-apk\app-release.apk "..\dist\Mithaq-Client.apk" >nul
-  echo COPIED ..\dist\Mithaq-Client.apk
+setlocal EnableExtensions
+rem بناء تطبيق بوابة الموكل لأندرويد (APK) — يتوقف عند أي خطأ
+rem الاستخدام: build_apk.bat https://office.palgaz.net   (عنوان خادم المكتب الفعلي، لا عنوان شبكة محلية افتراضي)
+cd /d "%~dp0" || exit /b 1
+set "API=%~1"
+if not defined API (
+  echo ERROR: Usage: build_apk.bat https://your-office-domain
+  exit /b 2
 )
+echo === licenses
+(for /l %%i in (1,1,30) do @echo y) | call flutter doctor --android-licenses >nul
+echo === packages
+call flutter pub get
+if errorlevel 1 exit /b 1
+echo === icons
+call dart run flutter_launcher_icons
+if errorlevel 1 exit /b 1
+echo === build (%API%)
+call flutter build apk --release "--dart-define=API=%API%"
+if errorlevel 1 exit /b 1
+if not exist "build\app\outputs\flutter-apk\app-release.apk" (echo ERROR: APK not generated & exit /b 1)
+if not exist "..\dist" mkdir "..\dist" || exit /b 1
+copy /y "build\app\outputs\flutter-apk\app-release.apk" "..\dist\Mithaq-Client.apk" >nul
+if errorlevel 1 exit /b 1
+echo SUCCESS: ..\dist\Mithaq-Client.apk

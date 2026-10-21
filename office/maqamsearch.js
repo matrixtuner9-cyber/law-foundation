@@ -67,9 +67,9 @@ function pager(){
 }
 function results(){
  if(MS.busy)return '<section class="panel"><div class="empty ms-load">جارٍ البحث في الأحكام…</div></section>';
- if(MS.err)return `<section class="panel"><div class="bd"><div class="note" style="color:var(--danger)">${e(MS.err)}</div><p class="m">قد يكون الموقع المصدر متوقفاً مؤقتاً أو بطيئاً. يمكنك المحاولة بعد قليل أو فتح الموقع مباشرة.</p></div></section>`;
+ if(MS.err)return `<section class="panel"><div class="bd"><div class="note" style="color:var(--danger)">${e(MS.err)}</div></div></section>`;
  const d=MS.data;
- if(!d)return `<section class="panel rl-empty"><div class="bd"><b>ابحث في الأحكام القضائية المنشورة في الموسوعة القانونية.</b><p>اكتب موضوع المسألة أو المبدأ (مثل: «مطالبة مالية»، «بطلان التبليغ»، «إخلاء المأجور»)، أو حدّد السنة ورقم القضية. بعد ظهور النتائج اضغط على اسم المحكمة أو التصنيف في أي حكم لحصر البحث فيه.</p><p class="m">تُجلب النتائج من الصفحات العامة للموقع المصدر عند ضغطك «بحث» فقط. راجع النص الأصلي قبل الاستشهاد، والتزم بشروط استخدام الموقع.</p></div></section>`;
+ if(!d)return '';
  if(!d.results.length)return '<section class="panel"><div class="empty">لا نتائج مطابقة في المصدر. جرّب كلمات أقل أو أزل بعض التصنيفات.</div></section>';
  return `<div class="ms-top"><div class="m">${d.results.length} حكماً في هذه الصفحة${d.totalPages>1?` · ${d.totalPages} صفحات`:''} · <a href="${e(d.sourceUrl)}" target="_blank" rel="noopener noreferrer">فتح البحث في الموقع المصدر ↗</a></div>${download()}</div>
  ${can2('write')?extractBar():''}
@@ -81,7 +81,7 @@ function extractBar(){
  if(x&&x.busy)return `<div class="ms-ext on"><div class="ms-exth"><b>جارٍ الحفظ في المكتبة…</b><span class="m">الصفحة ${x.cur} (${x.done} من ${x.total}) · أُضيف ${x.added} · موجود مسبقاً ${x.skipped}</span><button class="btn sm" data-act="msExtStop">إيقاف</button></div><div class="ms-prog"><i style="width:${Math.round(x.done/x.total*100)}%"></i></div></div>`;
  return `<div class="ms-ext"><div class="ms-exth"><b>حفظ النتائج في مكتبة الاجتهادات</b><span class="m">تُحفظ أحكام الصفحة بنصوصها الكاملة في مكتبة المكتب، فتبحث فيها وتطبعها وتربطها بقضاياك حتى دون إنترنت.</span></div>
   <div class="ms-exta"><select class="field" id="msExtN" aria-label="عدد الصفحات">${[1,2,3,4,5].filter(n=>n<=left).map(n=>`<option value="${n}" ${MS.extN===n?'selected':''}>${n===1?'هذه الصفحة':'هذه الصفحة و'+(n-1)+' بعدها'}</option>`).join('')}</select>
-  <button class="btn pri" data-act="msExt">حفظ في المكتبة</button>${x&&!x.busy?`<span class="m">${x.msg||''}</span>`:''}</div></div>`;
+  <button class="btn pri" data-act="msExt">حفظ في المكتبة</button>${x&&!x.busy?`<span class="m">${x.msg||''}</span>${x.added?'<button class="btn sm" data-act="nav" data-v="rulings">عرض في مكتبتي</button>':''}`:''}</div></div>`;
 }
 A.msExtStop=()=>{if(MS.ext)MS.ext.stop=true};
 A.msExt=async()=>{
@@ -117,8 +117,7 @@ function chips(){
  return `<div class="ms-fc"><span class="m">تصنيفات مفعّلة:</span>${f.map(([k,v])=>`<button class="chip ms-b on" data-act="msUnfacet" data-v="${k}" title="إزالة">${e((FACETS.find(x=>x[0]===k)||[,k])[1])}: ${e(v.name)} ✕</button>`).join('')}</div>`;
 }
 
-V.maqamsearch=()=>`<div class="head"><div><h1>البحث في الأحكام</h1><p class="sub">بحث مباشر في الأحكام القضائية المنشورة على الموسوعة القانونية – جامعة النجاح، بنتائج حيّة وروابط مصادرها</p></div>
- <div class="toolbar"><a class="btn" href="https://maqam.najah.edu/judgments/" target="_blank" rel="noopener noreferrer">فتح الموقع المصدر ↗</a><button class="btn" data-act="nav" data-v="rulings">مكتبة الاجتهادات</button></div></div>
+V.maqamsearch=()=>`<div class="head"><div><h1>البحث في الأحكام</h1></div></div>
  <section class="panel"><form class="bd ms-form" id="msForm" autocomplete="off">
   <input class="field" id="msQ" value="${e(MS.q)}" placeholder="مثال: مطالبة مالية، بطلان التبليغ، إخلاء المأجور…" maxlength="200" aria-label="عبارة البحث">
   <input class="field mono" id="msYear" value="${e(MS.year)}" inputmode="numeric" maxlength="4" placeholder="سنة القضية" aria-label="سنة القضية">

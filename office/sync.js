@@ -16,14 +16,14 @@ function assignState(st){
  if(!st)return;
  const rep=(arr,val)=>{if(Array.isArray(val))arr.splice(0,arr.length,...val)};
  rep(clients,st.clients);rep(opponents,st.opponents);rep(cases,st.cases);
- if(st.hearings)hearings=st.hearings; if(st.deadlines)deadlines=st.deadlines; if(st.docs)docs=st.docs; if(st.mzLog)mzLog=st.mzLog; if(st.rulings)rulings=st.rulings; if(st.lawforms)lawforms=st.lawforms;
+ if(st.hearings)hearings=st.hearings; if(st.deadlines)deadlines=st.deadlines; if(st.docs)docs=st.docs; if(st.mzLog)mzLog=st.mzLog; if(st.rulings)rulings=st.rulings; if(st.lawforms)lawforms=st.lawforms; if(st.legalRefs)legalRefs=st.legalRefs;
 }
 
 /* ── الحفظ الآمن ──
    يُرسل للخادم ما تغيّر فقط، ومع كل سجل رقم إصداره (_v). إن عدّل زميلٌ السجلَ نفسه قبلك يرفض الخادم تعديلك
    ويعيد أحدث نسخة فتظهر لك رسالة. لا يُحذف شيء لأنه غاب عن طلبك. وأي فشل في الحفظ يظهر أعلى الشاشة ويُعاد تلقائياً. */
-const KINDS=['clients','opponents','cases','hearings','deadlines','docs','rulings','lawforms'];
-const ARR=k=>({clients,opponents,cases,hearings,deadlines,docs,rulings,lawforms})[k];
+const KINDS=['clients','opponents','cases','hearings','deadlines','docs','rulings','lawforms','legalRefs'];
+const ARR=k=>({clients,opponents,cases,hearings,deadlines,docs,rulings,lawforms,legalRefs})[k];
 const saved=new Map();let savedMz='[]';
 const dels={}; /* حذف صريح بانتظار الإرسال: {kind:Set(ids)} */
 const TAB=Math.random().toString(36).slice(2,12); /* معرّف هذه النافذة: يتجاهل صدى تعديلاتها هي فقط، لا تعديلات نفس المستخدم في نافذة أخرى */
