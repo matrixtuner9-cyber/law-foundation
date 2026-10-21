@@ -41,7 +41,7 @@ function sjcForm(){
 }
 function sjcResults(){
  const s=ST.sjc;
- if(s.busy)return '<section class="panel"><div class="empty src-load">جارٍ البحث في مبادئ المكتب الفني…</div></section>';
+ if(s.busy)return '<section class="panel"><div class="src-busy" role="progressbar" aria-label="بحث"><i></i></div></section>';
  if(s.err)return `<section class="panel"><div class="bd"><div class="note" style="color:var(--danger)">${e(s.err)}</div></div></section>`;
  const d=s.data;
  if(!d)return '';
@@ -108,7 +108,7 @@ function mqCard(r){
  const m=ST.mq,d=m.detail[r.id],open=m.open===r.id,lib=inLib(r.cardUrl);
  return `<section class="panel rl-card src-card" id="mq_${r.id}"><header><div class="rl-h"><span class="pill mz">${e(r.court)}</span><span class="mono">${e(r.no)}/${e(r.year)}</span><span class="m">${r.date?(typeof dmy==='function'?dmy(r.date):e(r.date)):''}</span><span class="m">${[r.city,r.litigation,r.field].filter(Boolean).map(e).join(' · ')}</span></div>
   <div class="toolbar"><button class="btn sm" data-act="srcMqOpen" data-v="${r.id}">${open?'إخفاء':'البطاقة والنص الكامل'}</button>${d&&d.card?`<button class="btn sm" data-act="srcMqPrint" data-v="${r.id}">طباعة</button>`:''}${can2('write')?(lib?`<button class="btn sm" data-act="rOpen" data-v="${e(lib.id)}">في المكتبة ✓</button>`:`<button class="btn sm pri" data-act="rImportUrl" data-v="${e(r.cardUrl)}">حفظ في المكتبة</button>`):''}</div></header>
-  ${open?`<div class="bd">${d==='loading'?'<div class="src-load">جارٍ جلب بطاقة الحكم ونصه من المقتفي…</div>':d&&d.error?`<div class="note" style="color:var(--danger)">${e(d.error)}</div>`:d?mqDetail(d):''}</div>`:''}</section>`;
+  ${open?`<div class="bd">${d==='loading'?'<div class="src-busy" role="progressbar" aria-label="تحميل"><i></i></div>':d&&d.error?`<div class="note" style="color:var(--danger)">${e(d.error)}</div>`:d?mqDetail(d):''}</div>`:''}</section>`;
 }
 function mqDetail(d){
  const c=d.card,f=d.full,SEC=[['judges','الديباجة'],['facts','الأسباب والوقائع'],['reasoning','التسبيب'],['verdict','منطوق الحكم'],['conclusions','الخاتمة']];
@@ -121,13 +121,13 @@ function mqDetail(d){
 }
 function mqResults(){
  const m=ST.mq,st=m.st||{};
- if(!st.configured)return '<section class="panel"><div class="empty">يلزم إعداد اشتراك المقتفي لتفعيل البحث.</div></section>';
- if(m.busy)return '<section class="panel"><div class="empty src-load">جارٍ البحث في المقتفي…</div></section>';
+ if(!st.configured)return `<section class="panel"><div class="empty">يلزم ضبط اشتراك المصدر الثاني لتفعيل البحث.${st.canManage?' <button class="btn sm" data-act="nav" data-v="settings">فتح الإعدادات</button>':' يضبطه مدير المكتب من الإعدادات.'}</div></section>`;
+ if(m.busy)return '<section class="panel"><div class="src-busy" role="progressbar" aria-label="بحث"><i></i></div></section>';
  if(m.err)return `<section class="panel"><div class="bd"><div class="note" style="color:var(--danger)">${e(m.err)}</div></div></section>`;
  const d=m.data;
  if(!d)return '';
- if(!d.results.length)return '<section class="panel"><div class="empty">لا أحكام مطابقة في المقتفي. جرّب كلمات أقل أو أزل بعض القيود.</div></section>';
- return `<div class="src-top m">${d.total?`${d.total} نتيجة في المقتفي، `:''}${d.results.length} حكماً معروضاً</div><div class="stack">${d.results.map(mqCard).join('')}</div>`;
+ if(!d.results.length)return '<section class="panel"><div class="empty">لا أحكام مطابقة. جرّب كلمات أقل أو أزل بعض القيود.</div></section>';
+ return `<div class="src-top m">${d.total?`${d.total} نتيجة، `:''}${d.results.length} حكماً معروضاً</div><div class="stack">${d.results.map(mqCard).join('')}</div>`;
 }
 A.srcMqOpen=async v=>{const m=ST.mq,id=Number(v);if(m.open===id){m.open=null;paint();return}m.open=id;if(m.detail[id]&&!m.detail[id].error){paint();return}
  m.detail[id]='loading';paint();try{m.detail[id]=await j('muqtafi/judgment?id='+id)}catch(x){m.detail[id]={error:x.message}}paint()};
@@ -154,7 +154,7 @@ A.srcSjcPrint=()=>{const d=ST.sjc.data;if(!d||!d.results.length||!window.MQP)ret
 A.srcTab=v=>{ST.tab=v;paint();if(v==='mq'&&!ST.mq.st)mqStatus();if(v==='sjc'&&!ST.sjc.classes)sjcClasses()};
 function body(){
  return `<div class="src-tabs"><button class="src-tab ${ST.tab==='sjc'?'on':''}" data-act="srcTab" data-v="sjc">المصدر الأول</button><button class="src-tab ${ST.tab==='mq'?'on':''}" data-act="srcTab" data-v="mq">المصدر الثاني</button></div>
- ${ST.tab==='sjc'?`<section class="panel">${sjcForm()}</section>${sjcResults()}`:`${credBox()}<section class="panel">${mqForm()}</section>${mqResults()}`}`;
+ ${ST.tab==='sjc'?`<section class="panel">${sjcForm()}</section>${sjcResults()}`:`<section class="panel">${mqForm()}</section>${mqResults()}`}`;
 }
 V.sources=()=>{setTimeout(()=>{if(ST.tab==='sjc')sjcClasses();else mqStatus()},0);
  const n=window.MQ_rulingCounts?MQ_rulingCounts():{total:0,maqam:0,mq:0,sjc:0};
@@ -220,6 +220,7 @@ document.addEventListener('submit',async ev=>{const f=ev.target;if(f.id!=='srcAi
 document.addEventListener('submit',ev=>{if(ev.target.id==='sjForm'){ev.preventDefault();sjcRun()}else if(ev.target.id==='mqForm'){ev.preventDefault();mqRun()}});
 
 const css=document.createElement('style');css.textContent=`
+.src-busy{height:4px;margin:18px;border-radius:4px;background:var(--line);overflow:hidden;position:relative}.src-busy i{position:absolute;inset:0 auto 0 0;width:35%;border-radius:4px;background:var(--brass,#B9965A);animation:srcBusy 1.1s ease-in-out infinite}@keyframes srcBusy{0%{left:-35%}100%{left:100%}}@media(prefers-reduced-motion:reduce){.src-busy i{animation:none;width:100%;opacity:.5}}
 .src-tabs{display:flex;gap:8px;margin:0 4px 12px;flex-wrap:wrap}
 .src-tab{border:1px solid var(--line);background:var(--panel,#fff);border-radius:12px;padding:10px 16px;cursor:pointer;font:inherit;display:flex;flex-direction:column;gap:2px;align-items:flex-start;color:var(--ink)}
 .src-tab small{color:var(--muted);font-size:12px}.src-tab.on{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 2px var(--accent-soft)}
