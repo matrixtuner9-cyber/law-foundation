@@ -17,7 +17,7 @@ class LawyerAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final v = store.office['photo'];
-    final fallback = Text(_letter, style: MQ.display(size * .48, color: MQ.brassHi));
+    final fallback = Text(_letter, style: MQ.title2(color: MQ.brassHi).copyWith(fontSize: size * .44));
     return Container(
       width: size,
       height: size,

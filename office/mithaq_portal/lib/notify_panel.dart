@@ -35,7 +35,7 @@ class _NotifyPanelState extends State<NotifyPanel> {
                 ok
                     ? 'مفعّلة: يصلك التنبيه حتى والتطبيق مغلق، ما دام الهاتف متصلاً بالإنترنت.'
                     : 'التنبيهات غير مسموحة لهذا التطبيق. اضغط «السماح بالتنبيهات».',
-                style: MQ.body(13.5))),
+                style: MQ.subhead())),
       ]),
       const SizedBox(height: 12),
       if (!ok)
@@ -62,7 +62,7 @@ class _NotifyPanelState extends State<NotifyPanel> {
       ),
       const SizedBox(height: 10),
       Text('إن لم تصلك التنبيهات والتطبيق مغلق: الإعدادات ← التطبيقات ← بوابة ميثاق ← البطارية ← «غير مقيّد».',
-          style: MQ.body(12, color: MQ.muted)),
+          style: MQ.footnote()),
     ]);
   }
 }

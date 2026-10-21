@@ -7,6 +7,7 @@ import 'office_pick.dart';
 import 'push.dart';
 import 'store.dart';
 import 'theme.dart';
+import 'ui.dart';
 import 'util.dart';
 import 'platform/bio_stub.dart' if (dart.library.io) 'platform/bio_io.dart';
 
@@ -71,88 +72,67 @@ class _SettingsPageState extends State<SettingsPage> {
     if (mounted) snack(context, v ? 'سيُطلب منك البصمة عند كل فتح للتطبيق' : 'أُوقف الدخول بالبصمة');
   }
 
-  Widget _field(TextEditingController c, String label, IconData ic, {String? hint, bool enabled = true}) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: TextField(
-          controller: c,
-          enabled: enabled,
-          keyboardType: TextInputType.phone,
-          textDirection: TextDirection.ltr,
-          textAlign: TextAlign.right,
-          style: MQ.mono(16),
-          decoration: InputDecoration(labelText: label, hintText: hint, prefixIcon: Icon(ic, color: MQ.muted)),
-        ),
-      );
-
-  Widget _section(String t, String sub, List<Widget> children) => Padding(
-        padding: const EdgeInsets.only(bottom: 16),
-        child: Panel(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Text(t, style: MQ.display(21)),
-            Text(sub, style: MQ.body(12.5, color: MQ.muted)),
-            const SizedBox(height: 14),
-            ...children,
-          ]),
-        ),
-      );
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('الإعدادات')),
-      body: ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 32), children: [
-        _section('أرقام التواصل', 'يستخدمها المكتب للتواصل معك وإرسال التذكيرات', [
-          _field(phone, 'رقم الهاتف', Icons.phone_outlined, hint: '0599-000-000'),
-          _field(phone2, 'رقم هاتف إضافي (اختياري)', Icons.phone_forwarded_outlined),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            value: waSame,
-            activeColor: MQ.pine,
-            onChanged: (v) => setState(() => waSame = v),
-            title: Text('واتساب على نفس رقم الهاتف', style: MQ.body(14, weight: FontWeight.w600)),
-          ),
-          if (!waSame) _field(wa, 'رقم واتساب', Icons.chat_outlined, hint: '+970 59 000 0000'),
-          const SizedBox(height: 4),
-          FilledButton.icon(
-            onPressed: saving ? null : _save,
-            icon: saving
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: MQ.onGold))
-                : const Icon(Icons.save_outlined),
-            label: const Text('حفظ الأرقام'),
-          ),
-        ]),
-        if (!kIsWeb)
-          _section('الأمان', 'احمِ معلومات قضاياك على هاتفك', [
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              value: bioOn,
-              activeColor: MQ.pine,
-              onChanged: bioOk ? _toggleBio : null,
-              secondary: Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(color: MQ.pineSoft, borderRadius: BorderRadius.circular(12)),
-                child: const Icon(Icons.fingerprint, color: MQ.pine, size: 28),
+      appBar: AppBar(title: Text('الإعدادات', style: MQ.title3())),
+      body: ListView(padding: const EdgeInsets.only(bottom: Sp.xxl), children: [
+        const SectionLabel('أرقام التواصل'),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: Sp.page),
+          child: Panel(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              AppField(label: 'رقم الهاتف', controller: phone, hint: '0599 000 000', icon: Icons.phone_outlined, keyboardType: TextInputType.phone, ltr: true, mono: true, textAlign: TextAlign.left, helper: 'يستخدمه المكتب للتواصل وإرسال التذكيرات'),
+              const SizedBox(height: Sp.l),
+              AppField(label: 'رقم هاتف إضافي (اختياري)', controller: phone2, icon: Icons.phone_forwarded_outlined, keyboardType: TextInputType.phone, ltr: true, mono: true, textAlign: TextAlign.left),
+              const SizedBox(height: Sp.s),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                value: waSame,
+                onChanged: (v) => setState(() => waSame = v),
+                title: Text('واتساب على نفس رقم الهاتف', style: MQ.callout(weight: FontWeight.w600)),
               ),
-              title: Text('الدخول بالبصمة', style: MQ.body(15, weight: FontWeight.w700)),
-              subtitle: Text(bioOk ? 'يُطلب البصمة أو رمز قفل الهاتف عند فتح التطبيق' : 'هذا الهاتف لا يدعم البصمة أو قفل الشاشة',
-                  style: MQ.body(12.5, color: MQ.muted)),
+              if (!waSame) ...[
+                AppField(label: 'رقم واتساب', controller: wa, hint: '+970 59 000 0000', icon: Icons.chat_outlined, keyboardType: TextInputType.phone, ltr: true, mono: true, textAlign: TextAlign.left),
+                const SizedBox(height: Sp.l),
+              ],
+              FilledButton.icon(
+                onPressed: saving ? null : _save,
+                icon: saving
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: MQ.onGold))
+                    : const Icon(Icons.save_outlined),
+                label: const Text('حفظ الأرقام'),
+              ),
+            ]),
+          ),
+        ),
+        if (!kIsWeb) ...[
+          const SectionLabel('الأمان'),
+          Group(footer: bioOk ? null : 'هذا الهاتف لا يدعم البصمة أو قفل الشاشة', children: [
+            SwitchListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: Sp.l, vertical: 4),
+              value: bioOn,
+              onChanged: bioOk ? _toggleBio : null,
+              secondary: const IconTile(Icons.fingerprint, size: 40),
+              title: Text('الدخول بالبصمة', style: MQ.callout(weight: FontWeight.w600)),
+              subtitle: Text('يُطلب عند فتح التطبيق', style: MQ.footnote()),
             ),
           ]),
-        _section('الإشعارات', 'تنبيه بصوت ونص عند رسائل المحامي', [
-          if (kIsWeb || defaultTargetPlatform == TargetPlatform.iOS)
-            const PushPrompt(compact: true)
-          else
-            const NotifyPanel(),
-        ]),
-        if (!kIsWeb)
-          _section('مكتبك', 'المكتب الذي يتصل به التطبيق. لتغييره سجّل الخروج ثم اختر «تغيير» في شاشة الدخول.', [
+        ],
+        const SectionLabel('الإشعارات'),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: Sp.page),
+          child: (kIsWeb || defaultTargetPlatform == TargetPlatform.iOS) ? const PushPrompt(compact: true) : const Panel(child: NotifyPanel()),
+        ),
+        if (!kIsWeb) ...[
+          const SectionLabel('مكتبك'),
+          Group(footer: 'لتغيير المكتب سجّل الخروج ثم اختر «تغيير» في شاشة الدخول.', children: [
             FutureBuilder<String>(
                 future: OfficePick.savedName(),
-                builder: (_, s) => Text(s.data?.isNotEmpty == true ? s.data! : '${store.office['name'] ?? ''}', style: MQ.body(15, weight: FontWeight.w700))),
-            const SizedBox(height: 4),
-            SelectableText(Api.base, style: MQ.mono(13, color: MQ.muted), textDirection: TextDirection.ltr),
+                builder: (_, s) => InfoRow(icon: Icons.apartment_outlined, label: 'المكتب', value: s.data?.isNotEmpty == true ? s.data! : '${store.office['name'] ?? ''}')),
+            InfoRow(icon: Icons.link_rounded, label: 'العنوان', value: Api.base, mono: true),
           ]),
+        ],
       ]),
     );
   }
@@ -194,8 +174,8 @@ class _LockScreenState extends State<LockScreen> {
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 const Seal(size: 76),
                 const SizedBox(height: 16),
-                Text('بوابة الموكل', style: MQ.display(30, color: Colors.white)),
-                Text(store.firstName, style: MQ.body(15, color: MQ.soft)),
+                Text('بوابة الموكل', style: MQ.title1(color: Colors.white)),
+                Text(store.firstName, style: MQ.callout(color: MQ.soft)),
                 const SizedBox(height: 36),
                 InkWell(
                   customBorder: const CircleBorder(),
@@ -213,11 +193,11 @@ class _LockScreenState extends State<LockScreen> {
                   ),
                 ),
                 const SizedBox(height: 14),
-                Text('المس للدخول بالبصمة', style: MQ.body(14, color: Colors.white)),
+                Text('المس للدخول بالبصمة', style: MQ.subhead(color: Colors.white)),
                 const SizedBox(height: 30),
                 TextButton(
                     onPressed: widget.onLogout,
-                    child: Text('الدخول بحساب آخر', style: MQ.body(13, color: MQ.soft))),
+                    child: Text('الدخول بحساب آخر', style: MQ.footnote(color: MQ.soft))),
               ]),
             ),
           ),

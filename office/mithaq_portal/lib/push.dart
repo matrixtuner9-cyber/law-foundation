@@ -78,8 +78,8 @@ class _PushPromptState extends State<PushPrompt> {
         const SizedBox(width: 12),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title, style: MQ.body(14.5, weight: FontWeight.w700, height: 1.35)),
-            Text(sub, style: MQ.body(12.5, color: MQ.muted, height: 1.45)),
+            Text(title, style: MQ.callout(weight: FontWeight.w700)),
+            Text(sub, style: MQ.footnote()),
           ]),
         ),
         if (status == 'default') ...[

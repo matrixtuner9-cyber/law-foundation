@@ -8,9 +8,9 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api.dart';
 import 'office_pick.dart';
+import 'ui.dart';
 import 'push.dart' show pushResume;
 import 'store.dart';
-import 'login_scene.dart';
 import 'theme.dart';
 import 'util.dart';
 import 'home.dart';
@@ -42,7 +42,12 @@ class MithaqPortal extends StatelessWidget {
           GlobalCupertinoLocalizations.delegate,
         ],
         // خلفية الرخام العاجي تحت كل الشاشات
-        builder: (context, child) => DecoratedBox(decoration: MQ.stone(), child: child ?? const SizedBox()),
+        // تكبير النص من إعدادات الهاتف محترم، ضمن حدود تحفظ تخطيط الشاشات (90%–130%)
+        builder: (context, child) {
+          final mq = MediaQuery.of(context);
+          return MediaQuery(
+              data: mq.copyWith(textScaler: mq.textScaler.clamp(minScaleFactor: .9, maxScaleFactor: 1.3)), child: child ?? const SizedBox());
+        },
         home: const Gate(),
       );
 }
@@ -172,8 +177,7 @@ class _Splash extends StatelessWidget {
   const _Splash();
   @override
   Widget build(BuildContext context) => const Scaffold(
-        backgroundColor: MQ.forest,
-        body: Center(child: Seal(size: 84)),
+        body: Center(child: Seal(size: 72, filled: true)),
       );
 }
 
@@ -311,12 +315,16 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   Widget _err() => AnimatedSize(
         duration: const Duration(milliseconds: 200),
         child: error == null
-            ? const SizedBox(height: 14)
+            ? const SizedBox(height: Sp.l)
             : Container(
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: MQ.dangerSoft, borderRadius: BorderRadius.circular(12)),
-                child: Text(error!, style: MQ.body(13, color: MQ.danger)),
+                margin: const EdgeInsets.symmetric(vertical: Sp.m),
+                padding: const EdgeInsets.all(Sp.m),
+                decoration: BoxDecoration(color: MQ.dangerSoft, borderRadius: BorderRadius.circular(R.control)),
+                child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  const Icon(Icons.error_outline_rounded, color: MQ.danger, size: 20),
+                  const SizedBox(width: Sp.s),
+                  Expanded(child: Text(error!, style: MQ.subhead(color: MQ.danger))),
+                ]),
               ),
       );
 
@@ -325,142 +333,102 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
       : Text(t);
 
   List<Widget> _officeStep() => [
-        Text('مكتب المحاماة', style: MQ.body(13, color: MQ.muted, weight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        TextField(
+        AppField(
+          label: 'رمز المكتب أو رابط الدعوة',
           controller: officeCtrl,
-          textAlign: TextAlign.center,
-          textDirection: TextDirection.ltr,
+          hint: 'مثال: demo',
+          helper: 'تجده في رسالة الدعوة التي أرسلها لك مكتب المحاماة.',
           keyboardType: TextInputType.url,
-          autocorrect: false,
-          style: MQ.mono(18),
-          decoration: const InputDecoration(hintText: 'رمز المكتب أو رابط الدعوة'),
+          ltr: true,
+          textInputAction: TextInputAction.go,
           onSubmitted: _pickOffice,
         ),
         _err(),
         FilledButton(onPressed: busy ? null : () => _pickOffice(officeCtrl.text), child: _btnChild('متابعة')),
-        const SizedBox(height: 10),
+        const SizedBox(height: Sp.m),
         OutlinedButton.icon(
           onPressed: busy ? null : _paste,
-          icon: const Icon(Icons.content_paste_rounded, size: 18),
-          label: const Text('لصق رابط الدعوة من رسالة المكتب'),
+          icon: const Icon(Icons.content_paste_rounded, size: 20),
+          label: const Text('لصق رابط الدعوة'),
         ),
-        const SizedBox(height: 12),
-        Text('أسهل طريقة: افتح رابط الدعوة الذي أرسله لك المكتب عبر واتساب، أو امسح رمز QR بكاميرا الآيفون، فيُفتح التطبيق ويُسجَّل دخولك تلقائياً.',
-            textAlign: TextAlign.center, style: MQ.body(12, color: MQ.muted)),
+        const SizedBox(height: Sp.l),
+        _hint(Icons.link_rounded, 'الأسهل: افتح رابط الدعوة من رسالة المكتب، أو امسح رمز QR بكاميرا الهاتف، فيُفتح التطبيق ويُسجَّل دخولك تلقائياً.'),
       ];
 
   List<Widget> _codeStep() => [
-        if (!kIsWeb)
+        if (!kIsWeb) ...[
           Container(
-            margin: const EdgeInsets.only(bottom: 14),
-            padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
-            decoration: BoxDecoration(color: MQ.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: MQ.line)),
+            padding: const EdgeInsets.fromLTRB(Sp.m, Sp.s, Sp.xs, Sp.s),
+            decoration: BoxDecoration(color: MQ.surface, borderRadius: BorderRadius.circular(R.control), border: Border.all(color: MQ.line)),
             child: Row(children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(color: MQ.forest, borderRadius: BorderRadius.circular(11)),
-                child: const Icon(Icons.account_balance_rounded, size: 20, color: MQ.brassHi),
-              ),
-              const SizedBox(width: 10),
+              const IconTile(Icons.account_balance_rounded, size: 40),
+              const SizedBox(width: Sp.m),
               Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('مكتب المحاماة', style: MQ.body(11.5, color: MQ.muted, height: 1.3)),
+                Text('مكتب المحاماة', style: MQ.caption()),
                 Text(officeName.isEmpty ? Api.base.replaceFirst(RegExp(r'^https?://'), '') : officeName,
-                    style: MQ.body(14, weight: FontWeight.w700, height: 1.35), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    style: MQ.callout(weight: FontWeight.w600), maxLines: 2, overflow: TextOverflow.ellipsis),
               ])),
-              TextButton(onPressed: busy ? null : _changeOffice, child: Text('تغيير', style: MQ.body(13, color: MQ.brass, weight: FontWeight.w700))),
+              TextButton(onPressed: busy ? null : _changeOffice, child: const Text('تغيير')),
             ]),
           ),
-        Text('رمز الدخول', style: MQ.body(13, color: MQ.muted, weight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        TextField(
+          const SizedBox(height: Sp.l),
+        ],
+        AppField(
+          label: 'رمز الدخول',
           controller: ctrl,
+          hint: 'MQ-XXXXXXXXXX',
+          helper: 'يصلك من المكتب عند تفعيل حسابك في البوابة.',
+          mono: true,
+          big: true,
+          ltr: true,
           textAlign: TextAlign.center,
-          textDirection: TextDirection.ltr,
-          textCapitalization: TextCapitalization.characters,
-          autocorrect: false,
-          style: MQ.mono(24, spacing: 3),
-          decoration: InputDecoration(
-              hintText: 'MQ-XXXXXXXXXX',
-              fillColor: MQ.surface,
-              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: MQ.forest, width: 1.4))),
+          textInputAction: TextInputAction.done,
           onSubmitted: (_) => _go(),
         ),
         _err(),
         FilledButton(onPressed: busy ? null : _go, child: _btnChild('دخول')),
-        const SizedBox(height: 12),
-        Text('يصلك الرمز من المكتب عند تفعيل حسابك في البوابة.', textAlign: TextAlign.center, style: MQ.body(12, color: MQ.muted)),
       ];
+
+  Widget _hint(IconData ic, String t) => Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(ic, size: 18, color: MQ.muted),
+        const SizedBox(width: Sp.s),
+        Expanded(child: Text(t, style: MQ.footnote())),
+      ]);
 
   @override
   Widget build(BuildContext context) {
-    final bottom = MediaQuery.of(context).padding.bottom;
-    return Scaffold(
-      backgroundColor: MQ.forest,
-      resizeToAvoidBottomInset: true,
-      body: DecoratedBox(
-        decoration: MQ.stone(navy: true, border: false),
-        child: LayoutBuilder(
-          builder: (context, box) => SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: BoxConstraints(minHeight: box.maxHeight),
-              child: IntrinsicHeight(
-                child: Column(children: [
-                  // الهوية: الميزان واسم البوابة على الرخام الكحلي
-                  Expanded(
-                    child: SafeArea(
-                      bottom: false,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(28, 28, 28, 24),
-                        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                          Container(
-                            width: 112,
-                            height: 112,
-                            decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: MQ.gold, width: 1.5)),
-                            alignment: Alignment.center,
-                            child: const ScalesOfJustice(size: 88),
-                          ),
-                          const SizedBox(height: 16),
-                          Text('ميثاق', style: MQ.body(12.5, color: MQ.brassHi, weight: FontWeight.w700).copyWith(letterSpacing: 3)),
-                          Text('بوابة الموكل', style: MQ.display(42, color: MQ.ivory)),
-                          const SizedBox(height: 4),
-                          Text(kIsWeb ? 'مكتب الميثاق للمحاماة والاستشارات القانونية' : (officeName.isNotEmpty ? officeName : 'تابع قضيتك وراسل محاميك بسرّية تامة'),
-                              textAlign: TextAlign.center, style: MQ.body(14, color: MQ.soft, height: 1.7)),
-                        ]),
-                      ),
-                    ),
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        body: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(Sp.xl, Sp.xl, Sp.xl, Sp.xl),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 420),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                  const Center(child: Seal(size: 72, filled: true)),
+                  const SizedBox(height: Sp.l),
+                  Text('بوابة الموكل', textAlign: TextAlign.center, style: MQ.largeTitle()),
+                  const SizedBox(height: Sp.xs),
+                  Text(kIsWeb ? 'مكتب الميثاق للمحاماة والاستشارات القانونية' : (officeName.isNotEmpty ? officeName : 'تابع قضيتك وراسل محاميك بأمان'),
+                      textAlign: TextAlign.center, style: MQ.callout(color: MQ.muted)),
+                  const SizedBox(height: Sp.xl),
+                  if (!kIsWeb) ...[
+                    _Steps(step: _pickStep ? 0 : 1),
+                    const SizedBox(height: Sp.l),
+                  ],
+                  Panel(
+                    padding: const EdgeInsets.all(Sp.l + 4),
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: _pickStep ? _officeStep() : _codeStep()),
                   ),
-                  // بطاقة الدخول على الرخام العاجي
-                  Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.fromLTRB(22, 26, 22, 22 + bottom),
-                    decoration: MQ.stone().copyWith(
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-                      boxShadow: const [BoxShadow(color: Color(0x59000000), blurRadius: 40, offset: Offset(0, -12))],
-                    ),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 440),
-                        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                          Row(children: [
-                            Text(_pickStep ? 'اختر مكتبك' : 'تسجيل الدخول', style: MQ.body(18, weight: FontWeight.w700)),
-                            const Spacer(),
-                            if (!kIsWeb) Text(_pickStep ? 'الخطوة 1 من 2' : 'الخطوة 2 من 2', style: MQ.body(12, color: MQ.muted)),
-                          ]),
-                          const SizedBox(height: 14),
-                          ...(_pickStep ? _officeStep() : _codeStep()),
-                          const SizedBox(height: 14),
-                          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                            const Icon(Icons.lock_outline_rounded, size: 14, color: MQ.muted),
-                            const SizedBox(width: 6),
-                            Text('اتصال مشفّر · بياناتك لدى مكتبك فقط', style: MQ.body(11.5, color: MQ.muted)),
-                          ]),
-                        ]),
-                      ),
-                    ),
-                  ),
+                  const SizedBox(height: Sp.l),
+                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    const Icon(Icons.lock_outline_rounded, size: 16, color: MQ.muted),
+                    const SizedBox(width: 6),
+                    Flexible(child: Text('اتصال مشفّر · بياناتك لدى مكتبك فقط', style: MQ.footnote())),
+                  ]),
                 ]),
               ),
             ),
@@ -468,6 +436,35 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         ),
       ),
     );
+  }
+}
+
+/// مؤشّر خطوتي الدخول
+class _Steps extends StatelessWidget {
+  const _Steps({required this.step});
+  final int step;
+  @override
+  Widget build(BuildContext context) {
+    Widget dot(int i, String t) {
+      final done = i < step, on = i == step;
+      return Expanded(
+        child: Row(children: [
+          Container(
+            width: 26,
+            height: 26,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(shape: BoxShape.circle, color: on || done ? MQ.forest : MQ.surface, border: Border.all(color: on || done ? MQ.forest : MQ.line)),
+            child: done
+                ? const Icon(Icons.check_rounded, size: 16, color: MQ.onGold)
+                : Text('${i + 1}', style: MQ.caption(color: on ? MQ.onGold : MQ.muted, weight: FontWeight.w700)),
+          ),
+          const SizedBox(width: Sp.s),
+          Flexible(child: Text(t, style: MQ.subhead(color: on ? MQ.ink : MQ.muted, weight: on ? FontWeight.w600 : FontWeight.w400))),
+        ]),
+      );
+    }
+
+    return Row(children: [dot(0, 'المكتب'), const SizedBox(width: Sp.s), dot(1, 'رمز الدخول')]);
   }
 }
 
@@ -573,7 +570,7 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
   }
 }
 
-/// شريط الأدوات السفلي: رخام كحلي بإطار ذهبي، والتبويب المختار ذهبي لامع
+/// شريط التنقل السفلي: كحلي، والتبويب المختار ذهبي لامع (ارتفاع 64 وأهداف لمس كاملة)
 class GoldNavBar extends StatelessWidget {
   const GoldNavBar({super.key, required this.index, required this.onTap, this.unread = 0});
   final int index;
@@ -589,11 +586,11 @@ class GoldNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bottom = MediaQuery.of(context).padding.bottom;
-    return Padding(
-      padding: EdgeInsets.fromLTRB(12, 6, 12, bottom > 0 ? bottom : 12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
-        decoration: MQ.stone(navy: true, radius: 26),
+    return Container(
+      decoration: const BoxDecoration(color: MQ.forest, border: Border(top: BorderSide(color: Color(0x66C9A55A)))),
+      padding: EdgeInsets.fromLTRB(Sp.s, 6, Sp.s, bottom > 0 ? bottom : 6),
+      child: SizedBox(
+        height: 60,
         child: Row(children: [
           for (final (i, it) in _items.indexed)
             Expanded(
@@ -601,32 +598,30 @@ class GoldNavBar extends StatelessWidget {
                 button: true,
                 selected: i == index,
                 label: it.$3,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
+                child: InkResponse(
                   onTap: () => onTap(i),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 220),
-                    padding: const EdgeInsets.symmetric(vertical: 7),
-                    decoration: i == index
-                        ? BoxDecoration(
-                            gradient: MQ.shine,
-                            borderRadius: BorderRadius.circular(18),
-                            boxShadow: const [BoxShadow(color: Color(0x73D9B45E), blurRadius: 12, offset: Offset(0, 2))])
-                        : null,
-                    child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      Badge(
+                  radius: 36,
+                  child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      width: 58,
+                      height: 30,
+                      decoration: i == index
+                          ? BoxDecoration(gradient: MQ.shine, borderRadius: BorderRadius.circular(R.pill), boxShadow: const [BoxShadow(color: Color(0x59D9B45E), blurRadius: 10, offset: Offset(0, 2))])
+                          : null,
+                      child: Badge(
                         isLabelVisible: i == 2 && unread > 0,
                         label: Text('$unread'),
-                        backgroundColor: const Color(0xFFB4232A),
-                        child: Icon(i == index ? it.$2 : it.$1, size: 24, color: i == index ? const Color(0xFF1A1406) : MQ.brassHi),
+                        backgroundColor: MQ.danger,
+                        child: Icon(i == index ? it.$2 : it.$1, size: 22, color: i == index ? const Color(0xFF1A1406) : MQ.brassHi),
                       ),
-                      const SizedBox(height: 3),
-                      Text(it.$3,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: MQ.body(11, height: 1.2, weight: i == index ? FontWeight.w800 : FontWeight.w600, color: i == index ? const Color(0xFF1A1406) : MQ.brassHi)),
-                    ]),
-                  ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(it.$3,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: MQ.caption(color: i == index ? MQ.onGold : MQ.soft, weight: i == index ? FontWeight.w700 : FontWeight.w500)),
+                  ]),
                 ),
               ),
             ),

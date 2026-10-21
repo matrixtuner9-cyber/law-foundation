@@ -15,16 +15,16 @@ class Attach {
     final src = await showModalBottomSheet<AttachSource>(
       context: context,
       showDragHandle: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(R.sheet))),
       builder: (c) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
           child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('إرفاق وثيقة', style: MQ.display(26)),
-            Text('يصل المرفق إلى المحامي فوراً ويُحفظ في ملفك لدى المكتب.', style: MQ.body(13, color: MQ.muted)),
+            Text('إرفاق وثيقة', style: MQ.title2()),
+            Text('يصل المرفق إلى المحامي فوراً ويُحفظ في ملفك لدى المكتب.', style: MQ.footnote()),
             const SizedBox(height: 18),
             Row(children: [
-              _opt(c, AttachSource.camera, Icons.photo_camera_outlined, 'الكاميرا', 'صوّر الوثيقة الآن', MQ.pine),
+              _opt(c, AttachSource.camera, Icons.photo_camera_outlined, 'الكاميرا', 'صوّر الوثيقة الآن', MQ.forest),
               const SizedBox(width: 10),
               _opt(c, AttachSource.gallery, Icons.photo_library_outlined, 'المعرض', 'صورة محفوظة', MQ.brass),
               const SizedBox(width: 10),
@@ -53,8 +53,8 @@ class Attach {
                     decoration: BoxDecoration(color: col, shape: BoxShape.circle),
                     child: Icon(ic, color: MQ.onGold, size: 26)),
                 const SizedBox(height: 10),
-                Text(t, style: MQ.body(14, weight: FontWeight.w700)),
-                Text(sub, textAlign: TextAlign.center, style: MQ.body(11, color: MQ.muted, height: 1.3)),
+                Text(t, style: MQ.subhead(weight: FontWeight.w700)),
+                Text(sub, textAlign: TextAlign.center, style: MQ.caption()),
               ]),
             ),
           ),
@@ -112,14 +112,14 @@ class Attach {
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(R.sheet))),
       builder: (c) => Padding(
         padding: EdgeInsets.only(bottom: MediaQuery.of(c).viewInsets.bottom),
         child: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
             child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Text('إرسال إلى المحامي', style: MQ.display(24)),
+              Text('إرسال إلى المحامي', style: MQ.title2()),
               const SizedBox(height: 12),
               if (image)
                 ClipRRect(

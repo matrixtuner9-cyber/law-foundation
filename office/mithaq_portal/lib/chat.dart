@@ -205,7 +205,7 @@ class ChatTabState extends State<ChatTab> {
         IconButton(
           tooltip: 'إرفاق وثيقة',
           onPressed: () => Attach.sheet(context),
-          icon: const Icon(Icons.note_add_outlined, color: MQ.pine),
+          icon: const Icon(Icons.note_add_outlined, color: MQ.forest),
         ),
       ]),
     ));
@@ -218,12 +218,12 @@ class ChatTabState extends State<ChatTab> {
             Container(
                 width: 76,
                 height: 76,
-                decoration: const BoxDecoration(color: MQ.pineSoft, shape: BoxShape.circle),
-                child: const Icon(Icons.forum_outlined, color: MQ.pine, size: 36)),
+                decoration: const BoxDecoration(color: MQ.forestSoft, shape: BoxShape.circle),
+                child: const Icon(Icons.forum_outlined, color: MQ.forest, size: 36)),
             const SizedBox(height: 14),
-            Text('ابدأ محادثتك مع المحامي', style: MQ.display(22)),
+            Text('ابدأ محادثتك مع المحامي', style: MQ.title2()),
             Text('اكتب رسالة، أو سجّل رسالة صوتية، أو أرفق صورة وثيقة.',
-                textAlign: TextAlign.center, style: MQ.body(13.5, color: MQ.muted)),
+                textAlign: TextAlign.center, style: MQ.body(14, color: MQ.muted)),
           ]),
         ),
       );
@@ -261,11 +261,11 @@ class ChatTabState extends State<ChatTab> {
                     hintText: 'اكتب رسالتك…',
                     fillColor: MQ.ivory,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
-                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(26), borderSide: BorderSide.none),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(R.pill), borderSide: BorderSide.none),
                     enabledBorder:
-                        OutlineInputBorder(borderRadius: BorderRadius.circular(26), borderSide: BorderSide.none),
+                        OutlineInputBorder(borderRadius: BorderRadius.circular(R.pill), borderSide: BorderSide.none),
                     focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(26), borderSide: const BorderSide(color: MQ.pine)),
+                        borderRadius: BorderRadius.circular(R.pill), borderSide: const BorderSide(color: MQ.forest)),
                   ),
                 ),
               ),
@@ -290,7 +290,7 @@ class ChatTabState extends State<ChatTab> {
         ),
       );
 
-  Widget _roundBtn({Key? key, required IconData icon, required String tooltip, required VoidCallback onTap, Color color = MQ.pine}) =>
+  Widget _roundBtn({Key? key, required IconData icon, required String tooltip, required VoidCallback onTap, Color color = MQ.forest}) =>
       Tooltip(
         key: key,
         message: tooltip,
@@ -387,7 +387,7 @@ class _DaySep extends StatelessWidget {
           margin: const EdgeInsets.symmetric(vertical: 10),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
           decoration: BoxDecoration(color: MQ.surface, borderRadius: BorderRadius.circular(99), border: Border.all(color: MQ.line)),
-          child: Text(label, style: MQ.body(11.5, color: MQ.muted)),
+          child: Text(label, style: MQ.body(12, color: MQ.muted)),
         ),
       );
 }
@@ -424,7 +424,7 @@ class Bubble extends StatelessWidget {
               ),
             ),
           ),
-          if (m.text.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text(m.text, style: MQ.body(14.5, color: fg))),
+          if (m.text.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text(m.text, style: MQ.body(15, color: fg))),
         ]);
       case 'file':
         content = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -433,7 +433,7 @@ class Bubble extends StatelessWidget {
             onTap: m.file == null ? null : () => launchUrl(Uri.parse(Api.url(m.file!)), webOnlyWindowName: '_blank'),
             child: FileTile(name: m.name ?? 'مستند', size: m.size, dark: mine),
           ),
-          if (m.text.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text(m.text, style: MQ.body(14.5, color: fg))),
+          if (m.text.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 6), child: Text(m.text, style: MQ.body(15, color: fg))),
         ]);
       case 'notice':
         return Align(
@@ -451,7 +451,7 @@ class Bubble extends StatelessWidget {
               Row(mainAxisSize: MainAxisSize.min, children: [
                 const Icon(Icons.notifications_active, size: 17, color: MQ.brass),
                 const SizedBox(width: 6),
-                Text('إشعار من المكتب', style: MQ.body(12.5, color: MQ.brass, weight: FontWeight.w700)),
+                Text('إشعار من المكتب', style: MQ.body(13, color: MQ.brass, weight: FontWeight.w700)),
               ]),
               const SizedBox(height: 4),
               SelectableText(m.text, style: MQ.body(15, height: 1.6)),
@@ -496,7 +496,7 @@ class Bubble extends StatelessWidget {
                     onTap: () => store.retry(m),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
                       const Icon(Icons.error_outline, size: 14, color: MQ.brassHi),
-                      Text(' لم تُرسل · إعادة', style: MQ.body(11, color: MQ.brassHi, weight: FontWeight.w700)),
+                      Text(' لم تُرسل · إعادة', style: MQ.body(12, color: MQ.brassHi, weight: FontWeight.w700)),
                     ]),
                   )
                 else if (m.pending)
@@ -602,14 +602,14 @@ class _VoiceBubbleState extends State<VoiceBubble> {
   Widget build(BuildContext context) {
     final durSecs = total.inMilliseconds > 0 ? total.inMilliseconds / 1000 : widget.m.dur.toDouble();
     final frac = durSecs > 0 ? (pos.inMilliseconds / 1000 / durSecs).clamp(0.0, 1.0) : 0.0;
-    final on = widget.mine ? MQ.brassHi : MQ.pine;
-    final off = widget.mine ? Colors.white38 : MQ.pine.withValues(alpha: .25);
+    final on = widget.mine ? MQ.brassHi : MQ.forest;
+    final off = widget.mine ? Colors.white38 : MQ.forest.withValues(alpha: .25);
     final rtl = Directionality.of(context) == TextDirection.rtl;
     return SizedBox(
       width: 236,
       child: Row(children: [
         Material(
-          color: widget.mine ? MQ.gold : MQ.pine,
+          color: widget.mine ? MQ.gold : MQ.forest,
           shape: const CircleBorder(),
           child: InkWell(
             customBorder: const CircleBorder(),
