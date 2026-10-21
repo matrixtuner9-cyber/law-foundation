@@ -15,20 +15,20 @@ class MQ {
   static const pineSoft = Color(0xFFE8E9EA);
   static const onGold = Color(0xFFF9F6EF); // النص فوق اللون الأساسي
   // الذهبي والبرونزي
-  static const gold = Color(0xFFB9965A);
+  static const gold = Color(0xFFC9A55A);
   static const goldLo = Color(0xFF8B6F3D);
-  static const brass = Color(0xFF8B6F3D); // bronze: نص ذهبي مقروء على العاجي
-  static const brassHi = Color(0xFFB9965A); // ذهبي على الخلفيات الكحلية
-  static const brassSoft = Color(0xFFF1E8D7);
+  static const brass = Color(0xFF7A5F2F); // bronze: نص ذهبي مقروء على العاجي
+  static const brassHi = Color(0xFFE3C98E); // ذهبي على الخلفيات الكحلية
+  static const brassSoft = Color(0xFFF7ECD8);
   // الأسطح والنصوص
-  static const ivory = Color(0xFFF9F6EF); // خلفية التطبيق
-  static const surface = Color(0xFFFFFDF8); // البطاقات
-  static const surfaceAlt = Color(0xFFF4EEE3); // الحقول
-  static const sunk = Color(0xFFF1E9DB); // شارات داخل البطاقات
+  static const ivory = Color(0xFFF6F2EA); // خلفية التطبيق (تحت الرخام)
+  static const surface = Color(0xFFFFFFFF); // البطاقات
+  static const surfaceAlt = Color(0xFFF9F6EF); // الحقول
+  static const sunk = Color(0xFFF3ECDF); // شارات داخل البطاقات
   static const ink = Color(0xFF111B27);
-  static const muted = Color(0xFF6B7280);
-  static const soft = Color(0xFFBEC3C9); // نص ثانوي فوق الكحلي
-  static const line = Color(0xFFEADCC6); // beige
+  static const muted = Color(0xFF5C6470);
+  static const soft = Color(0xFFB7BFCB); // نص ثانوي فوق الكحلي
+  static const line = Color(0xFFE8DDC9); // beige
   static const mine = Color(0xFF1F2D3D); // فقاعة الموكل
   // الحالات
   static const mint = Color(0xFF3FA57C);
@@ -43,11 +43,29 @@ class MQ {
   static const goldGradient = LinearGradient(begin: Alignment.centerRight, end: Alignment.centerLeft, colors: [gold, goldLo]);
   static const navyGradient = LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [navy2, forest]);
 
-  static const bodyFont = 'Cairo';
+  /// الذهبي اللامع (شريط الأدوات والعناصر المختارة)
+  static const shine = LinearGradient(
+      begin: Alignment.topRight,
+      end: Alignment.bottomLeft,
+      colors: [Color(0xFF8A6420), Color(0xFFD9B45E), Color(0xFFFFF0BF), Color(0xFFD3A94F), Color(0xFF9A7226)],
+      stops: [0, .28, .5, .72, 1]);
 
-  /// العناوين بخط Cairo العريض كما في واجهة المحامي (المقاسات معايرة على العناوين السابقة)
-  static TextStyle display(double size, {Color color = ink, FontWeight weight = FontWeight.w800}) =>
-      GoogleFonts.getFont('Cairo', fontSize: size * .84, fontWeight: weight, color: color, height: 1.4);
+  /// خلفيات الرخام: عاجي بعروق ذهبية للصفحات، وكحلي بعروق ذهبية للأسطح الداكنة
+  static const marbleIvory = AssetImage('assets/images/marble-ivory.jpg');
+  static const marbleNavy = AssetImage('assets/images/marble-navy.jpg');
+  static BoxDecoration stone({bool navy = false, double radius = 0, bool border = true}) => BoxDecoration(
+        color: navy ? forest : ivory,
+        image: DecorationImage(image: navy ? marbleNavy : marbleIvory, fit: BoxFit.cover),
+        borderRadius: radius > 0 ? BorderRadius.circular(radius) : null,
+        border: border && navy ? Border.all(color: gold.withValues(alpha: .45)) : null,
+        boxShadow: navy && radius > 0 ? const [BoxShadow(color: Color(0x470B1B2B), blurRadius: 30, offset: Offset(0, 14))] : null,
+      );
+
+  static const bodyFont = 'IBM Plex Sans Arabic';
+
+  /// العناوين والأسماء بخط «أميري» المحرف (هيبة الوثيقة القانونية)، والواجهة بخط IBM Plex Sans Arabic
+  static TextStyle display(double size, {Color color = ink, FontWeight weight = FontWeight.w700}) =>
+      GoogleFonts.getFont('Amiri', fontSize: size * .95, fontWeight: weight == FontWeight.w800 ? FontWeight.w700 : weight, color: color, height: 1.3);
   static TextStyle body(double size, {Color color = ink, FontWeight weight = FontWeight.w400, double height = 1.55}) =>
       GoogleFonts.getFont(bodyFont, fontSize: size, fontWeight: weight, color: color, height: height);
   static TextStyle mono(double size, {Color color = ink, FontWeight weight = FontWeight.w500, double spacing = 0}) =>
@@ -72,13 +90,13 @@ class MQ {
       outlineVariant: line,
       error: danger,
     );
-    final base = ThemeData(useMaterial3: true, brightness: Brightness.light, colorScheme: scheme, scaffoldBackgroundColor: ivory);
+    final base = ThemeData(useMaterial3: true, brightness: Brightness.light, colorScheme: scheme, scaffoldBackgroundColor: Colors.transparent);
     OutlineInputBorder border(Color c, [double w = 1]) =>
         OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: c, width: w));
     return base.copyWith(
       textTheme: base.textTheme.apply(fontFamily: GoogleFonts.getFont(bodyFont).fontFamily, bodyColor: ink, displayColor: ink),
       appBarTheme: AppBarTheme(
-          backgroundColor: ivory, surfaceTintColor: Colors.transparent, elevation: 0, foregroundColor: ink,
+          backgroundColor: Colors.transparent, surfaceTintColor: Colors.transparent, elevation: 0, scrolledUnderElevation: 0, foregroundColor: ink,
           systemOverlayStyle: SystemUiOverlayStyle.dark,
           centerTitle: false, titleTextStyle: display(26, color: forest)),
       // شريط التنقل كحلي بلمسة ذهبية مثل الشريط الجانبي في واجهة المحامي

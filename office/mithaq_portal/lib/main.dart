@@ -41,6 +41,8 @@ class MithaqPortal extends StatelessWidget {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
+        // خلفية الرخام العاجي تحت كل الشاشات
+        builder: (context, child) => DecoratedBox(decoration: MQ.stone(), child: child ?? const SizedBox()),
         home: const Gate(),
       );
 }
@@ -352,15 +354,23 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         if (!kIsWeb)
           Container(
             margin: const EdgeInsets.only(bottom: 14),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(color: MQ.sunk, borderRadius: BorderRadius.circular(12)),
+            padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
+            decoration: BoxDecoration(color: MQ.surface, borderRadius: BorderRadius.circular(16), border: Border.all(color: MQ.line)),
             child: Row(children: [
-              const Icon(Icons.account_balance_rounded, size: 20, color: MQ.brass),
-              const SizedBox(width: 8),
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(color: MQ.forest, borderRadius: BorderRadius.circular(11)),
+                child: const Icon(Icons.account_balance_rounded, size: 20, color: MQ.brassHi),
+              ),
+              const SizedBox(width: 10),
               Expanded(
-                  child: Text(officeName.isEmpty ? Api.base.replaceFirst(RegExp(r'^https?://'), '') : officeName,
-                      style: MQ.body(13.5, weight: FontWeight.w700), overflow: TextOverflow.ellipsis)),
-              TextButton(onPressed: busy ? null : _changeOffice, child: const Text('تغيير')),
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('مكتب المحاماة', style: MQ.body(11.5, color: MQ.muted, height: 1.3)),
+                Text(officeName.isEmpty ? Api.base.replaceFirst(RegExp(r'^https?://'), '') : officeName,
+                    style: MQ.body(14, weight: FontWeight.w700, height: 1.35), maxLines: 2, overflow: TextOverflow.ellipsis),
+              ])),
+              TextButton(onPressed: busy ? null : _changeOffice, child: Text('تغيير', style: MQ.body(13, color: MQ.brass, weight: FontWeight.w700))),
             ]),
           ),
         Text('رمز الدخول', style: MQ.body(13, color: MQ.muted, weight: FontWeight.w600)),
@@ -372,7 +382,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
           textCapitalization: TextCapitalization.characters,
           autocorrect: false,
           style: MQ.mono(24, spacing: 3),
-          decoration: const InputDecoration(hintText: 'MQ-XXXXXXXXXX'),
+          decoration: InputDecoration(
+              hintText: 'MQ-XXXXXXXXXX',
+              fillColor: MQ.surface,
+              enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: MQ.forest, width: 1.4))),
           onSubmitted: (_) => _go(),
         ),
         _err(),
@@ -383,40 +396,77 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).padding.bottom;
     return Scaffold(
       backgroundColor: MQ.forest,
-      body: Stack(children: [
-        const Positioned.fill(child: JusticeScene()),
-        SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 420),
+      resizeToAvoidBottomInset: true,
+      body: DecoratedBox(
+        decoration: MQ.stone(navy: true, border: false),
+        child: LayoutBuilder(
+          builder: (context, box) => SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: box.maxHeight),
+              child: IntrinsicHeight(
                 child: Column(children: [
-                  const ScalesOfJustice(size: 210),
-                  const SizedBox(height: 18),
-                  Text('بوابة الموكل', style: MQ.display(36, color: Colors.white)),
-                  Text(kIsWeb ? 'مكتب الميثاق للمحاماة والاستشارات القانونية' : (officeName.isNotEmpty ? officeName : 'تابع قضاياك وراسل محاميك بأمان'),
-                      textAlign: TextAlign.center, style: MQ.body(14, color: MQ.soft)),
-                  const SizedBox(height: 28),
-                  Container(
-                    padding: const EdgeInsets.all(22),
-                    decoration: BoxDecoration(
-                        color: MQ.ivory,
-                        border: Border.all(color: MQ.gold.withValues(alpha: .5)),
-                        borderRadius: BorderRadius.circular(26),
-                        boxShadow: const [BoxShadow(color: Color(0x55000000), blurRadius: 40, offset: Offset(0, 18))]),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: _pickStep ? _officeStep() : _codeStep()),
+                  // الهوية: الميزان واسم البوابة على الرخام الكحلي
+                  Expanded(
+                    child: SafeArea(
+                      bottom: false,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(28, 28, 28, 24),
+                        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          Container(
+                            width: 112,
+                            height: 112,
+                            decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: MQ.gold, width: 1.5)),
+                            alignment: Alignment.center,
+                            child: const ScalesOfJustice(size: 88),
+                          ),
+                          const SizedBox(height: 16),
+                          Text('ميثاق', style: MQ.body(12.5, color: MQ.brassHi, weight: FontWeight.w700).copyWith(letterSpacing: 3)),
+                          Text('بوابة الموكل', style: MQ.display(42, color: MQ.ivory)),
+                          const SizedBox(height: 4),
+                          Text(kIsWeb ? 'مكتب الميثاق للمحاماة والاستشارات القانونية' : (officeName.isNotEmpty ? officeName : 'تابع قضيتك وراسل محاميك بسرّية تامة'),
+                              textAlign: TextAlign.center, style: MQ.body(14, color: MQ.soft, height: 1.7)),
+                        ]),
+                      ),
+                    ),
                   ),
-                  const SizedBox(height: 18),
-                  Text('🔒 اتصال مشفّر · بياناتك لدى مكتبك فقط', style: MQ.body(12, color: MQ.soft)),
+                  // بطاقة الدخول على الرخام العاجي
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.fromLTRB(22, 26, 22, 22 + bottom),
+                    decoration: MQ.stone().copyWith(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+                      boxShadow: const [BoxShadow(color: Color(0x59000000), blurRadius: 40, offset: Offset(0, -12))],
+                    ),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 440),
+                        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                          Row(children: [
+                            Text(_pickStep ? 'اختر مكتبك' : 'تسجيل الدخول', style: MQ.body(18, weight: FontWeight.w700)),
+                            const Spacer(),
+                            if (!kIsWeb) Text(_pickStep ? 'الخطوة 1 من 2' : 'الخطوة 2 من 2', style: MQ.body(12, color: MQ.muted)),
+                          ]),
+                          const SizedBox(height: 14),
+                          ...(_pickStep ? _officeStep() : _codeStep()),
+                          const SizedBox(height: 14),
+                          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            const Icon(Icons.lock_outline_rounded, size: 14, color: MQ.muted),
+                            const SizedBox(width: 6),
+                            Text('اتصال مشفّر · بياناتك لدى مكتبك فقط', style: MQ.body(11.5, color: MQ.muted)),
+                          ]),
+                        ]),
+                      ),
+                    ),
+                  ),
                 ]),
               ),
             ),
           ),
         ),
-      ]),
+      ),
     );
   }
 }
@@ -514,34 +564,73 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
         DocsTab(onGo: go),
         AccountTab(onLogout: widget.onLogout),
       ]),
+      extendBody: false,
       bottomNavigationBar: ListenableBuilder(
         listenable: store,
-        builder: (context, _) => DecoratedBox(
-          decoration: BoxDecoration(border: Border(top: BorderSide(color: MQ.gold.withValues(alpha: .3)))),
-          child: NavigationBar(
-            selectedIndex: idx,
-            onDestinationSelected: go,
-            destinations: [
-              const NavigationDestination(
-                  icon: Icon(Icons.space_dashboard_outlined), selectedIcon: Icon(Icons.space_dashboard), label: 'الرئيسية'),
-              const NavigationDestination(icon: Icon(Icons.gavel_outlined), selectedIcon: Icon(Icons.gavel), label: 'قضاياي'),
-              NavigationDestination(
-                icon: Badge(
-                    isLabelVisible: store.unread > 0,
-                    label: Text('${store.unread}'),
-                    child: const Icon(Icons.forum_outlined)),
-                selectedIcon: const Icon(Icons.forum),
-                label: 'المراسلة',
+        builder: (context, _) => GoldNavBar(index: idx, onTap: go, unread: store.unread),
+      ),
+    );
+  }
+}
+
+/// شريط الأدوات السفلي: رخام كحلي بإطار ذهبي، والتبويب المختار ذهبي لامع
+class GoldNavBar extends StatelessWidget {
+  const GoldNavBar({super.key, required this.index, required this.onTap, this.unread = 0});
+  final int index;
+  final ValueChanged<int> onTap;
+  final int unread;
+  static const _items = [
+    (Icons.home_outlined, Icons.home_rounded, 'الرئيسية'),
+    (Icons.balance_outlined, Icons.balance, 'قضاياي'),
+    (Icons.forum_outlined, Icons.forum_rounded, 'المراسلة'),
+    (Icons.description_outlined, Icons.description_rounded, 'المستندات'),
+    (Icons.account_circle_outlined, Icons.account_circle, 'حسابي'),
+  ];
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).padding.bottom;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(12, 6, 12, bottom > 0 ? bottom : 12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 7),
+        decoration: MQ.stone(navy: true, radius: 26),
+        child: Row(children: [
+          for (final (i, it) in _items.indexed)
+            Expanded(
+              child: Semantics(
+                button: true,
+                selected: i == index,
+                label: it.$3,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => onTap(i),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    padding: const EdgeInsets.symmetric(vertical: 7),
+                    decoration: i == index
+                        ? BoxDecoration(
+                            gradient: MQ.shine,
+                            borderRadius: BorderRadius.circular(18),
+                            boxShadow: const [BoxShadow(color: Color(0x73D9B45E), blurRadius: 12, offset: Offset(0, 2))])
+                        : null,
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Badge(
+                        isLabelVisible: i == 2 && unread > 0,
+                        label: Text('$unread'),
+                        backgroundColor: const Color(0xFFB4232A),
+                        child: Icon(i == index ? it.$2 : it.$1, size: 24, color: i == index ? const Color(0xFF1A1406) : MQ.brassHi),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(it.$3,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: MQ.body(11, height: 1.2, weight: i == index ? FontWeight.w800 : FontWeight.w600, color: i == index ? const Color(0xFF1A1406) : MQ.brassHi)),
+                    ]),
+                  ),
+                ),
               ),
-              const NavigationDestination(
-                  icon: Icon(Icons.folder_outlined), selectedIcon: Icon(Icons.folder), label: 'المستندات'),
-              const NavigationDestination(
-                  icon: Icon(Icons.account_balance_wallet_outlined),
-                  selectedIcon: Icon(Icons.account_balance_wallet),
-                  label: 'حسابي'),
-            ],
-          ),
-        ),
+            ),
+        ]),
       ),
     );
   }

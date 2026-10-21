@@ -20,8 +20,9 @@ class DocsTab extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('المستندات')),
       floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: MQ.pine,
-        foregroundColor: MQ.onGold,
+        backgroundColor: MQ.forest,
+        foregroundColor: MQ.brassHi,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: BorderSide(color: MQ.gold.withValues(alpha: .6))),
         onPressed: () => Attach.sheet(context),
         icon: const Icon(Icons.add_a_photo_outlined),
         label: Text('إرفاق وثيقة', style: MQ.body(14, color: MQ.onGold, weight: FontWeight.w700)),

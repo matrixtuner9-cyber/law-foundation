@@ -84,7 +84,7 @@ class HomeTab extends StatelessWidget {
                 ),
               ),
             ],
-            const SliverToBoxAdapter(child: SizedBox(height: 28)),
+            const SliverToBoxAdapter(child: SizedBox(height: 24)),
           ]),
         );
       },
@@ -104,79 +104,103 @@ class HomeTab extends StatelessWidget {
       );
 }
 
-/* ── رأس الشاشة الداكن مع العدّاد ── */
+/* ── رأس الشاشة: المكتب والتحية، ثم «الجلسة القادمة» كورقة تبليغ على رخام كحلي ── */
 class _Hero extends StatelessWidget {
   const _Hero({required this.next});
   final ({Map<String, dynamic> kase, Map<String, dynamic> h, DateTime t})? next;
 
+  static const _months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+  static const _days = ['الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت', 'الأحد'];
+
   @override
   Widget build(BuildContext context) {
     final top = MediaQuery.of(context).padding.top;
-    return AnnotatedRegion<SystemUiOverlayStyle>(value: SystemUiOverlayStyle.light, child: Container(
-      clipBehavior: Clip.antiAlias,
-      decoration: const BoxDecoration(
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(30)),
-        gradient: LinearGradient(begin: Alignment.topRight, end: Alignment.bottomLeft, colors: [MQ.navy2, MQ.forest, MQ.forestDeep]),
-      ),
-      child: Stack(children: [
-        Positioned(
-            left: -50, bottom: -60, child: Icon(Icons.balance, size: 260, color: MQ.brassHi.withValues(alpha: .07))),
-        Padding(
-          padding: EdgeInsets.fromLTRB(20, top + 18, 20, 22),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              const Seal(size: 38),
-              const SizedBox(width: 10),
-              Expanded(
-                  child: Text('${store.office['name'] ?? ''}',
-                      style: MQ.body(12.5, color: MQ.soft, height: 1.35), maxLines: 2, overflow: TextOverflow.ellipsis)),
-              const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                decoration: BoxDecoration(color: Colors.white.withValues(alpha: .08), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white.withValues(alpha: .12))),
-                child: Text('${store.client['code'] ?? ''}', style: MQ.mono(11, color: MQ.soft)),
-              ),
-            ]),
-            const SizedBox(height: 18),
-            Text('${greeting()}،', style: MQ.body(15, color: MQ.soft)),
-            Text(store.firstName, style: MQ.display(32, color: Colors.white), maxLines: 2),
-            const SizedBox(height: 16),
-            if (next == null)
-              _glass(Text('لا جلسات قادمة حالياً. سنبلغك فور تحديد موعد جديد.', style: MQ.body(14, color: Colors.white)))
-            else
-              _glass(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('جلستك القادمة', style: MQ.body(12, color: MQ.soft)),
-                const SizedBox(height: 2),
-                Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [
-                  Text(fmtDate(next!.t), style: MQ.body(14, color: Colors.white, weight: FontWeight.w700)),
-                  Text('  ·  ', style: MQ.body(14, color: MQ.soft)),
-                  Text('${next!.h['time']}', style: MQ.mono(14, color: MQ.brassHi)),
-                ]),
-                const SizedBox(height: 10),
-                Countdown(target: next!.t),
-                const SizedBox(height: 12),
-                Text('${next!.h['purpose']}', style: MQ.body(16, color: Colors.white, weight: FontWeight.w700)),
-                Text('${next!.kase['court']} · القضية ${next!.kase['no']}', style: MQ.body(12.5, color: MQ.soft)),
-                const SizedBox(height: 10),
-                next!.h['attend'] == true
-                    ? const Chip2('حضورك شخصياً مطلوب', bg: MQ.gold, fg: MQ.forest, icon: Icons.priority_high)
-                    : Chip2('يحضر المحامي نيابة عنك', bg: MQ.mint.withValues(alpha: .2), fg: MQ.mint, icon: Icons.check),
-              ])),
+    final code = '${store.client['code'] ?? ''}';
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(16, top + 14, 16, 0),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Container(
+              width: 42,
+              height: 42,
+              decoration: const BoxDecoration(color: MQ.forest, shape: BoxShape.circle),
+              child: const Icon(Icons.balance, color: MQ.brassHi, size: 22),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('${store.office['name'] ?? ''}', style: MQ.body(12, color: MQ.muted, height: 1.35), maxLines: 2, overflow: TextOverflow.ellipsis),
+                if (code.length > 6)
+                  Text('${code.substring(0, 4)}····${code.substring(code.length - 2)}',
+                      textDirection: TextDirection.ltr, style: MQ.mono(11.5, color: MQ.muted)),
+              ]),
+            ),
           ]),
-        ),
-      ]),
-    ));
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('${greeting()}،', style: MQ.body(14, color: MQ.muted)),
+              Text(store.firstName, style: MQ.display(36), maxLines: 2),
+            ]),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+            decoration: MQ.stone(navy: true, radius: 22),
+            child: next == null
+                ? Row(children: [
+                    const Icon(Icons.event_available_outlined, color: MQ.brassHi),
+                    const SizedBox(width: 10),
+                    Expanded(child: Text('لا جلسات قادمة حالياً. سنبلغك فور تحديد موعد جديد.', style: MQ.body(14, color: MQ.ivory))),
+                  ])
+                : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Row(children: [
+                      Text('الجلسة القادمة', style: MQ.body(12, color: MQ.soft, weight: FontWeight.w600)),
+                      const Spacer(),
+                      if (next!.h['attend'] == true)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                          decoration: BoxDecoration(color: MQ.brassHi, borderRadius: BorderRadius.circular(99)),
+                          child: Text('حضورك شخصياً مطلوب', style: MQ.body(11.5, color: MQ.forest, weight: FontWeight.w700, height: 1.4)),
+                        )
+                      else
+                        Text('يحضر المحامي عنك', style: MQ.body(11.5, color: MQ.brassHi, weight: FontWeight.w600)),
+                    ]),
+                    const SizedBox(height: 12),
+                    IntrinsicHeight(
+                      child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                        Container(
+                          width: 84,
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: MQ.brassHi.withValues(alpha: .45))),
+                          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+                            Text(_days[next!.t.weekday - 1], style: MQ.body(11.5, color: MQ.brassHi, height: 1.3)),
+                            Text('${next!.t.day}', style: MQ.display(38, color: MQ.ivory)),
+                            Text('${_months[next!.t.month - 1]} ${next!.t.year}', style: MQ.body(11, color: MQ.soft, height: 1.3)),
+                          ]),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
+                            Text('${next!.h['time']}', style: MQ.mono(22, color: MQ.brassHi, weight: FontWeight.w600)),
+                            Text('${next!.h['purpose']}', style: MQ.body(16, color: MQ.ivory, weight: FontWeight.w700, height: 1.4), maxLines: 2, overflow: TextOverflow.ellipsis),
+                            Text('${next!.kase['court']} · القضية ${next!.kase['no']}', style: MQ.body(12.5, color: MQ.soft, height: 1.45), maxLines: 2, overflow: TextOverflow.ellipsis),
+                          ]),
+                        ),
+                      ]),
+                    ),
+                    const SizedBox(height: 12),
+                    Countdown(target: next!.t),
+                  ]),
+          ),
+        ]),
+      ),
+    );
   }
-
-  Widget _glass(Widget child) => Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: .07),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withValues(alpha: .14))),
-        child: child,
-      );
 }
 
 /// عدّاد تنازلي حي
@@ -211,8 +235,8 @@ class _CountdownState extends State<Countdown> {
         if (i > 0) const SizedBox(width: 8),
         Expanded(
           child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            decoration: BoxDecoration(color: Colors.black.withValues(alpha: .22), borderRadius: BorderRadius.circular(14)),
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(color: Colors.white.withValues(alpha: .07), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white.withValues(alpha: .08))),
             child: Column(children: [
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 300),
@@ -220,7 +244,7 @@ class _CountdownState extends State<Countdown> {
                     position: Tween(begin: const Offset(0, -.4), end: Offset.zero).animate(a),
                     child: FadeTransition(opacity: a, child: c)),
                 child: Text(i == 0 ? '${p.$1}' : p.$1.toString().padLeft(2, '0'),
-                    key: ValueKey(p.$1), style: MQ.mono(26, color: i == 3 ? MQ.brassHi : Colors.white)),
+                    key: ValueKey(p.$1), style: MQ.mono(21, weight: FontWeight.w600, color: i == 3 ? MQ.brassHi : Colors.white)),
               ),
               Text(p.$2, style: MQ.body(11, color: MQ.soft)),
             ]),
@@ -271,10 +295,10 @@ class _QuickActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      (Icons.chat_bubble_outline, 'رسالة', MQ.pine, () => onGo(2)),
-      (Icons.mic_none, 'رسالة صوتية', MQ.danger, () => onGo(2, action: 'voice')),
-      (Icons.photo_camera_outlined, 'تصوير وثيقة', MQ.brass, () => onGo(2, action: 'camera')),
-      (Icons.upload_file_outlined, 'رفع مستند', MQ.docBlue, () => onGo(2, action: 'file')),
+      (Icons.chat_outlined, 'رسالة', MQ.forest, () => onGo(2)),
+      (Icons.mic_none_rounded, 'تسجيل صوتي', MQ.forest, () => onGo(2, action: 'voice')),
+      (Icons.photo_camera_outlined, 'تصوير وثيقة', MQ.forest, () => onGo(2, action: 'camera')),
+      (Icons.upload_file_outlined, 'رفع مستند', MQ.forest, () => onGo(2, action: 'file')),
     ];
     return Row(children: [
       for (final (i, it) in items.indexed) ...[
@@ -293,8 +317,8 @@ class _QuickActions extends StatelessWidget {
                   Container(
                     width: 44,
                     height: 44,
-                    decoration: BoxDecoration(color: it.$3.withValues(alpha: .1), shape: BoxShape.circle),
-                    child: Icon(it.$1, color: it.$3, size: 22),
+                    decoration: BoxDecoration(color: MQ.sunk, shape: BoxShape.circle, border: Border.all(color: MQ.gold.withValues(alpha: .35))),
+                    child: Icon(it.$1, color: it.$3, size: 23),
                   ),
                   const SizedBox(height: 8),
                   Text(it.$2, textAlign: TextAlign.center, style: MQ.body(12, weight: FontWeight.w600, height: 1.3)),
