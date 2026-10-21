@@ -140,7 +140,7 @@ class ChatTabState extends State<ChatTab> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: MQ.ivory,
       body: Column(children: [
         _header(context),
         Expanded(
