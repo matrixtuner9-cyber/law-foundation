@@ -29,6 +29,8 @@ class HomeTab extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
               sliver: SliverToBoxAdapter(child: _QuickActions(onGo: onGo)),
             ),
+            if ('${store.office['lawyer'] ?? ''}'.isNotEmpty)
+              SliverPadding(padding: const EdgeInsets.fromLTRB(16, 14, 16, 0), sliver: SliverToBoxAdapter(child: _LawyerCard(onChat: () => onGo(2)))),
             const SliverPadding(padding: EdgeInsets.fromLTRB(16, 14, 16, 0), sliver: SliverToBoxAdapter(child: PushPrompt())),
             _title('قضاياي', '${store.cases.length}', () => onGo(1)),
             SliverPadding(
@@ -127,33 +129,28 @@ class _Hero extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                   child: Text('${store.office['name'] ?? ''}',
-                      style: MQ.body(12, color: MQ.soft), maxLines: 1, overflow: TextOverflow.ellipsis)),
-              Chip2('${store.client['code'] ?? ''}', bg: Colors.white.withValues(alpha: .1), fg: Colors.white, mono: true),
+                      style: MQ.body(12.5, color: MQ.soft, height: 1.35), maxLines: 2, overflow: TextOverflow.ellipsis)),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                decoration: BoxDecoration(color: Colors.white.withValues(alpha: .08), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white.withValues(alpha: .12))),
+                child: Text('${store.client['code'] ?? ''}', style: MQ.mono(11, color: MQ.soft)),
+              ),
             ]),
             const SizedBox(height: 18),
             Text('${greeting()}،', style: MQ.body(15, color: MQ.soft)),
             Text(store.firstName, style: MQ.display(32, color: Colors.white), maxLines: 2),
-            const SizedBox(height: 12),
-            if ('${store.office['lawyer'] ?? ''}'.isNotEmpty)
-              Row(children: [
-                const LawyerAvatar(size: 40),
-                const SizedBox(width: 10),
-                Expanded(
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('محاميك', style: MQ.body(11.5, color: MQ.soft)),
-                  Text('${store.office['lawyer']}', style: MQ.body(15, color: Colors.white, weight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
-                ])),
-              ]),
             const SizedBox(height: 16),
             if (next == null)
               _glass(Text('لا جلسات قادمة حالياً. سنبلغك فور تحديد موعد جديد.', style: MQ.body(14, color: Colors.white)))
             else
               _glass(Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Row(children: [
-                  Text('جلستك القادمة', style: MQ.body(12, color: MQ.soft)),
-                  const Spacer(),
-                  Text('${fmtDate(next!.t)} · ', style: MQ.body(12, color: Colors.white)),
-                  Text(next!.h['time'], style: MQ.mono(12, color: Colors.white)),
+                Text('جلستك القادمة', style: MQ.body(12, color: MQ.soft)),
+                const SizedBox(height: 2),
+                Wrap(crossAxisAlignment: WrapCrossAlignment.center, children: [
+                  Text(fmtDate(next!.t), style: MQ.body(14, color: Colors.white, weight: FontWeight.w700)),
+                  Text('  ·  ', style: MQ.body(14, color: MQ.soft)),
+                  Text('${next!.h['time']}', style: MQ.mono(14, color: MQ.brassHi)),
                 ]),
                 const SizedBox(height: 10),
                 Countdown(target: next!.t),
@@ -232,6 +229,39 @@ class _CountdownState extends State<Countdown> {
       ],
     ]);
   }
+}
+
+/* ── بطاقة المحامي المسؤول: صورته واسمه وزر المراسلة ── */
+class _LawyerCard extends StatelessWidget {
+  const _LawyerCard({required this.onChat});
+  final VoidCallback onChat;
+  @override
+  Widget build(BuildContext context) => Panel(
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
+        onTap: onChat,
+        child: Row(children: [
+          const LawyerAvatar(size: 58, dark: false),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('محاميك المسؤول', style: MQ.body(12, color: MQ.muted)),
+              const SizedBox(height: 2),
+              Text('${store.office['lawyer']}', style: MQ.display(19), maxLines: 2, overflow: TextOverflow.ellipsis),
+              if ('${store.office['hours'] ?? ''}'.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Text('${store.office['hours']}', style: MQ.body(12, color: MQ.muted), maxLines: 1, overflow: TextOverflow.ellipsis),
+              ],
+            ]),
+          ),
+          const SizedBox(width: 8),
+          FilledButton.icon(
+            onPressed: onChat,
+            style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10), minimumSize: const Size(0, 40)),
+            icon: const Icon(Icons.chat_bubble_outline, size: 18),
+            label: const Text('راسله'),
+          ),
+        ]),
+      );
 }
 
 /* ── أزرار سريعة ── */
