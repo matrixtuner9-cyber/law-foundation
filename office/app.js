@@ -182,11 +182,35 @@ function conflict(q){
 V.courts=()=>`<div class="head"><div><h1>المحاكم</h1><p class="sub">درجات التقاضي التي يترافع أمامها المكتب وقضاياه في كل منها</p></div></div>
  <div class="grid-eq">${courts.map(ct=>{const ks=cases.filter(k=>k.court===ct.id);const hs=hearings.filter(h=>ks.some(k=>k.id===h.k)&&diff(h.date)>=0).sort((a,b)=>a.date.localeCompare(b.date));return `<section class="panel"><header><h2>${esc(ct.name)}</h2><span class="pill">${ct.type}</span></header><div class="bd" style="display:flex;flex-direction:column;gap:8px"><dl class="kv"><dt>المدينة</dt><dd>${ct.city}</dd><dt>قضايا المكتب</dt><dd class="num">${ks.length}</dd><dt>أقرب جلسة</dt><dd>${hs[0]?fmt(hs[0].date)+' · <span class="mono">'+hs[0].time+'</span>':'—'}</dd></dl>${ks.map(k=>`<button class="link" style="font-size:13px" data-act="openCase" data-v="${k.id}"><span class="mono">${k.no}</span> · ${esc(C(k.client).name)}</button>`).join('')}</div></section>`}).join('')}</div>`;
 
-V.docs=()=>{const ds=docs.filter(d=>S.docK==='all'||d.k===S.docK).sort((a,b)=>b.date.localeCompare(a.date));
+/* أرشيف المستندات: بحث وفلاتر (القضية، الموكل، النوع، المصدر، الفترة، الظهور في البوابة) */
+const DF={q:'',client:'',kind:'',src:'',share:'',from:'',to:''};
+function docList(){const q=DF.q;return docs.filter(d=>{const k=K(d.k)||{},c=C(k.client)||{};
+  if(S.docK!=='all'&&d.k!==S.docK)return false;if(DF.client&&k.client!==DF.client)return false;if(DF.kind&&(d.kind||'')!==DF.kind)return false;
+  if(DF.src&&(d.src||'')!==DF.src)return false;if(DF.share==='y'&&!d.shared)return false;if(DF.share==='n'&&d.shared)return false;
+  if(DF.from&&String(d.date)<DF.from)return false;if(DF.to&&String(d.date)>DF.to)return false;
+  if(q&&!(window.MQ_selSearch?MQ_selSearch.match:(t,x)=>t.includes(x))([d.title,d.kind,d.src,k.no,k.subject,c.name].join(' '),q))return false;return true}).sort((a,b)=>String(b.date).localeCompare(String(a.date)))}
+window.MQ_docList=docList;
+const docOn=()=>!!(DF.q||DF.client||DF.kind||DF.src||DF.share||DF.from||DF.to||S.docK!=='all');
+function docBody(){const ds=docList();return `<div class="cr-count doc-count">${ds.length===docs.length?'كل المستندات ('+ds.length+')':ds.length+' من '+docs.length+' مستنداً'}${docOn()?' <button type="button" class="link" data-act="docClear">مسح الفلاتر</button>':''}</div>${ds.length?docTable(ds,true):'<div class="empty">لا مستندات تطابق البحث والفلاتر.</div>'}`}
+function docRefresh(){const b=document.getElementById('docBody');if(b)b.innerHTML=docBody()}
+V.docs=()=>{const uniq=a=>[...new Set(a.filter(Boolean))].sort((x,y)=>x.localeCompare(y,'ar'));
+ const kinds=uniq(docs.map(d=>d.kind)),srcs=uniq(docs.map(d=>d.src)),cl=clients.filter(c=>cases.some(k=>k.client===c.id)).sort((a,b)=>a.name.localeCompare(b.name,'ar'));
+ const opt=(v,t,cur)=>`<option value="${esc(v)}" ${cur===v?'selected':''}>${esc(t)}</option>`;
  return `<div class="head"><div><h1>أرشيف المستندات</h1><p class="sub">${docs.length} مستنداً: لوائح وبينات وأحكام ومحاضر، بعضها يصل تلقائياً من ميزان</p></div>
   <label class="btn pri" style="cursor:pointer">رفع مستند<input type="file" id="upl" hidden></label></div>
- <div class="toolbar"><select class="field" id="docK"><option value="all">كل القضايا</option>${cases.map(k=>`<option value="${k.id}" ${S.docK===k.id?'selected':''}>${k.no} · ${esc(C(k.client).name)}</option>`).join('')}</select></div>
- ${docTable(ds,true)}<p class="note">في هذه النسخة التجريبية يُسجَّل اسم الملف المرفوع فقط، ولا يُخزَّن محتواه.</p>`};
+ <div class="cr-filters doc-filters">
+  <input class="field" type="search" id="dfQ" placeholder="بحث: اسم المستند، رقم القضية، اسم الموكل…" value="${esc(DF.q)}" aria-label="بحث في المستندات">
+  <select class="field" id="docK" aria-label="القضية"><option value="all">كل القضايا</option>${cases.filter(k=>!DF.client||k.client===DF.client).map(k=>`<option value="${k.id}" ${S.docK===k.id?'selected':''}>${k.no} · ${esc((C(k.client)||{}).name||'')}</option>`).join('')}</select>
+  <select class="field" id="dfClient" aria-label="الموكل"><option value="">كل الموكلين</option>${cl.map(c=>opt(c.id,c.name,DF.client)).join('')}</select>
+  <select class="field" id="dfKind" aria-label="النوع"><option value="">كل الأنواع</option>${kinds.map(x=>opt(x,x,DF.kind)).join('')}</select>
+  <select class="field" id="dfSrc" aria-label="المصدر"><option value="">كل المصادر</option>${srcs.map(x=>opt(x,x,DF.src)).join('')}</select>
+  <select class="field" id="dfShare" aria-label="بوابة الموكل"><option value="">البوابة: الكل</option>${opt('y','ظاهر للموكل',DF.share)}${opt('n','غير ظاهر للموكل',DF.share)}</select>
+  <label class="cr-date">من<input class="field" type="date" id="dfFrom" value="${esc(DF.from)}"></label><label class="cr-date">إلى<input class="field" type="date" id="dfTo" value="${esc(DF.to)}"></label>
+ </div>
+ <div id="docBody">${docBody()}</div><p class="note">في هذه النسخة التجريبية يُسجَّل اسم الملف المرفوع فقط، ولا يُخزَّن محتواه.</p>`};
+document.addEventListener('input',ev=>{if(ev.target.id==='dfQ'){DF.q=ev.target.value;docRefresh()}});
+document.addEventListener('change',ev=>{const m={dfClient:'client',dfKind:'kind',dfSrc:'src',dfShare:'share',dfFrom:'from',dfTo:'to'}[ev.target.id];if(!m)return;DF[m]=ev.target.value;
+ if(m==='client'){if(S.docK!=='all'&&(K(S.docK)||{}).client!==DF.client&&DF.client)S.docK='all';render();return}docRefresh()});
 
 /* النماذج */
 const TPL={
@@ -249,7 +273,7 @@ function bindLocal(){
  const tc=document.getElementById('tplCase');if(tc)tc.onchange=e=>{S.tplCase=e.target.value;document.getElementById('paper').innerHTML=tplText(true)};
  document.querySelectorAll('[data-tf]').forEach(i=>i.oninput=e=>{S.tplVals[e.target.dataset.tf]=e.target.value;document.getElementById('paper').innerHTML=tplText(true)});
  const pc=document.getElementById('pc');if(pc)pc.onchange=e=>{S.pc=e.target.value;render()};
- const dk=document.getElementById('docK');if(dk)dk.onchange=e=>{S.docK=e.target.value;render()};
+ const dk=document.getElementById('docK');if(dk)dk.onchange=e=>{S.docK=e.target.value;docRefresh()};
  const up=document.getElementById('upl');if(up)up.onchange=e=>{const f=e.target.files[0];if(!f)return;docs.push({id:'d'+Date.now(),k:S.docK==='all'?cases[0].id:S.docK,title:f.name,kind:'مرفوع',date:iso(TODAY),src:'رفع يدوي',pages:1,shared:false});toast('سُجّل المستند «'+f.name+'»');render()};
 }
 function toast(t){const el=document.getElementById('toast');el.textContent=t;el.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>el.hidden=true,2600)}
@@ -258,6 +282,7 @@ function sendMsg(cid,t,ch){(messages[cid]=messages[cid]||[]).push({f:'me',ch,t,a
 
 const A={
  crMode:v=>{CR.mode=v==='records'?'records':'cards';try{localStorage.setItem('mq_clients_view',CR.mode)}catch(e){}render()},
+ docClear:()=>{Object.assign(DF,{q:'',client:'',kind:'',src:'',share:'',from:'',to:''});S.docK='all';render()},
  crSort:v=>{if(CR.sort===v)CR.dir=-CR.dir;else{CR.sort=v;CR.dir=['fee','paid','due','cases','portal'].includes(v)?-1:1}const b=document.getElementById('crBody');if(b)b.innerHTML=clientRecords();const sel=document.getElementById('crSortSel');if(sel)sel.value=['new','old','name','due','cases','last'].includes(v)?v:''},
  crClear:()=>{Object.assign(CR,{q:'',f:'all',type:'',city:'',ch:'',from:'',to:''});render()},
  crPrint:()=>{if(!window.MQP)return;const rs=crList(),M=MQP,B=M.B,E=M.esc;MQP.open({label:'سجل الموكلين',build(){return {title:'سجل الموكلين',sub:rs.length+' موكلاً'+(CR.q?' · بحث: '+CR.q:''),ref:'مك/'+iso(TODAY),file:'سجل الموكلين - '+iso(TODAY),orient:'land',sign:[],blocks:[B.t(['#','الموكل','الهاتف','القضايا','الأتعاب','المحصّل','المتبقي','قناة التواصل','البوابة'],rs.map((r,i)=>[i+1,E(r.c.name),'<span dir="ltr">'+E(r.c.phone||'')+'</span>',E(r.ks.map(k=>k.no).join('، ')||'—'),money(r.fee),money(r.paid),r.due?money(r.due):'—',E(r.c.ch||'—'),r.c.portal?('مفعّلة'+(r.c.last?' · '+dmy(r.c.last):'')):'غير مفعّلة']),{w:['4%','18%','12%','16%','10%','10%','10%','10%','10%']})]}}})},

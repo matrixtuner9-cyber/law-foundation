@@ -34,3 +34,11 @@ test('أتعاب القضية: تُحسب من دفعاتها المربوطة �
   const f1 = facts(d.cases[0], d, T); assert.equal(f1.fee, 1000); assert.equal(f1.paid, 1200); assert.equal(f1.due, 0); assert.ok(f1.caseFee);
   const f3 = facts(d.cases[2], d, T); assert.equal(f3.fee, 5000); assert.equal(f3.paid, 2000); assert.ok(f3.feeShared);
 });
+test('البحث بالاسم في القوائم: كلمات بأي ترتيب، ويتجاهل الهمزات والتاء المربوطة والتشكيل', () => {
+  const { match } = require('../searchsel.js');
+  assert.ok(match('شركة الزيتون للتجارة العامة', 'الزيتون شركه'));
+  assert.ok(match('أحمد يوسف الشكعة', 'احمد الشكعه'));
+  assert.ok(match('محكمة بداية نابلس', 'بدايه'));
+  assert.ok(!match('محكمة صلح رام الله', 'نابلس'));
+  assert.ok(match('1187/2025 · شركة', '١١٨٧'));
+});

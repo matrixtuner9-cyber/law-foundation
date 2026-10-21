@@ -358,7 +358,7 @@ D.fees=()=>({label:'تقرير الأتعاب والذمم',build(){const rs=cli
   B.stats([['إجمالي الأتعاب',cur(T('fee'))+' ₪'],['المحصّل',cur(T('paid'))+' ₪','ok'],['الذمم المستحقة',cur(T('o'))+' ₪','warn'],['نسبة التحصيل',Math.round(T('paid')/Math.max(1,T('fee'))*100)+'%']]),
   B.t(['الموكل','الأتعاب ₪','المدفوع ₪','المتبقي ₪','التحصيل'],rs.map(({c,o})=>['<b>'+e(c.name)+'</b>',cur(c.fee),cur(c.paid),cur(o),Math.round(c.paid/Math.max(1,c.fee)*100)+'%']),{w:['40%','15%','15%','15%','15%'],num:[1,2,3,4],foot:['الإجمالي',cur(T('fee')),cur(T('paid')),cur(T('o')),'']})],sign:['المحاسب']}}});
 
-D.docs=()=>({label:'سجل المستندات',build(){const ds=docs.filter(d=>S.docK==='all'||d.k===S.docK).sort((a,b)=>b.date.localeCompare(a.date));
+D.docs=()=>({label:'سجل المستندات',build(){const ds=window.MQ_docList?MQ_docList():docs.filter(d=>S.docK==='all'||d.k===S.docK).sort((a,b)=>b.date.localeCompare(a.date));
  return {title:'سجل المستندات',ref:'د/'+isoD(TODAY),file:fname('سجل المستندات',isoD(TODAY)),orient:'land',blocks:[B.t(['#','المستند','القضية','الموكل','النوع','المصدر','التاريخ','صفحات'],ds.map((d,i)=>[i+1,'<b>'+e(d.title)+'</b>',K(d.k)?`<span class="mono">${e(K(d.k).no)}</span>`:'',K(d.k)?e(C(K(d.k).client).name):'',e(d.kind),e(d.src),dm(d.date),d.pages||'']),{w:['4%','30%','11%','17%','12%','11%','9%','6%'],num:[0,6,7]})],sign:[]}}});
 
 /* أي جدول ظاهر في الشاشة */
