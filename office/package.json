@@ -34,6 +34,7 @@
       "dash.js",
       "briefcase.js",
       "settlements.js",
+      "workflow.js",
       "sync.js",
       "mizan-ui.js",
       "style.css",
