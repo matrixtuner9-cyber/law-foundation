@@ -5,7 +5,7 @@
    - يعمل في خادم المكتب (Node) والسحابة (Workers) بنفس الملف */
 
 const API = 'https://api.elevenlabs.io/v1';
-const MODELS = { flash: 'eleven_flash_v2_5', quality: 'eleven_multilingual_v2' };
+const MODELS = { flash: 'eleven_flash_v2_5', quality: 'eleven_multilingual_v2', v3: 'eleven_v3' };
 const MAX_TEXT = 1000; // قراءة المرفقات تُقسَّم إلى مقاطع حتى 1000 حرف
 const okKey = k => /^(sk_)?[A-Za-z0-9]{24,80}$/.test(String(k || ''));
 const okVoice = v => /^[A-Za-z0-9]{10,40}$/.test(String(v || ''));
@@ -17,7 +17,7 @@ function cleanCfg(b, prev) {
   if (!out.key) return { error: 'أدخل مفتاح ElevenLabs.' };
   if (b.voiceId !== undefined) { const v = String(b.voiceId || '').trim(); if (v && !okVoice(v)) return { error: 'معرّف الصوت غير صحيح.' }; out.voiceId = v }
   if (b.voiceName !== undefined) out.voiceName = String(b.voiceName || '').slice(0, 80);
-  if (b.model !== undefined) out.model = b.model === 'quality' ? 'quality' : 'flash';
+  if (b.model !== undefined) out.model = Object.hasOwn(MODELS, b.model) ? b.model : 'flash';
   if (b.always !== undefined) out.always = !!b.always;
   out.savedAt = new Date().toISOString();
   return { cfg: out };
