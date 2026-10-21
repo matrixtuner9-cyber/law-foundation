@@ -16,9 +16,8 @@ workflows:
         - mithaq_ios
       vars:
         BUNDLE_ID: ps.mithaq.mithaqPortal
-        # تطبيق واحد لكل المكاتب: يختار الموكل مكتبه برمز المكتب أو رابط الدعوة، فيُترك فارغاً.
-        # (لتثبيت التطبيق على مكتب واحد فقط ضع عنوانه هنا، مثل https://office.palgaz.net)
-        API_URL: ""
+        # تطبيق واحد لكل المكاتب: يختار الموكل مكتبه برمز المكتب أو رابط الدعوة، فلا يُحدَّد عنوان هنا.
+        # (لتثبيت التطبيق على مكتب واحد فقط أضف متغيراً API_URL بعنوانه، مثل https://office.palgaz.net)
         BUILD_NAME: 1.1.0
       flutter: stable
       xcode: latest
@@ -27,7 +26,7 @@ workflows:
       - name: حزم Flutter
         script: flutter pub get
       - name: تجهيز مشروع iOS و CocoaPods
-        script: flutter build ios --config-only --release --no-codesign --dart-define=API=$API_URL
+        script: flutter build ios --config-only --release --no-codesign --dart-define=API=${API_URL:-}
       - name: سلسلة المفاتيح
         script: keychain initialize
       - name: شهادة التوزيع وملف التعريف (يُنشآن تلقائياً إن لم يوجدا)
@@ -41,7 +40,7 @@ workflows:
           flutter build ipa --release \
             --build-name=$BUILD_NAME \
             --build-number=$((BUILD_NUMBER + 10)) \
-            --dart-define=API=$API_URL \
+            --dart-define=API=${API_URL:-} \
             --export-options-plist=/Users/builder/export_options.plist
     artifacts:
       - build/ios/ipa/*.ipa
