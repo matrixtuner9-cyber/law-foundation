@@ -74,6 +74,11 @@ const hl=(t,q)=>{t=e(t);if(!q)return t;const ws=norm(q).split(' ').filter(w=>w.l
  try{const re=new RegExp('('+ws.map(w=>w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/ا/g,'[اأإآ]').replace(/ي/g,'[يى]').replace(/ه/g,'[هة]')).join('|')+')','giu');return t.replace(re,'<mark>$1</mark>')}catch(x){return t}};
 const dmy2=s=>s?dmy(s):'—';
 const casesOf=r=>(r.cases||[]).map(id=>K(id)).filter(Boolean);
+/* بحث القضايا بالاسم أو الرقم: اسم الموكل أو رقم الدعوى أو موضوعها أو المحكمة، كل كلمة يجب أن توجد */
+const cName=k=>{try{return (C(k.client)||{}).name||''}catch(x){return ''}};
+const kHay=k=>norm([k.no,k.subject,cName(k),k.court,k.type].join(' '));
+const kMatch=(k,q)=>{const ts=norm(q).split(' ').filter(Boolean);if(!ts.length)return true;const h=kHay(k);return ts.every(t=>h.includes(t))};
+const kLabel=k=>k.no+' · '+(k.subject||'')+(cName(k)?' — '+cName(k):'');
 
 /* ── الملاحة ── */
 const i=NAV.findIndex(n=>n[0]==='tpls');NAV.splice(i+1,0,['rulings','الاجتهادات القضائية']);
@@ -128,7 +133,7 @@ function card(r,q){
  const ks=casesOf(r);
  const pend=!String(r.principle||'').trim();
  return `<section class="panel rl-card ${RS.sel.has(r.id)?'sel':''}" id="rl_${r.id}"><header><div class="rl-h"><input type="checkbox" class="rl-ck1" data-act="rSel" data-v="${r.id}" ${RS.sel.has(r.id)?'checked':''} aria-label="تحديد الحكم"><span class="pill mz">${e(r.court)}</span><span class="mono">${e(r.no||'')}</span><span class="m">${dmy2(r.date)}</span>${r.field?`<span class="pill">${e(r.field)}</span>`:''}${r.outcome?`<span class="pill ${/نقض|قبول|فسخ/.test(r.outcome)?'acc':/رد|رفض/.test(r.outcome)?'warn':''}">${e(r.outcome)}</span>`:''}</div>
-  <div class="toolbar">${r.file?`<a class="btn sm" target="_blank" rel="noopener" href="${e(r.file)}">نص الحكم</a>`:''}${r.text?`<button class="btn sm" data-act="ftRuling" data-v="${r.id}" title="عرض نص الحكم بشاشة كاملة مع تكبير الخط والطباعة">⛶ شاشة كاملة</button>`:''}<button class="btn sm" data-act="rCite" data-v="${r.id}">نسخ الاستشهاد</button><button class="btn sm" data-act="rPrintOne" data-v="${r.id}">${I_PRINT} طباعة</button>${can2('write')?`<button class="btn sm" data-act="rEdit" data-v="${r.id}">تعديل</button>`:''}</div></header>
+  <div class="toolbar">${r.file?`<a class="btn sm" target="_blank" rel="noopener" href="${e(r.file)}">نص الحكم</a>`:''}${r.text?`<button class="btn sm" data-act="ftRuling" data-v="${r.id}" title="عرض نص الحكم بشاشة كاملة مع تكبير الخط والطباعة">⛶ شاشة كاملة</button>`:''}<button class="btn sm" data-act="rCite" data-v="${r.id}">نسخ الاستشهاد</button><button class="btn sm" data-act="rPrintOne" data-v="${r.id}">${I_PRINT} طباعة</button>${can2('write')?`<button class="btn sm" data-act="rLinkCase" data-v="${r.id}">⚖ ربط بقضية${(r.cases||[]).length?' ('+(r.cases||[]).length+')':''}</button><button class="btn sm" data-act="rEdit" data-v="${r.id}">تعديل</button>`:''}</div></header>
   <div class="bd">${pend?`<div class="rl-pend"><span class="pill warn">بانتظار صياغة المبدأ</span>${can2('write')?`<button class="link" data-act="rEdit" data-v="${r.id}">اكتب المبدأ</button>`:''}</div><div class="rl-ti">${hl(r.title||r.no||'',q)}</div>`:`<div class="rl-p">${hl(r.principle,q)}</div>`}
   ${r.summary?`<div class="rl-s">${hl(r.summary,q)}</div>`:''}
   ${RS.open===r.id&&r.text?`<div class="rl-t">${hl(r.text,q)}</div>`:r.text?`<button class="link" data-act="rMore" data-v="${r.id}">عرض نص الحكم (${r.text.length.toLocaleString('en-US')} حرف)</button>`:''}
@@ -166,7 +171,7 @@ function form(r,caseId){
   <label class="wide"><span>الكلمات المفتاحية <small class="m">· مفصولة بفواصل</small></span><input class="field" id="rfK" value="${e((r.keywords||[]).join('، '))}" placeholder="تبليغ، بطلان، ميعاد الطعن"></label>
   <label class="wide"><span>نص الحكم <button type="button" class="link" data-act="ftForm" style="margin-inline-start:8px">⛶ عرض بشاشة كاملة</button> <small class="m">${r.text?'· نُقل النص الكامل ('+r.text.length.toLocaleString('ar-EG')+' حرفاً) ويُبحث فيه':'· اختياري: الصقه هنا ليُبحث فيه'}</small></span><textarea class="field" id="rfT" rows="${r.text?10:5}" dir="rtl">${e(r.text||'')}</textarea></label>
   <label class="wide"><span>ملف الحكم <small class="m">· PDF أو Word أو صورة، حتى 25 ميغابايت</small></span><div class="toolbar"><input type="file" id="rfFile" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.txt"><span id="rfFileN" class="m">${r.file?`ملف مرفق: <a target="_blank" rel="noopener" href="${e(r.file)}">${e(r.fileName||'فتح')}</a>`:''}</span></div></label>
-  <label class="wide">ربط بقضايا المكتب<div class="rl-cases">${cases.map(k=>`<label class="rl-ck"><input type="checkbox" name="rfCase" value="${k.id}" ${sel.has(k.id)?'checked':''}> <span class="mono">${k.no}</span> · ${e(k.subject)}</label>`).join('')||'<span class="m">لا قضايا بعد</span>'}</div></label>
+  <label class="wide">ربط بقضايا المكتب<input class="field" id="rfCq" placeholder="ابحث باسم الموكل أو رقم القضية…" autocomplete="off" style="margin:4px 0 6px"><div class="rl-cases">${cases.map(k=>`<label class="rl-ck" data-h="${e(kHay(k))}"><input type="checkbox" name="rfCase" value="${k.id}" ${sel.has(k.id)?'checked':''}> <span class="mono">${k.no}</span> · ${e(k.subject)}${cName(k)?` <small class="m">— ${e(cName(k))}</small>`:''}</label>`).join('')||'<span class="m">لا قضايا بعد</span>'}</div></label>
   <label class="wide">ملاحظات المكتب<input class="field" id="rfN" value="${e(r.notes||'')}" placeholder="كيف يُستعمل هذا المبدأ، أو تحفّظات عليه"></label>
   <div class="wide toolbar"><button class="btn pri" id="rfSave">حفظ</button>${r.id?`<button type="button" class="btn" data-act="rDel" data-v="${r.id}" style="color:var(--danger)">حذف من المكتبة</button>`:''}</div>
  </form></div></div>`;
@@ -257,6 +262,15 @@ A.rPick=v=>{if(ro())return;const k=K(v);if(!rulings.length){toast('المكتب�
  const q=document.getElementById('rpq');q.oninput=()=>{document.getElementById('rpl').innerHTML=pickList(k,q.value)};q.focus()};
 function pickList(k,q){const qn=norm(q),qt=toks(q);const rs=rulings.map(r=>({r,s:score(r,qn,qt)})).filter(x=>!qn||x.s>-1e8).sort((a,b)=>b.s-a.s).slice(0,30).map(x=>x.r);
  return rs.map(r=>{const on=(r.cases||[]).includes(k.id);return `<button class="rl-pk ${on?'on':''}" data-act="rLink" data-v="${r.id}|${k.id}"><span class="pill mz">${e(r.court)}</span> <span class="mono">${e(r.no||'')}</span><div>${e(r.principle).slice(0,160)}</div><small>${on?'✓ مرتبط — اضغط لفك الربط':'اضغط للربط'}</small></button>`}).join('')||'<div class="empty">لا نتائج.</div>'}
+function kList(r,q){const on=new Set(r.cases||[]);const ks=cases.filter(k=>kMatch(k,q)).slice(0,60);
+ return ks.map(k=>`<button class="rl-pk ${on.has(k.id)?'on':''}" data-act="rKToggle" data-v="${r.id}|${k.id}"><span class="mono">${e(k.no)}</span> · <b>${e(k.subject||'')}</b><div class="m">${e(cName(k)||'بلا موكل')}${k.court?' · '+e(k.court):''}</div><small>${on.has(k.id)?'✓ مرتبط — اضغط لفك الربط':'اضغط للربط'}</small></button>`).join('')||'<div class="empty">لا قضية تطابق البحث.</div>'}
+A.rLinkCase=v=>{if(ro())return;const r=rulings.find(x=>x.id===v);if(!r)return;
+ document.getElementById('modal').innerHTML=`<div class="modal-bg" data-act="close"><div class="modal rl-modal" role="dialog"><div class="head"><div><h1 style="font-size:22px">ربط الحكم بقضية</h1><p class="sub">${e(r.court)}${r.no?' · '+e(r.no):''}</p></div><button class="btn sm" data-act="close">إغلاق</button></div>
+ <input class="field" id="rkq" placeholder="ابحث باسم الموكل أو رقم القضية أو موضوعها…" autocomplete="off" style="margin:10px 0"><div id="rkl" class="rl-pick">${kList(r,'')}</div></div></div>`;
+ const q=document.getElementById('rkq');q.oninput=()=>{document.getElementById('rkl').innerHTML=kList(r,q.value)};q.focus()};
+A.rKToggle=v=>{if(ro())return;const [rid,kid]=v.split('|');const r=rulings.find(x=>x.id===rid);if(!r)return;r.cases=r.cases||[];const i=r.cases.indexOf(kid);if(i>=0)r.cases.splice(i,1);else r.cases.push(kid);
+ if(window.MQ&&MQ.saveState)MQ.saveState();const q=document.getElementById('rkq');document.getElementById('rkl').innerHTML=kList(r,q?q.value:'');toast(i>=0?'فُك الربط':'رُبط الحكم بالقضية '+((K(kid)||{}).no||''))};
+document.addEventListener('input',ev=>{const t=ev.target;if(t&&t.id==='rfCq'){const ts=norm(t.value).split(' ').filter(Boolean);document.querySelectorAll('.rl-ck').forEach(l=>{const h=l.dataset.h||'';l.style.display=ts.every(x=>h.includes(x))?'':'none'})}});
 A.rLink=v=>{if(ro())return;const [rid,kid]=v.split('|');const r=rulings.find(x=>x.id===rid);if(!r)return;r.cases=r.cases||[];const i=r.cases.indexOf(kid);if(i>=0)r.cases.splice(i,1);else r.cases.push(kid);
  if(window.MQ&&MQ.saveState)MQ.saveState();const q=document.getElementById('rpq');document.getElementById('rpl').innerHTML=pickList(K(kid),q?q.value:'');toast(i>=0?'فُك الربط':'رُبط الحكم بالقضية')};
 
@@ -317,7 +331,7 @@ function rulingsDoc(items,tpl0){
    blocks.push(B.p('<small>يرجى مطابقة النصوص مع الأحكام الأصلية قبل الاستشهاد بها.</small>','s'));
    return {title:TPLS[t][0],sub:k?'في القضية رقم '+k.no:TPLS[t][1],ref:'اج/'+today,file:TPLS[t][0]+' - '+today,orient:'port',blocks,sign:t==='brief'?['المحامي']:[]}},
   opts(){const st=this.state||{};return `<label>القالب<select data-po="tpl">${Object.entries(TPLS).map(([k,v])=>`<option value="${k}" ${st.tpl===k?'selected':''}>${v[0]}</option>`).join('')}</select></label>
-   <label>ربط بقضية (اختياري)<select data-po="k"><option value="">—</option>${cases.map(k=>`<option value="${k.id}">${k.no} · ${e(k.subject||'')}</option>`).join('')}</select></label>
+   <label>ربط بقضية (اختياري)<select data-po="k"><option value="">—</option>${cases.map(k=>`<option value="${k.id}">${e(kLabel(k))}</option>`).join('')}</select></label>
    <label>الجهة المخاطبة (اختياري)<input class="rl-pi" data-po="to" maxlength="120" placeholder="محكمة الاستئناف الموقرة"></label>
    <label>وجه الاستشهاد (اختياري)<textarea class="rl-pi" data-po="note" rows="3" maxlength="1800" placeholder="صلة هذه المبادئ بوقائع الدعوى…"></textarea></label>
    <label class="pvck"><input type="checkbox" data-po="src" checked><span>إظهار مصدر كل حكم</span></label>
