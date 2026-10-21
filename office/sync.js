@@ -98,11 +98,12 @@ window.MQ_buildFeed=()=>{S.feed=[...mzLog.map(l=>({at:l.at,kind:'mz',k:l.k,t:l.t
  .sort((a,b)=>b.at.localeCompare(a.at)).slice(0,10)};
 
 function notify(m){
- const who=(C(m.client)||{}).name||'موكل';
- toast((m.type==='voice'?'رسالة صوتية':m.type==='image'?'صورة':m.type==='file'?'مستند':'رسالة')+' جديدة من '+who);
+ const who=(C(m.client)||{}).name||'موكل',d=window.MQ_describeMsg?MQ_describeMsg(m):null;
+ toast(d?d.title+(d.caseNo?' · القضية '+d.caseNo:'')+' · '+d.via:(m.type==='voice'?'رسالة صوتية':m.type==='image'?'صورة':m.type==='file'?'مستند':'رسالة')+' جديدة من '+who);
+ if(window.MQ_announce)try{MQ_announce(m)}catch(x){}
  if(window.MQ_pushFeed)MQ_pushFeed({at:m.at,kind:m.type==='text'?'msg':m.type,c:m.client,t:label(m)});
  /* إشعار النظام حين تكون النافذة في الخلفية (تطبيق سطح المكتب أو متصفح سُمح له) */
- if((document.hidden||!document.hasFocus())&&'Notification' in window&&Notification.permission==='granted'){try{const n=new Notification('ميثاق · '+who,{body:label(m),tag:'mq-'+m.id,lang:'ar',dir:'rtl'});n.onclick=()=>{window.focus();A.bag(m.client)}}catch(e){}}
+ if((document.hidden||!document.hasFocus())&&'Notification' in window&&Notification.permission==='granted'){try{const n=new Notification('ميثاق · '+(d?d.title:who),{body:d?d.body:label(m),tag:'mq-'+m.id,lang:'ar',dir:'rtl'});n.onclick=()=>{window.focus();A.bag(m.client)}}catch(e){}}
 }
 function connect(){
  const es=new EventSource('/api/stream');
