@@ -96,9 +96,10 @@ class _Header extends StatelessWidget {
     return Container(
       padding: EdgeInsets.fromLTRB(Sp.page, top + Sp.m, Sp.page, Sp.l),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF0B1B2B), Color(0xFF173452)]),
-        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(R.sheet)),
-        border: Border(bottom: BorderSide(color: MQ.gold.withValues(alpha: .8), width: 2)),
+        gradient: const LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter, colors: [Color(0xFF153A30), Color(0xFF24584A)]),
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
+        border: Border(bottom: BorderSide(color: MQ.gold.withValues(alpha: .9), width: 2.5)),
+        boxShadow: [BoxShadow(color: MQ.forestDeep.withValues(alpha: .28), blurRadius: 18, offset: const Offset(0, 8))],
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Row(children: [
@@ -124,7 +125,7 @@ class _Header extends StatelessWidget {
               Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 const Icon(Icons.balance_rounded, color: MQ.gold, size: 26),
                 const SizedBox(width: Sp.s),
-                Text('ميثاق', style: MQ.title1(color: Colors.white)),
+                Text('ميثاق', style: MQ.title1(color: MQ.brassHi)),
               ]),
               Text('بوابة الموكل الآمنة', style: MQ.footnote(color: MQ.brassHi, weight: FontWeight.w600)),
             ]),
@@ -134,7 +135,7 @@ class _Header extends StatelessWidget {
         const SizedBox(height: Sp.l),
         Text('${greeting()}، ${store.firstName}', style: MQ.title1(color: Colors.white), maxLines: 1, overflow: TextOverflow.ellipsis),
         const SizedBox(height: 2),
-        Text('شريكك القانوني في طريق العدالة', style: MQ.callout(color: const Color(0xFFD5DEE9))),
+        Text('شريكك القانوني في طريق العدالة', style: MQ.callout(color: const Color(0xFFDDE8E2))),
       ]),
     );
   }

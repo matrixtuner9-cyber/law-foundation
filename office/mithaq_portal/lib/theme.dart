@@ -8,29 +8,29 @@ import 'package:flutter/services.dart';
 /// ─ الخط: IBM Plex Sans Arabic مضمّن في التطبيق (لا تحميل من الإنترنت)، وIBM Plex Mono للأرقام والرموز
 class MQ {
   // ── الهوية
-  static const forest = Color(0xFF0B1B2B); // الكحلي الأساسي
-  static const forestDeep = Color(0xFF07131F);
-  static const navy2 = Color(0xFF1C2B3D);
-  static const pine = Color(0xFF0B1B2B); // لون الإجراءات الأساسية
-  static const pineSoft = Color(0xFFE9EDF2);
+  static const forest = Color(0xFF1D4A3E); // الكحلي الأساسي
+  static const forestDeep = Color(0xFF123228);
+  static const navy2 = Color(0xFF2B5E4F);
+  static const pine = Color(0xFF1D4A3E); // لون الإجراءات الأساسية
+  static const pineSoft = Color(0xFFE4EEE9);
   static const onGold = Color(0xFFFFFFFF); // النص فوق اللون الأساسي
-  static const gold = Color(0xFFC9A55A); // ذهبي للزخرفة والحدود
+  static const gold = Color(0xFFCFA24A); // ذهبي للزخرفة والحدود
   static const goldLo = Color(0xFF8B6F3D);
   static const brass = Color(0xFF7A5C24); // ذهبي مقروء على الفاتح (تباين 5.6:1)
   static const brassHi = Color(0xFFE3C98E); // ذهبي مقروء على الكحلي
   static const brassSoft = Color(0xFFF6EEDC);
   // ── الأسطح
-  static const ivory = Color(0xFFF1F4F8); // خلفية الشاشات
+  static const ivory = Color(0xFFF5F7F5); // خلفية الشاشات
   static const surface = Color(0xFFFFFFFF); // البطاقات والقوائم
-  static const surfaceAlt = Color(0xFFF6F8FB); // الحقول
-  static const sunk = Color(0xFFE9EEF4);
-  static const line = Color(0xFFE0E6EE); // الحدود والفواصل
+  static const surfaceAlt = Color(0xFFF7F9F7); // الحقول
+  static const sunk = Color(0xFFE9EFEB);
+  static const line = Color(0xFFE2E8E4); // الحدود والفواصل
   // ── النصوص
   static const ink = Color(0xFF111B27); // أساسي (16:1)
   static const muted = Color(0xFF55606E); // ثانوي (6.4:1)
   static const faint = Color(0xFF7B8491); // ثالثي للتلميحات (4.5:1)
   static const soft = Color(0xFFB8C0CC); // ثانوي فوق الكحلي
-  static const mine = Color(0xFF0B1B2B); // فقاعة الموكل
+  static const mine = Color(0xFF1D4A3E); // فقاعة الموكل
   // ── الحالات
   static const mint = Color(0xFF2E7D5B);
   static const ok = Color(0xFF1E6B4B);
