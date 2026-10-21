@@ -78,6 +78,7 @@
       "consistency.js",
       "searchsel.js",
       "wa-chat.js",
+      "fulltext.js",
       "wa-skin.js",
       "case360.js",
       "hearing-prep.js",

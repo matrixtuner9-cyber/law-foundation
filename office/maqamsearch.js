@@ -54,7 +54,7 @@ function hl(t,q){t=e(t);const ws=(window.MQ_rnorm?MQ_rnorm(q):q||'').split(' ').
 function card(r){
  const d=MS.detail[r.maqamId],open=MS.open===r.maqamId,lib=inLib(r),src='https://maqam.najah.edu/judgments/'+r.maqamId+'/';
  return `<section class="panel rl-card ms-card" id="ms_${r.maqamId}"><header><div class="rl-h">${r.court?`<span class="pill mz">${e(r.court)}</span>`:''}<span class="mono">${r.number?e(r.number)+'/'+e(r.year||''):''}</span><span class="m">${r.decisionDate?(typeof dmy==='function'?dmy(r.decisionDate):e(r.decisionDate)):''}</span></div>
-  <div class="toolbar"><button class="btn sm" data-act="msOpen" data-v="${r.maqamId}">${open?'إخفاء النص':'عرض النص الكامل'}</button>${can2('write')?(lib?`<button class="btn sm" data-act="rOpen" data-v="${e(lib.id)}">في المكتبة ✓</button>`:`<button class="btn sm pri" data-act="rImportUrl" data-v="${src}">استيراد للمكتبة</button>`):''}</div></header>
+  <div class="toolbar"><button class="btn sm" data-act="msOpen" data-v="${r.maqamId}">${open?'إخفاء النص':'عرض النص الكامل'}</button><button class="btn sm" data-act="ftMs" data-v="${r.maqamId}" title="عرض النص بشاشة كاملة مع تكبير الخط والطباعة">⛶ شاشة كاملة</button>${can2('write')?(lib?`<button class="btn sm" data-act="rOpen" data-v="${e(lib.id)}">في المكتبة ✓</button>`:`<button class="btn sm pri" data-act="rImportUrl" data-v="${src}">استيراد للمكتبة</button>`):''}</div></header>
   <div class="bd"><div class="rl-p">${hl(r.title,MS.q)}</div><div class="chips ms-bs">${badges(r)}</div>
   ${r.snippet?`<div class="ms-sn">${hl(r.snippet,MS.q)}</div>`:''}
   ${open?(d==='loading'?'<div class="ms-load">جارٍ جلب النص الكامل من الموقع المصدر…</div>':d&&d.error?`<div class="note" style="color:var(--danger)">${e(d.error)}</div>`:d?`<div class="ms-meta m">${[d.court,d.litigationType,d.section,d.subject,d.branch].filter(Boolean).map(e).join(' · ')}</div><div class="ms-t">${String(d.bodyText||'').split(/\n{2,}/).map(x=>x.trim()).filter(Boolean).map(x=>`<p>${hl(x,MS.q)}</p>`).join('')}</div>`:''):''}
@@ -71,7 +71,7 @@ function results(){
  const d=MS.data;
  if(!d)return '';
  if(!d.results.length)return '<section class="panel"><div class="empty">لا نتائج مطابقة في المصدر. جرّب كلمات أقل أو أزل بعض التصنيفات.</div></section>';
- return `<div class="ms-top"><div class="m">${d.results.length} حكماً في هذه الصفحة${d.totalPages>1?` · ${d.totalPages} صفحات`:''} · <a href="${e(d.sourceUrl)}" target="_blank" rel="noopener noreferrer">فتح البحث في الموقع المصدر ↗</a></div>${download()}</div>
+ return `<div class="ms-top"><div class="m">${d.results.length} حكماً في هذه الصفحة${d.totalPages>1?` · ${d.totalPages} صفحات`:''}</div>${download()}</div>
  ${can2('write')?extractBar():''}
  <div class="stack">${d.results.map(card).join('')}</div>${pager()}`;
 }
@@ -150,6 +150,11 @@ A.msOpen=async v=>{
  catch(x){MS.detail[id]={error:x.message}}
  paint();const el=document.getElementById('ms_'+id);if(el)el.scrollIntoView({block:'nearest'});
 };
+/* النص بشاشة كاملة (يُجلب أولاً إن لم يكن محمّلاً) */
+A.ftMs=async v=>{const id=Number(v);let d=MS.detail[id];
+ if(!d||d==='loading'||d.error){toast('جارٍ جلب النص الكامل…');try{const j=await jsonCall('judgment',new URLSearchParams({id}));d=MS.detail[id]=j.judgment}catch(x){return toast(x.message)}}
+ const r=((MS.data&&MS.data.results)||[]).find(x=>x.maqamId===id)||{};
+ A.ftOpen&&A.ftOpen({title:r.title||[d.court,r.number&&r.number+'/'+(r.year||'')].filter(Boolean).join(' '),sub:[d.court,d.litigationType,d.section,r.decisionDate&&(typeof dmy==='function'?dmy(r.decisionDate):r.decisionDate)].filter(Boolean).join(' · '),text:d.bodyText||'',q:MS.q})};
 A.msDl=async()=>{
  if(MS.dlBusy)return;readForm();
  MS.dl={format:document.getElementById('msFmt').value,pages:Number(document.getElementById('msPages').value)||1,full:document.getElementById('msFull').checked};
