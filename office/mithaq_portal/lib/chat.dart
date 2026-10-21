@@ -205,7 +205,7 @@ class ChatTabState extends State<ChatTab> {
         IconButton(
           tooltip: 'إرفاق وثيقة',
           onPressed: () => Attach.sheet(context),
-          icon: const Icon(Icons.note_add_outlined, color: MQ.forest),
+          icon: const Icon(Icons.upload_file_rounded, color: MQ.forest),
         ),
       ]),
     ));
@@ -235,10 +235,8 @@ class ChatTabState extends State<ChatTab> {
         child: SafeArea(
           top: false,
           child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            IconButton(
-                tooltip: 'إرفاق',
-                onPressed: () => Attach.sheet(context),
-                icon: Transform.rotate(angle: math.pi / 4, child: const Icon(Icons.attach_file, color: MQ.muted))),
+            _tool(Icons.upload_file_rounded, 'رفع مستند', () => Attach.pick(context, AttachSource.file)),
+            const SizedBox(width: 6),
             Expanded(
               child: Focus(
                 onKeyEvent: (node, e) {
@@ -270,23 +268,33 @@ class ChatTabState extends State<ChatTab> {
                 ),
               ),
             ),
-            if (!hasText)
-              IconButton(
-                  tooltip: 'تصوير وثيقة',
-                  onPressed: () => Attach.pick(context, AttachSource.camera),
-                  icon: const Icon(Icons.photo_camera_outlined, color: MQ.muted)),
+            if (!hasText) ...[const SizedBox(width: 6), _tool(Icons.photo_camera_rounded, 'تصوير وثيقة', () => Attach.pick(context, AttachSource.camera))],
             const SizedBox(width: 2),
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 180),
               transitionBuilder: (c, a) => ScaleTransition(scale: a, child: c),
               child: _roundBtn(
                 key: ValueKey(hasText),
-                icon: hasText ? Icons.send_rounded : Icons.mic_rounded,
+                icon: hasText ? Icons.arrow_upward_rounded : Icons.mic_rounded,
                 tooltip: hasText ? 'إرسال' : 'تسجيل رسالة صوتية',
                 onTap: hasText ? sendText : startRec,
               ),
             ),
           ]),
+        ),
+      );
+
+  /// زر أداة حديث: مربع مدوّر بخلفية ذهبية خفيفة وأيقونة ممتلئة مدوّرة الحواف
+  Widget _tool(IconData icon, String tip, VoidCallback onTap) => Tooltip(
+        message: tip,
+        child: Material(
+          color: MQ.brassSoft,
+          borderRadius: BorderRadius.circular(R.control),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(R.control),
+            onTap: onTap,
+            child: SizedBox(width: 44, height: 44, child: Icon(icon, color: MQ.brass, size: 24)),
+          ),
         ),
       );
 

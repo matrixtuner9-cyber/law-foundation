@@ -109,10 +109,14 @@ class _Header extends StatelessWidget {
     final unread = store.unread;
     return Container(
       padding: EdgeInsets.fromLTRB(Sp.page, top + Sp.s, Sp.page, Sp.l),
+      foregroundDecoration: BoxDecoration(
+        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(R.sheet)),
+        gradient: LinearGradient(begin: Alignment.centerRight, end: Alignment.centerLeft, colors: [MQ.forestDeep.withValues(alpha: .92), MQ.forestDeep.withValues(alpha: .78), MQ.forestDeep.withValues(alpha: .15)], stops: const [0, .6, 1]),
+      ),
       decoration: BoxDecoration(
         color: MQ.forest,
         borderRadius: const BorderRadius.vertical(bottom: Radius.circular(R.sheet)),
-        image: const DecorationImage(image: AssetImage('assets/images/hdr.jpg'), fit: BoxFit.cover, alignment: Alignment.centerRight),
+        image: const DecorationImage(image: AssetImage('assets/images/hdr.jpg'), fit: BoxFit.cover, alignment: Alignment.centerLeft),
         boxShadow: [BoxShadow(color: MQ.forest.withValues(alpha: .25), blurRadius: 16, offset: const Offset(0, 6))],
         border: const Border(bottom: BorderSide(color: MQ.gold, width: 1.5)),
       ),
@@ -130,8 +134,8 @@ class _Header extends StatelessWidget {
           const SizedBox(width: Sp.m),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('بوابة الموكل', style: MQ.title1(color: MQ.brassHi)),
-              Text('${store.office['name'] ?? ''}', style: MQ.footnote(color: MQ.soft), maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text('بوابة الموكل', style: MQ.title1(color: Colors.white).copyWith(shadows: const [Shadow(color: Colors.black54, blurRadius: 6)])),
+              Text('${store.office['name'] ?? ''}', style: MQ.subhead(color: MQ.brassHi, weight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
             ]),
           ),
           const SizedBox(width: 56),
@@ -147,8 +151,8 @@ class _Header extends StatelessWidget {
           const SizedBox(width: Sp.m),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('${greeting()}، ${store.firstName}', style: MQ.headline(color: Colors.white), maxLines: 1, overflow: TextOverflow.ellipsis),
-              Text('نحن هنا لدعمك في كل خطوة من قضيتك', style: MQ.footnote(color: MQ.soft)),
+              Text('${greeting()}، ${store.firstName}', style: MQ.title3(color: Colors.white), maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text('نحن هنا لدعمك في كل خطوة من قضيتك', style: MQ.subhead(color: Colors.white.withValues(alpha: .92))),
             ]),
           ),
         ]),
@@ -182,46 +186,36 @@ class _NextHearing extends StatelessWidget {
     final n = next!;
     final attend = n.h['attend'] == true;
     return Container(
-      decoration: BoxDecoration(color: MQ.forest, borderRadius: BorderRadius.circular(R.card + 4)),
-      padding: const EdgeInsets.all(Sp.l),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Expanded(child: Text('الجلسة القادمة', style: MQ.footnote(color: MQ.soft, weight: FontWeight.w600))),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-            decoration: BoxDecoration(color: attend ? MQ.brassHi : Colors.white.withValues(alpha: .12), borderRadius: BorderRadius.circular(R.pill)),
-            child: Text(attend ? 'حضورك مطلوب' : 'يحضر المحامي عنك',
-                style: MQ.caption(color: attend ? MQ.forest : MQ.onGold, weight: FontWeight.w700)),
-          ),
-        ]),
-        const SizedBox(height: Sp.m),
-        IntrinsicHeight(
-          child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            Container(
-              width: 72,
-              padding: const EdgeInsets.symmetric(vertical: Sp.s),
-              decoration: BoxDecoration(borderRadius: BorderRadius.circular(R.control), border: Border.all(color: MQ.brassHi.withValues(alpha: .5))),
-              child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Text(dayName(n.t), style: MQ.caption(color: MQ.brassHi)),
-                Text('${n.t.day}', style: MQ.title1(color: MQ.onGold)),
-                Text(_months[n.t.month - 1], style: MQ.caption(color: MQ.soft, weight: FontWeight.w400)),
-              ]),
-            ),
-            const SizedBox(width: Sp.m),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
-                Text('${n.h['time']}', style: MQ.mono(18, color: MQ.brassHi, weight: FontWeight.w600)),
-                const SizedBox(height: 2),
-                Text('${n.h['purpose']}', style: MQ.headline(color: MQ.onGold), maxLines: 2, overflow: TextOverflow.ellipsis),
-                Text('${n.kase['court']} · القضية ${n.kase['no']}', style: MQ.footnote(color: MQ.soft), maxLines: 2, overflow: TextOverflow.ellipsis),
-              ]),
-            ),
+      decoration: BoxDecoration(color: MQ.forest, borderRadius: BorderRadius.circular(R.card), border: Border.all(color: MQ.gold.withValues(alpha: .35))),
+      padding: const EdgeInsets.symmetric(horizontal: Sp.m + 2, vertical: Sp.m),
+      child: Row(children: [
+        Container(
+          width: 52,
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(R.control - 2), border: Border.all(color: MQ.brassHi.withValues(alpha: .55))),
+          child: Column(children: [
+            Text('${n.t.day}', style: MQ.title2(color: MQ.onGold)),
+            Text(_months[n.t.month - 1], style: MQ.caption(color: MQ.brassHi)),
           ]),
         ),
-        const SizedBox(height: Sp.m),
-        Countdown(target: n.t),
+        const SizedBox(width: Sp.m),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('الجلسة القادمة · ${dayName(n.t)} ${n.h['time']}', style: MQ.footnote(color: MQ.brassHi, weight: FontWeight.w600)),
+            Text('${n.h['purpose']}', style: MQ.callout(color: MQ.onGold, weight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
+            Text(attend ? 'حضورك مطلوب · ${_left(n.t)}' : 'يحضر المحامي عنك · ${_left(n.t)}', style: MQ.caption(color: attend ? MQ.brassHi : MQ.soft, weight: FontWeight.w600)),
+          ]),
+        ),
       ]),
     );
+  }
+
+  static String _left(DateTime t) {
+    final d = t.difference(DateTime.now());
+    if (d.inMinutes <= 0) return 'الآن';
+    if (d.inDays >= 1) return 'بعد ${d.inDays} يوم';
+    if (d.inHours >= 1) return 'بعد ${d.inHours} ساعة';
+    return 'بعد ${d.inMinutes} دقيقة';
   }
 }
 
