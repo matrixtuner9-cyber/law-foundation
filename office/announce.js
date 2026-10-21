@@ -90,6 +90,7 @@ function elBox(){const st=TT.st;if(!st)return '<div class="m">جارٍ القر�
  if(TT.open||!st.configured)return `<form class="form ann-el" id="annElForm" autocomplete="off"><div class="wide">${head}</div>
   <label class="wide">مفتاح ElevenLabs API ${st.configured?'<small class="m">(اتركه فارغاً لإبقاء المفتاح المحفوظ ‎…'+e(st.last4)+')</small>':''}<input class="field mono" id="annElKey" type="password" autocomplete="new-password" dir="ltr" placeholder="sk_…"></label>
   <label>الصوت<select class="field" id="annElVoice"><option value="">${TT.voices?'— أول صوت في الحساب —':'احفظ المفتاح ثم اختر الصوت'}</option>${(TT.voices||[]).map(v=>`<option value="${e(v.id)}" data-n="${e(v.name)}" ${st.voiceId===v.id?'selected':''}>${e(v.name)}${v.category?' · '+e(v.category):''}</option>`).join('')}</select></label>
+  <label>أو معرّف الصوت (Voice ID)<input class="field mono" id="annElVoiceId" dir="ltr" placeholder="من ElevenLabs ← Voices ← ID" value="${e(st.voiceId&&!(TT.voices||[]).some(v=>v.id===st.voiceId)?st.voiceId:'')}"></label>
   <label>النموذج<select class="field" id="annElModel"><option value="flash" ${st.model!=='quality'?'selected':''}>سريع وأرخص (Flash v2.5)</option><option value="quality" ${st.model==='quality'?'selected':''}>أعلى جودة (Multilingual v2)</option></select></label>
   <label class="wide rl-ck"><input type="checkbox" id="annElAlways" ${st.always?'checked':''}> استخدمه دائماً حتى لو وُجد صوت عربي في المتصفح (صوت موحّد على كل الأجهزة)</label>
   <div class="wide toolbar"><button class="btn pri">حفظ</button>${st.configured?'<button type="button" class="btn" data-act="annElX">إلغاء</button>':''}</div></form>`;
@@ -99,7 +100,7 @@ async function loadVoices(){try{const r=await fetch('/api/admin/tts/voices',{cre
 A.annElEdit=()=>{TT.open=true;paint();loadVoices()};A.annElX=()=>{TT.open=false;paint()};
 A.annElRm=async()=>{if(!confirm('إزالة مفتاح ElevenLabs؟ سيعود التنبيه لصوت المتصفح فقط.'))return;try{const r=await fetch('/api/admin/tts',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({clear:true})});if(r.ok){toast('أُزيل المفتاح');await ttsStatus(true);paint()}}catch(x){}};
 document.addEventListener('submit',async ev=>{const f=ev.target;if(f.id!=='annElForm')return;ev.preventDefault();ev.stopImmediatePropagation();
- const sel=f.annElVoice,opt=sel.options[sel.selectedIndex],body={key:f.annElKey.value.trim(),voiceId:sel.value,voiceName:opt&&opt.dataset.n||'',model:f.annElModel.value,always:f.annElAlways.checked};
+ const sel=f.annElVoice,opt=sel.options[sel.selectedIndex],manual=f.annElVoiceId.value.trim(),body={key:f.annElKey.value.trim(),voiceId:manual||sel.value,voiceName:manual?'':(opt&&opt.dataset.n||''),model:f.annElModel.value,always:f.annElAlways.checked};
  const btn=f.querySelector('.btn.pri');btn.disabled=true;
  try{const r=await fetch('/api/admin/tts',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify(body)});const j=await r.json().catch(()=>({}));
   if(!r.ok){toast(j.error||'تعذّر الحفظ');btn.disabled=false;return}

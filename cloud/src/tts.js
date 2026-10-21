@@ -24,6 +24,16 @@ function cleanCfg(b, prev) {
 }
 const pubCfg = c => c && c.key ? { configured: true, last4: c.key.slice(-4), voiceId: c.voiceId || '', voiceName: c.voiceName || '', model: c.model || 'flash', always: !!c.always, savedAt: c.savedAt } : { configured: false };
 
+/* سبب الرفض كما يعيده ElevenLabs، بعبارة يفهمها المدير */
+function why(status, j) {
+  const d = (j && j.detail) || {}, code = String(d.status || d.code || '').toLowerCase(), msg = String(d.message || (typeof j.detail === 'string' ? j.detail : '') || '');
+  if (code === 'missing_permissions' || /permission/i.test(msg)) return 'مفتاح ElevenLabs لا يملك الصلاحيات اللازمة. في ElevenLabs ← API Keys فعّل للمفتاح «Text to Speech» و«Voices: Read» (أو أنشئ مفتاحاً بلا قيود).';
+  if (code === 'detected_unusual_activity' || /unusual activity/i.test(msg)) return 'رفض ElevenLabs الطلب لأنه صادر من خادم سحابي. الحسابات المجانية في ElevenLabs لا تقبل ذلك؛ يلزم اشتراك مدفوع (Starter فما فوق).';
+  if (code === 'quota_exceeded' || /quota|credit/i.test(code + msg)) return 'نفد رصيد ElevenLabs.';
+  if (code === 'invalid_api_key' || status === 401) return 'مفتاح ElevenLabs غير مقبول (غير صحيح أو محذوف).' + (code && code !== 'invalid_api_key' ? ' [' + code + ']' : '');
+  return 'ردّ ElevenLabs بخطأ ' + status + (code ? ' [' + code + ']' : '');
+}
+
 function createTts({ getCfg, fetchImpl, now = () => Date.now(), audit }) {
   const F = fetchImpl || ((u, o) => fetch(u, o));
   const cache = new Map(); // نص → { at, bytes }
@@ -33,8 +43,7 @@ function createTts({ getCfg, fetchImpl, now = () => Date.now(), audit }) {
   async function voices() {
     const c = await getCfg(); if (!c || !c.key) return { status: 400, body: { error: 'لم يُضبط مفتاح ElevenLabs.' } };
     let r; try { r = await F(API + '/voices', { headers: { 'xi-api-key': c.key } }) } catch (e) { return { status: 502, body: { error: 'تعذّر الاتصال بـ ElevenLabs.' } } }
-    if (r.status === 401) return { status: 400, body: { error: 'مفتاح ElevenLabs غير مقبول.' } };
-    if (!r.ok) return { status: 502, body: { error: 'ردّ ElevenLabs بخطأ ' + r.status } };
+    if (!r.ok) { const j = await r.json().catch(() => ({})); return { status: r.status === 401 ? 400 : 502, body: { error: why(r.status, j) } } }
     const j = await r.json().catch(() => ({}));
     return { status: 200, body: { voices: (j.voices || []).slice(0, 200).map(v => ({ id: v.voice_id, name: v.name, category: v.category || '', labels: v.labels || {} })) } };
   }
@@ -56,8 +65,7 @@ function createTts({ getCfg, fetchImpl, now = () => Date.now(), audit }) {
       });
     } catch (e) { return { status: 502, body: { error: 'تعذّر الاتصال بـ ElevenLabs.' } } }
     if (!r.ok) {
-      const j = await r.json().catch(() => ({})), d = j.detail || {};
-      const msg = r.status === 401 ? 'مفتاح ElevenLabs غير مقبول.' : /quota|credit/i.test(JSON.stringify(d)) ? 'نفد رصيد ElevenLabs.' : 'ردّ ElevenLabs بخطأ ' + r.status;
+      const j = await r.json().catch(() => ({})), msg = why(r.status, j);
       audit && audit({ username: user && user.username, action: 'tts.failed', detail: { status: r.status } });
       return { status: 502, body: { error: msg } };
     }
