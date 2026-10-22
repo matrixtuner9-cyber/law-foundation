@@ -208,3 +208,15 @@ a.btn{text-decoration:none;color:inherit}
 .cw-rec legend{color:var(--muted);font-size:12.5px;padding:0 6px}.cw .list .row.clk{all:unset;cursor:pointer;display:block;padding:10px 12px;border-bottom:1px solid var(--line)}.cw .list .row.clk:hover .t{color:var(--brass)}
 .wf-n{position:relative}.wf-n.cur em{position:absolute;left:8px;bottom:6px;margin:0}.wf-n.cur .wf-go{padding-bottom:26px}
 .wf-row .wf-n{flex:1 1 200px}
+/* المحطات الخمس */
+.st-bar{display:flex;align-items:center;gap:10px;margin:0 0 10px}.st-bar .m{flex:1}
+.wf-steps.st5{grid-template-columns:repeat(5,1fr)}@media(max-width:720px){.wf-steps.st5{grid-template-columns:1fr 1fr}}
+.st-now{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
+.st-facts{flex:1 1 320px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.st-facts>div{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--surface)}.st-facts small{display:block;color:var(--muted);font-size:11.5px}.st-facts b{font-size:13px;font-weight:600}
+.st-next{display:flex;flex-direction:column;gap:6px;align-items:stretch;min-width:220px}
+.st-gate{background:rgb(185 150 90 / .06)}
+.st-post{display:grid;gap:12px}.st-judg{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--surface)}
+.st-due{margin-top:6px;padding:6px 10px;border-radius:8px;background:#EEF6F1;font-size:13px}.st-due.warn{background:#FFF4DB}.st-due.bad{background:#FDE8E8;color:#9B1C1C}.st-due.gone{background:#EEE;color:#555}
+.st-opts{display:grid;grid-template-columns:1fr 1fr;gap:8px}@media(max-width:600px){.st-opts{grid-template-columns:1fr}}
+.st-opt{all:unset;cursor:pointer;display:block;border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--panel,#fff)}.st-opt:hover{border-color:var(--brass);background:rgb(185 150 90 / .08)}.st-opt b{display:block;font-size:14px}.st-opt small{color:var(--muted);line-height:1.5}

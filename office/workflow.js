@@ -170,7 +170,7 @@ A.wfAt=v=>{if(root.MQ&&MQ.readOnly){toast('صلاحيتك للاطلاع فقط'
 function bag(c,ks){
  if(!ks.length)return '<section class="panel"><div class="empty">لا قضايا لهذا الموكل بعد. تبدأ الحقيبة بالتوكيل وفتح ملف القضية.</div></section>';
  return ks.map(k=>{PROF=profileOf(k);const cur=currentId(k),ph=phaseOf(cur,PROF.PH),mk=byId[cur];
-  const hs=(root.hearings||[]).filter(h=>h.k===k.id),nh=root.nextH?nextH(k.id):null,ds=(root.docs||[]).filter(d=>d.k===k.id),dl=(root.deadlines||[]).filter(d=>d.k===k.id&&diff(d.due)>=0),st=(k.settles||[]).length;
+  const hs=(typeof hearings!=='undefined'?hearings:[]).filter(h=>h.k===k.id),nh=root.nextH?nextH(k.id):null,ds=(typeof docs!=='undefined'?docs:[]).filter(d=>d.k===k.id),dl=(typeof deadlines!=='undefined'?deadlines:[]).filter(d=>d.k===k.id&&diff(d.due)>=0),st=(k.settles||[]).length;
   const gate=k.gate&&k.gate.conflictOk&&k.gate.feeOk;const info={prep:(gate?'بوابة القبول ✓ · ':'بوابة القبول ناقصة · ')+ds.length+' مستند',amic:st?st+' اتفاقية تسوية':'لا تسوية',invest:(k.complaintNo?'شكوى '+k.complaintNo:'لا شكوى مسجلة'),court:hs.length+' جلسة'+(nh?' · القادمة '+dmy(nh.date):''),appeal:'',final:dl.length?dl.length+' مهلة قائمة':esc(k.status)};
   const steps=PROF.PH.map(p=>{const s2=phaseState(p,cur,PROF);return `<div class="wfs ${s2} ${p.side?'side':''}"><i>${s2==='done'?'✓':''}</i><b>${p.t}</b><small>${info[p.id]||''}</small></div>`}).join('');
   const nodes=ph.n.map(id=>node(byId[id],cur,null,k.id)).join('');
@@ -180,5 +180,5 @@ function bag(c,ks){
   <div class="wf-nodes"><div class="wf-ph">${esc(ph.t)}</div><div class="wf-row">${nodes}</div></div>
   <button class="link" data-act="wfOpen" data-v="${k.id}">${open?'إخفاء المخطط الكامل':'عرض المخطط الكامل للقضية'}</button>${open?body(k):''}</div></section>`}).join('')}
 A.wfOpen=v=>{S.wfOpen=S.wfOpen===v?null:v;render()};
-root.MQ_flow={body,bag};root.MQ_wf=api;
+root.MQ_flow={body,bag,track};root.MQ_wf=api;
 }(typeof window!=='undefined'?window:globalThis));

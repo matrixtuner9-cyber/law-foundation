@@ -18,7 +18,7 @@ window.catOf=k=>{if(k.cat)return CATS.find(c=>c.k===k.cat)||CATS[0];const t=k.ty
 window.trackOf=k=>k.track&&k.track.length?k.track:[{lvl:(CT(k.court)||{}).type||'بداية',court:k.court,no:k.no,from:k.opened||''}];
 const curLvl=k=>trackOf(k).slice(-1)[0].lvl;
 const nature=k=>catOf(k).k==='criminal'?'criminal':'civil';
-const nextRoute=l=>l==='صلح'||l==='بداية'?'استئناف':l==='استئناف'?'نقض':null;
+const nextRoute=l=>l==='صلح'||l==='بداية'?'استئناف':l==='استئناف'?'نقض':null;window.MQ_nextRoute=nextRoute;
 const addDays=(s,n)=>{const d=pd(s);return iso(new Date(d.getFullYear(),d.getMonth(),d.getDate()+n))};
 const today=()=>iso(new Date());
 function ruleFor(k,type,lvl){if(type==='interim')return null;const to=nextRoute(lvl);if(!to)return null;

@@ -36,6 +36,7 @@
       "settlements.js",
       "workflow.js",
       "casework.js",
+      "stations.js",
       "sync.js",
       "mizan-ui.js",
       "style.css",
