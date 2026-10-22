@@ -37,7 +37,8 @@ function stageOf(k,ctx){ctx=ctx||{};const today=ctx.today||new Date().toISOStrin
  return crim?'بانتظار تسجيل الشكوى':'قيد إعداد اللائحة وتسجيل الدعوى'}
 function fmtD(s){if(!s)return '';const [y,m,d]=String(s).slice(0,10).split('-');return d&&m&&y?`${+d}/${+m}/${y}`:String(s)}
 /* تسجيل الانتقال بين المحطات */
-function setStation(k,st,why,by,at){if(!k||!ST.some(s=>s.id===st))return false;if(k.station===st)return false;
+let ON_ST=null;
+function setStation(k,st,why,by,at){if(!k||!ST.some(s=>s.id===st))return false;if(k.station===st)return false;if(ON_ST)try{ON_ST(k,k.station||'',st,why||'')}catch(x){}
  k.transitions=[...(k.transitions||[]),{from:k.station||'',to:st,at:at||new Date().toISOString().slice(0,16).replace('T',' '),by:by||'',why:why||''}];k.station=st;return true}
 const api={ST,stationOf,stageOf,setStation,gateOk,lastMerits,isExec};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;
@@ -48,6 +49,17 @@ const ctx=()=>({hearings:typeof hearings!=='undefined'?hearings:[],today:iso(TOD
 const me=()=>(root.MQ&&MQ.user&&MQ.user.name)||'';
 const save=()=>{if(root.MQ&&MQ.saveState)MQ.saveState()};
 const can=()=>!(root.MQ&&MQ.readOnly);
+/* تنبيه الموكل بكل إجراء على مسار قضيته (مع منع التكرار إن أُرسلت له رسالة محددة للإجراء نفسه) */
+const LAST={};let OWN=false;
+const wrapSend=()=>{const s0=root.sendMsg;if(typeof s0!=='function'||s0._st)return;const w=function(cid,...r){if(!OWN)LAST[cid]=Date.now();return s0.call(this,cid,...r)};w._st=1;root.sendMsg=w};
+addEventListener('load',()=>setTimeout(wrapSend,0));
+function notify(k,text){if(!k||!text||!can())return;wrapSend();setTimeout(()=>{if(Date.now()-(LAST[k.client]||0)<2500)return;const c=C(k.client)||{};if(typeof sendMsg==='function'){OWN=true;try{sendMsg(k.client,text,c.ch||'البوابة')}finally{OWN=false}}},0)}
+const MSG={study:k=>'نفيدكم بقبول توكيلنا في قضيتكم وفتح ملفها لدى المكتب، وقد بدأنا دراسة القضية. سنوافيكم بقرارنا وما نحتاجه منكم.',
+ follow:(k,w)=>'نفيدكم بأن قضيتكم'+(k.no&&k.no!=='قيد التسجيل'?' رقم '+k.no:'')+' انتقلت إلى مرحلة المتابعة: '+(w||'بدأنا الإجراءات')+'. سنوافيكم بكل جديد.',
+ post:k=>'نفيدكم بصدور الحكم في قضيتكم رقم '+k.no+'. نقوم بدراسته وسنوافيكم بتوصيتنا بشأن الطعن أو التنفيذ.',
+ closed:(k,w)=>'نفيدكم بإقفال ملف قضيتكم'+(k.no&&k.no!=='قيد التسجيل'?' رقم '+k.no:'')+' لدى المكتب: '+((k.closed&&k.closed.result)||w||'')+'. نشكر ثقتكم، ونحن جاهزون لأي استفسار.',
+ intake:k=>'نفيدكم بأن ملف قضيتكم عاد إلى مرحلة الاستقبال لاستكمال المتطلبات.'};
+ON_ST=(k,from,to,why)=>{const der=why==='مشتقة من بيانات القضية';if(!from&&der)return;const f=MSG[to];if(f)notify(k,f(k,der?stageOf(k,ctx()):why))};
 const sync=k=>{const st=stationOf(k,ctx());if(k.station!==st)setStation(k,st,'مشتقة من بيانات القضية',me());return st};
 
 /* ── المحطة 1: بوابة القبول داخل نموذج فتح الملف نفسه ── */
@@ -149,5 +161,5 @@ function bag(c,ks){
    <div class="st-next"><button class="btn pri" ${na}>${esc(nt)} ←</button>${st!=='closed'&&st!=='intake'?`<button class="btn sm" data-act="stClose" data-v="${k.id}">إقفال</button>`:''}<button class="link" data-act="stMap" data-v="${k.id}">${open?'إخفاء الخريطة':'الخريطة المرجعية'}</button></div></div>
   ${open&&root.MQ_flow?MQ_flow.body(k):''}</div></section>`}).join('')}
 A.stMap=v=>{S.stMap=S.stMap===v?null:v;render()};
-root.MQ_station={bag,stationOf:k=>stationOf(k,ctx()),stageOf:k=>stageOf(k,ctx()),setStation,postModal,closeModal:k=>{CK=k.id;closeModal(k)}};
+root.MQ_station={notify,bag,stationOf:k=>stationOf(k,ctx()),stageOf:k=>stageOf(k,ctx()),setStation,postModal,closeModal:k=>{CK=k.id;closeModal(k)}};
 }(typeof window!=='undefined'?window:globalThis));

@@ -117,13 +117,13 @@ function closeModal(k){document.getElementById('modal').innerHTML=`<div class="m
  <button class="btn pri" style="background:var(--danger)">إقفال الملف</button></form></div></div>`}
 document.addEventListener('submit',e=>{const f=e.target;if(!['fWfReg','fWfFinal','fWfClose','fWfGate'].includes(f.id))return;e.preventDefault();e.stopImmediatePropagation();
  if(root.MQ&&MQ.readOnly)return toast('صلاحيتك للاطلاع فقط');const k=K(WK);if(!k)return;const g=id=>(document.getElementById(id)||{}).value||'';
- if(f.id==='fWfReg'){if(REG==='crime'){k.complaintNo=g('wrNo').trim();k.complaintAt=g('wrD');k.complaintAtOrg=(CT(g('wrC'))||{}).name||'';if(g('wrN').trim())k.regNote=g('wrN').trim();k.flowAt=31;A.close();saveK();toast('سُجّلت الشكوى رقم '+k.complaintNo);goCase(k,'hearings')}
-  else{k.no=g('wrNo').trim()||k.no;k.opened=g('wrD')||k.opened;k.court=g('wrC')||k.court;if(g('wrN').trim())k.regNote=g('wrN').trim();k.flowAt=REG==='crim'?36:8;k.step=Math.max(k.step||0,REG==='crim'?1:0);A.close();saveK();toast('سُجّلت الدعوى برقم '+k.no);if(REG==='crim')goCase(k,'hearings');else goCase(k,'hub',()=>{if(A.hubTab)A.hubTab('deadlines')})}}
+ if(f.id==='fWfReg'){if(REG==='crime'){k.complaintNo=g('wrNo').trim();k.complaintAt=g('wrD');k.complaintAtOrg=(CT(g('wrC'))||{}).name||'';if(g('wrN').trim())k.regNote=g('wrN').trim();k.flowAt=31;A.close();saveK();toast('سُجّلت الشكوى رقم '+k.complaintNo);if(root.MQ_station)MQ_station.notify(k,'نفيدكم بتسجيل الشكوى في قضيتكم برقم '+k.complaintNo+(k.complaintAtOrg?' لدى '+k.complaintAtOrg:'')+'، وسنتابع التحقيق ونوافيكم بالمواعيد.');goCase(k,'hearings')}
+  else{k.no=g('wrNo').trim()||k.no;k.opened=g('wrD')||k.opened;k.court=g('wrC')||k.court;if(g('wrN').trim())k.regNote=g('wrN').trim();k.flowAt=REG==='crim'?36:8;k.step=Math.max(k.step||0,REG==='crim'?1:0);A.close();saveK();toast('سُجّلت الدعوى برقم '+k.no);if(root.MQ_station)MQ_station.notify(k,'نفيدكم بتسجيل دعواكم لدى '+((CT(k.court)||{}).name||'المحكمة')+' برقم '+k.no+'، وسنوافيكم بموعد الجلسة الأولى.');if(REG==='crim')goCase(k,'hearings');else goCase(k,'hub',()=>{if(A.hubTab)A.hubTab('deadlines')})}}
  if(f.id==='fWfGate'){const ok=!!(document.getElementById('wgC')||{}).checked,fo=!!(document.getElementById('wgS')||{}).checked,fee=Number(g('wgF'))||0;
   k.gate={other:g('wgQ').trim(),conflictOk:ok,feeOk:fo,fee,pay:g('wgP'),at:iso(TODAY),by:(root.MQ&&MQ.user&&MQ.user.name)||''};if(fee&&!k.fee)k.fee=fee;
-  if(ok&&fo&&(!k.flowAt||k.flowAt<23))k.flowAt=23;A.close();saveK();render();toast(ok&&fo?'اجتازت القضية بوابة القبول':'حُفظت البوابة، وما زالت غير مكتملة')}
- if(f.id==='fWfFinal'){k.final={date:g('wfD'),why:g('wfW'),note:g('wfN').trim()};k.stage='حكم قطعي';k.flowAt=19;A.close();saveK();toast('سُجّل اكتساب الحكم الدرجة القطعية');track(k,'تنفيذ')}
- if(f.id==='fWfClose'){k.status='منتهية';k.stage='مقفلة ومؤرشفة';k.closed={date:g('wcD'),result:g('wcR'),archive:g('wcA').trim()};k.flowAt=22;k.step=Math.max(k.step||0,5);A.close();saveK();toast('أُقفل الملف وأُرشف');goBag(k,'cases')}
+  if(ok&&fo&&(!k.flowAt||k.flowAt<23))k.flowAt=23;A.close();saveK();render();toast(ok&&fo?'اجتازت القضية بوابة القبول':'حُفظت البوابة، وما زالت غير مكتملة');if(ok&&fo&&root.MQ_station)MQ_station.notify(k,'نفيدكم بقبول توكيلنا في قضيتكم وتوقيع اتفاقية الأتعاب، وسنباشر العمل على ملفكم.')}
+ if(f.id==='fWfFinal'){k.final={date:g('wfD'),why:g('wfW'),note:g('wfN').trim()};k.stage='حكم قطعي';k.flowAt=19;A.close();saveK();toast('سُجّل اكتساب الحكم الدرجة القطعية');if(root.MQ_station)MQ_station.notify(k,'نفيدكم بأن الحكم في قضيتكم رقم '+k.no+' اكتسب الدرجة القطعية، وننتقل إلى إجراءات التنفيذ.');track(k,'تنفيذ')}
+ if(f.id==='fWfClose'){k.status='منتهية';k.stage='مقفلة ومؤرشفة';k.closed={date:g('wcD'),result:g('wcR'),archive:g('wcA').trim()};k.flowAt=22;k.step=Math.max(k.step||0,5);A.close();saveK();toast('أُقفل الملف وأُرشف');if(root.MQ_station)MQ_station.notify(k,'نفيدكم بإقفال ملف قضيتكم'+(k.no?' رقم '+k.no:'')+': '+k.closed.result+'. نشكر ثقتكم.');goBag(k,'cases')}
 });
 /* متابعة ما يُسجَّل في «مسار التقاضي»: تحريك المخطط، وتنبيه الموكل والمكتب عند صدور حكم أو نقل القضية إلى درجة أخرى */
 const APPEAL=['استئناف','نقض','إعادة محاكمة'];
@@ -165,7 +165,7 @@ function body(k){KID=k.id;PROF=profileOf(k);const cur=currentId(k),mk=byId[cur],
 A.wfFlow=v=>{if(root.MQ&&MQ.readOnly)return toast('صلاحيتك للاطلاع فقط');const [kid,f]=v.split('|'),k=K(kid);if(!k||!PROFILES[f])return;k.flow=f;if(k.flowAt&&!PROFILES[f].MAIN.includes(k.flowAt)&&!PROFILES[f].PH.some(p=>p.n.includes(k.flowAt)))delete k.flowAt;saveK();render();toast('تحوّلت القضية إلى '+PROFILES[f].t)};
 A.wfAt=v=>{if(root.MQ&&MQ.readOnly){toast('صلاحيتك للاطلاع فقط');return}
  const [a,b]=String(v).split('|'),k=K(b?a:S.caseId),n=byId[+(b||a)];if(!k||!n)return;k.flowAt=n.id;k.step=n.s;
- if(root.MQ&&MQ.saveState)MQ.saveState();render();toast('حُدّدت المرحلة: '+n.t)};
+ if(root.MQ&&MQ.saveState)MQ.saveState();if(root.MQ_station)MQ_station.notify(k,'نفيدكم بتحديث مرحلة قضيتكم'+(k.no&&k.no!=='قيد التسجيل'?' رقم '+k.no:'')+' إلى: '+n.t+'.');render();toast('حُدّدت المرحلة وأُبلغ الموكل: '+n.t)};
 /* حقيبة الموكل: قضايا الموكل مرتبة على مسار السير */
 function bag(c,ks){
  if(!ks.length)return '<section class="panel"><div class="empty">لا قضايا لهذا الموكل بعد. تبدأ الحقيبة بالتوكيل وفتح ملف القضية.</div></section>';
