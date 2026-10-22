@@ -3,7 +3,7 @@
 const CATS=[
  {k:'civil',n:'حقوقية'},{k:'labor',n:'عمالية'},{k:'criminal',n:'جزائية'},{k:'rent',n:'إيجارات وإخلاء'},{k:'exec',n:'تنفيذ'},{k:'sharia',n:'شرعية'},
  {k:'bodily',n:'أضرار جسدية',ins:1},{k:'property',n:'أضرار مادية',ins:1},{k:'policy',n:'بوالص تأمين',ins:1},{k:'recovery',n:'تحصيل',ins:1}];
-const LEVELS=['صلح','بداية','استئناف','نقض','تنفيذ','تسوية ودية'];
+const LEVELS=['صلح','بداية','استئناف','نقض','إعادة محاكمة','تنفيذ','تسوية ودية'];
 const MAIN=['صلح','بداية','استئناف','نقض','تنفيذ'];
 const DTYPES=[['merits','حكم فاصل في الموضوع'],['urgent','حكم في مادة مستعجلة'],['interim','قرار تمهيدي (لا يُطعن فيه استقلالاً)']];
 const ins=()=>MQ.settings&&MQ.settings.edition==='insurance';

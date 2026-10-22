@@ -78,10 +78,28 @@ document.addEventListener('submit',e=>{const f=e.target;if(!['fWfReg','fWfFinal'
  if(f.id==='fWfFinal'){k.final={date:g('wfD'),why:g('wfW'),note:g('wfN').trim()};k.stage='حكم قطعي';k.flowAt=19;A.close();saveK();toast('سُجّل اكتساب الحكم الدرجة القطعية');track(k,'تنفيذ')}
  if(f.id==='fWfClose'){k.status='منتهية';k.stage='مقفلة ومؤرشفة';k.closed={date:g('wcD'),result:g('wcR'),archive:g('wcA').trim()};k.flowAt=22;k.step=Math.max(k.step||0,5);A.close();saveK();toast('أُقفل الملف وأُرشف');goBag(k,'cases')}
 });
-/* متابعة ما يُسجَّل في «مسار التقاضي» لتحريك المخطط تلقائياً */
-document.addEventListener('submit',e=>{const f=e.target;if(!['fDec','fMove'].includes(f.id)||!S.caseId)return;const k=K(S.caseId);if(!k)return;
- if(f.id==='fMove'){const l=(document.getElementById('mL')||{}).value;k.flowAt=l==='استئناف'||l==='نقض'?16:l==='تنفيذ'?19:l==='تسوية ودية'?90:k.flowAt}
- if(f.id==='fDec'&&(document.getElementById('dT')||{}).value!=='interim'){const lv=(k.track||[]).slice(-1)[0];k.flowAt=lv&&/استئناف|نقض/.test(lv.lvl||'')?17:13}},true);
+/* متابعة ما يُسجَّل في «مسار التقاضي»: تحريك المخطط، وتنبيه الموكل والمكتب عند صدور حكم أو نقل القضية إلى درجة أخرى */
+const APPEAL=['استئناف','نقض','إعادة محاكمة'];
+const addD=(d,n)=>{const x=new Date(d+'T00:00:00');x.setDate(x.getDate()+n);return iso(x)};
+document.addEventListener('submit',e=>{const f=e.target;if(!['fDec','fMove'].includes(f.id)||!S.caseId)return;const k=K(S.caseId);if(!k)return;const c=C(k.client)||{};
+ if(f.id==='fMove'){const l=(document.getElementById('mL')||{}).value,d=(document.getElementById('mD')||{}).value||iso(TODAY),ct=CT((document.getElementById('mC')||{}).value)||{},no=((document.getElementById('mN')||{}).value||'').trim(),tell=!!(document.getElementById('mM')||{checked:true}).checked;
+  k.flowAt=APPEAL.includes(l)?16:l==='تنفيذ'?19:l==='تسوية ودية'?90:k.flowAt;
+  setTimeout(()=>{const kk=K(k.id);if(!kk)return;
+   const what=l==='تنفيذ'?'فتح ملف التنفيذ':l==='تسوية ودية'?'إنهاء القضية بتسوية ودية':'تحويل القضية إلى مرحلة '+l;
+   if(tell&&l!=='تسوية ودية'&&typeof sendMsg==='function')sendMsg(kk.client,'نفيدكم بأنه تم '+what+(ct.name?' لدى '+ct.name:'')+' بتاريخ '+dmy(d)+(no?' برقم '+no:'')+(APPEAL.includes(l)?'. سنوافيكم بموعد أول جلسة فور تحديده، وقد لا يُشترط حضوركم إلا إذا طلبناه.':'. سنتابع الإجراءات ونوافيكم بكل جديد.'),c.ch||'البوابة');
+   const due=addD(d,APPEAL.includes(l)?7:l==='تنفيذ'?10:3),title=APPEAL.includes(l)?'متابعة قيد '+l+' وتحديد أول جلسة — '+kk.no:l==='تنفيذ'?'متابعة إشعار التنفيذ وتبليغ المدين — '+kk.no:'إقفال الملف بعد التسوية — '+kk.no;
+   if(!deadlines.some(x=>x.k===kk.id&&x.title===title))deadlines.push({id:'dl-wf'+Date.now(),k:kk.id,title,due,kind:'متابعة',auto:true});
+   if(root.MQ&&MQ.saveState)MQ.saveState();if(root.MQ_announce&&MQ_announce.say)try{MQ_announce.say(what+' في قضية '+kk.no)}catch(x){}
+   toast(what+(tell&&l!=='تسوية ودية'?' وأُبلغ الموكل':'')+' · مهلة متابعة '+dmy(due));render()},0)}
+ if(f.id==='fDec'&&(document.getElementById('dT')||{}).value!=='interim'){const lv=(k.track||[]).slice(-1)[0];k.flowAt=lv&&APPEAL.some(a=>(lv.lvl||'').includes(a))?17:13;
+  setTimeout(()=>{const kk=K(k.id),dd=(kk.decisions||[]).slice(-1)[0];if(!kk||!dd)return;
+   const title='دراسة الحكم وقرار الطعن — '+kk.no,due=dd.due?addD(dd.due,-5):addD(dd.date||iso(TODAY),7);
+   if(!deadlines.some(x=>x.k===kk.id&&x.title===title))deadlines.push({id:'dl-wj'+Date.now(),k:kk.id,title,due:due<iso(TODAY)?iso(TODAY):due,kind:'متابعة',auto:true,dec:dd.id});
+   if(root.MQ&&MQ.saveState)MQ.saveState();if(root.MQ_announce&&MQ_announce.say)try{MQ_announce.say('صدر الحكم في قضية '+kk.no+(dd.due?'، آخر موعد للطعن '+dmy(dd.due):''))}catch(x){}
+   render()},0)}},true);
+/* خانة «إبلاغ الموكل» في نموذج نقل القضية */
+const wrapTrack=()=>{const t0=root.trackTab;if(typeof t0!=='function'||t0._wf)return false;const w=k=>String(t0(k)).replace('<button class="btn">نقل القضية</button>','<label class="wide ck"><input type="checkbox" id="mM" checked> إبلاغ الموكل عبر البوابة بنقل القضية إلى الدرجة الجديدة</label><button class="btn">نقل القضية</button>');w._wf=1;root.trackTab=w;return true};
+if(!wrapTrack())addEventListener('load',wrapTrack);
 let WK=null;const saveK=()=>{if(root.MQ&&MQ.saveState)MQ.saveState()};
 A.wfGo=v=>{const [a,b]=String(v).split('|'),k=K(b?a:S.caseId),id=+(b||a),g=GO[id];if(!k)return;WK=k.id;if(!g)return;if(root.MQ&&MQ.readOnly&&![3,4,11,13,15,17,20].includes(id))return toast('صلاحيتك للاطلاع فقط');g[1](k)};
 const node=(n,cur,label,kid)=>{const st=state(n.id,cur);

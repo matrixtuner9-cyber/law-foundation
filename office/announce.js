@@ -76,6 +76,8 @@ window.MQ_announce=m=>{
  return d;
 };
 window.MQ_describeMsg=describe;
+/* تنبيه صوتي لأحداث المكتب (صدور حكم، نقل قضية) بنفس إعدادات الجهاز */
+window.MQ_announce.say=t=>{const c=cfg();if(c.chime)chime(c.vol);if(c.voice)setTimeout(()=>speak(t,c),c.chime?650:0)};
 
 /* ── قراءة نص طويل (مرفقات الموكل): مقاطع متتابعة، بصوت المتصفح العربي أو ElevenLabs، مع إيقاف ── */
 function chunks(text,max=900){const out=[];let cur='';
