@@ -21,7 +21,7 @@ const MZ_INCOMING=[
 const S={view:'dash',caseId:null,caseTab:'c360',clientId:null,cf:'الكل',cq:'',tpl:'t1',tplCase:'k1',tplVals:{},pc:'c2',pch:'البوابة',syncing:false,pending:[],lastSync:'2026-10-12 08:15',docK:'all',rules:{mz:true,remind:true,doc:true,pay:false}};
 
 const C=id=>clients.find(x=>x.id===id), K=id=>cases.find(x=>x.id===id), O=id=>opponents.find(x=>x.id===id), CT=id=>courts.find(x=>x.id===id);
-const oppNames=k=>k.opps.map(o=>O(o).name).join(' و');
+const oppNames=k=>(k.opps||[]).map(o=>(O(o)||{}).name||'').filter(Boolean).join(' و');
 const nextH=kid=>hearings.filter(h=>h.k===kid&&diff(h.date)>=0).sort((a,b)=>a.date.localeCompare(b.date))[0];
 const sevOf=n=>n<=3?'bad':n<=10?'warn':'ok';
 const statusPill=s=>({'نشطة':'acc','تنفيذ':'mz','محكوم':'warn','منتهية':''}[s]??'');
@@ -165,18 +165,18 @@ V.client=()=>{const c=C(S.clientId),ks=cases.filter(k=>k.client===c.id);
 
 V.opps=()=>`<div class="head"><div><h1>الخصوم وتضارب المصالح</h1><p class="sub">افحص أي اسم قبل قبول توكيل جديد مقابل سجل الموكلين والخصوم</p></div></div>
  <section class="panel"><header><h2>فحص تضارب المصالح</h2></header><div class="bd conflict"><input class="field" id="cfq" placeholder="اكتب اسم الطرف المحتمل، مثال: خالد حمدان" style="max-width:480px"><div id="cfr"><div class="note">يبحث الفحص في أسماء الموكلين والخصوم ووكلائهم ويعرض القضايا المرتبطة.</div></div></div></section>
- <section class="panel tablewrap"><table><thead><tr><th>الخصم</th><th>الصفة</th><th>وكيل الخصم</th><th>القضايا المرتبطة</th><th>ضد موكلي المكتب</th></tr></thead><tbody>${opponents.map(o=>{const ks=cases.filter(k=>k.opps.includes(o.id));return `<tr><td style="font-weight:500">${esc(o.name)}</td><td>${o.type}</td><td>${esc(o.lawyer)}</td><td>${ks.map(k=>`<button class="link mono" data-act="openCase" data-v="${k.id}">${k.no}</button>`).join('، ')}</td><td>${[...new Set(ks.map(k=>C(k.client).name))].map(esc).join('، ')}${ks.length>1?' <span class="pill warn">خصم متكرر</span>':''}</td></tr>`}).join('')}</tbody></table></section>`;
+ <section class="panel tablewrap"><table><thead><tr><th>الخصم</th><th>الصفة</th><th>وكيل الخصم</th><th>القضايا المرتبطة</th><th>ضد موكلي المكتب</th></tr></thead><tbody>${opponents.map(o=>{const ks=cases.filter(k=>(k.opps||[]).includes(o.id));return `<tr><td style="font-weight:500">${esc(o.name)}</td><td>${o.type}</td><td>${esc(o.lawyer)}</td><td>${ks.map(k=>`<button class="link mono" data-act="openCase" data-v="${k.id}">${k.no}</button>`).join('، ')}</td><td>${[...new Set(ks.map(k=>C(k.client).name))].map(esc).join('، ')}${ks.length>1?' <span class="pill warn">خصم متكرر</span>':''}</td></tr>`}).join('')}</tbody></table></section>`;
 function conflict(q){
  q=q.trim();if(q.length<2)return '<div class="note">يبحث الفحص في أسماء الموكلين والخصوم ووكلائهم ويعرض القضايا المرتبطة.</div>';
  const parts=q.split(/\s+/).filter(p=>p.length>1);
- const hit=n=>parts.some(p=>n.includes(p));
+ const hit=n=>parts.some(p=>String(n||'').includes(p));
  const cl=clients.filter(c=>hit(c.name)),op=opponents.filter(o=>hit(o.name)||hit(o.lawyer));
  if(!cl.length&&!op.length)return `<div class="verdict ok">لا يوجد تطابق مع أي موكل أو خصم مسجل. يمكن المتابعة بقبول التوكيل.</div>`;
- const full=n=>parts.every(p=>n.includes(p));
+ const full=n=>parts.every(p=>String(n||'').includes(p));
  const strong=op.some(o=>full(o.name));
  return `<div class="verdict ${strong?'bad':'warn'}">${strong?'تضارب محتمل: الاسم مطابق لخصم في قضايا قائمة للمكتب. لا يُقبل التوكيل ضد موكلينا الحاليين.':'تطابق جزئي: راجع الأسماء أدناه قبل القرار.'}</div>
  ${cl.map(c=>`<div class="note">موكل لدى المكتب: <b>${esc(c.name)}</b> · ${cases.filter(k=>k.client===c.id).map(k=>k.no).join('، ')}</div>`).join('')}
- ${op.map(o=>`<div class="note">خصم في: ${cases.filter(k=>k.opps.includes(o.id)).map(k=>`<button class="link mono" data-act="openCase" data-v="${k.id}">${k.no}</button> (ضد ${esc(C(k.client).name)})`).join('، ')} · <b>${esc(o.name)}</b>${hit(o.lawyer)&&!hit(o.name)?' · تطابق في اسم الوكيل '+esc(o.lawyer):''}</div>`).join('')}`;
+ ${op.map(o=>`<div class="note">خصم في: ${cases.filter(k=>(k.opps||[]).includes(o.id)).map(k=>`<button class="link mono" data-act="openCase" data-v="${k.id}">${k.no}</button> (ضد ${esc(C(k.client).name)})`).join('، ')} · <b>${esc(o.name)}</b>${hit(o.lawyer)&&!hit(o.name)?' · تطابق في اسم الوكيل '+esc(o.lawyer):''}</div>`).join('')}`;
 }
 
 V.courts=()=>`<div class="head"><div><h1>المحاكم</h1><p class="sub">درجات التقاضي التي يترافع أمامها المكتب وقضاياه في كل منها</p></div></div>
