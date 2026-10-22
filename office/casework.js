@@ -75,8 +75,12 @@ function readNeed(){return [...document.querySelectorAll('table.cw-need tbody tr
 function saveNeed(k){if(!can())return toast('صلاحيتك للاطلاع فقط');k.gather={...(k.gather||{}),need:readNeed(),updated:iso(TODAY)};save()}
 A.cwNeedAdd=v=>{const k=K(v);if(!k)return;k.gather={...(k.gather||{}),need:[...readNeed(),{id:'n'+Date.now(),t:'',st:'client',src:'',note:''}]};render();const r=document.querySelector('table.cw-need tbody tr:last-child input');if(r)r.focus()};
 A.cwNeedDel=v=>{const k=K(S.caseId);if(!k)return;const need=readNeed();need.splice(+v,1);k.gather={...(k.gather||{}),need};render()};
-A.cwNeedSave=v=>{const k=K(v);if(!k)return;saveNeed(k);render();toast('حُفظت قائمة المستندات')};
-A.cwAskClient=v=>{const k=K(v);if(!k||!can())return;saveNeed(k);const miss=(k.gather.need||[]).filter(n=>n.st==='client');if(!miss.length)return;
+/* إبلاغ الموكل بالمستندات المطلوبة منه التي لم يُطلب منه إرسالها بعد */
+function askNew(k,all){const miss=((k.gather||{}).need||[]).filter(n=>n.st==='client'),asked=new Set((k.gather||{}).asked||[]);const neu=all?miss:miss.filter(n=>!asked.has(n.t));if(!neu.length)return 0;
+ const c=C(k.client)||{};const t='تحية طيبة، لاستكمال ملف قضيتكم'+(k.no&&k.no!=='قيد التسجيل'?' رقم '+k.no:'')+' نرجو تزويدنا بالمستندات التالية:\n'+neu.map((n,i)=>(i+1)+'. '+n.t+(n.note?' ('+n.note+')':'')).join('\n')+'\nيمكنكم تصويرها وإرسالها من تطبيق البوابة مباشرة، أو إحضار الأصول إلى المكتب.';
+ if(typeof sendMsg==='function')sendMsg(k.client,t,c.ch||'البوابة');k.gather.asked=[...new Set([...asked,...miss.map(n=>n.t)])];save();return neu.length}
+A.cwNeedSave=v=>{const k=K(v);if(!k)return;saveNeed(k);const n=askNew(k);render();toast(n?'حُفظت القائمة وأُبلغ الموكل بـ '+n+' مستند مطلوب':'حُفظت قائمة المستندات')};
+A.cwAskClient=v=>{const k=K(v);if(!k||!can())return;saveNeed(k);{const n=askNew(k,true);toast(n?'أُرسل طلب '+n+' مستند إلى الموكل':'لا مستندات مطلوبة من الموكل');render();return}const miss=(k.gather.need||[]).filter(n=>n.st==='client');if(!miss.length)return;
  const c=C(k.client);const t='تحية طيبة، لاستكمال ملف قضيتك رقم '+k.no+' نرجو تزويدنا بالمستندات التالية:\n'+miss.map((n,i)=>(i+1)+'. '+n.t+(n.note?' ('+n.note+')':'')).join('\n')+'\nيمكنك تصويرها وإرسالها من تطبيق البوابة مباشرة.';
  if(typeof sendMsg==='function')sendMsg(k.client,t,c?c.ch:'البوابة');save();toast('أُرسل طلب المستندات إلى '+(c?c.name:'الموكل'));render()};
 A.cwNext=v=>{const [tab,kid]=v.split('|');S.view='case';S.caseId=kid;S.caseTab=tab;window.scrollTo(0,0);render()};
@@ -91,7 +95,7 @@ A.cwPrintStudy=v=>{const k=K(v);if(!k||!root.MQP)return;const s=k.study||{},M=MQ
 document.addEventListener('submit',e=>{const f=e.target;if(!['fGather','fStudy'].includes(f.id))return;e.preventDefault();e.stopImmediatePropagation();
  if(!can())return toast('صلاحيتك للاطلاع فقط');const k=K(S.caseId);if(!k)return;const g=id=>(document.getElementById(id)||{}).value||'';
  if(f.id==='fGather'){k.gather={...(k.gather||{}),facts:g('gwFacts').trim(),claim:g('gwClaim').trim(),parties:g('gwParties').trim(),timeline:g('gwTimeline').trim(),notes:g('gwNotes').trim(),need:readNeed(),updated:iso(TODAY)};
-  if(!k.flowAt||k.flowAt<3)k.flowAt=3;save();render();toast('حُفظت معلومات القضية')}
+  if(!k.flowAt||k.flowAt<3)k.flowAt=3;save();render();{const n=askNew(k);toast(n?'حُفظت المعلومات وأُبلغ الموكل بـ '+n+' مستند مطلوب':'حُفظت معلومات القضية')}}
  if(f.id==='fStudy'){const rec=(f.querySelector('input[name=swRec]:checked')||{}).value||'';
   k.study={basis:g('swBasis').trim(),jur:g('swJur').trim(),lim:g('swLim').trim(),strong:g('swStrong').trim(),weak:g('swWeak').trim(),evid:g('swEvid').trim(),est:g('swEst').trim(),cost:g('swCost').trim(),rec,recNote:g('swRecNote').trim(),updated:iso(TODAY)};
   const nx=rec&&RECS[rec]?RECS[rec][1]:null;if(nx)k.flowAt=nx;else if(!k.flowAt||k.flowAt<4)k.flowAt=4;

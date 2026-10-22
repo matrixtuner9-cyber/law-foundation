@@ -203,7 +203,7 @@ a.btn{text-decoration:none;color:inherit}
 .wf-n.cur em{align-self:center;margin-inline-end:8px}
 .wf-n.cur{flex-wrap:nowrap}
 /* شاشتا جمع المعلومات والدراسة */
-.cw .cw-need .field{min-width:0;font-size:13px;padding:6px 8px}.cw .cw-need td{padding:4px 4px}
+.cw .cw-need{table-layout:fixed;width:100%}.cw .cw-need td:last-child,.cw .cw-need th:last-child{width:34px}.cw .cw-need .field{min-width:0;width:100%;box-sizing:border-box;font-size:13px;padding:6px 8px}.cw .cw-need td{padding:4px 4px}
 .cw-rec{display:flex;flex-wrap:wrap;gap:6px 16px;border:1px solid var(--line);border-radius:10px;padding:8px 12px}
 .cw-rec legend{color:var(--muted);font-size:12.5px;padding:0 6px}.cw .list .row.clk{all:unset;cursor:pointer;display:block;padding:10px 12px;border-bottom:1px solid var(--line)}.cw .list .row.clk:hover .t{color:var(--brass)}
 .wf-n{position:relative}.wf-n.cur em{position:absolute;left:8px;bottom:6px;margin:0}.wf-n.cur .wf-go{padding-bottom:26px}
