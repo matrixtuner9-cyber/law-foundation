@@ -12,7 +12,7 @@
   "d1_databases": [{ "binding": "DB", "database_name": "mithaq-central", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "schema" }],
   "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "mithaq-media" }],
   "vars": { "BASE_DOMAINS": "palgaz.net", "OPS_HOSTS": "test.palgaz.net" },
-  "triggers": { "crons": ["30 0 * * *"] },
+  "triggers": { "crons": ["30 0 * * *", "7 * * * *"] },
   "observability": { "enabled": true }
   // الأسرار (لا تُكتب هنا): OPS_TOKEN عبر: wrangler secret put OPS_TOKEN
 }

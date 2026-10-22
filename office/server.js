@@ -211,6 +211,16 @@ function broadcast(type, payload) {
   });
 }
 setInterval(() => streams.forEach((u, r) => r.write(': ping\n\n')), 25000);
+/* تذكير الموكل بالجلسات المطلوب حضوره فيها: كل 8 ساعات خلال الـ48 ساعة السابقة للجلسة */
+const HearingAlerts = require('./lib/hearing-alerts');
+function runHearingAlerts() {
+  try {
+    const sent = HearingAlerts.prune(store.kv.get('hearing_alerts_sent') || {}); let n = 0;
+    for (const a of HearingAlerts.plan(state, { sent, courts: SEED.courts || [] })) { addMsg({ client: a.client, from: 'lawyer', type: 'notice', text: a.text, ch: 'البوابة', by: 'system', k: a.k }); sent[a.key] = Date.now(); n++ }
+    store.kv.set('hearing_alerts_sent', sent); return n;
+  } catch (e) { console.error('[hearing-alerts]', e); return 0 }
+}
+if (!ED.offline) { setTimeout(runHearingAlerts, 20000); setInterval(runHearingAlerts, 15 * 60000) }
 /* بث السجلات المعدّلة لزملاء المكتب فوراً، فلا يعمل أحد على نسخة قديمة (المحامي الخارجي يراها عند إعادة التحميل) */
 function broadcastRecords(recs, byId, del = []) {
   if (!recs.length && !del.length) return;

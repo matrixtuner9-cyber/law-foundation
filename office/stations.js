@@ -163,3 +163,13 @@ function bag(c,ks){
 A.stMap=v=>{S.stMap=S.stMap===v?null:v;render()};
 root.MQ_station={notify,bag,stationOf:k=>stationOf(k,ctx()),stageOf:k=>stageOf(k,ctx()),setStation,postModal,closeModal:k=>{CK=k.id;closeModal(k)}};
 }(typeof window!=='undefined'?window:globalThis));
+/* تنبيه المحامي في الشاشة الرئيسية بالجلسات خلال 48 ساعة */
+(function(){if(typeof V==='undefined'||typeof V.dash!=='function')return;const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+ const at=h=>{const d=new Date(String(h.date)+'T'+(/^\d{1,2}:\d{2}/.test(h.time||'')?h.time.padStart(5,'0'):'09:00')+':00');return d.getTime()};
+ const d0=V.dash;V.dash=function(){const html=d0.apply(this,arguments);const now=Date.now();
+  const hs=(typeof hearings!=='undefined'?hearings:[]).filter(h=>!h.result).map(h=>({h,ms:at(h),k:K(h.k)})).filter(x=>x.k&&x.k.status!=='منتهية'&&x.ms>now&&x.ms-now<=48*3600e3).sort((a,b)=>a.ms-b.ms);
+  if(!hs.length)return html;
+  const box=`<section class="hb48" role="alert"><div class="hb48-h"><b>⏰ جلسات خلال 48 ساعة (${hs.length})</b><span>راجع التحضير والمستندات، وتأكد من إبلاغ من يُطلب حضورهم</span></div>${hs.map(({h,ms,k})=>{const left=Math.round((ms-now)/3600e3),c=C(k.client)||{},ct=CT(k.court)||{};
+   return `<button class="hb48-r ${left<=12?'hot':''}" data-act="openCase" data-v="${k.id}"><span class="hb48-t">${left<=1?'خلال ساعة':'بعد '+left+' ساعة'}</span><span><b>${esc(k.no)} · ${esc(c.name||'')}</b><small>${dmy(h.date)} ${esc(h.time||'')} · ${esc(ct.name||'')}${h.purpose?' · '+esc(h.purpose):''}</small></span>${h.attend?'<em>حضور الموكل مطلوب · يُذكَّر تلقائياً كل 8 ساعات</em>':''}</button>`}).join('')}</section>`;
+  return box+html};
+ const css=document.createElement('style');css.textContent='.hb48{margin:0 0 14px;border:1px solid #E7B54A;background:linear-gradient(180deg,#FFF8E6,#FFF2D2);border-radius:14px;padding:10px 12px}.hb48-h{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;margin-bottom:8px}.hb48-h b{font-size:15px;color:#7A4B00}.hb48-h span{font-size:12.5px;color:#8a6a2e}.hb48-r{all:unset;cursor:pointer;display:flex;align-items:center;gap:12px;padding:8px 10px;border-radius:10px;background:#fff;border:1px solid #F1DDB0;margin-top:6px;width:100%;box-sizing:border-box;flex-wrap:wrap}.hb48-r:hover{border-color:#C8902A}.hb48-r small{display:block;color:#6b7280;font-size:12px}.hb48-t{min-width:84px;font-weight:800;color:#A8741C}.hb48-r.hot .hb48-t{color:#B42318}.hb48-r em{font-style:normal;font-size:11.5px;background:#FDE8E8;color:#9B1C1C;border-radius:999px;padding:2px 8px;margin-inline-start:auto}';document.head.appendChild(css)})();

@@ -7,6 +7,7 @@ import { openStore, COLL, diffFields } from './store.js';
 import { createAuth } from './auth.js';
 import { courts, STEPS } from './seed.js';
 import { plan, rotate, lawformsGuard } from './merge.js';
+import * as HearingAlerts from './hearing-alerts.js';
 import { fetchJudgment } from './maqam.js';
 import { createService as maqamService } from './maqam-search.js';
 import { createService as muqtafiService, idFromUrl as muqtafiId } from './muqtafi.js';
@@ -873,6 +874,11 @@ export class Office extends DurableObject {
     }
     /* نسخة احتياطية مشفّرة يومية إلى R2 (يستدعيها الـ Worker المجدول). المحتوى كامل لأنه للاستعادة، ومشفّر بمفتاح لا يملكه إلا الخادم */
     if (p === '/_ops/backup') return json(200, await this.backup());
+    if (p === '/_ops/hearing-alerts') {
+      const sent = HearingAlerts.prune(this.store.kv.get('hearing_alerts_sent') || {}); let n = 0;
+      for (const a of HearingAlerts.plan(this.state, { sent, courts })) { this.addMsg({ client: a.client, from: 'lawyer', type: 'notice', text: a.text, ch: 'البوابة', by: 'system', k: a.k }); sent[a.key] = Date.now(); n++ }
+      this.store.kv.set('hearing_alerts_sent', sent); return json(200, { ok: true, sent: n });
+    }
     /* إعادة تعيين كلمة مرور مستخدم (بطلب مالك الخدمة): مكتب العرض التجريبي فقط، أو مكتب حقيقي منح مديره إذن الدعم الفني.
        في المكتب الحقيقي تُولَّد كلمة مؤقتة ويُلزم المستخدم بتغييرها عند أول دخول. تُلغى جلساته، ويُسجَّل الإجراء دون كلمة المرور */
     if (p === '/_ops/reset-password' && req.method === 'POST') {

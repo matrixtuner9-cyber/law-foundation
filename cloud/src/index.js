@@ -90,6 +90,11 @@ async function ops(req, env, u) {
   return json(404, { error: 'unknown op' });
 }
 
+/* تذكير الموكلين بالجلسات (كل ساعة لكل مكتب نشط) */
+async function hearingAlertsAll(env) {
+  const rows = (await env.DB.prepare("SELECT slug FROM offices WHERE status = 'active'").all()).results || [];
+  for (const { slug } of rows) { try { await forward(env, slug, new Request('https://internal/_ops/hearing-alerts', { method: 'POST' }), null, true) } catch (e) { console.log('[hearing-alerts]', slug, String(e.message || e)) } }
+}
 /* نسخ احتياطي يومي مشفّر لكل مكتب نشط إلى R2 (يتطلب السر BACKUP_KEY) */
 async function backupAll(env) {
   const rows = (await env.DB.prepare("SELECT slug FROM offices WHERE status = 'active'").all()).results || [], out = [];
@@ -102,7 +107,7 @@ async function backupAll(env) {
 }
 
 export default {
-  async scheduled(event, env, ctx) { ctx.waitUntil(backupAll(env)) },
+  async scheduled(event, env, ctx) { ctx.waitUntil(event.cron === '30 0 * * *' ? backupAll(env) : hearingAlertsAll(env)) },
   async fetch(req, env) {
     const u = new URL(req.url), h = hostInfo(req.headers.get('host') || u.host, env);
     const secure = r => { if (u.protocol !== 'https:') return r; const x = new Response(r.body, r); x.headers.set('Strict-Transport-Security', 'max-age=31536000'); return x };
