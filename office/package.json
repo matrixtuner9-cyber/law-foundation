@@ -37,6 +37,7 @@
       "workflow.js",
       "casework.js",
       "stations.js",
+      "hearing-report.js",
       "sync.js",
       "mizan-ui.js",
       "style.css",

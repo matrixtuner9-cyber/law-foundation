@@ -89,7 +89,7 @@ V.case=()=>{
   <div class="link-line"></div>
   <div class="node"><div class="lb">الخصوم ووكلاؤهم</div>${k.opps.map(o=>`<div class="nm">${esc(O(o).name)}</div><div class="lb">${esc(O(o).lawyer)}</div>`).join('')}</div>
   <div class="link-line"></div>
-  <div class="node" style="border-color:var(--brass)"><div class="lb">مرجع ميزان</div><div class="nm mono" style="font-size:13px">${k.mz}</div><div class="lb">مزامنة يومية</div></div>
+  <div class="node" style="border-color:var(--brass)"><div class="lb">مرجع ميزان</div><div class="nm mono" style="font-size:13px">${k.mz||"—"}</div><div class="lb">مزامنة يومية</div></div>
  </div>
  <div class="tabs">${tabs.map(t=>`<button class="${S.caseTab===t[0]?'on':''}" data-act="caseTab" data-v="${t[0]}">${t[1]}</button>`).join('')}</div>
  <div>${caseTab(k)}</div>`;
