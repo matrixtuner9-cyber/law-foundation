@@ -150,7 +150,7 @@ function nextOf(k,st){const d=lastMerits(k);
  return ['تسجيل ما جرى في آخر جلسة أو الجلسة القادمة',`data-act="wfGo" data-v="${k.id}|9"`]}
 A.hpGoCase=v=>{S.view='case';S.caseId=v;S.caseTab='c360';render();if(A.c360Section)A.c360Section('hearing')};
 function bag(c,ks){
- const head=`<div class="st-bar"><span class="m">خمس محطات لكل قضية؛ المرحلة تُشتق من آخر حدث مسجَّل، وزر واحد يفتح ما يلزم الآن.</span><button class="btn sm" data-act="caseFor" data-v="${c.id}">+ قضية جديدة لهذا الموكل</button></div>`;
+ const head=`<div class="st-bar"><button class="btn pri" data-act="caseFor" data-v="${c.id}">+ قضية جديدة لهذا الموكل</button></div>`;
  if(!ks.length)return head+'<section class="panel"><div class="empty">لا قضايا لهذا الموكل بعد. ابدأ بالاستقبال والقبول.</div></section>';
  return head+ks.map(k=>{const st=sync(k),si=idx(st),stage=stageOf(k,ctx()),d=lastMerits(k),nh=root.nextH?nextH(k.id):null,dl=(typeof deadlines!=='undefined'?deadlines:[]).filter(x=>x.k===k.id&&diff(x.due)>=0).sort((a,b)=>a.due.localeCompare(b.due))[0],miss=((k.gather||{}).need||[]).filter(n=>n.st==='client'||n.st==='agency').length,[nt,na]=nextOf(k,st),open=S.stMap===k.id;
   const steps=ST.map((s,i)=>`<div class="wfs ${i<si?'done':i===si?'cur':''}"><i>${i<si?'✓':''}</i><b>${s.t}</b><small>${i===si?esc(stage):''}</small></div>`).join('');
