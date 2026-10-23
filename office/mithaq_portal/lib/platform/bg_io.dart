@@ -87,9 +87,11 @@ Future<void> _poll(FlutterLocalNotificationsPlugin n) async {
     await p.reload();
     final code = p.getString('code');
     if (code == null) return;
-    const built = String.fromEnvironment('API', defaultValue: 'http://10.0.2.2:8080');
+    /// عنوان المكتب الذي اختاره الموكل عند الدخول (التطبيق واحد لكل المكاتب، فلا عنوان مبنيّ فيه)
+    const built = String.fromEnvironment('API', defaultValue: '');
     final saved = p.getString('api');
-    final base = (saved != null && p.getString('api_for') == built) ? saved : built;
+    final base = (saved != null && saved.isNotEmpty) ? saved : built;
+    if (base.isEmpty) return;
     final r = await http
         .get(Uri.parse('$base/api/portal/messages?peek=1'), headers: {'x-client': code})
         .timeout(const Duration(seconds: 12));
