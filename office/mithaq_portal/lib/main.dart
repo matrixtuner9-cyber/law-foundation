@@ -494,9 +494,20 @@ class _ShellState extends State<Shell> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     setForeground(true);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ensureNotify();
+      ensureNotify().then((_) => _powerOnce());
       pushResume(Api.code ?? '');
     });
+  }
+
+  /// مرة واحدة بعد الدخول: طلب استثناء التطبيق من توفير البطارية ليبقى استقبال التنبيهات يعمل والتطبيق مغلق
+  Future<void> _powerOnce() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      if (p.getBool('power_asked') == true || await powerOk()) return;
+      await p.setBool('power_asked', true);
+      await Future.delayed(const Duration(seconds: 2));
+      await powerRequest();
+    } catch (_) {}
   }
 
   @override

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -51,7 +52,7 @@ Future<void> initBackground() async {
         initialNotificationTitle: 'بوابة ميثاق',
         initialNotificationContent: 'متصلة لاستقبال رسائل المكتب',
         foregroundServiceNotificationId: 7001,
-        foregroundServiceTypes: [AndroidForegroundType.dataSync],
+        foregroundServiceTypes: [AndroidForegroundType.remoteMessaging],
       ),
       iosConfiguration: IosConfiguration(autoStart: false),
     );
@@ -72,7 +73,7 @@ Future<void> onBackgroundStart(ServiceInstance service) async {
   final n = FlutterLocalNotificationsPlugin();
   await n.initialize(const InitializationSettings(android: _icon));
   await _poll(n);
-  Timer.periodic(const Duration(seconds: 10), (_) => _poll(n));
+  Timer.periodic(const Duration(seconds: 15), (_) => _poll(n));
 }
 
 bool _busy = false;
@@ -193,4 +194,26 @@ Future<void> testNotify() async {
           color: const Color(0xFFB9965A)),
     ),
   );
+}
+
+/* ── موثوقية التنبيهات دون Google ── */
+const _power = MethodChannel('mithaq/power');
+/// هل التطبيق مستثنى من توفير البطارية؟
+Future<bool> powerOk() async {
+  if (!Platform.isAndroid) return true;
+  try { return await _power.invokeMethod('ignoring') == true; } catch (_) { return true; }
+}
+/// يطلب استثناء التطبيق من توفير البطارية (نافذة النظام)
+Future<void> powerRequest() async {
+  if (!Platform.isAndroid) return;
+  try { await _power.invokeMethod('request'); } catch (_) {}
+}
+/// يفتح شاشة «التشغيل التلقائي» لدى الشركة المصنّعة (شاومي، هواوي، أوبو، فيفو، سامسونج…)
+Future<bool> openAutostart() async {
+  if (!Platform.isAndroid) return false;
+  try { return await _power.invokeMethod('autostart') == true; } catch (_) { return false; }
+}
+Future<String> phoneMaker() async {
+  if (!Platform.isAndroid) return '';
+  try { return '${await _power.invokeMethod('maker') ?? ''}'; } catch (_) { return ''; }
 }

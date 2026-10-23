@@ -10,7 +10,7 @@ class NotifyPanel extends StatefulWidget {
 }
 
 class _NotifyPanelState extends State<NotifyPanel> {
-  bool? on;
+  bool? on, power;
 
   @override
   void initState() {
@@ -19,8 +19,8 @@ class _NotifyPanelState extends State<NotifyPanel> {
   }
 
   Future<void> _refresh() async {
-    final v = await notifyEnabled();
-    if (mounted) setState(() => on = v);
+    final v = await notifyEnabled(), w = await powerOk();
+    if (mounted) setState(() { on = v; power = w; });
   }
 
   @override
@@ -60,8 +60,42 @@ class _NotifyPanelState extends State<NotifyPanel> {
         icon: const Icon(Icons.campaign_outlined),
         label: const Text('تجربة التنبيه'),
       ),
+      const SizedBox(height: 14),
+      Row(children: [
+        Icon((power ?? true) ? Icons.battery_charging_full_rounded : Icons.battery_alert_rounded, color: (power ?? true) ? MQ.ok : MQ.warn),
+        const SizedBox(width: 10),
+        Expanded(
+            child: Text(
+                (power ?? true)
+                    ? 'التطبيق مستثنى من توفير البطارية، فلن يوقفه الهاتف.'
+                    : 'توفير البطارية قد يوقف استقبال التنبيهات والتطبيق مغلق.',
+                style: MQ.subhead())),
+      ]),
+      if (!(power ?? true)) ...[
+        const SizedBox(height: 8),
+        FilledButton.icon(
+          onPressed: () async {
+            await powerRequest();
+            await Future.delayed(const Duration(seconds: 1));
+            await _refresh();
+          },
+          icon: const Icon(Icons.battery_saver_outlined),
+          label: const Text('السماح بالعمل في الخلفية'),
+        ),
+      ],
+      const SizedBox(height: 8),
+      OutlinedButton.icon(
+        onPressed: () async {
+          final ok = await openAutostart();
+          if (!ok && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('فعّل «التشغيل التلقائي» و«السماح بالعمل في الخلفية» لبوابة ميثاق من هذه الشاشة.')));
+          }
+        },
+        icon: const Icon(Icons.rocket_launch_outlined),
+        label: const Text('تفعيل التشغيل التلقائي'),
+      ),
       const SizedBox(height: 10),
-      Text('إن لم تصلك التنبيهات والتطبيق مغلق: الإعدادات ← التطبيقات ← بوابة ميثاق ← البطارية ← «غير مقيّد».',
+      Text('لهواتف شاومي وهواوي وأوبو وفيفو: فعّل «التشغيل التلقائي»، ولا تُغلق البوابة من قائمة التطبيقات الأخيرة. يبقى إشعار «متصلة» الهادئ ظاهراً؛ فهو ما يضمن وصول رسائل المكتب.',
           style: MQ.footnote()),
     ]);
   }
