@@ -43,7 +43,7 @@ const aiKey = () => store.kv.get('ai_key') || process.env.ANTHROPIC_API_KEY || '
 const dsKey = () => store.kv.get('deepseek_key') || process.env.DEEPSEEK_API_KEY || '';
 /* مختبر تحليل المسبار: DeepSeek أو Claude، مراجعه من القاعدة المحلية فقط */
 const misbarAi = MisbarAi.createAnalyzer({ misbar, keys: { deepseek: dsKey, anthropic: aiKey, provider: () => store.kv.get('ai_provider') || '' }, audit, models: { deepseek: process.env.MQ_DEEPSEEK_MODEL, anthropic: process.env.MQ_AI_MODEL } });
-const caseBrain = MisbarCase.createCaseBrain({ kv: store.kv, state: () => cur(), courts: () => SEED.courts || [], analyzer: misbarAi, system: MisbarAi.SYSTEM, norm: Misbar.norm, audit });
+const caseBrain = MisbarCase.createCaseBrain({ kv: store.kv, state: () => cur(), courts: () => SEED.courts || [], analyzer: misbarAi, system: MisbarAi.SYSTEM, norm: Misbar.norm, audit, match: require('./mizan/match').match });
 const drafter = AiDraft.createDrafter({ audit, getKey: aiKey, laws, lawSearch, rulingSearch: misbarRulings, model: process.env.MQ_AI_MODEL });
 const extractor = AiDraft.createExtractor({ audit, getKey: aiKey, model: process.env.MQ_AI_MODEL });
 const transcriber0 = AiDraft.createTranscriber({ audit, getKey: aiKey, model: process.env.MQ_AI_MODEL });
@@ -543,6 +543,39 @@ async function api(req, res, u) {
       audit({ ...who, action: 'mizan.run', entity: 'clients', entity_id: client, detail: { mode: mode === 'capture' ? 'capture' : 'test', client } });
       return json(res, 202, mzClient(client));
     }
+    /* صفحات ميزان المحفوظة (من حساب المحامي أو حساب الموكل، أو مستوردة من زميل): قائمة، نص مقروء للاستخراج، تصدير واستيراد */
+    if (p.startsWith('/api/mizan/captures')) {
+      const CAP = path.join(vault.DIR, 'capture'); fs.mkdirSync(CAP, { recursive: true });
+      const safeId = id => /^[\w.-]{6,120}$/.test(String(id || '')) && fs.existsSync(path.join(CAP, id)) ? String(id) : null;
+      const pagesOf = id => fs.readdirSync(path.join(CAP, id)).filter(f => f.endsWith('.html')).sort();
+      const htmlText = h => String(h).replace(/<(script|style|noscript|svg)[\s\S]*?<\/\1>/gi, ' ').replace(/<\/(td|th)>/gi, ' | ').replace(/<(br|\/tr|\/p|\/div|\/li|\/h\d)[^>]*>/gi, '\n').replace(/<[^>]+>/g, ' ')
+        .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#(\d+);/g, (m, n) => String.fromCharCode(+n)).replace(/[ \t]+/g, ' ').replace(/\s*\n\s*/g, '\n').replace(/\n{2,}/g, '\n').trim();
+      if (p === '/api/mizan/captures' && M === 'GET') {
+        const list = fs.readdirSync(CAP).filter(d => fs.statSync(path.join(CAP, d)).isDirectory()).map(d => { let idx = {}; try { idx = JSON.parse(fs.readFileSync(path.join(CAP, d, 'index.json'), 'utf8')) } catch (e) {} return { id: d, at: idx.at || '', from: idx.from || (d.startsWith('client-') ? 'client' : d.startsWith('import-') ? 'import' : 'lawyer'), pages: pagesOf(d).length } }).sort((a, b) => String(b.id).localeCompare(String(a.id)));
+        return json(res, 200, { captures: list.slice(0, 30) });
+      }
+      if (p === '/api/mizan/captures/text' && M === 'GET') {
+        const id = safeId(u.searchParams.get('id')); if (!id) return json(res, 404, { error: 'لا توجد هذه النسخة.' });
+        const text = pagesOf(id).map(f => '=== ' + f.replace(/\.html$/, '') + ' ===\n' + htmlText(fs.readFileSync(path.join(CAP, id, f), 'utf8'))).join('\n\n').slice(0, 60000);
+        return json(res, 200, { id, text });
+      }
+      if (p === '/api/mizan/captures/export' && M === 'GET') {
+        const id = safeId(u.searchParams.get('id')); if (!id) return json(res, 404, { error: 'لا توجد هذه النسخة.' });
+        const bundle = { app: 'misbar-mizan-pages', v: 1, at: stamp(), from: id, pages: pagesOf(id).map(f => ({ name: f, html: fs.readFileSync(path.join(CAP, id, f), 'utf8') })) };
+        audit({ ...who, action: 'mizan.capture_export', detail: { id, pages: bundle.pages.length } });
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Disposition': `attachment; filename="mizan-pages-${id.slice(-24)}.json"`, 'Cache-Control': 'no-store', ...SEC }); return res.end(JSON.stringify(bundle));
+      }
+      if (p === '/api/mizan/captures/import' && M === 'POST') {
+        const b = await jbody(req, 40 * 1024 * 1024);
+        if (!b || b.app !== 'misbar-mizan-pages' || !Array.isArray(b.pages) || !b.pages.length) return json(res, 400, { error: 'الملف ليس ملف صفحات ميزان صادراً من المِسْبار.' });
+        const id = 'import-' + new Date().toISOString().replace(/[:.]/g, '-'), dir = path.join(CAP, id); fs.mkdirSync(dir, { recursive: true });
+        b.pages.slice(0, 40).forEach((pg, i) => fs.writeFileSync(path.join(dir, String(i).padStart(2, '0') + '-' + String(pg.name || 'page').replace(/[^\w؀-ۿ.-]+/g, '_').replace(/\.html$/, '').slice(0, 50) + '.html'), String(pg.html || '').slice(0, 3e6)));
+        fs.writeFileSync(path.join(dir, 'index.json'), JSON.stringify({ at: stamp(), from: 'import', source: String(b.from || '').slice(0, 80) }));
+        audit({ ...who, action: 'mizan.capture_import', detail: { id, pages: Math.min(40, b.pages.length) } });
+        return json(res, 201, { id });
+      }
+      return json(res, 404, { error: 'not found' });
+    }
     if (p === '/api/mizan/match' && M === 'POST') {
       const { records } = await jbody(req); const S = cur();
       return json(res, 200, mzMatch(Array.isArray(records) ? records : [], { cases: S.cases.map(k => ({ ...k, courtName: (SEED.courts.find(c => c.id === k.court) || {}).name })), clients: S.clients, hearings: S.hearings }));
@@ -776,7 +809,7 @@ async function rulingFile(req, res, u, who, kind = 'ruling') {
 }
 
 /* ملفات شاشة المكتب: قائمة محددة فقط، وكلها تتطلب تسجيل الدخول عدا صفحة الدخول */
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'guide.js', 'workflow.js', 'casework.js', 'stations.js', 'hearing-report.js', 'case-layout.js', 'case-steps.js', 'case-misbar.js', 'announce.js', 'reader.js', 'case-hub.js', 'case-wizard.js', 'consistency.js', 'searchsel.js', 'wa-chat.js', 'fulltext.js', 'ai-mark.js', 'night.css', 'qrcode.js', 'app-invite.js', 'avatar.js', 'wa-skin.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'misbar.js', 'misbar-emblem.webp', 'misbar-hero.webp', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'settlements.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'guide.js', 'workflow.js', 'casework.js', 'stations.js', 'hearing-report.js', 'case-layout.js', 'case-steps.js', 'case-misbar.js', 'misbar-mizan.js', 'announce.js', 'reader.js', 'case-hub.js', 'case-wizard.js', 'consistency.js', 'searchsel.js', 'wa-chat.js', 'fulltext.js', 'ai-mark.js', 'night.css', 'qrcode.js', 'app-invite.js', 'avatar.js', 'wa-skin.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'misbar.js', 'misbar-emblem.webp', 'misbar-hero.webp', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'settlements.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 /* التفعيل: النسخة الموزّعة لا تعمل إطلاقاً قبل إدخال كود صادر لبصمة هذا الجهاز (فحص في الخادم لكل طلب) */
 const license = License.createLicense({ dataDir: DATA, enforce: !!ED.license });
 const ACTIVATE_HTML = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تفعيل المِسْبار</title><style>

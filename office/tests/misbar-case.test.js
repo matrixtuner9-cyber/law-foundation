@@ -33,7 +33,7 @@ function setup({ reply } = {}) {
     research: async () => ({ queries: ['عقد توريد'], refs: [{ id: 77, title: 'قانون المخالفات', source: 'فلسطين · تشريعات', primary: true, excerpt: 'نص' }] }),
     call: async a => { sent.push(a); return { text: reply || JSON.stringify({ findings: [{ kind: 'gap', title: 'لا سند استلام', fact: 'التسليم', evidence: ['D1.1', 'D7.1'], law: ['M77', 'M999'], conclusion: 'يحتاج إثبات', risk: 'رد الدعوى', reply: 'طلب سندات التسليم', urgency: 'high', due: '2026-10-13', owner: 'المحامي' }] }) } } }) };
   const audits = [];
-  const brain = createCaseBrain({ kv, state: () => S, courts: () => [{ id: 'ct2', name: 'بداية نابلس' }], analyzer, system: 'SYS', norm, audit: x => audits.push(x) });
+  const brain = createCaseBrain({ kv, state: () => S, courts: () => [{ id: 'ct2', name: 'بداية نابلس' }], analyzer, system: 'SYS', norm, audit: x => audits.push(x), match: require('../mizan/match').match });
   const me = { id: 'u1', username: 'lawyer1', name: 'محامٍ', cases: ['k1'] };
   const can = w => w === 'write';
   const who = { user_id: 'u1', username: 'lawyer1' };
@@ -160,4 +160,22 @@ test('case brain: change detection after analysis, today board, client message w
   assert.ok(g.body.changes.some(x => /جلسة جديدة/.test(x)) && g.body.changes.some(x => /مستند جديد: «محضر الجلسة»/.test(x)), JSON.stringify(g.body.changes));
   const td = await t.brain.handle('today', 'GET', {}, async () => ({}), { id: 'u1', username: 'lawyer1', cases: ['k1'] }, w => w === 'write', { username: 'lawyer1' });
   assert.equal(td.status, 200); assert.equal(td.body.cases[0].id, 'k1'); assert.equal(td.body.cases[0].pending, 1); assert.ok(td.body.cases[0].changes >= 2);
+});
+
+test('mizan import: extraction restores hidden IDs for matching, normalises dates, and matches to office clients', async () => {
+  const reply = JSON.stringify({ records: [
+    { caseNo: '1187/2025', court: 'محكمة بداية نابلس', type: 'حقوقية', subject: 'مطالبة', status: 'بينات', parties: [{ name: 'شركة البناء', idNo: '[هوية-1]', role: 'مدعي' }], sessions: [{ date: '2026-11-02', time: '10:00', purpose: 'سماع شهود' }, { date: '14/12/2026', purpose: 'مرافعة' }, { date: 'غداً' }] },
+    { caseNo: '55/2026', court: 'صلح رام الله', parties: [{ name: 'سعيد', idNo: '[هوية-2]', role: 'مدعى عليه' }] }] });
+  const t = setup({ reply });
+  t.S.clients.push({ id: 'c7', name: 'سعيد', idNo: '987654321' });
+  const call = (a, b) => t.brain.handle(a, 'POST', {}, async () => b, { id: 'u1', username: 'lawyer1', cases: ['k1'] }, w => w === 'write', { username: 'lawyer1' });
+  assert.equal((await call('mzx', { text: 'x'.repeat(60) })).status, 400, 'consent required');
+  const r = await call('mzx', { text: 'رقم الدعوى 1187/2025 المدعي شركة البناء هوية 401234567 والمدعى عليه سعيد هوية 987654321 الجلسة القادمة 2/11/2026', consent: true, source: 'صورة' });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  assert.ok(!t.sent.at(-1).user.includes('401234567'), 'IDs hidden from AI');
+  const [a, b] = r.body.records;
+  assert.equal(a.parties[0].idNo, '401234567', 'restored locally'); assert.deepEqual(a.sessions.map(s => s.date), ['2026-11-02', '2026-12-14']);
+  const m = await call('mzmatch', { records: r.body.records });
+  assert.equal(m.status, 200); assert.equal(m.body.matched[0].caseId, 'k1'); assert.equal(m.body.matched[0].newSessions.length, 2);
+  assert.equal(m.body.newForClient[0].clientId, 'c7'); assert.equal(b.parties[0].idNo, '987654321');
 });
