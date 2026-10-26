@@ -433,4 +433,17 @@ A.aiKeyDel=async v=>{if(!confirm('إزالة المفتاح؟'))return;try{await
 document.addEventListener('change',async ev=>{if(ev.target.id!=='k_provider')return;try{const r=await fetch('/api/admin/misbar/provider',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({provider:ev.target.value})});if(!r.ok)throw new Error('تعذّر الحفظ');toast('حُفظ المزوّد المفضّل')}catch(x){toast(x.message)}});
 if(typeof A.aiKeysGo!=='function')A.aiKeysGo=()=>A.nav('settings');
 window.MQ_misbar=MB;
+/* ── المحتوى يعبر فوق الهيدر بزجاج شفاف: الهيدر ثابت في الخلف، والنتائج تمرّ فوقه فتبقى ظاهرة من خلفها ── */
+{const css=document.createElement('style');css.textContent=`
+body.mb-on .mb-wrap .mb-top{z-index:1}
+body.mb-on .mb-wrap .mb-grid{position:relative;z-index:3}
+.mb-wrap .mb-card{background:rgb(251 246 234 / .66);-webkit-backdrop-filter:blur(16px) saturate(1.35);backdrop-filter:blur(16px) saturate(1.35);border:1px solid rgb(255 255 255 / .55);box-shadow:0 10px 30px rgb(11 27 43 / .10),inset 0 1px 0 rgb(255 255 255 / .6);transition:box-shadow .35s ease,background-color .35s ease}
+.mb-wrap .mb-side{background:linear-gradient(180deg,rgb(14 34 54 / .80),rgb(11 27 43 / .86));-webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);box-shadow:0 10px 30px rgb(0 0 0 / .18);transition:box-shadow .35s ease}
+.mb-wrap.mb-over .mb-card{background:rgb(251 246 234 / .58);box-shadow:0 18px 44px rgb(11 27 43 / .22),inset 0 1px 0 rgb(255 255 255 / .7),0 0 0 1px rgb(201 162 74 / .25)}
+.mb-wrap.mb-over .mb-side{box-shadow:0 18px 44px rgb(0 0 0 / .32),0 0 0 1px rgb(243 213 138 / .25)}
+.mb-wrap .mb-card h1,.mb-wrap .mb-card h2,.mb-wrap .mb-card b{text-shadow:0 1px 0 rgb(255 255 255 / .55)}
+@supports not ((backdrop-filter:blur(2px)) or (-webkit-backdrop-filter:blur(2px))){.mb-wrap .mb-card{background:rgb(251 246 234 / .94)}.mb-wrap .mb-side{background:#0E2236}}
+html.night .mb-wrap .mb-card{background:rgb(20 33 58 / .68)}`;document.head.appendChild(css)}
+/* إضاءة الحواف حين يعبر المحتوى فوق الهيدر (تبديل صنف فقط، دون تغيير أي مقاس) */
+document.addEventListener('scroll',ev=>{const w=ev.target;if(!w||!w.classList||!w.classList.contains('mb-wrap'))return;const on=w.scrollTop>24;if(on!==w.classList.contains('mb-over'))w.classList.toggle('mb-over',on)},true);
 })();
