@@ -437,6 +437,9 @@ window.MQ_misbar=MB;
 {const css=document.createElement('style');css.textContent=`
 body.mb-on .mb-wrap .mb-top{z-index:1}
 body.mb-on .mb-wrap .mb-grid{position:relative;z-index:3}
+/* أرضية بيج مصمتة للمحتوى الذي يمرّ فوق الهيدر: لا يظهر الهيدر من الفراغات بين البطاقات */
+.mb-wrap .mb-grid{background:#F8F6F0;border-radius:18px 18px 0 0;box-shadow:0 0 0 18px #F8F6F0}
+html.night .mb-wrap .mb-grid{background:var(--bg);box-shadow:0 0 0 18px var(--bg)}
 .mb-wrap .mb-card{background:#FBF6EA;-webkit-backdrop-filter:none;backdrop-filter:none;border:1px solid #E5D9BC;box-shadow:0 6px 18px rgb(11 27 43 / .08)}
 .mb-wrap .mb-side{background:#0E2236;-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:0 6px 18px rgb(0 0 0 / .15)}
 html.night .mb-wrap .mb-card{background:#14213A;border-color:#2A3A55}
