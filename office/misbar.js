@@ -27,7 +27,7 @@ const TOOLS=[
 const LAB={task:'search',provider:'',q:'',facts:'',doc:'',docName:'',lang:'en',consent:false,busy:false,res:null,err:'',ai:null,src:''};
 /* مهام مختبر التحليل (DeepSeek أو Claude، والمراجع من القاعدة فقط) */
 const LABT=[['search','✦','بحث ذكي','اسأل بلغتك فيبحث بالمصطلحات القانونية ويجيب من القاعدة بالمراجع'],['legal_question','◇','السؤال القانوني','النصوص المنطبقة والمبادئ والثغرات وما يلزم إثباته'],['gaps','⌕','الثغرات والدفوع','استقصاء الثغرات والدفوع وخطة قابلة للتنفيذ'],['document','▤','تحليل المستند','الالتزامات والتناقضات والعيوب والنصوص ذات الصلة'],['appeal','⚖','أسباب الطعن','أسباب الطعن المحتملة في الحكم والمهل الواجب التحقق منها'],['contract','▣','مراجعة عقد','المخاطر والشروط المجحفة والغموض والتوصيات'],['hearing','◷','ملخص قبل الجلسة','الوقائع والطلبات والبينات والأسئلة المتوقعة'],['minutes','◉','محضر اجتماع','القرارات والمسؤوليات والمواعيد من التفريغ النصي'],['translate','⇄','الترجمة القانونية','ترجمة دقيقة تحفظ الترقيم والمصطلحات']];
-const MB={view:'search',q:'',src:'',year_from:'',year_to:'',court:'',case_no:'',status:'',has_text:'',sort:'relevance',page:1,data:null,busy:false,err:'',open:null,doc:null,docBusy:false,fs:17,stats:null,statsErr:''};
+const MB={view:'search',country:'',q:'',src:'',year_from:'',year_to:'',court:'',case_no:'',status:'',has_text:'',sort:'relevance',page:1,data:null,busy:false,err:'',open:null,doc:null,docBusy:false,fs:17,stats:null,statsErr:''};
 try{const f=Number(localStorage.getItem('mq_mb_fs'));if(f>=14&&f<=24)MB.fs=f}catch(x){}
 
 /* ── القائمة: المسبار بدل الشاشات القديمة ── */
@@ -41,9 +41,9 @@ async function call(path,p){
  if(r.status===401){location.replace('/login.html');throw new Error('انتهت الجلسة')}
  const j=await r.json().catch(()=>({}));if(!r.ok)throw Object.assign(new Error(j.error||'تعذّر الاتصال بخادم المكتب'),{code:j.code});return j;
 }
-function params(page){const p={page:String(page||1),sort:MB.sort};
+function params(page){const p={page:String(page||1),sort:MB.sort};if(MB.country)p.country=MB.country;
  for(const k of ['q','src','year_from','year_to','court','case_no','status','has_text'])if(String(MB[k]||'').trim())p[k]=String(MB[k]).trim();return p}
-const hasQuery=()=>['q','src','year_from','year_to','court','case_no','status'].some(k=>String(MB[k]||'').trim());
+const hasQuery=()=>['q','country','src','year_from','year_to','court','case_no','status'].some(k=>String(MB[k]||'').trim());
 async function run(page){
  readForm();if(!hasQuery()){toast('اكتب عبارة البحث أو اختر مصدراً أو رقم قضية');return}
  if(MB.busy)return;MB.busy=true;MB.err='';MB.page=page||1;paint();
@@ -54,6 +54,11 @@ async function run(page){
 async function loadStats(){if(MB.stats||MB.statsErr)return;try{MB.stats=await call('stats',{})}catch(x){MB.statsErr=x.code==='NO_INDEX'?'قاعدة المسبار غير مثبتة على هذا الخادم بعد. يثبّتها الدعم الفني.':x.message}if(S.view==='misbar')paintHead()}
 
 /* ── العرض ── */
+/* أعلام الدول (SVG لأن أعلام الرموز التعبيرية لا تظهر في ويندوز) */
+const FLAG={
+ PS:'<svg viewBox="0 0 30 20" class="fl"><rect width="30" height="6.67" fill="#111"/><rect y="6.67" width="30" height="6.67" fill="#fff"/><rect y="13.33" width="30" height="6.67" fill="#149954"/><path d="M0 0L11 10L0 20Z" fill="#E4312B"/></svg>',
+ JO:'<svg viewBox="0 0 30 20" class="fl"><rect width="30" height="6.67" fill="#111"/><rect y="6.67" width="30" height="6.67" fill="#fff"/><rect y="13.33" width="30" height="6.67" fill="#007A3D"/><path d="M0 0L15 10L0 20Z" fill="#CE1126"/><path d="M4.6 8.2l.5 1.2 1.2-.4-.6 1.1 1.1.6-1.2.2.1 1.3-.9-.9-.9.9.1-1.3-1.2-.2 1.1-.6-.6-1.1 1.2.4z" fill="#fff"/></svg>',
+ EG:'<svg viewBox="0 0 30 20" class="fl"><rect width="30" height="6.67" fill="#CE1126"/><rect y="6.67" width="30" height="6.67" fill="#fff"/><rect y="13.33" width="30" height="6.67" fill="#111"/><path d="M15 7.6c-1 0-1.6.7-1.6 1.6v2.3l1.6 1 1.6-1V9.2c0-.9-.6-1.6-1.6-1.6z" fill="#C09300"/></svg>'};
 const fmtN=n=>Number(n||0).toLocaleString('en-US');
 const badge=r=>`<span class="mb-src ${r.primary?'ps':'cmp'}">${e(r.source)}</span>`;
 function statusPill(r){if(!r.status_code&&!r.status)return '';const c=r.status_code==='in_force'||r.status_code==='partial'?'ok':r.status_code==='suspended'?'warn':r.status_code==='repealed'?'bad':'';return `<span class="mb-st ${c}">${e(r.status||'')}</span>`}
@@ -63,8 +68,8 @@ const hl=(t,q)=>{let h=e(t);const ws=String(q||'').replace(/["()]/g,' ').split(/
   try{h=h.replace(new RegExp('('+rx+')','g'),'<mark>$1</mark>')}catch(x){}}return h};
 function head(){
  const st=MB.stats;
- return `<header class="mb-top"><div class="mb-hero" role="img" aria-label="مِسْبار | Misbar AI: عقل التحليل والاستنباط القانوني"><i class="mb-ring"></i><b class="mb-sub">مِسْبارُ القانونِ التحليليّ</b></div>
-  <div class="mb-stats" id="mbStats">${st?st.sources.map(s=>`<button class="mb-chip ${MB.src===s.src?'on':''}" data-act="mbSrc" data-v="${s.src}" title="${e(s.label)}: ${fmtN(s.texts)} بنص كامل">${e(s.label)} <b>${fmtN(s.n)}</b></button>`).join(''):MB.statsErr?`<span class="mb-warn">${e(MB.statsErr)}</span>`:'<span class="m">…</span>'}</div></header>`}
+ return `<header class="mb-top"><div class="mb-hero" role="img" aria-label="مِسْبار | Misbar AI: عقل التحليل والاستنباط القانوني"><button type="button" class="mb-x" data-act="mbClose" aria-label="العودة إلى ميثاق">✕ العودة إلى ميثاق</button><canvas class="mb-fx" aria-hidden="true"></canvas><b class="mb-sub">مِسْبارُ القانونِ التحليليّ</b></div>
+  <div class="mb-stats" id="mbStats">${st?[['PS','فلسطين','مرجع أساسي'],['JO','الأردن','للمقارنة والاستئناس'],['EG','مصر','للمقارنة والاستئناس']].map(([c,n,t])=>{const ss=st.sources.filter(x=>x.src.startsWith(c+'_'));return `<button class="mb-flag ${MB.country===c?'on':''}" data-act="mbCountry" data-v="${c}" title="${n} — ${t}: ${ss.map(x=>x.label.split(' · ')[1]+' '+fmtN(x.n)).join('، ')}">${FLAG[c]}<span>${n}</span></button>`}).join(''):MB.statsErr?`<span class="mb-warn">${e(MB.statsErr)}</span>`:'<span class="m">…</span>'}</div></header>`}
 function side(){
  const it=(v,ic,t,act='mbView')=>`<button class="${MB.view===v?'on':''}" data-act="${act}" data-v="${v}"><i>${ic}</i>${t}</button>`;
  return `<aside class="mb-side" aria-label="أقسام المسبار"><div class="mb-brand"><img src="misbar-emblem.webp" alt="" width="96" height="91"><b>مِسْبار</b><small>Misbar AI · عقل التحليل والاستنباط القانوني</small></div>
@@ -164,9 +169,13 @@ function toolsView(){setTimeout(loadAi,0);return `<section class="mb-card" id="m
 V.misbar=()=>{setTimeout(loadStats,0);
  return `<div class="mb-wrap">${head()}<div class="mb-grid">${side()}<main class="mb-main">${MB.view==='tools'?toolsView():`
   <section class="mb-card"><div class="mb-h"><div><h1>البحث القانوني المتقدم</h1><p class="m">استقصاء التشريعات والقرارات المحلية والمقارنة</p></div></div>${form()}</section>
-  <div class="mb-two"><section class="mb-card" id="mbRes">${results()}</section><section class="mb-card mb-reader" id="mbDoc">${reader()}</section></div>`}</main></div></div>`};
+  <section class="mb-card mb-resw" id="mbRes">${results()}</section>`}</main></div></div>`};
 
-function paint(){if(S.view!=='misbar')return;const r=document.getElementById('mbRes');if(r)r.innerHTML=results();const g=document.getElementById('mbGo');if(g)g.disabled=MB.busy;const d=document.getElementById('mbDoc');if(d)d.innerHTML=reader()}
+function paint(){if(S.view!=='misbar')return;const r=document.getElementById('mbRes');if(r)r.innerHTML=results();const g=document.getElementById('mbGo');if(g)g.disabled=MB.busy;paintReader()}
+/* القارئ: نافذة منبثقة تملأ الشاشة */
+function paintReader(){let ov=document.getElementById('mbReader');if(!MB.doc&&!MB.docBusy){if(ov)ov.remove();document.body.classList.remove('mb-rd');return}
+ if(!ov){ov=document.createElement('div');ov.id='mbReader';ov.className='mb-rov';ov.setAttribute('role','dialog');ov.setAttribute('aria-modal','true');document.body.appendChild(ov)}
+ document.body.classList.add('mb-rd');ov.innerHTML=`<div class="mb-rbox"><button type="button" class="mb-rx" data-act="mbReaderClose" aria-label="إغلاق">✕</button>${reader()}</div>`}
 function paintHead(){const s=document.getElementById('mbStats');if(s){const t=document.createElement('div');t.innerHTML=head();s.replaceWith(t.querySelector('#mbStats'))}}
 function readForm(){const g=id=>document.getElementById(id);if(!g('mbQ'))return;MB.q=g('mbQ').value;MB.src=g('mbSrcSel').value;MB.year_from=g('mbY1').value;MB.year_to=g('mbY2').value;MB.court=g('mbCourt').value;MB.case_no=g('mbCase').value;MB.status=g('mbStatus').value;MB.has_text=g('mbText').value;MB.sort=g('mbSort').value}
 
@@ -176,12 +185,22 @@ document.addEventListener('change',ev=>{if(S.view!=='misbar')return;if(['mbSrcSe
 A.mbView=v=>{readForm();MB.view=v==='tools'?'tools':'search';render()};
 A.mbSrc=v=>{readForm();MB.src=MB.src===v?'':v;if(MB.view!=='search'){MB.view='search';render()}const s=document.getElementById('mbSrcSel');if(s)s.value=MB.src;if(hasQuery())run(1);else{MB.data=null;paint()}document.querySelectorAll('.mb-chip').forEach(b=>b.classList.toggle('on',b.dataset.v===MB.src))};
 A.mbPage=v=>run(Number(v)||1);
-A.mbClear=()=>{Object.assign(MB,{q:'',src:'',year_from:'',year_to:'',court:'',case_no:'',status:'',has_text:'',sort:'relevance',data:null,err:'',open:null,doc:null});render()};
-A.mbOpen=async v=>{const id=Number(v);if(!id)return;MB.open=id;MB.docBusy=true;
+A.mbCountry=v=>{readForm();MB.country=MB.country===v?'':v;if(MB.country&&MB.src&&!MB.src.startsWith(MB.country+'_'))MB.src='';if(MB.view!=='search'){MB.view='search';render()}const sel=document.getElementById('mbSrcSel');if(sel)sel.value=MB.src;document.querySelectorAll('.mb-flag').forEach(b=>b.classList.toggle('on',b.dataset.v===MB.country));if(hasQuery())run(1);else{MB.data=null;paint()}};
+A.mbClear=()=>{Object.assign(MB,{q:'',country:'',src:'',year_from:'',year_to:'',court:'',case_no:'',status:'',has_text:'',sort:'relevance',data:null,err:'',open:null,doc:null});render()};
+A.mbOpen=async v=>{const id=Number(v);if(!id)return;MB.open=id;MB.docBusy=true;MB.doc=null;
  document.querySelectorAll('.mb-list li').forEach(li=>li.classList.toggle('on',li.querySelector('[data-v="'+id+'"]')!=null));
- const d=document.getElementById('mbDoc');if(d)d.innerHTML=reader();
- try{MB.doc=await call('doc',{id})}catch(x){toast(x.message);MB.doc=null}MB.docBusy=false;
- const el=document.getElementById('mbDoc');if(el){el.innerHTML=reader();el.scrollTop=0;if(window.innerWidth<1100)el.scrollIntoView({block:'start',behavior:'smooth'})}};
+ paintReader();
+ try{MB.doc=await call('doc',{id})}catch(x){toast(x.message);MB.doc=null}MB.docBusy=false;paintReader();
+ const b=document.querySelector('#mbReader .mb-rbox');if(b)b.scrollTop=0};
+A.mbReaderClose=()=>{MB.doc=null;MB.docBusy=false;paintReader()};
+/* المسبار شاشة كاملة فوق ميثاق: زر العودة وEsc يعيدان إلى الشاشة السابقة */
+let prevView='dash';
+const nav0=A.nav;A.nav=v=>{if(v==='misbar'&&S.view!=='misbar')prevView=S.view||'dash';if(v!=='misbar'){MB.doc=null;paintReader()}return nav0(v)};
+A.mbClose=()=>{MB.doc=null;paintReader();A.nav(prevView&&prevView!=='misbar'?prevView:'dash')};
+document.addEventListener('keydown',ev=>{if(ev.key!=='Escape'||S.view!=='misbar')return;if(document.getElementById('modal')&&document.getElementById('modal').innerHTML.trim())return;if(MB.doc||MB.docBusy)A.mbReaderClose();else A.mbClose()});
+const dn0=window.drawNav;if(typeof dn0==='function')window.drawNav=function(){const r=dn0.apply(this,arguments);document.body.classList.toggle('mb-on',S.view==='misbar');if(S.view!=='misbar'){const ov=document.getElementById('mbReader');if(ov)ov.remove();document.body.classList.remove('mb-rd')}return r};
+/* الهيدر ثابت أعلى المسبار ويصغر مع التمرير */
+document.addEventListener('scroll',ev=>{const w=ev.target;if(!w||!w.classList||!w.classList.contains('mb-wrap'))return;w.classList.toggle('mb-compact',w.scrollTop>80)},true);
 A.mbFs=v=>{const n=Number(v);MB.fs=n===0?17:Math.max(14,Math.min(24,MB.fs+n*1.5));try{localStorage.setItem('mq_mb_fs',String(MB.fs))}catch(x){}const b=document.querySelector('.mb-body');if(b)b.style.fontSize=MB.fs+'px'};
 A.mbFind=v=>{const t=String(v||'').replace(/^المادة رقم\s*\d+\s*من\s*/,'');MB.q='"'+t.replace(/["()]/g,' ').replace(/\s+/g,' ').trim()+'"';MB.src='PS_LEGISLATION';MB.view='search';render();run(1)};
 const docText=d=>[d.title,[d.court,d.case_no&&('رقم '+d.case_no),d.date||d.year].filter(Boolean).join(' · '),'',d.body||'',d.url?'\nالمصدر: '+d.url:''].join('\n');
@@ -212,7 +231,7 @@ document.addEventListener('submit',async ev=>{if(ev.target.id!=='mbLabForm')retu
  LAB.busy=false;const el2=document.getElementById('mbLab');if(el2){el2.innerHTML=labView();const rs=document.getElementById('mbLabRes');if(rs)rs.scrollIntoView({block:'start',behavior:'smooth'})}},true);
 document.addEventListener('change',async ev=>{if(ev.target.id!=='mbLfile')return;const f=ev.target.files[0];if(!f)return;labKeep();if(f.size>5*1024*1024){toast('الملف أكبر من 5 ميغابايت');return}
  try{const nm=f.name.toLowerCase();if(nm.endsWith('.docx')){if(typeof window.MQ_docxText!=='function')throw new Error('قراءة docx غير متاحة هنا؛ الصق النص');LAB.doc=await MQ_docxText(await f.arrayBuffer())}else LAB.doc=await f.text();LAB.docName=f.name;const d=document.getElementById('mbLd');if(d)d.value=LAB.doc;toast('استُورد النص')}catch(x){toast(x.message)}});
-A.mbRefOpen=async v=>{MB.view='search';MB.open=Number(v);render();await A.mbOpen(v)};
+A.mbRefOpen=v=>A.mbOpen(v);
 A.mbLabCopy=()=>{const r=LAB.res;if(!r)return;navigator.clipboard.writeText(r.analysis+'\n\nالمراجع:\n'+(r.refs||[]).map(x=>`[${x.ref}] ${x.title} — ${x.source}${x.url?' — '+x.url:''}`).join('\n')).then(()=>toast('نُسخ التحليل'),()=>toast('تعذّر النسخ'))};
 A.mbLabPrint=()=>{const r=LAB.res;if(!r||!window.MQP||!MQP.B)return;const B=MQP.B;MQP.open({label:'تحليل المسبار',build(){return {title:'مِسْبار — '+((LABT.find(t=>t[0]===r.task)||[])[2]||'تحليل'),sub:(LAB.q||LAB.facts||'').slice(0,120),file:'misbar-analysis',blocks:[{html:`<div class="mb-print">${labHtml(r.analysis)}</div>`},...(r.refs&&r.refs.length?[B.h('المراجع'),...r.refs.map(x=>B.p(e(`[${x.ref}] ${x.title} — ${x.source}${x.primary?'':' (للمقارنة والاستئناس)'}${x.case_no?' · رقم '+x.case_no:''}${x.year?' · '+x.year:''}`)))]:[]),B.box('تحليل آلي من مراجع قاعدة المسبار فقط؛ لا يُعتمد قبل مراجعة المحامي.')]}}})};
 A.mbDsKey=async()=>{const i=document.getElementById('mbDsKey');if(!i)return;const key=i.value.trim();if(!key)return toast('الصق المفتاح أولاً');try{const r=await fetch('/api/admin/misbar/dskey',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key})});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'تعذّر الحفظ');LAB.ai=null;toast('حُفظ مفتاح DeepSeek');await loadAi()}catch(x){toast(x.message)}};
@@ -222,16 +241,47 @@ A.mbAnalyze=()=>{const d=MB.doc;if(!d)return;openTool(d.kind==='ruling'?'appeal'
 
 const css=document.createElement('style');css.textContent=`
 .mb-wrap{--mbN:#0E2236;--mbN2:#16314A;--mbG:#C9A24A;--mbG2:#F3D58A;margin:-6px 0 0}
+body.mb-on .mb-wrap{position:fixed;inset:0;z-index:200;overflow:auto;margin:0;padding:0 16px 24px;background:radial-gradient(circle at 50% 0,#FBF6EA,#F1E8D6 60%,#EADFC8);animation:mbIn .28s ease-out}
+body.mb-on{overflow:hidden}body.mb-on .app>.main>.top,body.mb-on .top{display:none!important}body.mb-on .modal-bg{z-index:220}body.mb-on .toast{z-index:240}
+@keyframes mbIn{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:none}}
+body.mb-on .mb-top{position:sticky;top:0;z-index:5;margin:0 -16px;border-radius:0 0 18px 18px;border-top:0}
+.mb-x{position:absolute;top:12px;left:14px;z-index:3;font:inherit;font-size:13px;font-weight:700;padding:7px 14px;border-radius:999px;border:1px solid rgb(243 213 138 / .7);background:rgb(11 27 43 / .72);color:#F3D58A;cursor:pointer;backdrop-filter:blur(4px)}.mb-x:hover{background:#C9A24A;color:#0B1B2B}
+.mb-hero{transition:height .25s ease,max-height .25s ease}
+.mb-compact .mb-hero{max-height:96px}.mb-compact .mb-sub{opacity:0}
+.mb-resw{margin-top:16px}
+body.mb-rd{overflow:hidden}
+.mb-rov{position:fixed;inset:0;z-index:210;background:rgb(6 14 24 / .72);backdrop-filter:blur(6px);display:grid;place-items:center;padding:2.5vh 2.5vw;animation:mbFade .2s ease-out}
+@keyframes mbFade{from{opacity:0}to{opacity:1}}
+.mb-rbox{position:relative;width:min(1180px,100%);height:100%;overflow:auto;border-radius:22px;background:#FFFDF7;border:1px solid #C9A24A;box-shadow:0 0 0 1px rgb(243 213 138 / .35),0 30px 90px rgb(0 0 0 / .5),0 0 40px rgb(201 162 74 / .25);animation:mbUp .28s cubic-bezier(.2,.8,.2,1)}
+@keyframes mbUp{from{transform:translateY(24px) scale(.98);opacity:0}to{transform:none;opacity:1}}
+.mb-rx{position:sticky;top:12px;float:left;margin:12px;z-index:3;width:40px;height:40px;border-radius:50%;border:1px solid #C9A24A;background:#0E2236;color:#F3D58A;font-size:18px;cursor:pointer}
+.mb-rbox .mb-doc-h{position:sticky;top:0;z-index:2;padding:22px 34px 14px;background:linear-gradient(110deg,#0B1B2B,#1B3654);border-bottom:3px solid #C9A24A;color:#E8EEF2}
+.mb-rbox .mb-doc-h h2{color:#F3D58A;font-size:24px;margin:10px 0 6px}.mb-rbox .mb-doc-h .mb-meta{color:#C9D4DB}
+.mb-rbox .mb-doc-h .btn{background:rgb(255 255 255 / .06);color:#F2E6C4;border:1px solid rgb(201 162 74 / .6)}.mb-rbox .mb-doc-h .btn.pri{background:linear-gradient(180deg,#F3D58A,#C9A24A);color:#0B1B2B;border:0}
+.mb-rbox .mb-cmp{background:rgb(255 255 255 / .08);color:#F2E6C4}
+.mb-rbox .mb-body{max-width:860px;margin:0 auto;padding:26px 34px 10px;border:0;font-family:'Amiri','Traditional Arabic',serif;line-height:2.15;color:#1b2733}
+.mb-rbox .mb-body h4{text-align:center;color:#8A6A25;border-top:1px solid #eadcb8;padding-top:14px;margin-top:20px}
+.mb-rbox .mb-cites{max-width:860px;margin:12px auto 30px}
+.mb-rbox .mb-empty{padding:120px 20px}
 .mb-top{border-radius:16px;overflow:hidden;background:#0B1B2B;border:1px solid rgb(201 162 74 / .55);box-shadow:0 8px 24px rgb(11 27 43 / .22)}
-.mb-hero{position:relative;aspect-ratio:966/250;max-height:300px;background:#0B1B2B url(misbar-hero.webp) center/contain no-repeat}
-.mb-sub{position:absolute;left:63.5%;top:85%;transform:translate(-50%,-50%);color:#F3D58A;font-size:clamp(11px,1.45vw,17px);font-weight:700;letter-spacing:.02em;white-space:nowrap;text-shadow:0 0 6px rgb(243 213 138 / .6),0 1px 2px #000}
-.mb-ring{position:absolute;left:63.5%;top:30%;width:11.6%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;animation:mbNeon 2.4s ease-in-out infinite}
+.mb-hero{position:relative;overflow:hidden;aspect-ratio:1436/250;width:100%;background:#0B1B2B url(misbar-hero.webp) center/cover no-repeat}
+.mb-sub{position:absolute;z-index:2;left:73.9%;top:85%;transform:translate(-50%,-50%);color:#F3D58A;font-size:clamp(11px,1.45vw,17px);font-weight:700;letter-spacing:.02em;white-space:nowrap;text-shadow:0 0 6px rgb(243 213 138 / .6),0 1px 2px #000}
+.mb-fx{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
 .mb-brand{text-align:center;padding:6px 6px 10px;border-bottom:1px solid rgb(201 162 74 / .3);margin-bottom:4px}.mb-brand img{width:96px;height:auto;border-radius:50%;animation:mbNeon 2.4s ease-in-out infinite;box-shadow:0 0 0 2px #F3D58A,0 0 16px 4px rgb(243 213 138 / .85),0 0 36px 10px rgb(201 162 74 / .45)}
 @keyframes mbNeon{0%,100%{box-shadow:0 0 0 2px #E9C46A,0 0 12px 3px rgb(243 213 138 / .7),0 0 28px 8px rgb(201 162 74 / .35)}50%{box-shadow:0 0 0 2px #FFF1C2,0 0 22px 6px rgb(243 213 138 / 1),0 0 52px 16px rgb(201 162 74 / .6)}}
 @media (prefers-reduced-motion:reduce){.mb-brand img{animation:none}}
 .mb-brand b{display:block;font-size:26px;color:var(--mbG2);letter-spacing:.02em;margin-top:2px}.mb-brand small{display:block;color:#C9D4DB;font-size:12px}
-.mb-stats{display:flex;gap:6px;flex-wrap:wrap;padding:8px 12px;border-top:2px solid var(--mbG)}
+.mb-stats{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;padding:10px 12px;border-top:2px solid var(--mbG)}
 .mb-chip{border:1px solid rgb(201 162 74 / .55);background:rgb(255 255 255 / .06);color:#F2E6C4;border-radius:999px;padding:4px 10px;font:inherit;font-size:12px;cursor:pointer}.mb-chip b{color:var(--mbG2)}.mb-chip.on{background:var(--mbG);color:#0B1B2B}.mb-chip.on b{color:#0B1B2B}
+.mb-flag{position:relative;display:inline-flex;align-items:center;gap:10px;padding:6px 16px 6px 8px;font-size:14px!important;border-radius:999px;border:1px solid rgb(201 162 74 / .55);background:linear-gradient(180deg,rgb(255 255 255 / .09),rgb(255 255 255 / .02));color:#F2E6C4;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;transition:transform .2s,box-shadow .2s,background .2s}
+.mb-flag .fl{width:36px;height:24px;border-radius:4px;box-shadow:0 1px 4px rgb(0 0 0 / .5),inset 0 0 0 1px rgb(255 255 255 / .15);transform-origin:right center;animation:mbWave 3.2s ease-in-out infinite}
+.mb-flag:nth-child(2) .fl{animation-delay:-.6s}.mb-flag:nth-child(3) .fl{animation-delay:-1.2s}.mb-flag:nth-child(4) .fl{animation-delay:-1.8s}.mb-flag:nth-child(5) .fl{animation-delay:-2.4s}
+.mb-flag::after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(105deg,transparent 30%,rgb(255 241 194 / .35) 45%,transparent 60%);background-size:250% 100%;animation:mbShine 5s linear infinite;pointer-events:none}
+.mb-flag:hover{transform:translateY(-2px);box-shadow:0 6px 18px rgb(201 162 74 / .35)}
+.mb-flag.on{background:linear-gradient(180deg,#F3D58A,#C9A24A);color:#0B1B2B;border-color:#F3D58A;box-shadow:0 0 18px rgb(243 213 138 / .55)}
+@keyframes mbWave{0%,100%{transform:perspective(60px) rotateY(0) skewY(0)}50%{transform:perspective(60px) rotateY(-14deg) skewY(-2deg)}}
+@keyframes mbShine{from{background-position:150% 0}to{background-position:-100% 0}}
+@media (prefers-reduced-motion:reduce){.mb-flag .fl,.mb-flag::after{animation:none}}
 .mb-fc .mb-chip{background:#FBF6EA;color:#5a4a26;border-color:#e4d3a6}.mb-fc .mb-chip b{color:#8A6A25}.mb-fc .mb-chip.on{background:#0E2236;color:#F3D58A}
 .mb-warn{color:#ffd9a0;font-size:13px}
 .mb-grid{display:grid;grid-template-columns:250px minmax(0,1fr);gap:16px;margin-top:14px;align-items:start}
@@ -276,9 +326,40 @@ mark{background:#FCE9A8;color:inherit;padding:0 1px;border-radius:3px}
 .mb-tool{display:flex;flex-direction:column;gap:6px;text-align:start;padding:16px;border-radius:16px;cursor:pointer;font:inherit;background:linear-gradient(160deg,#16314A,#0B1B2B);border:1px solid rgb(201 162 74 / .55);color:#C9D4DB;box-shadow:0 6px 16px rgb(11 27 43 / .18)}
 .mb-tool i{font-style:normal;font-size:22px;color:var(--mbG2)}.mb-tool b{color:#F2D58C;font-size:16px}.mb-tool span{font-size:12.5px;line-height:1.7}.mb-tool:hover{box-shadow:0 0 0 1px var(--mbG2),0 0 20px rgb(233 196 106 / .3)}
 .mb-princ{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;justify-content:center}.mb-princ span{font-size:12px;color:#8A6A25;border:1px solid #e4d3a6;border-radius:999px;padding:3px 10px;background:#FBF6EA}
-@media(max-width:1100px){.mb-two{grid-template-columns:1fr}.mb-reader{position:static;max-height:none}}
+@media(max-width:1100px){.mb-rbox .mb-doc-h,.mb-rbox .mb-body{padding-inline:18px}}
 .mb-print h4{color:#333;margin:10px 0 2px}
 @media(max-width:820px){.mb-two2{grid-template-columns:1fr}.mb-grid{grid-template-columns:1fr}.mb-side{position:static;display:flex;flex-wrap:wrap;gap:4px}.mb-side .g,.mb-note{width:100%}.mb-side button{width:auto}.mb-qrow{flex-direction:column}.mb-go{height:44px}}
-@media print{.mb-side,.mb-top,.mb-card:not(.mb-reader),.mb-tools{display:none!important}}`;document.head.appendChild(css);
+@media print{.mb-side,.mb-top,.mb-card,.mb-tools,.mb-rx{display:none!important}.mb-rov{position:static;background:none;padding:0}.mb-rbox{height:auto;box-shadow:none;border:0}}`;document.head.appendChild(css);
+/* ── «العقل المفكّر»: شبكة عُقد ذهبية تتصل وتنبض كأنها تفكّر، ورموز قانونية تتطاير عبر الهيدر ── */
+const GLYPHS=['⚖','§','¶','∴','✒','⚑','✦','≡','Ⅰ','Ⅱ','ق','م','?','✓'];
+function startFx(){const cv=document.querySelector('.mb-fx');if(!cv||cv._on)return;cv._on=1;
+ const reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
+ const ctx=cv.getContext('2d');let W=0,H=0,dpr=Math.min(2,window.devicePixelRatio||1);
+ const size=()=>{const r=cv.getBoundingClientRect();W=r.width;H=r.height;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0)};size();
+ const R=(a,b)=>a+Math.random()*(b-a);
+ const nodes=Array.from({length:Math.round(Math.max(26,W/34))},()=>({x:R(0,W),y:R(0,H),vx:R(-.25,.25),vy:R(-.18,.18),r:R(1,2.4),p:R(0,6.28)}));
+ const glyphs=[];const spawn=()=>glyphs.push({g:GLYPHS[Math.floor(Math.random()*GLYPHS.length)],x:R(0,W),y:H+20,vy:R(.25,.7),vx:R(-.2,.2),s:R(13,26),a:0,life:0,max:R(260,520),rot:R(-.3,.3)});
+ for(let i=0;i<10;i++){spawn();glyphs[i].y=R(0,H);glyphs[i].life=R(0,200)}
+ /* «ومضات تفكير»: نبضة تسري على وصلة بين عقدتين */
+ const sparks=[];let t=0,raf=0;
+ function frame(){if(!document.body.contains(cv)){cancelAnimationFrame(raf);return}
+  if(cv.getBoundingClientRect().width!==W)size();
+  ctx.clearRect(0,0,W,H);t++;
+  for(const n of nodes){n.x+=n.vx;n.y+=n.vy;n.p+=.04;if(n.x<0||n.x>W)n.vx*=-1;if(n.y<0||n.y>H)n.vy*=-1}
+  const D=Math.min(150,W/7);
+  for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){const a=nodes[i],b=nodes[j],dx=a.x-b.x,dy=a.y-b.y,d=Math.hypot(dx,dy);
+   if(d<D){ctx.strokeStyle=`rgba(243,213,138,${(1-d/D)*.35})`;ctx.lineWidth=.7;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.stroke();if(Math.random()<.0009&&sparks.length<14)sparks.push({a,b,k:0})}}
+  for(const n of nodes){const g=.55+.45*Math.sin(n.p);ctx.fillStyle=`rgba(255,233,168,${.5+.4*g})`;ctx.shadowColor='rgba(243,213,138,.9)';ctx.shadowBlur=8*g;ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,6.283);ctx.fill()}
+  ctx.shadowBlur=0;
+  for(let i=sparks.length-1;i>=0;i--){const s=sparks[i];s.k+=.025;if(s.k>=1){sparks.splice(i,1);continue}const x=s.a.x+(s.b.x-s.a.x)*s.k,y=s.a.y+(s.b.y-s.a.y)*s.k;
+   const gr=ctx.createRadialGradient(x,y,0,x,y,9);gr.addColorStop(0,'rgba(255,248,220,.95)');gr.addColorStop(1,'rgba(243,213,138,0)');ctx.fillStyle=gr;ctx.beginPath();ctx.arc(x,y,9,0,6.283);ctx.fill()}
+  if(t%45===0&&glyphs.length<22)spawn();
+  ctx.textAlign='center';ctx.textBaseline='middle';
+  for(let i=glyphs.length-1;i>=0;i--){const g=glyphs[i];g.life++;g.y-=g.vy;g.x+=g.vx+Math.sin((g.life+i*30)/40)*.25;
+   const f=g.life<60?g.life/60:g.life>g.max-80?Math.max(0,(g.max-g.life)/80):1;if(g.life>g.max||g.y<-30){glyphs.splice(i,1);continue}
+   ctx.save();ctx.translate(g.x,g.y);ctx.rotate(g.rot*Math.sin(g.life/90));ctx.font=`700 ${g.s}px Amiri, serif`;ctx.fillStyle=`rgba(243,213,138,${.55*f})`;ctx.shadowColor='rgba(201,162,74,.9)';ctx.shadowBlur=12*f;ctx.fillText(g.g,0,0);ctx.restore()}
+  if(!reduce)raf=requestAnimationFrame(frame)}
+ frame()}
+const vm0=V.misbar;V.misbar=function(){const h=vm0.apply(this,arguments);setTimeout(startFx,30);return h};
 window.MQ_misbar=MB;
 })();
