@@ -447,6 +447,11 @@ html.night .mb-wrap .mb-card{background:rgb(20 33 58 / .68)}
 .mb-wrap .mb-t{font-weight:700;color:#0F2A45;text-shadow:0 1px 0 rgb(255 255 255 / .9),0 2px 6px rgb(11 27 43 / .22),0 0 14px rgb(201 162 74 / .18)}
 .mb-wrap .mb-it:hover .mb-t{text-shadow:0 1px 0 rgb(255 255 255 / .9),0 3px 10px rgb(11 27 43 / .28),0 0 18px rgb(201 162 74 / .35)}
 html.night .mb-wrap .mb-t{color:#F3E9CF;text-shadow:0 2px 8px rgb(0 0 0 / .6)}
+/* مقتطف النتيجة: خلفية بيج غامق فاتحة ونص داكن واضح (منفصل عن زر الإغلاق الذي يحمل الصنف نفسه) */
+.mb-wrap p.mb-x,.mb-wrap p.mb-x:hover{position:static;display:block;margin:8px 0 2px;padding:9px 14px;border-radius:12px;border:1px solid #D2BD8F;background:#E9DCBE;color:#2B2416;font-weight:400;font-size:13.5px;line-height:1.95;cursor:inherit;-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:inset 0 1px 0 rgb(255 255 255 / .5)}
+.mb-wrap .mb-it.mb-lit p.mb-x{background:rgb(233 220 190 / .92);border-color:#C9A24A;color:#2B2416!important}
+.mb-wrap .mb-it.mb-lit p.mb-x *{color:#2B2416!important;text-shadow:none!important}
+html.night .mb-wrap p.mb-x{background:#3A3324;border-color:#5C4E2E;color:#F2E6C4}
 /* النتائج فوق الهيدر: زجاج داكن شفاف والعناوين نص مضيء */
 .mb-wrap.mb-over .mb-card{background:rgb(251 246 234 / .46)}
 .mb-wrap .mb-it{transition:background-color .25s ease,box-shadow .25s ease}
