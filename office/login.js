@@ -10,7 +10,7 @@
     if (s.lawyer) { $('lawyer').textContent = s.lawyer; $('sceneLawyer').textContent = s.lawyer + ' · ' + (s.office || '') }
     if (s.setup) {
       $('title').textContent = 'إعداد النظام لأول مرة';
-      if (!s.local) { show('إنشاء حساب مدير النظام متاح من جهاز المكتب نفسه فقط. افتح ميثاق على الحاسوب الرئيسي.'); return }
+      if (!s.local) { show('إنشاء حساب مدير النظام متاح من جهاز المكتب نفسه فقط. افتح المِسْبار على الحاسوب الرئيسي.'); return }
       $('fSetup').hidden = false; $('sn').focus();
     } else { $('fLogin').hidden = false; $('lu').focus() }
   }).catch(() => show('تعذّر الاتصال بخادم المكتب.'));

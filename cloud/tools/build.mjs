@@ -1,7 +1,7 @@
 // يجهّز مجلد public من ملفات واجهة ميثاق (المصدر: ../office أو MQ_SRC) ويولّد src/seed.js
 import fs from 'node:fs'; import path from 'node:path';
 const SRC = process.env.MQ_SRC || path.resolve('../office'), OUT = path.resolve('public');
-const UI = ['index.html','app.js','ready-templates-palestine.js','legal-shelf.js','print.js','intake.js','rulings.js','guide.js','workflow.js','casework.js','stations.js','hearing-report.js','case-layout.js','case-steps.js','announce.js','reader.js','case-hub.js','case-wizard.js','consistency.js','searchsel.js','wa-chat.js','fulltext.js','ai-mark.js','night.css','qrcode.js','app-invite.js','avatar.js','wa-skin.js','case360.js','hearing-prep.js','draft-versions.js','reference-check.js','legal-qa.js','reference-ui.js','lawlib-data.js','lawlib.js','legislation.js','misbar.js','misbar-emblem.webp','misbar-hero.webp','aidraft.js','calc-engine.js','calc.js','dash.js','briefcase.js','settlements.js','sync.js','mizan-ui.js','data.js','admin.js','phase2.js','phase2.css','bar.js','bar.css','responsive.js','responsive.css','style.css','dash.css','briefcase.css','mizan.css','admin.css','prestige.css','login.html','login.js','login.css','scales.js','edition.js','hdr-banner.jpg','hdr-side.jpg','hdr-side.webp','hdr-emblem.jpg','hdr-logo.jpg'];
+const UI = ['index.html','app.js','ready-templates-palestine.js','legal-shelf.js','print.js','intake.js','rulings.js','guide.js','workflow.js','casework.js','stations.js','hearing-report.js','case-layout.js','case-steps.js','announce.js','reader.js','case-hub.js','case-wizard.js','consistency.js','searchsel.js','wa-chat.js','fulltext.js','ai-mark.js','night.css','qrcode.js','app-invite.js','avatar.js','wa-skin.js','case360.js','hearing-prep.js','draft-versions.js','reference-check.js','legal-qa.js','reference-ui.js','lawlib-data.js','lawlib.js','legislation.js','misbar.js','misbar-emblem.webp','misbar-hero.webp','misbar-banner.webp','aidraft.js','calc-engine.js','calc.js','dash.js','briefcase.js','settlements.js','sync.js','mizan-ui.js','data.js','admin.js','phase2.js','phase2.css','bar.js','bar.css','responsive.js','responsive.css','style.css','dash.css','briefcase.css','mizan.css','admin.css','prestige.css','login.html','login.js','login.css','scales.js','edition.js','hdr-banner.jpg','hdr-side.jpg','hdr-side.webp','hdr-emblem.jpg','hdr-logo.jpg'];
 fs.rmSync(path.join(OUT, 'app'), { recursive: true, force: true }); fs.mkdirSync(path.join(OUT, 'app'), { recursive: true });
 for (const f of UI) fs.copyFileSync(path.join(SRC, f), path.join(OUT, 'app', f));
 // الخطوط المضمّنة محلياً
@@ -12,7 +12,7 @@ const rep = (a, b) => { if (!s.includes(a)) throw new Error('login.js anchor mis
 rep("fetch('/api/auth/status')", "fetch('/api/auth/status?setup=' + encodeURIComponent(SETUP))");
 rep("(function () {", "(function () {\n  const SETUP = new URLSearchParams(location.search).get('setup') || '';");
 rep("password: $('sp').value })", "password: $('sp').value, setupToken: SETUP })");
-rep("إنشاء حساب مدير النظام متاح من جهاز المكتب نفسه فقط. افتح ميثاق على الحاسوب الرئيسي.", "لإنشاء حساب مدير النظام افتح رابط الإعداد الذي وصلك من مزود الخدمة.");
+rep("إنشاء حساب مدير النظام متاح من جهاز المكتب نفسه فقط. افتح المِسْبار على الحاسوب الرئيسي.", "لإنشاء حساب مدير النظام افتح رابط الإعداد الذي وصلك من مزود الخدمة.");
 fs.writeFileSync(lj, s);
 // بوابة الموكل (نسخة الويب من تطبيق فلاتر) إن وُجدت
 const portal = process.env.MQ_PORTAL || path.join(SRC, 'portal');
