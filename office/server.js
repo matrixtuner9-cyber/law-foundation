@@ -25,6 +25,7 @@ const stamp = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-$
 const stampS = (d = new Date()) => stamp(d) + ':' + pad(d.getSeconds());
 
 /* ── قاعدة البيانات + نقل البيانات القديمة (JSON) مرة واحدة ── */
+const restored = require('./lib/backup').applyPending(DATA);
 const store = Store.open(DATA), auth = Auth.create(store);
 /* قاعدة البيانات مربوطة بنسختها: «المِسْبار الخاص» لا يفتح بيانات مكتب متصل (ولا العكس) — يمنع أي خلط بين النسختين */
 { const owner = store.kv.get('edition'), stop = m => { if (process.versions.electron) throw new Error(m); console.error(m); process.exit(3) };
@@ -152,6 +153,17 @@ function mzStart(mode, show, client) {
 }
 const backup = require('./lib/backup').create({ store, DATA, audit: e => audit(e), stampS });
 if (process.env.MQ_BACKUP !== 'off') backup.schedule();
+if (restored) setTimeout(() => audit({ action: restored.ok ? 'system.restored' : 'system.restore_failed', detail: restored }), 0);
+globalThis.MQ_DESKTOP = { backup, DATA }; // تطبيق سطح المكتب يستعمل النسخ نفسه (تذكير، نسخة عند الإغلاق، حفظ على قرص خارجي)
+/* إعادة تشغيل الخادم بعد الاستعادة: داخل تطبيق سطح المكتب يُعاد تشغيل التطبيق، وإلا يُشغَّل الخادم من جديد بنفس الأوامر */
+function restartSelf() {
+  setTimeout(() => {
+    if (process.versions.electron) { try { const { app } = require('electron'); app.relaunch(); app.exit(0); return } catch (e) {} }
+    try { server.close() } catch (e) {}
+    spawn(process.execPath, process.argv.slice(1), { cwd: process.cwd(), detached: true, stdio: 'ignore', windowsHide: true, env: { ...process.env, MQ_RESTART_WAIT: '1' } }).unref();
+    process.exit(0);
+  }, 700);
+}
 const bar = require('./lib/bar').create({ store, DATA, ROOT, audit: e => audit(e), broadcast: (t, p) => broadcast(t, p), stampS });
 const isLocal = req => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress) && !req.headers['cf-connecting-ip'];
 /* نطاق المكتب عبر الإنترنت (بموافقة المالك): يفتح شاشة المحامي فقط إذا مرّ الطلب عبر Cloudflare Access،
@@ -439,6 +451,17 @@ async function api(req, res, u) {
   /* النسخ الاحتياطي: حالة آخر نسخة، وتشغيل يدوي */
   if (p === '/api/backup/status') { if (!need('manage')) return; return json(res, 200, backup.status()) }
   if (p === '/api/backup/run' && M === 'POST') { if (!need('manage')) return; const r = backup.run('manual:' + me.username); return json(res, r.ok ? 200 : 500, r.ok ? r : { error: 'تعذّر النسخ الاحتياطي: ' + r.error }) }
+  if (p === '/api/backup/remind' && M === 'GET') { if (!need('manage')) return; return json(res, 200, backup.remind()) }
+  if (p === '/api/backup/snooze' && M === 'POST') { if (!need('manage')) return; audit({ user_id: me.id, username: me.username, action: 'system.backup_snooze' }); return json(res, 200, backup.snooze()) }
+  if (p === '/api/backup/config' && M === 'POST') { if (!need('manage')) return; const r = backup.setCfg(await jbody(req)); return json(res, r.ok ? 200 : 400, r.ok ? r : { error: r.error }) }
+  if (p === '/api/backup/export' && M === 'POST') { if (!need('manage')) return; const b = await jbody(req); const r = backup.exportTo(b.dir, me.username); return json(res, r.ok ? 200 : 400, r.ok ? r : { error: r.error }) }
+  if (p === '/api/backup/restore' && M === 'POST') {
+    if (!need('manage')) return; const b = await jbody(req);
+    if (b.confirm !== 'استعادة') return json(res, 400, { error: 'اكتب كلمة «استعادة» للتأكيد' });
+    const r = backup.restore(b.id, me.username); if (!r.ok) return json(res, 400, { error: r.error });
+    json(res, 200, r); return restartSelf();
+  }
+  if (p === '/api/backup/restored' && M === 'GET') { if (!need('manage')) return; return json(res, 200, readJSON(path.join(DATA, 'restore.done.json'), null)) }
   if (p === '/api/settings' && M === 'POST') {
     if (!need('manage')) return;
     const b = await jbody(req), before = settings();
@@ -845,7 +868,7 @@ async function gateLicense(req, res, u) {
 }
 const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css', 'edition.js', 'misbar-banner.webp']);
 
-http.createServer((req, res) => {
+const server = http.createServer((req, res) => {
   const u = new URL(req.url, 'http://localhost');
   if (!license.status().ok) return gateLicense(req, res, u);
   /* وضع النشر العام: الزيارات القادمة عبر نفق Cloudflare ترى بوابة الموكل فقط */
@@ -892,7 +915,10 @@ http.createServer((req, res) => {
   /* كسر ذاكرة المتصفح: روابط ملفات الواجهة في الصفحة تحمل رقم نسخة (وقت تشغيل الخادم) فتصل التعديلات فور النشر */
   if (name === 'index.html') { const h = fs.readFileSync(path.join(ROOT, name), 'utf8').replace(/(<script src="|<link rel="stylesheet" href=")([\w.-]+\.(?:js|css))(")/g, `$1$2?v=${BOOT}$3`); res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', ...SEC }); return res.end(h) }
   sendFile(req, res, path.join(ROOT, name));
-}).listen(PORT, process.env.MQ_BIND || (ED.offline ? '127.0.0.1' : '0.0.0.0'), () => {
+});
+/* بعد إعادة التشغيل الذاتية قد يبقى المنفذ مشغولاً لحظات: إعادة المحاولة بدل التوقف */
+{ let tries = 0; server.on('error', e => { if (e.code === 'EADDRINUSE' && process.env.MQ_RESTART_WAIT && tries++ < 40) return setTimeout(() => server.listen(PORT, process.env.MQ_BIND || (ED.offline ? '127.0.0.1' : '0.0.0.0')), 500); throw e }) }
+server.listen(PORT, process.env.MQ_BIND || (ED.offline ? '127.0.0.1' : '0.0.0.0'), () => {
   audit({ action: 'system.start', detail: { pid: process.pid, electron: process.versions.electron || null, edition: ED.id } });
   console.log('Mithaq is running — ' + ED.name + (ED.offline ? ' (بلا إنترنت، للجهاز نفسه فقط)' : ''));
   console.log('  شاشة المكتب:    http://localhost:' + PORT + (auth.hasUsers() ? '' : '  (أول مرة: أنشئ حساب مدير النظام)'));

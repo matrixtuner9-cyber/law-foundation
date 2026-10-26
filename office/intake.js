@@ -134,20 +134,54 @@ A.rotateWeak=()=>{if(ro())return;const n=clients.filter(isWeak).length;if(!n)ret
 /* ── لوحات الإعدادات ── */
 const fmtT=ms=>{if(!ms)return '—';const d=new Date(ms),p=n=>String(n).padStart(2,'0');return p(d.getDate())+'/'+p(d.getMonth()+1)+'/'+d.getFullYear()+' '+p(d.getHours())+':'+p(d.getMinutes())};
 const mb=n=>n?(n/1048576).toFixed(n>10485760?0:1)+' م.ب':'—';
+const ago=t=>{if(!t)return '';const h=Math.round((Date.now()-t)/3600e3);return h<1?'قبل أقل من ساعة':h<48?'قبل '+h+' ساعة':'قبل '+Math.round(h/24)+' أيام'};
+const DESK=()=>window.mqDesktop||null;
 function backupHtml(st){
  if(!st)return '<div class="note" style="border:0">جارٍ التحميل…</div>';
- const l=st.last||{},f=l.failed;
+ const l=st.last||{},f=l.failed,x=st.lastExternal;
+ const rows=(st.list||[]).slice(0,12).map(b=>`<tr><td>${e(b.at||b.id)}</td><td>${b.id.startsWith('pre-restore')?'<span class="pill warn">قبل استعادة</span>':/^manual|^export|^exit|^tray/.test(b.reason)?'يدوية':'تلقائية'}</td><td>${b.counts?b.counts.records+' سجلاً':''}</td><td>${mb(b.size)}</td><td>${b.integrity==='ok'?'<span class="pill ok">سليمة</span>':'<span class="pill bad">؟</span>'}</td><td><button class="btn sm" type="button" data-act="backupRestore" data-v="${e(b.id)}">استعادة</button></td></tr>`).join('');
  return `<dl class="kv"><dt>آخر نسخة</dt><dd>${l.ok?e(l.at)+' · '+mb(l.size)+' · '+(l.counts?l.counts.records+' سجلاً و'+l.counts.messages+' رسالة':''):'<span class="pill warn">لم تُؤخذ نسخة بعد</span>'}</dd>
   ${f?`<dt>آخر فشل</dt><dd style="color:#991B1B">${e(f.at)} · ${e(f.error)}</dd>`:''}
-  <dt>المجلد</dt><dd class="mono" dir="ltr" style="text-align:right">${e(st.dir)}</dd>
-  <dt>نسخة ثانية خارج الجهاز</dt><dd>${st.mirror?'<span class="mono" dir="ltr">'+e(st.mirror)+'</span>'+(l.mirror&&!l.mirror.ok?' <span class="pill bad">فشلت</span>':''):'<span class="pill warn">غير مضبوطة</span> — اضبط MQ_BACKUP_MIRROR على قرص خارجي أو مجلد مزامنة سحابية'}</dd>
-  <dt>الجدولة</dt><dd>كل ${st.everyHours} ساعة، ويُحتفظ بآخر ${st.keep} نسخة</dd></dl>
-  <div style="margin-top:10px"><button class="btn" type="button" data-act="backupNow">نسخ احتياطي الآن</button></div>`;
+  <dt>آخر نسخة خارج الجهاز</dt><dd>${x?e(x.at)+' · '+ago(x.t)+' · <span class="mono" dir="ltr">'+e(x.dir)+'</span>':'<span class="pill warn">لم تُحفظ نسخة خارج الجهاز بعد</span>'}</dd>
+  <dt>مجلد النسخ</dt><dd class="mono" dir="ltr" style="text-align:right">${e(st.dir)}</dd>
+  <dt>النسخة الثانية التلقائية</dt><dd>${st.mirrorFromEnv?'<span class="mono" dir="ltr">'+e(st.mirror)+'</span>':`<span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><input class="field mono" id="bkMirror" dir="ltr" style="max-width:340px" placeholder="F:\\Misbar أو مجلد مزامنة سحابية" value="${e(st.mirror||'')}">${DESK()?'<button class="btn sm" type="button" data-act="backupPickMirror">اختيار…</button>':''}<button class="btn sm" type="button" data-act="backupSaveMirror">حفظ</button></span>`}${l.mirror&&!l.mirror.ok?' <span class="pill bad">فشلت آخر مرة</span>':''}</dd>
+  <dt>الجدولة</dt><dd>نسخة تلقائية كل ${st.everyHours} ساعة، ويُحتفظ بآخر ${st.keep} نسخة</dd>
+  <dt>التذكير</dt><dd><select class="field" id="bkRemind" style="width:auto">${[24,48,72,168].map(h=>`<option value="${h}"${h===st.remindHours?' selected':''}>كل ${h===168?'أسبوع':h+' ساعة'}</option>`).join('')}</select> <button class="btn sm" type="button" data-act="backupSaveRemind">حفظ</button> <span class="m">يذكّرك المسبار بحفظ نسخة خارج الجهاز إذا مرّت الفترة دون نسخة</span></dd></dl>
+  <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" type="button" data-act="backupExport">حفظ نسخة على قرص خارجي…</button><button class="btn" type="button" data-act="backupNow">نسخ احتياطي الآن</button>${DESK()?'<button class="btn" type="button" data-act="backupOpenDir">فتح مجلد النسخ</button>':''}</div>
+  ${rows?`<h3 style="margin:16px 0 6px;font-size:15px">النسخ المحفوظة على هذا الجهاز</h3><div style="overflow:auto"><table class="tbl"><thead><tr><th>الوقت</th><th>النوع</th><th>السجلات</th><th>الحجم</th><th>الفحص</th><th></th></tr></thead><tbody>${rows}</tbody></table></div><p class="m" style="margin-top:6px">الاستعادة تعيد بيانات المكتب إلى وقت النسخة، وتحفظ قبلها نسخة «قبل استعادة» من الوضع الحالي فيمكن التراجع عنها.</p>`:''}`;
 }
 let bkCache=null;
-A.backupNow=(v,btn)=>{if(btn){btn.disabled=true;btn.textContent='جارٍ النسخ…'}
- call('/api/backup/run',{}).then(r=>{toast('تمت النسخة الاحتياطية: '+mb(r.size));loadBackup()}).catch(x=>{toast(x.message);loadBackup()})};
+const bkBusy=(btn,t)=>{if(btn){btn.disabled=true;btn.textContent=t}};
+A.backupNow=(v,btn)=>{bkBusy(btn,'جارٍ النسخ…');
+ call('/api/backup/run',{}).then(r=>{toast('تمت النسخة الاحتياطية: '+mb(r.size));bkClose();loadBackup()}).catch(x=>{toast(x.message);loadBackup()})};
+async function pickDir(title){const d=DESK();if(d&&d.pickFolder)return d.pickFolder(title);const v=prompt(title+'\nاكتب المسار الكامل على جهاز المكتب، مثل F:\\',(bkCache&&bkCache.mirror)||'');return v&&v.trim()||null}
+A.backupExport=async(v,btn)=>{const dir=await pickDir('اختر القرص الخارجي أو المجلد الذي تُحفظ فيه النسخة');if(!dir)return;bkBusy(btn,'جارٍ الحفظ والتحقق…');
+ call('/api/backup/export',{dir}).then(r=>{toast('حُفظت النسخة وتُحقق منها في '+r.dir);bkClose();loadBackup()}).catch(x=>{toast(x.message);bkClose();loadBackup()})};
+A.backupPickMirror=async()=>{const dir=await pickDir('اختر مجلد النسخة الثانية التلقائية');if(dir){const i=document.getElementById('bkMirror');if(i)i.value=dir}};
+A.backupSaveMirror=()=>{const i=document.getElementById('bkMirror');call('/api/backup/config',{mirror:i?i.value:''}).then(st=>{bkCache=st;toast(st.mirror?'ضُبطت النسخة الثانية التلقائية':'أُلغيت النسخة الثانية');loadBackup()}).catch(x=>toast(x.message))};
+A.backupSaveRemind=()=>{const i=document.getElementById('bkRemind');call('/api/backup/config',{remindHours:+i.value}).then(()=>{toast('سيُذكّرك المسبار كل '+(+i.value===168?'أسبوع':i.value+' ساعة'));loadBackup()}).catch(x=>toast(x.message))};
+A.backupOpenDir=()=>{const d=DESK();if(d&&bkCache)d.openPath(bkCache.dir)};
+A.backupRestore=v=>{const b=((bkCache||{}).list||[]).find(x=>x.id===v);if(!b)return;
+ const w=prompt('ستعود كل بيانات المكتب (الموكلون والقضايا والجلسات والرسائل والمالية) إلى حالتها في '+(b.at||v)+'.\nكل ما أُدخل بعد هذا الوقت لن يظهر، لكن تُحفظ نسخة من الوضع الحالي أولاً ويمكن التراجع.\nسيُعاد تشغيل المسبار تلقائياً.\n\nللتأكيد اكتب: استعادة');
+ if(w===null)return;if(w.trim()!=='استعادة')return toast('لم تُنفَّذ الاستعادة: كلمة التأكيد غير مطابقة');
+ call('/api/backup/restore',{id:v,confirm:'استعادة'}).then(()=>{document.getElementById('modal').innerHTML='<div class="modal-bg"><div class="modal" style="max-width:460px;text-align:center"><h1 style="font-size:22px">جارٍ الاستعادة…</h1><p>يُعاد تشغيل المسبار الآن، وتفتح الصفحة تلقائياً خلال ثوانٍ.</p></div></div>';
+  let n=0;const t=setInterval(()=>{if(++n>90){clearInterval(t);return}fetch('/api/health',{cache:'no-store'}).then(r=>{if(r.ok&&n>3){clearInterval(t);location.reload()}}).catch(()=>{})},1000)}).catch(x=>toast(x.message))};
 function loadBackup(){fetch('/api/backup/status').then(r=>r.ok?r.json():null).then(st=>{bkCache=st;const el=document.getElementById('bkPanel');if(el)el.innerHTML=backupHtml(st)}).catch(()=>{})}
+
+/* ── تذكير النسخ الاحتياطي (كل 48 ساعة افتراضياً) ── */
+let bkShown=0;
+function bkClose(){const m=document.getElementById('modal');if(m&&m.querySelector('.bk-remind'))m.innerHTML=''}
+function bkRemindShow(r){const m=document.getElementById('modal');if(!m||m.innerHTML.trim())return; // لا نقاطع نافذة مفتوحة
+ bkShown=Date.now();const x=r.lastExternal,u=r.lastUser,l=r.last;
+ m.innerHTML=`<div class="modal-bg"><div class="modal bk-remind" role="dialog" aria-label="تذكير النسخ الاحتياطي" style="max-width:560px">
+  <div class="head"><h1 style="font-size:22px">حان وقت النسخة الاحتياطية</h1><button class="x" data-act="backupSnooze" aria-label="إغلاق">✕</button></div>
+  <p style="line-height:1.9;margin:6px 0 10px">مرّت ${r.hours} ساعة دون حفظ نسخة من بيانات المكتب خارج هذا الجهاز. النسخ التلقائية اليومية محفوظة على القرص نفسه، فإن تعطّل الجهاز أو سُرق تضيع معه. احفظ نسخة على قرص خارجي أو فلاشة الآن — تستغرق ثوانيَ ويُتحقق منها تلقائياً.</p>
+  <dl class="kv" style="margin-bottom:12px"><dt>آخر نسخة خارج الجهاز</dt><dd>${x?e(x.at)+' · '+ago(x.t):'<span class="pill warn">لا يوجد</span>'}</dd><dt>آخر نسخة يدوية</dt><dd>${u?e(u.at)+' · '+ago(u.t):'—'}</dd><dt>آخر نسخة تلقائية</dt><dd>${l&&l.ok?e(l.at):'—'}</dd></dl>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn pri" type="button" data-act="backupExport">حفظ نسخة على قرص خارجي…</button><button class="btn" type="button" data-act="backupNow">نسخ على هذا الجهاز الآن</button><button class="btn" type="button" data-act="backupSnooze">ذكّرني بعد ${r.hours} ساعة</button></div></div></div>`}
+A.backupSnooze=()=>{call('/api/backup/snooze',{}).catch(()=>{});bkClose()};
+function bkCheck(){if(!window.MQ||!MQ.user||!can2('manage')||(MQ.settings||{}).cloud)return;if(Date.now()-bkShown<3600e3)return;
+ fetch('/api/backup/remind',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(r=>{if(r&&r.due)bkRemindShow(r)}).catch(()=>{})}
+setTimeout(bkCheck,8000);setInterval(bkCheck,30*60e3);
 A.supportGrant=()=>{const h=+(document.getElementById('supH')||{}).value||24;if(!confirm('سيتمكن مزود الخدمة من تصدير بيانات المكتب (دون كلمات المرور) لمدة '+h+' ساعة، ويُسجَّل ذلك. متابعة؟'))return;
  call('/api/support/grant',{hours:h}).then(j=>{MQ.settings.supportUntil=j.until;render();toast('مُنح الإذن حتى '+fmtT(j.until))}).catch(x=>toast(x.message))};
 A.supportRevoke=()=>call('/api/support/revoke',{}).then(()=>{MQ.settings.supportUntil=null;render();toast('أُلغي إذن الدعم')}).catch(x=>toast(x.message));
