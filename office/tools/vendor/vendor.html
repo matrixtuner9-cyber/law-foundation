@@ -145,10 +145,14 @@ async function releases(){let d;try{d=await api('/api/releases')}catch(e){return
 
 async function settings(){const s=await api('/api/settings'),sum=await api('/api/summary');
  on('#saveS','click',async()=>{try{await api('/api/settings',{opsHost:$('#sHost').value,opsTokenFile:$('#sTok').value,backupDir:$('#sBk').value});toast('حُفظت الإعدادات');draw()}catch(e){toast(e.message)}});
+ on('#doVault','click',async e=>{const a=$('#vp1').value,b=$('#vp2').value;if(a!==b)return toast('كلمتا السر غير متطابقتين');if(a.length<10)return toast('كلمة السر 10 أحرف على الأقل');e.target.disabled=true;try{const r=await api('/api/vault',{pass:a});$('#vOut').textContent='حُفظت النسخة المشفّرة: '+r.file+' ('+Math.round(r.size/1024)+' ك.ب). ارفعها إلى Google Drive، واحفظ كلمة السر في مكان آمن منفصل.';$('#vp1').value=$('#vp2').value=''}catch(x){toast(x.message)}finally{e.target.disabled=false}});
  on('#doBk','click',async()=>{try{const r=await api('/api/backup',{dir:$('#sBk').value});toast('حُفظت النسخة: '+r.dir);draw()}catch(e){toast(e.message)}});
  return `<div class="card"><h2>النسخ الاحتياطي</h2><p>يُنسخ <b>مفتاح التوقيع الخاص</b> وسجل البرنامج (المكاتب والتراخيص والمدفوعات) إلى قرص خارجي. <b>ضياع المفتاح يعني أنك لا تستطيع تجديد أو إصدار تراخيص للنسخ المباعة.</b></p>
   <p class="m">آخر نسخة: ${sum.lastBackup?esc(sum.lastBackup.at)+' — <span class="mono">'+esc(sum.lastBackup.dir)+'</span>':'لا يوجد'}</p>
   <div class="row2"><input id="sBk" class="mono" value="${esc(s.backupDir)}" placeholder="F:\\" style="max-width:360px"><button class="b p" id="doBk">حفظ نسخة الآن</button></div></div>
+ <div class="card"><h2>نسخة مشفّرة (Google Drive)</h2><p>ملف واحد مشفّر يضم السجل ومفتاحي التوقيع والتفعيل ورمز السحابة، يصلح للرفع إلى Google Drive. <b>لا يُقرأ إلا بكلمة السر التي تختارها الآن، ولا يمكن استرجاعها إن نسيتها.</b></p>
+  <p class="m">آخر نسخة مشفّرة: ${sum.lastVault?esc(sum.lastVault.at):'لا يوجد'}</p>
+  <div class="row2"><input id="vp1" type="password" placeholder="كلمة السر (10 أحرف على الأقل)" style="max-width:260px"><input id="vp2" type="password" placeholder="تأكيدها" style="max-width:260px"><button class="b p" id="doVault">إنشاء النسخة المشفّرة</button></div><p class="m" id="vOut"></p></div>
  <div class="card"><h2>الاتصال بالسحابة</h2><div class="form"><label>عنوان لوحة المشغّل<input id="sHost" class="mono" value="${esc(s.opsHost)}"></label><label>ملف رمز المشغّل<input id="sTok" class="mono" value="${esc(s.opsTokenFile)}"></label></div>
   <p class="m">الرمز: ${s.tokenFound?'<span class="pill ok">موجود</span> (لا يُعرض)':'<span class="pill bad">غير موجود</span>'} · مجلد البرنامج ومفتاح التوقيع: <span class="mono">${esc(s.dir)}</span></p>
   <button class="b p" id="saveS">حفظ</button></div>`}

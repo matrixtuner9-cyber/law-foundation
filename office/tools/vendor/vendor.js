@@ -30,6 +30,29 @@ function open() {
   return db;
 }
 const now = () => new Date().toISOString().replace('T', ' ').slice(0, 16), today = () => new Date().toISOString().slice(0, 10);
+const MAGIC = Buffer.from('MQV1');
+function sealVault(plain, pass) {
+  const salt = crypto.randomBytes(16), iv = crypto.randomBytes(12);
+  const key = crypto.scryptSync(String(pass), salt, 32, { N: 1 << 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 });
+  const c = crypto.createCipheriv('aes-256-gcm', key, iv); const ct = Buffer.concat([c.update(plain), c.final()]);
+  return Buffer.concat([MAGIC, salt, iv, c.getAuthTag(), ct]);
+}
+function openVault(buf, pass) {
+  if (!buf.subarray(0, 4).equals(MAGIC)) throw new Error('ليس ملف نسخة مشفّرة للمسبار');
+  const salt = buf.subarray(4, 20), iv = buf.subarray(20, 32), tag = buf.subarray(32, 48), ct = buf.subarray(48);
+  const key = crypto.scryptSync(String(pass), salt, 32, { N: 1 << 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 });
+  const d = crypto.createDecipheriv('aes-256-gcm', key, iv); d.setAuthTag(tag);
+  try { return JSON.parse(Buffer.concat([d.update(ct), d.final()]).toString('utf8')) } catch (e) { throw new Error('كلمة السر غير صحيحة أو الملف تالف') }
+}
+/* الاستعادة: node vendor.js --restore-vault <الملف> --dir <مجلد جديد>  (كلمة السر من MQ_VAULT_PASS) */
+function restoreVault(file, pass, dir) {
+  const j = openVault(fs.readFileSync(file), pass);
+  fs.mkdirSync(dir, { recursive: true });
+  if (fs.existsSync(path.join(dir, 'vendor.db'))) throw new Error('المجلد فيه سجل مسبقاً؛ اختر مجلداً فارغاً');
+  for (const [n, b64] of Object.entries(j.files)) { if (!/^[\w.-]+$/.test(n)) continue; fs.writeFileSync(path.join(dir, n), Buffer.from(b64, 'base64')) }
+  return { ok: true, at: j.at, files: Object.keys(j.files) };
+}
+
 function create(db) {
   const meta = (k, d) => { const r = db.prepare('SELECT value FROM meta WHERE key=?').get(k); try { return r ? JSON.parse(r.value) : d } catch (e) { return d } };
   const setMeta = (k, v) => db.prepare('INSERT INTO meta(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run(k, JSON.stringify(v));
@@ -134,8 +157,8 @@ function create(db) {
     const income = db.prepare("SELECT currency, COALESCE(SUM(amount),0) s FROM payments WHERE substr(paid_at,1,7)=? GROUP BY currency").all(mon);
     const owed = os_.filter(o => o.balance.remaining > 0).map(o => ({ slug: o.slug, name: o.name, remaining: o.balance.remaining, currency: o.currency }));
     const expiring = lic.filter(l => l.state === 'expiring' || l.state === 'expired').map(l => ({ id: l.id, slug: l.slug, exp: l.exp, state: l.state, device: l.device, name: (os_.find(o => o.slug === l.slug) || {}).name || l.slug })).sort((a, b) => String(a.exp).localeCompare(String(b.exp)));
-    const lb = meta('last_backup', null);
-    return { offices: os_.length, active: os_.filter(o => o.status === 'active').length, licenses: lic.filter(l => l.state !== 'revoked').length, expiring, income, owed, lastBackup: lb, backupDue: !lb || Date.now() - lb.t > 7 * 864e5, keyReady: fs.existsSync(PRIV), dir: DIR };
+    const lb = meta('last_backup', null), lv = meta('last_vault', null);
+    return { offices: os_.length, active: os_.filter(o => o.status === 'active').length, licenses: lic.filter(l => l.state !== 'revoked').length, expiring, income, owed, lastBackup: lb, lastVault: lv, backupDue: !lb || Date.now() - lb.t > 7 * 864e5, keyReady: fs.existsSync(PRIV), dir: DIR };
   }
 
   /* ── النسخ الاحتياطي: السجل + مفتاح التوقيع الخاص + المفتاح العام + سجل الأكواد، إلى قرص خارجي ── */
@@ -192,7 +215,23 @@ function create(db) {
   }
   async function actDevice(b, fetchImpl) { const r = await ops('POST', '/_ops/act/device', { id: b.id, status: b.status }, fetchImpl); log(b.slug, 'act.device.' + b.status, { id: b.id }); return r }
 
-  return { db, meta, setMeta, settings, readTok, ops, publish, releaseSet, actGet, actSave, actDevice, saveOffice, office, offices, issue, revoke, renew, pay, unpay, summary, backup, log };
+  /* ── نسخة مشفّرة (للرفع إلى Google Drive أو أي مكان): السجل والمفاتيح ورمز السحابة في ملف واحد
+     AES-256-GCM بمفتاح من كلمة سر يختارها المورّد (scrypt)؛ بدونها لا يُقرأ شيء من الملف ── */
+  function vault(pass, outDir) {
+    if (String(pass || '').length < 10) throw new Error('كلمة سر النسخة المشفّرة: 10 أحرف على الأقل');
+    const tmp = path.join(os.tmpdir(), 'mqv-' + crypto.randomBytes(6).toString('hex') + '.db');
+    db.exec(`VACUUM INTO '${tmp.replace(/'/g, "''")}'`);
+    const files = { 'vendor.db': fs.readFileSync(tmp).toString('base64') }; fs.rmSync(tmp, { force: true });
+    for (const f of [PRIV, PUB, REG, path.join(DIR, 'activation-private.pem'), path.join(DIR, 'activation.pub'), path.join(DIR, '.ops_token')]) if (fs.existsSync(f)) files[path.basename(f)] = fs.readFileSync(f).toString('base64');
+    const tok = process.env.MQ_OPS_TOKEN || readTok(settings()); if (tok && !files['.ops_token']) files['.ops_token'] = Buffer.from(tok).toString('base64');
+    const buf = sealVault(Buffer.from(JSON.stringify({ v: 1, at: now(), files })), pass);
+    const dir = outDir || path.join(DIR, 'vault'); fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, `Misbar-Vendor-${new Date().toISOString().slice(0, 10)}-${crypto.randomBytes(2).toString('hex')}.mqvault`);
+    fs.writeFileSync(file, buf);
+    const v = { t: Date.now(), at: now(), file, size: buf.length, files: Object.keys(files) }; setMeta('last_vault', v); log('', 'vendor.vault', { file, size: buf.length }); return { ok: true, ...v };
+  }
+
+  return { db, meta, setMeta, settings, readTok, vault, ops, publish, releaseSet, actGet, actSave, actDevice, saveOffice, office, offices, issue, revoke, renew, pay, unpay, summary, backup, log };
 }
 
 /* ── الخادم المحلي ── */
@@ -241,6 +280,7 @@ function serve(V, { port = PORT, fetchImpl } = {}) {
       if (p === '/api/updates/office' && M === 'POST') { const b = await body(req); const r = await V.ops('POST', '/_ops/updates/office', b, fetchImpl); V.log(b.slug, 'updates.office', b); return send(res, 200, r) }
       if (p === '/api/settings' && M === 'GET') return send(res, 200, { ...V.settings(), tokenFound: !!(process.env.MQ_OPS_TOKEN || V.readTok(V.settings())), dir: DIR, portable: PORTABLE });
       if (p === '/api/settings' && M === 'POST') { const b = await body(req); const s = { ...V.settings() }; for (const k of ['opsHost', 'opsTokenFile', 'backupDir', 'cloudBase', 'appDir']) if (k in b) s[k] = String(b[k] || '').trim(); V.setMeta('settings', s); return send(res, 200, s) }
+      if (p === '/api/vault' && M === 'POST') { const b = await body(req); return send(res, 200, V.vault(b.pass, b.dir || '')) }
       if (p === '/api/backup' && M === 'POST') { const b = await body(req); return send(res, 200, V.backup(b.dir)) }
       return send(res, 404, { error: 'غير موجود' });
     } catch (e) { return send(res, 400, { error: e.message }) }
@@ -248,7 +288,11 @@ function serve(V, { port = PORT, fetchImpl } = {}) {
   return new Promise((ok, no) => { srv.once('error', no); srv.listen(port, '127.0.0.1', () => ok(srv)) });
 }
 
-if (require.main === module) {
+if (require.main === module && process.argv.includes('--restore-vault')) {
+  try { const r = restoreVault(arg('restore-vault'), process.env.MQ_VAULT_PASS || '', DIR); console.log('استُعيدت النسخة المشفّرة (' + r.at + ') إلى ' + DIR + ':', r.files.join(', ')); process.exit(0) }
+  catch (e) { console.error(e.message); process.exit(1) }
+}
+if (require.main === module && !process.argv.includes('--restore-vault')) {
   const V = create(open());
   serve(V).then(() => {
     const url = `http://127.0.0.1:${PORT}/`; console.log('إدارة نسخ المسبار:', url);
@@ -259,4 +303,4 @@ if (require.main === module) {
     console.error(e.message); process.exit(1);
   });
 }
-module.exports = { open, create, serve, KEY, DIR };
+module.exports = { open, create, serve, KEY, DIR, sealVault, openVault, restoreVault };

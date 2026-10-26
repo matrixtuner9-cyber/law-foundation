@@ -80,3 +80,17 @@ test('النسخ الاحتياطي: السجل ومفتاح التوقيع إل
   for (const f of ['vendor.db', 'activator-private.pem', 'license.pub', 'manifest.json']) assert.ok(fs.existsSync(path.join(r.j.dir, f)), f);
   assert.equal((await call('/api/summary')).j.backupDue, false);
 });
+
+test('النسخة المشفّرة: لا تُقرأ بلا كلمة السر، وتُستعاد كاملة بها', async () => {
+  assert.equal((await call('/api/vault', { pass: 'short' })).s, 400);
+  const r = await call('/api/vault', { pass: 'كلمة-سر-طويلة-123' }); assert.equal(r.s, 200, JSON.stringify(r.j));
+  const raw = fs.readFileSync(r.j.file);
+  assert.ok(!raw.includes(Buffer.from('PRIVATE KEY')) && !raw.includes(Buffer.from('test-ops-token')), 'لا شيء مقروء في الملف');
+  assert.throws(() => Vm.openVault(raw, 'wrong-password-x'), /غير صحيحة/);
+  const out = path.join(TMP, 'restored'); const rs = Vm.restoreVault(r.j.file, 'كلمة-سر-طويلة-123', out);
+  for (const f of ['vendor.db', 'activator-private.pem', 'license.pub', '.ops_token']) assert.ok(rs.files.includes(f), f);
+  assert.equal(fs.readFileSync(path.join(out, 'activator-private.pem'), 'utf8'), fs.readFileSync(path.join(DIR, 'activator-private.pem'), 'utf8'));
+  assert.equal(fs.readFileSync(path.join(out, '.ops_token'), 'utf8'), 'test-ops-token');
+  assert.throws(() => Vm.restoreVault(r.j.file, 'كلمة-سر-طويلة-123', out), /فارغاً/, 'لا يكتب فوق سجل موجود');
+  assert.ok((await call('/api/summary')).j.lastVault);
+});
