@@ -9,7 +9,10 @@ const ROOT = path.join(__dirname, '..');
 /* «ميثاق خاص»: لا إنترنت. الخادم على 127.0.0.1 فقط، والنافذة لا تطلب أي عنوان خارج الجهاز ولا تفتح روابط خارجية */
 const ED = require(path.join(ROOT, 'lib', 'edition.js')).load();
 // منفذ مختلف لكل نسخة، فيمكن تثبيت «ميثاق خاص» و«ميثاق متصل» على جهاز واحد دون تداخل
-const PORT = ED.offline ? 8181 : 8080, BASE = ED.offline ? `http://127.0.0.1:${PORT}` : `http://localhost:${PORT}`;
+/* نسخة «production» بمجلد بيانات بجانبها: منفذها من data-here.txt (سطر port=8090)، فلا تلتصق بخادم مكتب آخر يعمل على 8080 فتعرض بياناته */
+function homeFile() { const here = process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(process.execPath); for (const d of [here, path.join(here, '..')]) { const f = path.join(d, 'data-here.txt'); if (fs.existsSync(f)) return f } return null }
+const HOME_PORT = (() => { const f = homeFile(); if (!f) return 0; const m = /port\s*=\s*(\d{2,5})/i.exec(fs.readFileSync(f, 'utf8')); return m ? +m[1] : 8090 })();
+const PORT = +process.env.MQ_DESKTOP_PORT || HOME_PORT || (ED.offline ? 8181 : 8080), BASE = ED.offline ? `http://127.0.0.1:${PORT}` : `http://localhost:${PORT}`;
 // صفحات التطبيق نفسه فقط (نفس الأصل)، والروابط الخارجية تُفتح في المتصفح إن كانت http/https فقط
 const isAppUrl = u => { try { return new URL(u).origin === new URL(BASE).origin } catch (e) { return false } };
 const isWebUrl = u => { try { return ['http:', 'https:'].includes(new URL(u).protocol) } catch (e) { return false } };
