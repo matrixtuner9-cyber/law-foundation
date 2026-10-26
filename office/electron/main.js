@@ -107,6 +107,8 @@ async function startServer() {
   if (!process.env.MQ_BAR_SEED) { const seed = [path.join(process.resourcesPath || '', 'bar', 'lawyers.json'), path.join(ROOT, 'data', 'bar', 'lawyers.json')].find(f => fs.existsSync(f)); if (seed) process.env.MQ_BAR_SEED = seed }
   // النسخ في مجلد بجانب البيانات (وليس داخلها حتى لا تُنسخ النسخ مع النسخ)
   if (!process.env.MQ_BACKUP_DIR) process.env.MQ_BACKUP_DIR = path.join(path.dirname(cfg.dataDir), 'backups');
+  // مفاتيح عقل المسبار: ملف ai_keys.cmd محلي بجانب مجلد البيانات (خارج الكود دائماً)، كما يفعل خادم المكتب
+  try { const kf = path.join(path.dirname(cfg.dataDir), 'ai_keys.cmd'); if (fs.existsSync(kf)) for (const l of fs.readFileSync(kf, 'utf8').split(/\r?\n/)) { const m = /^\s*(?:set\s+)?"?(DEEPSEEK_API_KEY|ANTHROPIC_API_KEY|MQ_AI_MODEL)=([^"\r\n]*)"?\s*$/i.exec(l); if (m && m[2].trim() && !process.env[m[1].toUpperCase()]) process.env[m[1].toUpperCase()] = m[2].trim() } } catch (e) { console.error('[keys]', e.message) }
   require(path.join(ROOT, 'server.js'));
   for (let i = 0; i < 50; i++) { if (await ping()) return 'internal'; await new Promise(r => setTimeout(r, 200)) }
   throw new Error(`تعذّر تشغيل خادم المكتب على المنفذ ${PORT}. تأكد أن برنامجاً آخر لا يستخدمه، ثم أعد تشغيل ${ED.name}.`);
