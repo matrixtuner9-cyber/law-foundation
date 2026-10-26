@@ -16,7 +16,7 @@ let PORT = +process.env.MQ_DESKTOP_PORT || HOME_PORT || (ED.offline ? 8181 : 808
 const setPort = p => { PORT = p; BASE = ED.offline ? `http://127.0.0.1:${p}` : `http://localhost:${p}` };
 const dataIdOf = dir => require('crypto').createHash('sha256').update(path.resolve(dir).toLowerCase()).digest('hex').slice(0, 16);
 // صفحات التطبيق نفسه فقط (نفس الأصل)، والروابط الخارجية تُفتح في المتصفح إن كانت http/https فقط
-const isAppUrl = u => { try { return new URL(u).origin === new URL(BASE).origin } catch (e) { return false } };
+const isAppUrl = u => { try { const x = new URL(u); return x.origin === new URL(BASE).origin || (cfg && cfg.mode === 'client' && x.protocol === 'https:' && /(^|\.)cloudflareaccess\.com$/.test(x.hostname)) } catch (e) { return false } };
 const isWebUrl = u => { try { return ['http:', 'https:'].includes(new URL(u).protocol) } catch (e) { return false } };
 const isLocalUrl = u => { try { const x = new URL(u); return !/^(https?|wss?):$/.test(x.protocol) || ['127.0.0.1', 'localhost', '[::1]'].includes(x.hostname) } catch (e) { return false } };
 const ICON = path.join(__dirname, 'icon.png');
@@ -46,12 +46,22 @@ function loadCfg() {
   if (PORTABLE) { if (cfg.dataDir !== PORTABLE) { cfg.dataDir = PORTABLE; saveCfg() } return }
   // نسخة مثبّتة لا تستعمل مجلد بيانات نسخة production (كان ملف الإعدادات مشتركاً سابقاً): لا يعمل خادمان على قاعدة واحدة
   if (cfg.dataDir && fs.existsSync(path.join(path.dirname(cfg.dataDir), 'data-here.txt'))) { delete cfg.dataDir }
+  // جهاز في فريق عمل مكتب قائم: لا بيانات محلية، يتصل بجهاز المكتب الرئيسي
+  if (cfg.mode === 'client') return;
   if (!cfg.dataDir) {
-    // بيانات موجودة سابقاً على الجهاز تُستعمل كما هي، وإلا يُسأل المستخدم أين تُحفظ بيانات المكتب
+    // بيانات موجودة سابقاً على الجهاز تُستعمل كما هي، وإلا يُسأل: مكتب جديد أم فريق عمل مكتب قائم؟
     const known = ED.offline ? null : ['D:\\Mithaq\\data', path.join(path.dirname(process.execPath), 'data')].find(d => ['mithaq.db', 'messages.json'].some(f => fs.existsSync(path.join(d, f))));
-    cfg.dataDir = known || chooseDataDir();
+    if (!known && !ED.offline && askRole() === 'client') { cfg.mode = 'client'; saveCfg(); return }
+    cfg.dataDir = known || chooseDataDir(); cfg.mode = 'server';
     saveCfg();
   }
+}
+/* أول تشغيل على جهاز جديد: لمن هذا الجهاز؟ */
+function askRole() {
+  const r = dialog.showMessageBoxSync({ type: 'question', title: TITLE + ' — إعداد هذا الجهاز', message: 'لمن هذا الجهاز؟',
+    detail: '• مكتب جديد: يكون هذا الجهاز هو الجهاز الرئيسي لمكتب جديد، ويبدأ المسبار ببيانات فارغة وتنشئ حساب مدير المكتب.\n\n• فريق عمل مكتب قائم: محامٍ أو موظف في مكتب يعمل فيه المسبار على جهاز رئيسي. يتصل هذا الجهاز بالجهاز الرئيسي عبر شبكة المكتب ويعمل على بياناته ومستخدميه نفسها، ولا تُنشأ بيانات منفصلة.',
+    buttons: ['مكتب جديد', 'فريق عمل مكتب قائم'], defaultId: 1, cancelId: 1, noLink: true });
+  return r === 0 ? 'server' : 'client';
 }
 /* أول تشغيل: اختيار مكان بيانات المكتب. يُقترح قرص غير قرص النظام فتبقى البيانات إن أُعيد تثبيت Windows */
 function chooseDataDir() {
@@ -75,6 +85,26 @@ function chooseDataDir() {
   }
 }
 function saveCfg() { fs.mkdirSync(path.dirname(CFG_F()), { recursive: true }); fs.writeFileSync(CFG_F(), JSON.stringify(cfg, null, 1)) }
+
+function getJson(u, ms = 1500) {
+  return new Promise(res => { let q; try { q = (/^https:/i.test(u) ? require('https') : http).get(u, r => { let d = ''; r.on('data', c => d += c); r.on('end', () => { try { res(r.statusCode === 200 ? JSON.parse(d) : null) } catch (e) { res(null) } }) }) } catch (e) { return res(null) }
+    q.on('error', () => res(null)); q.setTimeout(ms, () => { q.destroy(); res(null) }) });
+}
+const normUrl = u => { u = String(u || '').trim().replace(/\/+$/, ''); if (!u) return ''; if (!/^https?:\/\//i.test(u)) u = 'http://' + u; if (!/:\d+$/.test(u.replace(/^https?:\/\//i, '')) && /^http:/i.test(u)) u += ':8090'; return u };
+async function probe(u) {
+  const st = await getJson(u + '/api/auth/status', 4000); if (st && st.edition) return { url: u, office: st.office || '', edition: st.edition.name || '', setup: !!st.setup };
+  // عنوان المكتب عبر الإنترنت محمي بتحقق Cloudflare Access (رمز يصل إلى بريد المحامي): يكفي أن يستجيب، والتحقق يتم في النافذة
+  if (/^https:/i.test(u)) { const ok = await new Promise(res => { const q = require('https').get(u + '/', r => { r.resume(); res(r.statusCode < 500) }); q.on('error', () => res(false)); q.setTimeout(6000, () => { q.destroy(); res(false) }) }); if (ok) return { url: u, office: 'عبر الإنترنت', edition: '', remote: true } }
+  return null;
+}
+function lanIps() { return Object.values(require('os').networkInterfaces()).flat().filter(i => i && i.family === 'IPv4' && !i.internal && !/^169\.254\./.test(i.address)).map(i => i.address) }
+async function scanLan() {
+  const bases = [...new Set(lanIps().map(ip => ip.split('.').slice(0, 3).join('.')))].slice(0, 3), mine = new Set(lanIps());
+  const targets = []; for (const b of bases) for (let i = 1; i < 255; i++) { const ip = b + '.' + i; if (!mine.has(ip)) for (const port of [8090, 8080]) targets.push(`http://${ip}:${port}`) }
+  const found = []; let k = 0;
+  await Promise.all(Array.from({ length: 96 }, async () => { while (k < targets.length) { const u = targets[k++]; const st = await getJson(u + '/api/auth/status', 700); if (st && st.edition) found.push({ url: u, office: st.office || '', edition: st.edition.name || '', setup: !!st.setup }) } }));
+  return found;
+}
 
 function ping() {
   return new Promise(res => {
@@ -114,6 +144,35 @@ async function startServer() {
   throw new Error(`تعذّر تشغيل خادم المكتب على المنفذ ${PORT}. تأكد أن برنامجاً آخر لا يستخدمه، ثم أعد تشغيل ${ED.name}.`);
 }
 
+/* نافذة «الاتصال بجهاز المكتب الرئيسي» */
+function joinWindow() {
+  return new Promise(resolve => {
+    const w = new BrowserWindow({ width: 640, height: 600, resizable: false, title: TITLE + ' — الاتصال بجهاز المكتب', icon: ICON, autoHideMenuBar: true, backgroundColor: '#FBF6EA',
+      webPreferences: { contextIsolation: true, preload: path.join(__dirname, 'join-preload.js') } });
+    let done = false; const finish = v => { if (done) return; done = true; for (const c of ['mq:joinScan', 'mq:joinTest', 'mq:joinSave', 'mq:joinNew']) ipcMain.removeHandler(c); resolve(v); if (!w.isDestroyed()) w.close() };
+    ipcMain.handle('mq:joinScan', () => scanLan());
+    ipcMain.handle('mq:joinTest', async (e, u) => { const url = normUrl(u); return url ? (await probe(url)) || { error: 'لم يستجب جهاز مسبار على هذا العنوان. تأكد من العنوان وأن المسبار يعمل على الجهاز الرئيسي.' } : { error: 'اكتب عنوان الجهاز الرئيسي' } });
+    ipcMain.handle('mq:joinSave', async (e, u) => { const url = normUrl(u), p = url && await probe(url); if (!p) return { error: 'تعذّر الاتصال بهذا العنوان' }; cfg.mode = 'client'; cfg.server = url; cfg.serverOffice = p.office; saveCfg(); finish('client'); return { ok: true } });
+    ipcMain.handle('mq:joinNew', () => { delete cfg.mode; delete cfg.server; saveCfg(); finish('new'); return { ok: true } });
+    w.on('closed', () => finish(null));
+    w.loadFile(path.join(__dirname, 'join.html'));
+  });
+}
+/* جهاز فريق العمل: يتأكد أن الجهاز الرئيسي متاح، وإلا يعرض الخيارات */
+async function startClient() {
+  for (;;) {
+    if (cfg.server && await probe(cfg.server)) { BASE = cfg.server; return true }
+    if (cfg.server) {
+      const r = dialog.showMessageBoxSync({ type: 'warning', title: TITLE, message: 'تعذّر الوصول إلى جهاز المكتب الرئيسي', detail: cfg.server + (cfg.serverOffice ? ' — ' + cfg.serverOffice : '') + '\nتأكد أن الجهاز الرئيسي يعمل وأن المسبار مفتوح عليه، وأن هذا الجهاز متصل بشبكة المكتب نفسها.',
+        buttons: ['إعادة المحاولة', 'اختيار جهاز آخر', 'إغلاق'], defaultId: 0, cancelId: 2, noLink: true });
+      if (r === 0) continue; if (r === 2) return false;
+    }
+    const v = await joinWindow();
+    if (v === 'new') { app.relaunch(); app.exit(0); return false }
+    if (v !== 'client') return false;
+  }
+}
+
 function show() { if (!win) return createWindow(); if (win.isMinimized()) win.restore(); win.show(); win.focus() }
 
 function createWindow() {
@@ -150,10 +209,17 @@ function createTray() {
     { label: 'فتح لوحة المكتب', click: show },
     ...(ED.features.portal ? [{ label: 'فتح بوابة الموكل في المتصفح', click: () => shell.openExternal(BASE + '/portal/') }] : []),
     { type: 'separator' },
-    { label: 'نسخة احتياطية الآن', click: () => { const r = backupNow('tray'); new Notification({ title: TITLE, body: r.ok ? 'تمت النسخة الاحتياطية (' + Math.round(r.size / 1048576) + ' م.ب)' : 'تعذّر النسخ: ' + r.error, icon: ICON }).show() } },
+    ...(cfg.mode === 'client' ? [
+      { label: 'متصل بجهاز المكتب: ' + (cfg.serverOffice || cfg.server), enabled: false },
+      { label: 'تغيير جهاز المكتب الرئيسي…', click: async () => { const v = await joinWindow(); if (v) { app.relaunch(); app.exit(0) } } },
+      { type: 'separator' },
+    ] : [
+      { label: 'عنوان الاتصال لفريق العمل…', click: () => { const ips = lanIps(); dialog.showMessageBox({ type: 'info', title: TITLE + ' — فريق العمل', message: 'لربط جهاز آخر في المكتب بهذا الجهاز', detail: 'ثبّت المسبار على الجهاز الآخر واختر «فريق عمل مكتب قائم»، فيجد هذا الجهاز تلقائياً. أو اكتب أحد هذه العناوين:\n\n' + (ips.length ? ips.map(ip => `http://${ip}:${PORT}`).join('\n') : 'لا توجد شبكة محلية متصلة') + '\n\nيجب أن يبقى المسبار مفتوحاً على هذا الجهاز، وإن سأل Windows عن جدار الحماية فاختر «السماح» للشبكات الخاصة.' }) } },
+    ]),
+    ...(cfg.mode === 'client' ? [] : [{ label: 'نسخة احتياطية الآن', click: () => { const r = backupNow('tray'); new Notification({ title: TITLE, body: r.ok ? 'تمت النسخة الاحتياطية (' + Math.round(r.size / 1048576) + ' م.ب)' : 'تعذّر النسخ: ' + r.error, icon: ICON }).show() } },
     { label: 'حفظ نسخة على قرص خارجي…', click: exportBackup },
     { label: 'فتح مجلد النسخ الاحتياطية', click: () => { const b = globalThis.MQ_DESKTOP; shell.openPath(b ? b.backup.ROOT : path.dirname(cfg.dataDir)) } },
-    { label: 'فتح مجلد البيانات', click: () => shell.openPath(cfg.dataDir) },
+    { label: 'فتح مجلد البيانات', click: () => shell.openPath(cfg.dataDir) }]),
     { label: 'تشغيل المِسْبار مع بدء Windows', type: 'checkbox', checked: login(), click: i => { app.setLoginItemSettings({ openAtLogin: i.checked, args: ['--hidden'] }); tray.setContextMenu(menu()) } },
     { type: 'separator' },
     { label: 'إغلاق المِسْبار نهائياً', click: () => { quitting = true; app.quit() } },
@@ -209,6 +275,7 @@ app.whenReady().then(async () => {
     session.defaultSession.webRequest.onBeforeRequest({ urls: ['http://*/*', 'https://*/*', 'ws://*/*', 'wss://*/*'] }, (d, cb) => cb({ cancel: !isLocalUrl(d.url) }));
     process.env.MQ_EDITION = 'private';
   }
+  if (cfg.mode === 'client') { if (!(await startClient())) { app.exit(0); return } createTray(); if (!process.argv.includes('--hidden')) createWindow(); return }
   try { await startServer() } catch (e) { dialog.showErrorBox(TITLE, e.message); app.exit(1); return }
   createTray(); setTimeout(remindCheck, 90e3);
   if (!process.argv.includes('--hidden')) createWindow();

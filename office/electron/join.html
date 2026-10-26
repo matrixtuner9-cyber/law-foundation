@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; font-src 'self'">
+<title>الاتصال بجهاز المكتب الرئيسي</title>
+<link rel="stylesheet" href="../fonts/fonts.css">
+<style>
+:root{--bg:#FBF6EA;--ink:#0F2A45;--mut:#6B5E44;--line:#E2D3AE;--gold:#C9A24A;--navy:#0B1B2B}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Cairo,'Segoe UI',Tahoma,sans-serif;font-size:14px;line-height:1.7}
+header{display:flex;gap:12px;align-items:center;padding:16px 20px;background:var(--navy);color:#F3D58A}header img{width:40px;height:40px}
+header h1{margin:0;font-size:18px}header p{margin:0;color:#C9D4DB;font-size:12.5px}
+main{padding:16px 20px}h2{font-size:15px;margin:0 0 6px}
+.box{border:1px solid var(--line);border-radius:14px;background:#fff8;padding:12px 14px;margin-bottom:12px}
+.list{display:flex;flex-direction:column;gap:6px;margin-top:8px;max-height:160px;overflow:auto}
+.it{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.it b{display:block}.it small{color:var(--mut);direction:ltr;display:inline-block}
+button{font:inherit;cursor:pointer;border-radius:999px;padding:6px 14px;border:1px solid var(--gold);background:#fff;color:var(--ink)}
+button.pri{background:var(--navy);color:#F3D58A;border-color:var(--navy)}button:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:8px}input{flex:1;font:inherit;padding:7px 12px;border:1px solid var(--line);border-radius:10px;direction:ltr;text-align:left}
+.m{color:var(--mut);font-size:12.5px}.err{color:#9B1C1C}.ok{color:#1E6B3A}
+.spin{display:inline-block;width:13px;height:13px;border:2px solid var(--gold);border-top-color:transparent;border-radius:50%;animation:s .8s linear infinite;vertical-align:-2px}@keyframes s{to{transform:rotate(360deg)}}
+footer{padding:0 20px 14px;text-align:center}footer button{border:0;background:none;color:var(--mut);text-decoration:underline;padding:0}
+</style></head><body>
+<header><img src="icon.png" alt=""><div><h1>الاتصال بجهاز المكتب الرئيسي</h1><p>هذا الجهاز سيعمل على بيانات المكتب ومستخدميه الموجودين على الجهاز الرئيسي</p></div></header>
+<main>
+ <section class="box"><h2>أجهزة المسبار في شبكة المكتب</h2>
+  <div id="scanSt" class="m"><span class="spin"></span> جارٍ البحث في شبكة المكتب…</div>
+  <div id="found" class="list"></div>
+  <div style="margin-top:8px"><button id="rescan" type="button" disabled>البحث مرة أخرى</button></div></section>
+ <section class="box"><h2>أو اكتب عنوان الجهاز الرئيسي</h2>
+  <p class="m" style="margin:0 0 6px">داخل المكتب: العنوان من أيقونة المسبار بجانب الساعة على الجهاز الرئيسي ← «عنوان الاتصال لفريق العمل».<br>من خارج المكتب (بلا شبكة مشتركة): عنوان مكتبك على الإنترنت، مثل <span dir="ltr">https://office.palgaz.net</span>، ويُطلب عند الدخول رمز يصل إلى بريدك.</p>
+  <div class="row"><input id="url" placeholder="192.168.1.20:8090  أو  https://office.palgaz.net" autocomplete="off"><button id="test" type="button">فحص</button><button id="go" class="pri" type="button" disabled>اتصال</button></div>
+  <div id="msg" class="m" style="margin-top:6px"></div></section>
+ <p class="m">بعد الاتصال ادخل بحسابك الذي أنشأه لك مدير المكتب على الجهاز الرئيسي. يجب أن يبقى المسبار مفتوحاً على الجهاز الرئيسي ليعمل هذا الجهاز.</p>
+</main>
+<footer><button id="asNew" type="button">ليس لدينا مسبار في المكتب — هذا مكتب جديد</button></footer>
+<script>
+const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function scan(){$('rescan').disabled=true;$('found').innerHTML='';$('scanSt').innerHTML='<span class="spin"></span> جارٍ البحث في شبكة المكتب…';
+ const f=await mqJoin.scan();$('rescan').disabled=false;
+ if(!f.length){$('scanSt').textContent='لم يُعثر على جهاز مسبار في هذه الشبكة. تأكد أن المسبار مفتوح على الجهاز الرئيسي، أو اكتب عنوانه أدناه.';return}
+ $('scanSt').textContent='وُجد '+f.length+' — اختر جهاز مكتبك:';
+ $('found').innerHTML=f.map((x,i)=>`<div class="it"><div><b>${esc(x.office||'مكتب بلا اسم')}</b><small>${esc(x.url)}</small>${x.setup?' <span class="m err">(لم يُنشأ فيه حساب مدير بعد)</span>':''}</div><button class="pri" data-i="${i}" type="button">اتصال</button></div>`).join('');
+ $('found').querySelectorAll('button').forEach(b=>b.onclick=()=>save(f[+b.dataset.i].url,b))}
+async function save(u,btn){if(btn){btn.disabled=true;btn.textContent='جارٍ الاتصال…'}const r=await mqJoin.save(u);if(r&&r.error){$('msg').className='m err';$('msg').textContent=r.error;if(btn){btn.disabled=false;btn.textContent='اتصال'}}}
+$('test').onclick=async()=>{$('msg').className='m';$('msg').innerHTML='<span class="spin"></span> جارٍ الفحص…';const r=await mqJoin.test($('url').value);
+ if(r.error){$('msg').className='m err';$('msg').textContent=r.error;$('go').disabled=true}else{$('msg').className='m ok';$('msg').textContent='✓ وُجد: '+(r.office||'مكتب')+' — '+r.url;$('go').disabled=false;$('go').dataset.url=r.url}};
+$('url').oninput=()=>{$('go').disabled=true};
+$('go').onclick=()=>save($('go').dataset.url,$('go'));
+$('rescan').onclick=scan;
+$('asNew').onclick=()=>{if(confirm('سيصبح هذا الجهاز الجهاز الرئيسي لمكتب جديد ببيانات فارغة. متابعة؟'))mqJoin.asNew()};
+scan();
+</script></body></html>
