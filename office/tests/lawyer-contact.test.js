@@ -32,3 +32,22 @@ test('صياغة الرسالة بتفاصيل القضية وسبب التوا�
   assert.doesNotMatch(f, /الجلسة القادمة/);
   delete global.MQ;
 });
+
+test('مركز التواصل: باقة القوالب بصيغتين، وتعبئة القضية والجلسة، والحقول الناقصة', () => {
+  const { build, missing, TPL, CATS } = require('../lawyer-contact.js');
+  assert.ok(TPL.length >= 20, 'باقة واسعة'); assert.equal(CATS.length, 6);
+  for (const t of TPL) assert.ok(CATS.some(c => c[0] === t.cat) && t.f && t.s, t.id);
+  const ctx = { name: 'رامي حسونة', me: 'سامر عبد الله', office: 'مكتب الميثاق', no: '1187/2025', court: 'محكمة بداية نابلس', subject: 'مطالبة مالية', next: '2/11/2026 الساعة 10:00' };
+  const f = build('adjourn', ctx);
+  assert.match(f, /^الزميل\/ة الأستاذ\/ة رامي حسونة المحترم\/ة،\nتحية طيبة وبعد،/);
+  assert.match(f, /بخصوص القضية رقم 1187\/2025 لدى محكمة بداية نابلس \(مطالبة مالية\)\./);
+  assert.match(f, /تأجيل الجلسة بتاريخ 2\/11\/2026 الساعة 10:00/);
+  assert.match(f, /مع وافر الاحترام،\nسامر عبد الله\nمكتب الميثاق$/);
+  const s = build('adjourn', { ...ctx, tone: 's' });
+  assert.ok(s.length < f.length / 2, 'المختصرة أقصر'); assert.match(s, /^الأستاذ\/ة رامي حسونة، تحية طيبة،/);
+  const o = build('offer', ctx); assert.deepEqual(missing(o), ['[أساس العرض]', '[التاريخ]']);
+  assert.match(o, /بدون إقرار بأي مسؤولية/);
+  const o2 = build('offer', { ...ctx, vals: { 'العرض': 'دفع 5000 شيكل على قسطين', 'التاريخ': '15/11/2026' } }); assert.deepEqual(missing(o2), []);
+  const g = build('congrats', { me: 'سامر', vals: { 'المناسبة': 'نيل الإجازة' } });
+  assert.doesNotMatch(g, /القضية/, 'بلا قضية لا يُذكر سطرها'); assert.match(g, /\[اسم الزميل\]/);
+});
