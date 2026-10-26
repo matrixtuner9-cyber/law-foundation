@@ -58,6 +58,10 @@ function snippetAt(body, q, len = 260) {
 }
 const snippet = (body, q, len) => snippetAt(body, q, len).text;
 
+/* إزالة روابط مصدر الجمع (maqam.najah.edu) من كل نص يخرج من القاعدة، مع عبارة «شاهد التعديل/الحكم:» التي تسبقها؛ النص القانوني نفسه لا يُمس */
+const SCRUB_RX = /[ \t]*(?:شاهد\s+[\u0621-\u064A]+\s*[:：]\s*)?(?:https?:\/\/)?(?:www\.)?maqam\.najah\.edu[^\s،,)\]]*/gi;
+const scrub = s => s == null ? s : String(s).replace(SCRUB_RX, '');
+const cleanRow = r => r && ({ ...r, url: '', file_url: r.file_url === undefined ? undefined : '' });
 const COLS = 'd.id,d.src,d.country,d.kind,d.ext_id,d.title,d.year,d.number,d.court,d.case_no,d.date,d.ltype,d.subject,d.status,d.status_code,d.url,d.has_text';
 /* يبني شروط البحث من الفلاتر */
 function where(f) {
@@ -107,9 +111,9 @@ function createMisbar(db, { audit } = {}) {
     }
     const results = [];
     for (const r of rows) {
-      const { body, ...x } = r; let sn = snippetAt(body, q);
+      const { body, ...x } = cleanRow(r); let sn = snippetAt(scrub(body), q);
       /* المطابقة قد تكون في جزء لاحق من نص طويل: نجلب بقية الأجزاء لهذه النتيجة فقط */
-      if (!sn.hit && fq && body && body.length >= 20000) { const [fb] = await all('SELECT body FROM docs WHERE id=?', r.id); sn = snippetAt(await fullBody(r.id, fb && fb.body), q) }
+      if (!sn.hit && fq && body && body.length >= 20000) { const [fb] = await all('SELECT body FROM docs WHERE id=?', r.id); sn = snippetAt(scrub(await fullBody(r.id, fb && fb.body)), q) }
       results.push({ ...x, source: SOURCES[r.src]?.label || r.src, primary: !!SOURCES[r.src]?.primary, excerpt: sn.text });
     }
     return { results, total, page, pages: Math.ceil(total / per), per, sort, query: fq, facets };
@@ -122,9 +126,9 @@ function createMisbar(db, { audit } = {}) {
     const n = int(id, 1, 1e9, 0); if (!n) return null;
     const [r] = await all(`SELECT ${COLS}, d.file_url, d.body, d.cites, d.meta FROM docs d WHERE d.id=?`, n);
     if (!r) return null;
-    r.body = await fullBody(n, r.body);
+    r.body = scrub(await fullBody(n, r.body)); r.title = scrub(r.title);
     const j = s => { try { return JSON.parse(s || 'null') } catch { return null } };
-    return { ...r, cites: j(r.cites) || [], meta: j(r.meta) || {}, source: SOURCES[r.src]?.label || r.src, primary: !!SOURCES[r.src]?.primary };
+    return { ...cleanRow(r), cites: (j(r.cites) || []).map(c => ({ title: scrub(c.title), text: scrub(c.text) })), meta: j(r.meta) || {}, source: SOURCES[r.src]?.label || r.src, primary: !!SOURCES[r.src]?.primary };
   }
   async function stats() {
     const rows = await all('SELECT src, COUNT(*) n, SUM(has_text) t, MIN(year) y1, MAX(year) y2 FROM docs GROUP BY src');
@@ -201,4 +205,4 @@ function openFile(file) {
   };
 }
 
-module.exports = { SOURCES, STATUS, CHUNK, CHUNK_BASE, norm, ftsQuery, snippet, createMisbar, adapters, openFile };
+module.exports = { SOURCES, STATUS, CHUNK, CHUNK_BASE, norm, ftsQuery, snippet, scrub, createMisbar, adapters, openFile };

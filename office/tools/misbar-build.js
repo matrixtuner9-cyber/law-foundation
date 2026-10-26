@@ -3,7 +3,7 @@
 // لا جلب من الإنترنت: يقرأ الملفات المنزّلة فقط. الملفات الأصلية لا تُعدَّل.
 'use strict';
 const fs = require('fs'), path = require('path'), { DatabaseSync } = require('node:sqlite');
-const { norm, CHUNK, CHUNK_BASE } = require('../lib/misbar');
+const { norm, scrub, CHUNK, CHUNK_BASE } = require('../lib/misbar');
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d };
 const SRC = arg('src', 'E:\\maqam'), OUT = arg('out', 'mithaq-lawindex.db'), SQL = arg('sql', ''), LIMIT = Number(arg('limit', 0)) || 0;
@@ -17,7 +17,7 @@ const clean = s => String(s ?? '').replace(/\r/g, '').replace(/[ \t]+\n/g, '\n')
 const log = (...a) => console.log(...a);
 
 const docs = [];
-const add = d => { if (!d.title && !d.body) return; d.body = clean(d.body); d.has_text = d.body.length > 200 ? 1 : 0; docs.push(d) };
+const add = d => { if (!d.title && !d.body) return; d.body = scrub(clean(d.body)); d.cites = (d.cites || []).map(c => ({ ...c, title: scrub(c.title), text: scrub(c.text) })); d.has_text = d.body.length > 200 ? 1 : 0; docs.push(d) };
 const cap = (arr) => LIMIT ? arr.slice(0, LIMIT) : arr;
 
 /* 1) الأحكام الفلسطينية: data/judgments.jsonl (مع التشريعات المستشهد بها) */
