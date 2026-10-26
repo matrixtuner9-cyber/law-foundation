@@ -97,7 +97,20 @@ async function probe(u) {
   if (/^https:/i.test(u)) { const ok = await new Promise(res => { const q = require('https').get(u + '/', r => { r.resume(); res(r.statusCode < 500) }); q.on('error', () => res(false)); q.setTimeout(6000, () => { q.destroy(); res(false) }) }); if (ok) return { url: u, office: 'عبر الإنترنت', edition: '', remote: true } }
   return null;
 }
-function lanIps() { return Object.values(require('os').networkInterfaces()).flat().filter(i => i && i.family === 'IPv4' && !i.internal && !/^169\.254\./.test(i.address)).map(i => i.address) }
+/* عناوين هذا الجهاز مصنّفة: شبكة المكتب أولاً، وTailscale/ZeroTier للاتصال عن بعد، وتُستبعد الشبكات الافتراضية (WSL وHyper-V وVirtualBox…) */
+function netAddrs() {
+  const out = [];
+  for (const [name, list] of Object.entries(require('os').networkInterfaces())) {
+    if (/vethernet|wsl|hyper-v|virtualbox|vmware|docker|loopback|npcap|bluetooth/i.test(name)) continue;
+    for (const i of list || []) {
+      if (!i || i.family !== 'IPv4' || i.internal || /^169\.254\./.test(i.address)) continue;
+      const vpn = /tailscale|zerotier|wireguard|openvpn|tun|tap/i.test(name) || /^100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(i.address);
+      out.push({ ip: i.address, name, kind: vpn ? 'vpn' : 'lan' });
+    }
+  }
+  return out.sort((a, b) => (a.kind === 'lan' ? 0 : 1) - (b.kind === 'lan' ? 0 : 1));
+}
+function lanIps() { return netAddrs().filter(a => a.kind === 'lan').map(a => a.ip) }
 async function scanLan() {
   const bases = [...new Set(lanIps().map(ip => ip.split('.').slice(0, 3).join('.')))].slice(0, 3), mine = new Set(lanIps());
   const targets = []; for (const b of bases) for (let i = 1; i < 255; i++) { const ip = b + '.' + i; if (!mine.has(ip)) for (const port of [8090, 8080]) targets.push(`http://${ip}:${port}`) }
@@ -214,7 +227,7 @@ function createTray() {
       { label: 'تغيير جهاز المكتب الرئيسي…', click: async () => { const v = await joinWindow(); if (v) { app.relaunch(); app.exit(0) } } },
       { type: 'separator' },
     ] : [
-      { label: 'عنوان الاتصال لفريق العمل…', click: () => { const ips = lanIps(); dialog.showMessageBox({ type: 'info', title: TITLE + ' — فريق العمل', message: 'لربط جهاز آخر في المكتب بهذا الجهاز', detail: 'ثبّت المسبار على الجهاز الآخر واختر «فريق عمل مكتب قائم»، فيجد هذا الجهاز تلقائياً. أو اكتب أحد هذه العناوين:\n\n' + (ips.length ? ips.map(ip => `http://${ip}:${PORT}`).join('\n') : 'لا توجد شبكة محلية متصلة') + '\n\nيجب أن يبقى المسبار مفتوحاً على هذا الجهاز، وإن سأل Windows عن جدار الحماية فاختر «السماح» للشبكات الخاصة.' }) } },
+      { label: 'عنوان الاتصال لفريق العمل…', click: () => { const a = netAddrs(), lan = a.filter(x => x.kind === 'lan'), vpn = a.filter(x => x.kind === 'vpn'); dialog.showMessageBox({ type: 'info', title: TITLE + ' — فريق العمل', message: 'لربط جهاز آخر في المكتب بهذا الجهاز', detail: 'ثبّت المسبار على الجهاز الآخر واختر «فريق عمل مكتب قائم»، فيجد هذا الجهاز تلقائياً، أو اكتب العنوان أو افتحه في المتصفح:\n\n' + (lan.length ? 'شبكة المكتب:\n' + lan.map(x => `   http://${x.ip}:${PORT}`).join('\n') : 'لا توجد شبكة مكتب متصلة') + (vpn.length ? '\n\nمن خارج المكتب (لجهاز عليه ' + vpn.map(x => x.name).join('، ') + ' أيضاً):\n' + vpn.map(x => `   http://${x.ip}:${PORT}`).join('\n') : '') + '\n\nيجب أن يبقى المسبار مفتوحاً على هذا الجهاز، والجهاز الآخر متصلاً بشبكة المكتب نفسها (لا شبكة الضيوف).' }) } },
     ]),
     ...(cfg.mode === 'client' ? [] : [{ label: 'نسخة احتياطية الآن', click: () => { const r = backupNow('tray'); new Notification({ title: TITLE, body: r.ok ? 'تمت النسخة الاحتياطية (' + Math.round(r.size / 1048576) + ' م.ب)' : 'تعذّر النسخ: ' + r.error, icon: ICON }).show() } },
     { label: 'حفظ نسخة على قرص خارجي…', click: exportBackup },
