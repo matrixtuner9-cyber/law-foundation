@@ -145,3 +145,19 @@ test('case brain: point-by-point rebuttal of the opponent pleading', async () =>
   assert.equal(f.formal[0].law[0].id, 77); assert.equal(f.requests.length, 1); assert.deepEqual(f.notes, ['تحقق من مهلة اللائحة الجوابية']);
   const sent = t.sent.at(-1).user; assert.match(sent, /لائحة الخصم «عقد التوريد»/); assert.ok(!sent.includes('401234567'));
 });
+
+test('case brain: change detection after analysis, today board, client message without legal research', async () => {
+  const t = setup({ reply: 'عزيزي الموكل، [D1.1] عُقدت الجلسة وتأجلت إلى 2026-11-02 لسماع الشهود.\n## المطلوب\nإحضار سندات الاستلام [M77].' });
+  await t.call('enable', 'POST', { k: 'k1', on: true });
+  const r = await t.call('run', 'POST', { k: 'k1', task: 'client' });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const m = r.body.findings[0]; assert.equal(m.kind, 'client_msg'); assert.ok(!/\[M77\]|\[D1\.1\]|##/.test(m.text), 'no internal refs in client text');
+  assert.ok(!/المراجع القانونية/.test(t.sent.at(-1).user), 'no legal research sent for client message');
+  assert.deepEqual(r.body.changes, []);
+  t.S.hearings.push({ id: 'h9', k: 'k1', date: '2026-11-02', purpose: 'سماع الشهود' });
+  t.S.docs.push({ id: 'd5', k: 'k1', title: 'محضر الجلسة' });
+  const g = await t.call('get', 'GET', null, { k: 'k1' });
+  assert.ok(g.body.changes.some(x => /جلسة جديدة/.test(x)) && g.body.changes.some(x => /مستند جديد: «محضر الجلسة»/.test(x)), JSON.stringify(g.body.changes));
+  const td = await t.brain.handle('today', 'GET', {}, async () => ({}), { id: 'u1', username: 'lawyer1', cases: ['k1'] }, w => w === 'write', { username: 'lawyer1' });
+  assert.equal(td.status, 200); assert.equal(td.body.cases[0].id, 'k1'); assert.equal(td.body.cases[0].pending, 1); assert.ok(td.body.cases[0].changes >= 2);
+});

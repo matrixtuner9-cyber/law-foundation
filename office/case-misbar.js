@@ -9,12 +9,13 @@
 if(typeof V==='undefined')return;
 const e=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const MK='<img src="misbar-emblem.webp" alt="" class="mbc-mk">';
-const SUBS=[['next','الخطوة التالية'],['facts','خريطة الوقائع'],['brain','الثغرات والتعارضات'],['mizan','ميزان الحجج'],['rebut','الرد على لائحة الخصم'],['hearing','تحضير الجلسة'],['draft','الصياغة'],['docs','المستندات المقروءة'],['log','سجل الإرسال']];
+const SUBS=[['next','الخطوة التالية'],['facts','خريطة الوقائع'],['brain','الثغرات والتعارضات'],['mizan','ميزان الحجج'],['rebut','الرد على لائحة الخصم'],['hearing','تحضير الجلسة'],['draft','الصياغة'],['client','رسالة للموكل'],['docs','المستندات المقروءة'],['log','سجل الإرسال']];
 const HINT={facts:'يرتّب وقائع القضية زمنياً، ويبيّن لكل واقعة: مثبتة بمستند، أم ادعاء بلا دليل، أم متنازع عليها، ويكشف التناقضات وما يلزم جمعه.',
  next:'يفحص: هل يوجد إجراء عاجل؟ ما آخر إجراء مثبت؟ ماذا طلبت المحكمة؟ هل الملف جاهز؟ ثم يقترح الإجراء وسببه والمسؤول.',
  brain:'الاختصاص والصفة والمصلحة والتمثيل والتبليغات والمدد وشروط القبول، والتعارض بين الأقوال والمستندات، والبينات الناقصة.',
  mizan:'ثلاث قراءات مستقلة لكل مسألة: ما يؤيد الموكل، وما قد يدفع به الخصم مع الرد، والفجوات المحايدة.',
  rebut:'ارفع لائحة الخصم كما وصلتك (صورة ممسوحة أو PDF أو Word)، فيقرؤها المسبار على جهازك ثم يُعدّ الرد على كل بند وكل مطلب فيها، مسنداً إلى القوانين الفلسطينية وقرارات المحاكم.',
+ client:'يكتب المسبار رسالة قصيرة بلغة بسيطة للموكل عن مستجدات قضيته وما المطلوب منه؛ تراجعها وتعدّلها، ثم ترسلها عبر بوابة الموكل.',
  draft:'يكتب المسبار الورقة كاملة من عقل القضية: الوقائع وبيناتها، وردود ميزان الحجج، والنصوص والأحكام من القاعدة؛ وما لا يعرفه يتركه بين معقوفين [..] لتكمله.',
  hearing:'ورقة جاهزة: ما جرى سابقاً، المطلوب، المستندات، الردود الممكنة، أسئلة الشهود، نقاط المرافعة.'};
 const URG={high:['عاجل','u-h'],medium:['متوسط','u-m'],low:['عادي','u-l']};
@@ -44,7 +45,7 @@ function html(){
  const d=ST.data;if(!d)return '<div class="mbc-card"><p class="m">جارٍ تحميل عقل القضية…</p></div>';
  const cnt=t=>d.findings.filter(f=>f.task===t&&f.status==='proposed').length;
  const unread=d.docs.filter(x=>!x.hasText).length;
- return `${head(d)}${now(d)}
+ return `${head(d)}${chg(d)}${now(d)}
  <nav class="mbc-subs" role="tablist">${SUBS.map(([id,lb])=>{const n=id==='docs'?unread:id==='log'?0:cnt(id);return `<button type="button" class="${ST.sub===id?'on':''}" data-act="mbcSub" data-v="${id}">${lb}${n?`<i>${n}</i>`:''}</button>`}).join('')}</nav>
  <div class="mbc-body">${ST.sub==='docs'?docsView(d):ST.sub==='log'?logView(d):taskView(d,ST.sub)}</div>`}
 
@@ -53,6 +54,9 @@ function head(d){return `<section class="mbc-head">
  <label class="mbc-sw ${d.enabled?'on':''}" title="${d.enabled?'فعّله '+e(d.enabledBy)+' في '+e(String(d.enabledAt).slice(0,10)):''}"><input type="checkbox" data-act="mbcEnable" ${d.enabled?'checked':''} ${d.canWrite?'':'disabled'}><span class="mbc-tg"></span>
   <span><b>${d.enabled?'التحليل مفعّل لهذه القضية':'التحليل غير مفعّل لهذه القضية'}</b><small>يُرسل ما يلزم من مقاطع فقط، بعد إخفاء أرقام الهويات والحسابات والهواتف والبريد.</small></span></label></section>`}
 
+/* ما تغيّر في القضية منذ آخر تحليل */
+function chg(d){if(!(d.changes||[]).length)return '';
+ return `<section class="mbc-chg"><div><b>🔄 تغيّر في القضية منذ آخر تحليل${d.snapAt?' ('+e(String(d.snapAt).slice(0,10))+')':''}</b><ul>${d.changes.map(x=>`<li>${e(x)}</li>`).join('')}</ul></div>${d.canWrite?`<button type="button" class="btn pri mbc-go" data-act="mbcRefresh" ${ST.busy?'disabled':''}>${MK}<span>تحديث عقل القضية</span></button>`:''}</section>`}
 /* «المسبار يوصي الآن»: آخر خطوة تالية معتمدة أو مقترحة */
 function now(d){const f=d.findings.filter(x=>x.kind==='next_step'&&x.status!=='rejected').sort((a,b)=>(a.status==='approved'?-1:0)-(b.status==='approved'?-1:0)||String(b.at).localeCompare(String(a.at)))[0];
  if(!f)return `<section class="mbc-now empty">${MK}<span>لم يحدد المسبار الخطوة التالية بعد. ${d.enabled?'شغّل «الخطوة التالية».':'فعّل التحليل لهذه القضية ثم شغّل «الخطوة التالية».'}</span></section>`;
@@ -72,6 +76,7 @@ function runBox(d,t){
 function taskView(d,t){const fs=d.findings.filter(f=>f.task===t);
  if(t==='draft')return draftView(d,fs);
  if(t==='rebut')return rebutView(d,fs);
+ if(t==='client')return runBox(d,t)+(fs.filter(f=>f.kind==='client_msg').map(clientCard).join('')||'<p class="m mbc-empty">لا رسائل بعد.</p>');
  if(t==='facts')return runBox(d,t)+(fs.length?fs.map(mapView).join(''):'<p class="m mbc-empty">لم تُبنَ خريطة الوقائع بعد. اضغط الزر أعلاه، وسيقرأ المسبار المستندات ويرتّب الوقائع.</p>');
  let list='';
  if(!fs.length)list=`<p class="m mbc-empty">لا نتائج بعد.</p>`;
@@ -152,6 +157,11 @@ function rebutText(f){const L=[`الرد على «${f.docTitle}»`,''];
  L.push('ثانياً: الرد على بنود اللائحة');(f.points||[]).forEach(x=>L.push(`- البند ${x.n} (${x.position}): ${x.reply} ${(x.law||[]).map(refName).join(' ')}`.trim()));
  if((f.requests||[]).length){L.push('','ثالثاً: الرد على المطالب');f.requests.forEach(x=>L.push(`- ${x.request}: ${x.reply} ${(x.law||[]).map(refName).join(' ')}`.trim()))}
  return L.join('\n')}
+
+function clientCard(f){const s=STAT[f.status]||STAT.proposed,sent=f.status==='approved'&&/أُرسلت/.test(f.note||'');
+ return `<article class="mbc-cm is-${e(f.status)}"><header><span class="mbc-di">💬</span><b>${e(f.title)}</b><span class="mbc-s ${s[1]}">${sent?'أُرسلت عبر البوابة':s[0]}</span></header>
+ <textarea class="field mbc-cmt" id="mbcCm_${e(f.id)}" rows="6" ${sent?'readonly':''}>${e(f.text||'')}</textarea>
+ <footer><small>${sent?'أرسلها '+e(f.decidedName||f.decidedBy)+' · '+e(String(f.decidedAt||'').slice(0,16).replace('T',' ')):'راجع الرسالة وعدّلها قبل الإرسال؛ تصل إلى الموكل في تطبيقه.'}</small><div class="mbc-dec">${!sent&&ST.data.canWrite?`<button type="button" class="btn sm pri" data-act="mbcSendClient" data-v="${e(f.id)}">إرسال عبر البوابة</button>`:''}<button type="button" class="btn sm" data-act="mbcCopyCm" data-v="${e(f.id)}">نسخ</button></div></footer></article>`}
 
 function draftView(d,fs){const rec=/مدع[يى]\s*عليه|مدعى عليها|مستأنف ضده/.test(d.role||'')?'answer':'claim';
  const tiles=Object.entries(d.drafts||{}).map(([id,lb])=>`<button type="button" class="mbc-dt ${ST.dtype===id?'on':''}" data-act="mbcDT" data-v="${id}"><span class="mbc-di">${DICON[id]||'📄'}</span><b>${e(lb)}</b><small>${e(DDESC[id]||'')}</small>${id===rec?'<i>مقترح لصفة الموكل</i>':''}</button>`).join('');
@@ -259,6 +269,13 @@ A.mbcToAnswer=async id=>{const f=ST.data.findings.find(x=>x.id===id);if(!f)retur
 A.mbcRbCopy=id=>{const f=ST.data.findings.find(x=>x.id===id);if(f)navigator.clipboard.writeText(rebutText(f)).then(()=>toast('نُسخت الردود'),()=>toast('تعذّر النسخ'))};
 A.mbcRbSave=id=>{const f=ST.data.findings.find(x=>x.id===id);if(!f||typeof docs==='undefined')return;if(docs.some(d=>d.mbFinding===f.id))return toast('الردود محفوظة في مستندات القضية');
  docs.push({id:'d'+Date.now().toString(36),k:ST.k,title:'الردود على '+f.docTitle+' (المِسْبار)',kind:'مذكرة',date:new Date().toISOString().slice(0,10),src:'المِسْبار',pages:1,shared:false,mbFinding:f.id,text:rebutText(f)});MQ.saveState();toast('حُفظت الردود في مستندات القضية')};
+A.mbcRefresh=async()=>{ST.sub='next';paint();await A.mbcRun('next');if(!ST.err){ST.sub='facts';paint();await A.mbcRun('facts')}};
+A.mbcCopyCm=id=>{const t=document.getElementById('mbcCm_'+id);if(t)navigator.clipboard.writeText(t.value).then(()=>toast('نُسخت الرسالة'),()=>toast('تعذّر النسخ'))};
+A.mbcSendClient=async id=>{const t=document.getElementById('mbcCm_'+id),text=String(t&&t.value||'').trim();if(text.length<10)return toast('اكتب نص الرسالة');
+ const c=ST.data.case.client;if(!c)return toast('لا موكل مرتبط بهذه القضية');if(!confirm('إرسال هذه الرسالة إلى الموكل عبر البوابة الآن؟'))return;
+ try{const r=await fetch('/api/admin/messages',{method:'POST',headers:{'content-type':'application/json'},credentials:'same-origin',body:JSON.stringify({client:c,text,k:ST.k})});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'تعذّر الإرسال');
+  if(typeof messages!=='undefined'){(messages[c]=messages[c]||[]).push(j)}
+  ST.data=await api('decide',{id,status:'approved',note:'أُرسلت عبر البوابة'});toast('أُرسلت الرسالة إلى الموكل')}catch(x){toast(x.message)}paint()};
 A.mbcFF=v=>{ST.ff=v||'';paint()};
 A.mbcNeed=key=>{const [fid,i]=String(key).split(':'),f=ST.data.findings.find(x=>x.id===fid),x=f&&f.facts[+i];const k=typeof K==='function'?K(ST.k):null;if(!x||!k)return;
  k.gather=k.gather||{};const need=k.gather.need||[];if(need.some(n=>n.t===x.need))return toast('موجود في قائمة البينات المطلوبة');
@@ -275,6 +292,18 @@ async function readOne(id,quiet){const x=ST.data.docs.find(d=>String(d.id)===Str
 A.mbcRead=async id=>{if(await readOne(id))toast('قُرئ المستند وحُفظ نصه في القضية')};
 A.mbcReadAll=async()=>{ST.busy='read';const ids=ST.data.docs.filter(x=>!x.hasText&&x.file&&READABLE.includes(extOf(x.file))).map(x=>x.id);let ok=0;
  for(const id of ids)if(await readOne(id))ok++;ST.busy='';paint();toast('قُرئ '+ok+' من '+ids.length+' مستند')};
+
+/* ── «اليوم في قضاياك» في الصفحة الرئيسية ── */
+const TD={data:null,at:0,busy:false};
+async function loadToday(){if(TD.busy)return;TD.busy=true;try{const r=await fetch('/api/admin/misbar/case/today',{credentials:'same-origin'});if(r.ok){TD.data=await r.json();TD.at=Date.now()}}catch(x){}TD.busy=false;const b=document.getElementById('mbToday');if(b)b.outerHTML=todayHtml()}
+function todayHtml(){const d=TD.data;if(!d||(!d.cases.length&&!d.hearings.length&&!d.deadlines.length))return '<div id="mbToday"></div>';
+ const dd=s=>{try{return new Date(s+'T12:00:00').toLocaleDateString('ar-EG-u-nu-latn',{weekday:'short',day:'numeric',month:'short'})}catch(x){return s}};
+ return `<section id="mbToday" class="mbt"><header>${MK}<div><b>المِسْبار · اليوم في قضاياك</b><small>ما يوصي به عقل القضية، وما ينتظر مراجعتك، وما يقترب موعده</small></div></header>
+ <div class="mbt-g">${d.cases.length?`<div class="mbt-c"><h4>توصيات المسبار</h4>${d.cases.map(c=>`<button type="button" class="mbt-r" data-act="mbtOpen" data-v="${e(c.id)}"><span class="mbt-no">${e(c.no)}</span><span class="mbt-t"><b>${e(c.next?c.next.title:c.subject)}</b><small>${e(c.client)}${c.next&&c.next.due?' · الموعد '+e(c.next.due):''}</small></span><span class="mbt-tags">${c.next&&c.next.urgency==='high'?'<i class="h">عاجل</i>':''}${c.changes?`<i class="c">🔄 ${c.changes} تغيير</i>`:''}${c.pending?`<i class="p">${c.pending} للمراجعة</i>`:''}</span></button>`).join('')}</div>`:''}
+ ${d.hearings.length||d.deadlines.length?`<div class="mbt-c"><h4>خلال الأيام القادمة</h4>${d.hearings.map(h=>`<button type="button" class="mbt-r" data-act="mbtOpen" data-v="${e(h.id)}"><span class="mbt-no">⚖️ ${e(dd(h.date))}${h.time?' '+e(h.time):''}</span><span class="mbt-t"><b>جلسة: ${e(h.purpose||h.subject)}</b><small>${e(h.no)} · ${e(h.client)}</small></span></button>`).join('')}${d.deadlines.map(x=>`<button type="button" class="mbt-r" data-act="mbtOpen" data-v="${e(x.id)}"><span class="mbt-no">⏳ ${e(dd(x.due))}</span><span class="mbt-t"><b>${e(x.title)}</b><small>${e(x.no)} · ${e(x.client)}${x.kind?' · '+e(x.kind):''}</small></span></button>`).join('')}</div>`:''}</div></section>`}
+A.mbtOpen=id=>{S.caseId=id;S.caseTab='misbar';if(A.openCase)A.openCase(id);else{S.view='case';render()}setTimeout(()=>{if(S.caseTab!=='misbar'&&A.caseTab)A.caseTab('misbar')},50)};
+if(typeof V.dash==='function'){const d0=V.dash;V.dash=function(){const html=d0.apply(this,arguments);if(!TD.data||Date.now()-TD.at>60e3)setTimeout(loadToday,30);
+ const i=html.indexOf('<div class="dgrid">');return i<0?todayHtml()+html:html.slice(0,i)+todayHtml()+html.slice(i)}}
 
 const css=document.createElement('style');css.textContent=`
 .mbc{display:grid;gap:12px;margin-top:6px}.mbc .m{color:var(--muted,#6b7280)}
@@ -383,6 +412,19 @@ html.night .mbc-dt,html.night .mbc-draft{background:#14213a;color:#e5e7eb}html.n
 .mbc-rb footer{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
 @media (max-width:760px){.mbc-pt2{grid-template-columns:1fr}.mbc-cl{border-inline-end:0;border-bottom:3px solid #C9A24A}}
 html.night .mbc-rb,html.night .mbc-rp{background:#14213a;color:#e5e7eb}html.night .mbc-cl,html.night .mbc-fd{background:#1b2a47;color:#e5e7eb}
+.mbc-chg{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;padding:12px 16px;border-radius:16px;background:#EEF6FF;border:1px solid #9CC3EE}
+.mbc-chg b{color:#1E3A5F}.mbc-chg ul{margin:6px 0 0;padding-inline-start:20px;font-size:13.5px}
+.mbc-cm{background:#fff;border:1px solid var(--brass,#C9A24A);border-radius:16px;padding:14px 16px;display:grid;gap:10px}.mbc-cm header{display:flex;gap:8px;align-items:center}.mbc-cm header b{flex:1}
+.mbc-cmt{width:100%;box-sizing:border-box;font-size:15px;line-height:1.9;background:#F4FAF5}.mbc-cm footer{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}.mbc-cm footer small{color:var(--muted,#6b7280)}
+html.night .mbc-cm{background:#14213a;color:#e5e7eb}
+.mbt{margin:0 0 16px;border-radius:18px;border:1px solid #C9A24A;background:linear-gradient(135deg,#0B1B2B,#1B3654);padding:14px 16px;color:#F2E6C4;animation:mbcIn .4s ease}
+.mbt header{display:flex;gap:10px;align-items:center;margin-bottom:10px}.mbt header b{display:block;color:#F3D58A;font-size:17px}.mbt header small{color:#C9D4DB}
+.mbt-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}.mbt-c{background:rgb(255 255 255 / .05);border:1px solid rgb(201 162 74 / .35);border-radius:14px;padding:8px}
+.mbt-c h4{margin:2px 6px 6px;color:#F3D58A;font-size:13.5px}
+.mbt-r{display:flex;gap:10px;align-items:center;width:100%;text-align:start;background:transparent;border:0;border-top:1px solid rgb(255 255 255 / .08);color:inherit;font:inherit;padding:8px 6px;cursor:pointer;border-radius:8px}
+.mbt-r:first-of-type{border-top:0}.mbt-r:hover{background:rgb(243 213 138 / .1)}
+.mbt-no{flex:none;font-size:12px;color:#F3D58A;min-width:92px}.mbt-t{flex:1;min-width:0}.mbt-t b{display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mbt-t small{color:#C9D4DB;font-size:12px}
+.mbt-tags{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}.mbt-tags i{font-style:normal;font-size:11px;border-radius:999px;padding:1px 7px}.mbt-tags .h{background:#9B1C1C;color:#fff}.mbt-tags .c{background:#1E3A5F;color:#cfe3ff}.mbt-tags .p{background:#C9A24A;color:#0B1B2B}
 html.night .mbc-map,html.night .mbc-fx{background:#14213a;color:#e5e7eb}
 html.night .mbc-f,html.night .mbc-tbl{background:#14213a;color:#e5e7eb}html.night .mbc-ch>span,html.night .mbc-tbl th{background:#1b2a47;color:#F3D58A}`;
 document.head.appendChild(css);

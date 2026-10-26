@@ -7,7 +7,7 @@
 'use strict';
 
 const LIM = { docText: 400000, chunk: 1400, chunks: 14000, findings: 400, sends: 200, note: 600, perTask: 14 };
-const KINDS = { rebuttal: 'الرد على لائحة الخصم', draft: 'مسودة', factmap: 'خريطة الوقائع', gap: 'ثغرة', contradiction: 'تعارض', missing_evidence: 'بينة ناقصة', deadline: 'مهلة', procedure: 'إجراء', next_step: 'الخطوة التالية', pro: 'يؤيد الموكل', con: 'دفع الخصم المحتمل', neutral: 'فجوة محايدة', report: 'ورقة' };
+const KINDS = { client_msg: 'رسالة للموكل', rebuttal: 'الرد على لائحة الخصم', draft: 'مسودة', factmap: 'خريطة الوقائع', gap: 'ثغرة', contradiction: 'تعارض', missing_evidence: 'بينة ناقصة', deadline: 'مهلة', procedure: 'إجراء', next_step: 'الخطوة التالية', pro: 'يؤيد الموكل', con: 'دفع الخصم المحتمل', neutral: 'فجوة محايدة', report: 'ورقة' };
 const DRAFT_COMMON = 'اكتب الورقة كاملة جاهزة للمراجعة بالصيغة المتعارف عليها أمام المحاكم النظامية الفلسطينية، بالعربية الفصحى القانونية، بفقرات مرقمة. '
   + 'ابنِها على «خلاصة عقل القضية» ووقائع الملف ومقاطع المستندات. ضع بين معقوفين [..] كل معلومة غير متوفرة في الملف (رقم الدعوى، العنوان، اسم الشاهد، التاريخ…) ولا تخترعها. '
   + 'استشهد بالنصوص بأرقام المراجع [M..] فقط وبالمستندات [D..]، ولا تذكر رقم مادة أو حكماً غير وارد في المراجع. '
@@ -21,6 +21,8 @@ const DRAFTS = {
 };
 const REBUT_SCHEMA = 'أعد JSON فقط بالشكل: {"summary":"خلاصة اللائحة ومطالبها في سطرين","formal":[{"defense":"الدفع الشكلي","basis":"أساسه من الوقائع والأوراق","law":["M12"],"strength":"قوي|محتمل|ضعيف"}],"points":[{"n":"رقم البند في اللائحة","claim":"ما ورد في البند باختصار أمين","position":"إنكار|تسليم|تسليم جزئي|غير منتج","reply":"الرد القانوني المفصّل كما يُكتب في اللائحة الجوابية","law":["M12"],"evidence":["D1.2"],"needed":"البينة اللازمة لدعم الرد"}],"requests":[{"request":"المطلب كما ورد","reply":"الرد عليه وسبب طلب رده","law":["M12"]}],"notes":["ما يجب على المحامي التحقق منه: المهل، الرسوم، المعلومات الناقصة"]}';
 const TASKS = {
+  client: { label: 'رسالة للموكل', report: true, norefs: true,
+    ask: 'اكتب رسالة قصيرة للموكل بالعربية المبسطة (لا مصطلحات قانونية معقدة)، بصيغة المحامي إلى موكله، من 4 إلى 8 أسطر: أين وصلت القضية، وما جرى في آخر جلسة أو إجراء، وما المطلوب منه تحديداً (مستندات أو حضور أو معلومات) إن وُجد، والموعد القادم إن كان معروفاً. لا تعد بنتيجة، ولا تذكر أرقام مواد أو مراجع أو رموز المستندات، ولا تذكر أسماء الخصوم إلا عند الحاجة. لا تضف عناوين ولا توقيعاً.' },
   rebut: { label: 'الرد على لائحة الخصم', rebut: true,
     ask: 'أنت تعدّ ردود وكيل الموكل على لائحة الخصم المرفقة (لائحة دعوى أو لائحة جوابية أو طلب). اقرأها كاملة، ثم: (1) الدفوع الشكلية الممكنة أولاً إن كان لها أساس (الاختصاص، الصفة والخصومة، التقادم، شروط القبول، الرسوم والقيمة)؛ (2) لكل بند فيها بحسب ترقيمه (وإن لم تكن مرقمة فقسّمها إلى فقراتها) موقف الموكل والرد القانوني المسند؛ (3) الرد على كل مطلب من مطالبها. استند إلى القوانين الفلسطينية النافذة وقرارات المحاكم الفلسطينية من المراجع المرفقة، والأردنية والمصرية للاستئناس فقط، وإلى مستندات القضية ووقائعها. لا تخترع نصاً أو رقم مادة أو حكماً؛ ما لا سند له من المراجع اكتب بجانبه «(يحتاج تحقق)». لا تسلّم بواقعة ضد مصلحة الموكل ما لم يثبتها مستند في الملف.' },
   draft: { label: 'الصياغة', report: true, draft: true, ask: '' },
@@ -81,7 +83,7 @@ function chunks(text, size = LIM.chunk) {
 /* createCaseBrain({ kv, state, courts, analyzer, system, norm, audit }) → { handle } */
 function createCaseBrain({ kv, state, courts = () => [], analyzer, system = '', norm = s => String(s || ''), audit } = {}) {
   const KEY = id => 'mbc:' + id, TKEY = id => 'mbt:' + id;
-  const load = id => { const v = kv.get(KEY(id), null) || {}; return { enabled: !!v.enabled, enabledBy: v.enabledBy || '', enabledAt: v.enabledAt || '', findings: v.findings || [], sends: v.sends || [] } };
+  const load = id => { const v = kv.get(KEY(id), null) || {}; return { enabled: !!v.enabled, enabledBy: v.enabledBy || '', enabledAt: v.enabledAt || '', findings: v.findings || [], sends: v.sends || [], snap: v.snap || null, snapAt: v.snapAt || '' } };
   const save = (id, v) => kv.set(KEY(id), { ...v, findings: (v.findings || []).slice(-LIM.findings), sends: (v.sends || []).slice(-LIM.sends) });
   const caseOf = (me, can, id) => {
     const S = state() || {}, k = (S.cases || []).find(c => String(c.id) === String(id || ''));
@@ -129,10 +131,30 @@ function createCaseBrain({ kv, state, courts = () => [], analyzer, system = '', 
     return { labels, picked: out };
   }
 
+  /* بصمة مدخلات القضية: ما تغيّر منذ آخر تحليل يُعرض للمحامي ليحدّث العقل بضغطة */
+  function snapshot(S, k) {
+    const hs = (S.hearings || []).filter(h => h.k === k.id).map(h => [h.id || h.date, h.date, h.result || '', String(h.notes || '').length].join('|'));
+    const dl = (S.deadlines || []).filter(d => d.k === k.id).map(d => [d.title, d.due, d.done ? 1 : 0].join('|'));
+    const ds = docsOf(S, k).map(d => { const t = kv.get(TKEY(d.id), null); return [d.id, d.title || '', t ? (t.text || '').length : typeof d.text === 'string' ? d.text.length : 0].join('|') });
+    return { hearings: hs, deadlines: dl, docs: ds, track: (k.track || []).length, notes: (k.notes || []).length, stage: String(k.stage || '') + '|' + String(k.status || '') };
+  }
+  function changes(prev, cur, S, k) {
+    if (!prev) return [];
+    const out = [], add = (a, b) => (b || []).filter(x => !(a || []).includes(x));
+    const hNew = add(prev.hearings, cur.hearings);
+    for (const h of hNew) { const [, date, result] = h.split('|'); out.push(result ? `محضر أو نتيجة جلسة ${date}` : `جلسة جديدة بتاريخ ${date}`) }
+    for (const d of add(prev.docs, cur.docs)) { const [id, title, n] = d.split('|'); const old = (prev.docs || []).find(x => x.split('|')[0] === id); out.push(old ? `قُرئ نص «${title}»` : `مستند جديد: «${title}»`); void n }
+    for (const d of add(prev.deadlines, cur.deadlines)) { const [title, due] = d.split('|'); out.push(`مهلة: ${title} (${due})`) }
+    if ((cur.track || 0) > (prev.track || 0)) out.push('إجراء أو قرار جديد في مسار التقاضي');
+    if ((cur.notes || 0) > (prev.notes || 0)) out.push('ملاحظة جديدة من طاقم العمل');
+    if (prev.stage !== cur.stage) out.push('تغيّرت مرحلة القضية أو حالتها');
+    return out.slice(0, 12);
+  }
+
   function view(S, k, me, can) {
     const v = load(k.id);
     const docs = docsOf(S, k).map(d => { const t = kv.get(TKEY(d.id), null); const own = typeof d.text === 'string' && d.text.trim().length > 30; return { id: d.id, title: d.title || '', kind: d.kind || '', date: d.date || '', file: d.file || '', hasText: !!(t && t.text) || own, chars: t ? (t.text || '').length : own ? d.text.length : 0, via: t ? t.via : own ? 'draft' : '', at: t ? t.at : '' } });
-    return { case: { id: k.id, no: k.no, subject: k.subject }, enabled: v.enabled, enabledBy: v.enabledBy, enabledAt: v.enabledAt,
+    return { case: { id: k.id, no: k.no, subject: k.subject, client: k.client }, changes: changes(v.snap, snapshot(S, k), S, k), snapAt: v.snapAt, enabled: v.enabled, enabledBy: v.enabledBy, enabledAt: v.enabledAt,
       findings: v.findings.filter(f => f.status !== 'superseded').sort((a, b) => String(b.at).localeCompare(String(a.at))), superseded: v.findings.filter(f => f.status === 'superseded').length,
       sends: v.sends.slice(-20).reverse(), docs, tasks: Object.fromEntries(Object.entries(TASKS).map(([id, t]) => [id, t.label])), kinds: KINDS, drafts: Object.fromEntries(Object.entries(DRAFTS).map(([id, t]) => [id, t.label])), role: k.role || '', canWrite: can('write') };
   }
@@ -170,13 +192,13 @@ function createCaseBrain({ kv, state, courts = () => [], analyzer, system = '', 
     const ex = picked.map(x => `[${x.tag}]\n${R.redact(x.c)}`).join('\n\n');
     const q = clip(extra, 600);
     try {
-      let { queries, refs } = await conn.research(R.redact([k.type, k.subject, q, pl && pl.text.slice(0, 700)].filter(Boolean).join(' — ')), [clip(k.subject, 80)]);
+      let { queries, refs } = T.norefs ? { queries: [], refs: [] } : await conn.research(R.redact([k.type, k.subject, q, pl && pl.text.slice(0, 700)].filter(Boolean).join(' — ')), [clip(k.subject, 80)]);
       if (pl && pl.text.length > 1500) { const r2 = await conn.research(R.redact(pl.text.slice(Math.floor(pl.text.length / 2), Math.floor(pl.text.length / 2) + 900))); const seen = new Set(refs.map(x => x.id)); refs = refs.concat(r2.refs.filter(x => !seen.has(x.id))).slice(0, 16); queries = queries.concat(r2.queries) }
       const refTxt = refs.map(r => `[M${r.id}] ${r.source}${r.primary ? '' : ' (للمقارنة والاستئناس)'} — ${r.title}${r.case_no ? ' — رقم ' + r.case_no : ''}${r.year ? ' — ' + r.year : ''}${r.status ? ' — ' + r.status : ''}\n${r.excerpt}`).join('\n\n');
-      const brainCtx = T.draft || T.rebut ? R.redact(brainSummary(v.findings)) : '';
+      const brainCtx = T.draft || T.rebut || T.norefs ? R.redact(brainSummary(v.findings)) : '';
       const user = [`المهمة: ${DR ? DR.ask + '\n' + DRAFT_COMMON : T.ask}`, q && `توجيه المحامي: ${R.redact(q)}`, DR ? '' : T.report ? 'اكتب الورقة بعناوين ونقاط موجزة.' : T.rebut ? REBUT_SCHEMA : T.map ? MAP_SCHEMA : SCHEMA.replace('{KINDS}', T.kinds.join('|')).replace('{N}', LIM.perTask),
         pl && `لائحة الخصم «${pl.title}» (النص الكامل كما قُرئ):\n${R.redact(pl.text)}`, brainCtx && `خلاصة عقل القضية (ما سبق أن استخرجه المسبار؛ المعتمد منه مقدَّم):\n${brainCtx}`, `ملف القضية:\n${file}`, `مستندات القضية:\n${docList || 'لا مستندات.'}`, ex ? `مقاطع من المستندات:\n${ex}` : 'لا توجد نصوص مستخرجة من المستندات بعد.',
-        refs.length ? `المراجع القانونية (الاستشهاد بأرقامها فقط):\n${refTxt}` : 'لا مراجع مسترجعة؛ علّم كل حكم قانوني بـ«(يحتاج تحقق)».'].filter(Boolean).join('\n\n');
+        T.norefs ? '' : refs.length ? `المراجع القانونية (الاستشهاد بأرقامها فقط):\n${refTxt}` : 'لا مراجع مسترجعة؛ علّم كل حكم قانوني بـ«(يحتاج تحقق)».'].filter(Boolean).join('\n\n');
       const r = await conn.call({ system: system + CASE_RULES, user, maxTokens: T.map ? 7000 : T.draft || T.rebut ? 8000 : 4000, json: !T.report });
       const refIds = new Set(refs.map(x => x.id)), tags = new Set(picked.map(x => x.tag).concat(labels.map(l => 'D' + l.n)));
       const docOfTag = t => { const m = /^D(\d+)/.exec(t); const l = m && labels[Number(m[1]) - 1]; return l ? { tag: t, doc: l.id, title: l.title } : null };
@@ -189,6 +211,7 @@ function createCaseBrain({ kv, state, courts = () => [], analyzer, system = '', 
         const ev = [...new Set((text.match(/\[D\d+(?:\.\d+)?\]/g) || []).map(x => x.slice(1, -1)))].filter(t => tags.has(t)).map(docOfTag).filter(Boolean);
         if (DR) { const [body, notes = ''] = text.split(/\n?=+\s*ملاحظات للمراجعة\s*=+\n?/);
           items = [{ id: rid('f'), ...base, kind: 'draft', dtype, title: DR.label + ' — ' + at.slice(0, 10), text: body.trim(), notes: notes.trim(), law: cited, evidence: ev }] }
+        else if (T.norefs) items = [{ id: rid('f'), ...base, kind: 'client_msg', title: 'رسالة للموكل — ' + at.slice(0, 10), text: text.replace(/\[(?:M|D)\d+(?:\.\d+)?\]/g, '').replace(/^#+\s*/gm, '').trim() }];
         else items = [{ id: rid('f'), ...base, kind: 'report', title: T.label + ' — ' + at.slice(0, 10), text, law: cited, evidence: ev }];
       } else if (T.rebut) {
         const j = jparse(r.text) || {}; const S2 = (s, n = 1600) => R.restore(clip(s, n));
@@ -232,7 +255,7 @@ function createCaseBrain({ kv, state, courts = () => [], analyzer, system = '', 
       v2.findings.forEach(f => { if (f.task === task && f.status === 'proposed' && (!DR || f.dtype === dtype) && (!pl || f.doc === pl.id)) { f.status = 'superseded'; f.supersededAt = at } });
       v2.findings.push(...items);
       const send = { at, by: who.username || '', task, provider: conn.provider, chars: user.length, hidden: R.counts(), docs: [...new Set(picked.map(x => x.doc))].length, refs: refs.length, queries };
-      v2.sends.push(send); save(k.id, v2);
+      v2.sends.push(send); v2.snap = snapshot(state() || S, k); v2.snapAt = at; save(k.id, v2);
       audit && audit({ ...who, action: 'misbar.case_run', entity: 'cases', entity_id: k.id, detail: { task, provider: conn.provider, chars: user.length, hidden: send.hidden, docs: send.docs, refs: refs.length, items: items.length, usage: conn.usage } });
       return { status: 200, body: { ok: true, added: items.length, ...view(state(), k, me, () => true) } };
     } catch (e) {
@@ -241,8 +264,31 @@ function createCaseBrain({ kv, state, courts = () => [], analyzer, system = '', 
     }
   }
 
+  /* «اليوم في قضاياك»: لكل قضية يصل إليها المستخدم — توصية المسبار، وما ينتظر المراجعة، وما تغيّر، والمهل والجلسات القريبة */
+  function today(me, can) {
+    const S = state() || {}, now = new Date(), d0 = now.toISOString().slice(0, 10);
+    const plus = n => new Date(now.getTime() + n * 864e5).toISOString().slice(0, 10);
+    const mine = (S.cases || []).filter(k => can('all') || (me.cases || []).includes(k.id));
+    const ids = new Set(mine.map(k => k.id)), lab = k => ({ id: k.id, no: k.no || 'قيد التسجيل', subject: k.subject || '', client: ((S.clients || []).find(c => c.id === k.client) || {}).name || '' });
+    const cases = [];
+    for (const k of mine) {
+      const raw = kv.get(KEY(k.id), null); if (!raw) continue;
+      const v = load(k.id), live = v.findings.filter(f => f.status === 'proposed' || f.status === 'approved');
+      const nx = live.filter(f => f.kind === 'next_step').sort((a, b) => (a.status === 'approved' ? -1 : 1) - (b.status === 'approved' ? -1 : 1) || String(b.at).localeCompare(String(a.at)))[0];
+      const pending = v.findings.filter(f => f.status === 'proposed').length, ch = changes(v.snap, snapshot(S, k), S, k);
+      if (!nx && !pending && !ch.length) continue;
+      cases.push({ ...lab(k), next: nx ? { title: nx.title, reply: nx.reply || '', urgency: nx.urgency, due: nx.due || '', status: nx.status } : null, pending, changes: ch.length });
+    }
+    const rank = c => (c.next && c.next.urgency === 'high' ? 0 : 1) * 10 + (c.changes ? 0 : 2) + (c.pending ? 0 : 1);
+    cases.sort((a, b) => rank(a) - rank(b));
+    const hearings = (S.hearings || []).filter(h => ids.has(h.k) && h.date >= d0 && h.date <= plus(2)).sort((a, b) => String(a.date + a.time).localeCompare(String(b.date + b.time))).map(h => ({ date: h.date, time: h.time || '', purpose: h.purpose || '', ...lab(mine.find(k => k.id === h.k)) }));
+    const deadlines = (S.deadlines || []).filter(d => ids.has(d.k) && !d.done && d.due >= d0 && d.due <= plus(7)).sort((a, b) => String(a.due).localeCompare(String(b.due))).map(d => ({ due: d.due, title: d.title || '', kind: d.kind || '', ...lab(mine.find(k => k.id === d.k)) }));
+    return { cases: cases.slice(0, 12), hearings: hearings.slice(0, 10), deadlines: deadlines.slice(0, 10) };
+  }
+
   /* handle(action, method, query, readBody, me, can, who) */
   async function handle(a, M, query, readBody, me, can, who) {
+    if (a === 'today' && M === 'GET') return { status: 200, body: today(me, can) };
     const b = M === 'POST' ? (await readBody()) || {} : {};
     const { S, k, err } = caseOf(me, can, M === 'GET' ? query.k : b.k);
     if (err) return { status: err[0], body: { error: err[1] } };
