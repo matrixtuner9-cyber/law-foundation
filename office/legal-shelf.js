@@ -5,7 +5,8 @@
 'use strict';
 const e=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const nrm=s=>String(s||'').toLowerCase().replace(/[ً-ْـ]/g,'').replace(/[أإآ]/g,'ا').replace(/ى/g,'ي').replace(/ة/g,'ه');
-const TABS=['الكل','التشريعات','المواد القانونية','الاجتهادات القضائية','النقض','الاستئناف','المبادئ القانونية','النماذج'];
+const TABS=['الكل','المواد القانونية','المبادئ القانونية','النماذج'];
+/* التشريعات والأحكام صارت في قاعدة المِسْبار المدمجة؛ هذه المكتبة لما يحفظه المكتب بنفسه: المواد والمبادئ والنماذج */
 const TYPES=[['legislation','تشريع'],['article','مادة قانونية'],['ruling','حكم قضائي'],['principle','مبدأ قانوني'],['template','نموذج'],['decision','قرار']];
 const AUTH=['قانون','قرار بقانون','نظام','لائحة','تعليمات','مرسوم','قرار','تعميم','محكمة النقض','محكمة الاستئناف','المحكمة العليا','المحكمة الدستورية العليا','محكمة البداية','محكمة الصلح','المحكمة الإدارية','المحكمة الشرعية العليا','أخرى'];
 const PER=18;
@@ -18,15 +19,15 @@ const P={tab:'الكل',q:'',authority:'',nature:'',page:1,laws:[],totalLaws:0,p
 {const i=NAV.findIndex(n=>n[0]==='laws');NAV.splice(i<0?NAV.length:i+1,0,['legalShelf','مكتبتي القانونية'])}
 if(window.NAV_ICON)NAV_ICON.legalShelf='<svg viewBox="0 0 24 24"><path d="M5 4h4v16H5zM10 4h4v16h-4z"/><path d="M15.5 5.2l3.8-1 3.2 15.5-3.8 1z"/></svg>';
 const count0=window.navCount;
-window.navCount=v=>v==='legalShelf'?(legalRefs.length+rulings.length||''):count0(v);
+window.navCount=v=>v==='legalShelf'?(legalRefs.length||''):count0(v);
 
 const level=s=>/نقض/.test(s)?'cassation':/استئناف/.test(s)?'appeal':'';
 const mk=(id,source,title,kind,authority,nature,details,raw)=>({id,source,title:String(title||''),kind,authority:String(authority||''),nature:String(nature||''),details:String(details||''),raw});
 function records(){
  const a=[];
  for(const r of legalRefs)a.push(mk(r.id,'saved',r.title,r.referenceType,r.courtName||r.authorityType,r.natureType,[r.lawName,r.lawNumber,r.lawYear,r.articleNumber,r.judgmentNumber,r.judgmentYear,r.source,r.text,r.notes].join(' '),r));
- for(const r of rulings)a.push(mk(r.id,'ruling',r.title||r.principle||'حكم '+(r.no||''),'ruling',r.court,r.field,[r.no,r.date,r.principle,r.summary,r.text,(r.keywords||[]).join(' ')].join(' '),r));
- for(const r of P.laws)a.push(mk(r.id,'law',r.title,'legislation',r.type,r.type,[r.ref,r.year,r.summary,r.source,(r.tags||[]).join(' ')].join(' '),r));
+ if(false)for(const r of rulings)a.push(mk(r.id,'ruling',r.title||r.principle||'حكم '+(r.no||''),'ruling',r.court,r.field,[r.no,r.date,r.principle,r.summary,r.text,(r.keywords||[]).join(' ')].join(' '),r));
+ if(false)for(const r of P.laws)a.push(mk(r.id,'law',r.title,'legislation',r.type,r.type,[r.ref,r.year,r.summary,r.source,(r.tags||[]).join(' ')].join(' '),r));
  for(const r of lawforms)a.push(mk(r.id,'template',r.title||r.id,'template',r.cat,r.status,r.body||'',r));
  const have=new Set(lawforms.map(r=>String(r.id)));
  for(const r of (window.MQ_LAWLIB&&MQ_LAWLIB.items||[]))if(!have.has(String(r.id)))a.push(mk(r.id,'templateBase',r.title||r.id,'template',r.cat,r.kind==='A'?'مرجع يحتاج التحقق':'مسودة غير معتمدة',r.body||'',r));
@@ -53,14 +54,24 @@ function card(x){const r=x.raw,url=shownUrl(r.srcUrl||r.sourceUrl||r.url||''),ex
 function view(){const all=records(),sel=filtered(all),pages=Math.max(1,Math.ceil(sel.length/PER));P.page=Math.min(P.page,pages);
  const inT=all.filter(x=>inTab(x,P.tab)),auths=[...new Set(inT.map(x=>x.authority).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar')),nats=[...new Set(inT.map(x=>x.nature).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'ar'));
  const page=sel.slice((P.page-1)*PER,P.page*PER);
- return `<div class="head"><div><h1>مكتبتي القانونية</h1><p class="sub">مراجع المكتب المحفوظة بحسب المحكمة والتشريع والطبيعة القانونية</p></div><div class="toolbar">${canWrite()?'<button class="btn pri" data-act="klNew">إضافة مرجع أو مادة</button>':''}<button class="btn" data-act="nav" data-v="sources">مصادر الأحكام</button><button class="btn" data-act="nav" data-v="laws">التشريعات</button></div></div>
- <div class="kl-stats"><span><b>${all.length}</b> عنصر</span><span><b>${rulings.length}</b> حكم</span><span><b>${P.totalLaws}</b> تشريع</span><span><b>${legalRefs.filter(r=>r.referenceType==='article').length}</b> مادة</span></div>
+ return `<div class="head"><div><h1>مكتبتي القانونية</h1><p class="sub">مراجع المكتب المحفوظة بحسب المحكمة والتشريع والطبيعة القانونية</p></div><div class="toolbar">${canWrite()?'<button class="btn pri" data-act="klNew">إضافة مرجع أو مادة</button>':''}</div></div>
+ <div class="kl-misbar"><img src="misbar-emblem.webp" alt=""><span>التشريعات والأحكام القضائية كاملةً في قاعدة <b>المِسْبار</b> المدمجة، بحث ونص كامل دون إنترنت.</span><button class="btn sm pri" data-act="nav" data-v="misbar">فتح عقل القانون</button>${window.MQ&&MQ.user&&MQ.user.role==='admin'&&((P.lawsN||0)+collectedR().length)?`<button class="btn sm kl-purge" data-act="klPurge">إزالة التشريعات والأحكام المخزنة (${(P.lawsN||0)+collectedR().length})</button>`:''}</div>
+ <div class="kl-stats"><span><b>${all.length}</b> عنصر</span><span><b>${legalRefs.filter(r=>r.referenceType==='article').length}</b> مادة</span></div>
  <div class="kl-tabs" role="tablist">${TABS.map(t=>`<button role="tab" aria-selected="${P.tab===t}" class="${P.tab===t?'on':''}" data-act="klTab" data-v="${e(t)}">${t} <small>${all.filter(x=>inTab(x,t)).length}</small></button>`).join('')}</div>
  <section class="panel"><div class="bd kl-search"><input class="field" id="klQuery" type="search" placeholder="عنوان القانون أو الحكم أو رقم المادة…" value="${e(P.q)}" autocomplete="off"><select class="field" id="klAuthority"><option value="">كل المرجعيات</option>${opts(auths,P.authority)}</select><select class="field" id="klNature"><option value="">كل الطبائع</option>${opts(nats,P.nature)}</select><button class="btn" data-act="klClear">مسح</button></div></section>
  ${P.busy?'<p class="m">جارٍ قراءة تشريعات المكتب…</p>':''}${P.error?`<p class="note">تعذّر تحميل التشريعات (${e(P.error)}). تظهر بقية المراجع.</p>`:''}${P.partial?'<p class="note">يُعرض أول 1,000 تشريع. ابحث في بقية القوانين من شاشة التشريعات.</p>':''}
  <div class="kl-results"><span class="m">${sel.length} نتيجة</span>${page.length?`<div class="kl-grid">${page.map(card).join('')}</div>`:'<section class="panel"><div class="empty">لا عناصر مطابقة في هذا التصنيف.</div></section>'}${pages>1?`<div class="kl-pager"><button class="btn sm" data-act="klPage" data-v="${P.page-1}" ${P.page===1?'disabled':''}>السابق</button><span>${P.page} / ${pages}</span><button class="btn sm" data-act="klPage" data-v="${P.page+1}" ${P.page===pages?'disabled':''}>التالي</button></div>`:''}</div>`;
 }
-V.legalShelf=()=>{if(P.loadedQ!==P.q&&!P.busy)setTimeout(loadLaws,0);return view()};
+V.legalShelf=()=>{if(P.lawsN===undefined&&!P.cnt){P.cnt=1;setTimeout(countStored,0)}return view()};
+/* عدد التشريعات المخزنة سابقاً في المكتب (لزر الإزالة) */
+async function countStored(){try{const r=await fetch('/api/admin/laws/search?pageSize=1',{credentials:'same-origin'});if(r.ok){const d=await r.json();P.lawsN=d.total||0;refresh()}}catch(x){}}
+const collectedR=()=>(typeof rulings!=='undefined'?rulings:[]).filter(r=>!(r.cases||[]).some(id=>typeof K==='function'&&K(id)));
+A.klPurge=async()=>{if(!(window.MQ&&MQ.user&&MQ.user.role==='admin'))return toast('لمدير النظام فقط');const rs=collectedR(),nl=P.lawsN||0;
+ if(!rs.length&&!nl)return toast('لا تشريعات أو أحكام مخزنة لإزالتها');
+ if(!confirm('إزالة التشريعات والأحكام المخزنة في المكتب؟\n\n• '+nl+' تشريعاً من «تشريعات المكتب».\n• '+rs.length+' حكماً غير مرتبط بقضايا من «الاجتهادات القضائية».\n\nالتشريعات والأحكام متاحة كاملة في قاعدة المِسْبار («عقل القانون»).\nتبقى الأحكام المرتبطة بقضايا، والمواد والمبادئ والنماذج التي حفظها المكتب.\nيُسجَّل الحذف في سجل التدقيق، ويمكن الاسترجاع من النسخة الاحتياطية.'))return;
+ try{if(nl){const r=await fetch('/api/admin/laws/delete',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({all:true,confirm:'حذف الكل'})});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'تعذّر حذف التشريعات')}
+  for(const r of rs){const i=rulings.indexOf(r);if(i>=0)rulings.splice(i,1);if(MQ.deleted)MQ.deleted('rulings',r.id)}
+  P.lawsN=0;toast('أُزيل '+nl+' تشريعاً و'+rs.length+' حكماً');render()}catch(x){toast(x.message)}};
 const refresh=()=>{if(S.view==='legalShelf')render()};
 /* التشريعات من خادم المكتب (حتى 10 صفحات × 100) */
 async function loadLaws(){if(!window.MQ||!MQ.online)return;const seq=++P.seq,q=P.q;P.loadedQ=q;P.busy=true;P.error='';
@@ -116,6 +127,7 @@ document.addEventListener('submit',ev=>{const f=ev.target;if(f.id!=='klForm')ret
 },true);
 const css=document.createElement('style');css.textContent=`
 .kl-tabs{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}.kl-tabs button{font:inherit;border:1px solid var(--line);border-radius:9px;padding:9px 12px;cursor:pointer;background:var(--panel,#fff);color:var(--ink)}.kl-tabs button.on{border-color:var(--brass);background:var(--accent-soft);font-weight:700}.kl-tabs small{color:var(--muted);padding-inline-start:4px}
+.kl-misbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:10px 14px;border-radius:14px;background:linear-gradient(135deg,#0B1B2B,#1B3654);color:#F2E6C4;border:1px solid #C9A24A;margin:10px 0}.kl-misbar img{width:28px;height:28px;border-radius:50%}.kl-misbar span{flex:1;min-width:220px}.kl-misbar b{color:#F3D58A}.kl-misbar .kl-purge{background:transparent!important;color:#F3D58A!important;border:1px solid #C9A24A!important}
 .kl-stats{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}.kl-stats span{border:1px solid var(--line);border-radius:9px;padding:9px 14px;background:var(--panel,#fff)}.kl-stats b{color:var(--brass);font-size:20px;margin-inline-end:6px}
 .kl-search{display:grid;grid-template-columns:minmax(240px,2fr) minmax(150px,1fr) minmax(150px,1fr) auto;gap:9px;align-items:center}.kl-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:12px 0}.kl-card{min-width:0;border:1px solid var(--line);background:var(--panel,#fff);border-radius:13px;padding:16px}.kl-card h3{font-size:16px;color:var(--ink);margin:9px 0}.kl-card p{color:var(--muted);line-height:1.8;font-size:14px}.kl-meta{display:flex;align-items:center;flex-wrap:wrap;gap:6px}.kl-meta small{color:var(--muted)}.kl-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px}.kl-pager{display:flex;gap:12px;align-items:center;justify-content:center;margin:16px}.kl-modal{max-width:920px}
 @media(max-width:950px){.kl-search{grid-template-columns:1fr 1fr}.kl-grid{grid-template-columns:1fr}}@media(max-width:550px){.kl-search{grid-template-columns:1fr}.kl-stats{display:grid;grid-template-columns:1fr 1fr}}
