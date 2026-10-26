@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>إدارة نسخ المسبار</title>
+<style>
+:root{--bg:#F8F6F0;--card:#FFFDF8;--ink:#0F2A45;--mut:#6B5E44;--line:#E6DBC2;--gold:#C9A24A;--gold2:#F3D58A;--navy:#0B1B2B;--ok:#1E6B3A;--warn:#8A5A00;--bad:#9B1C1C}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:Cairo,'Segoe UI',Tahoma,sans-serif;font-size:14px;line-height:1.7}
+header{background:var(--navy);color:var(--gold2);padding:12px 22px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:5}
+header h1{margin:0;font-size:19px}header small{color:#C9D4DB}
+nav{display:flex;gap:4px;margin-inline-start:auto;flex-wrap:wrap}nav button{background:transparent;color:#E9DCB8;border:1px solid transparent;border-radius:999px;padding:6px 14px;font:inherit;cursor:pointer}
+nav button.on{background:var(--gold2);color:var(--navy);font-weight:700}
+main{padding:18px 22px;max-width:1300px;margin:auto}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:14px}
+.card h2{margin:0 0 10px;font-size:16px}.kpi b{display:block;font-size:26px}.kpi span{color:var(--mut);font-size:12.5px}
+table{width:100%;border-collapse:collapse}th,td{text-align:right;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--mut);font-weight:600;font-size:12.5px}
+tr.row{cursor:pointer}tr.row:hover{background:#F3EAD3}
+.pill{display:inline-block;border-radius:999px;padding:0 9px;font-size:12px;background:#EEE6D2}.ok{background:#E3F2E8;color:var(--ok)}.warn{background:#FFF1D6;color:var(--warn)}.bad{background:#FBE3E3;color:var(--bad)}
+button.b{font:inherit;border:1px solid var(--gold);background:#fff;color:var(--ink);border-radius:999px;padding:5px 14px;cursor:pointer}button.p{background:var(--navy);color:var(--gold2);border-color:var(--navy)}button.d{border-color:#E7A3A3;color:var(--bad)}button.b:disabled{opacity:.5}
+input,select,textarea{font:inherit;border:1px solid var(--line);border-radius:10px;padding:6px 10px;background:#fff;width:100%}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px 12px}.form label{font-size:12.5px;color:var(--mut)}
+.mono{font-family:Consolas,monospace;direction:ltr;unicode-bidi:embed}.m{color:var(--mut);font-size:12.5px}.row2{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.code{width:100%;min-height:74px;font-family:Consolas,monospace;direction:ltr;font-size:12px}
+#toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--navy);color:var(--gold2);padding:9px 18px;border-radius:999px;display:none;z-index:20}
+.back{border:0;background:none;color:var(--mut);cursor:pointer;font:inherit;padding:0;margin-bottom:8px}
+.alert{border:1px solid #E8C979;background:#FFF6E0;border-radius:12px;padding:9px 14px;margin-bottom:12px}
+</style></head><body>
+<header><div><h1>إدارة نسخ المسبار</h1><small>للمورّد فقط · يعمل على هذا الجهاز</small></div>
+<nav id="nav"><button data-t="home" class="on">اللوحة</button><button data-t="offices">المكاتب</button><button data-t="ai">عقل المسبار</button><button data-t="cloud">السحابة</button><button data-t="settings">الإعدادات والنسخ</button></nav></header>
+<main id="app"></main><div id="toast"></div>
+<script>
+const VK='__VK__';
+const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const api=async(p,b,m)=>{const r=await fetch(p,{method:m||(b?'POST':'GET'),headers:{'x-vk':VK,'content-type':'application/json'},body:b?JSON.stringify(b):undefined});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'خطأ');return j};
+const toast=t=>{const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',3200)};
+const money=(n,c)=>(Math.round(n*100)/100).toLocaleString('en')+' '+(c||'');
+const ST={tab:'home',slug:null};
+const LIC={active:['ok','فعّال'],expiring:['warn','ينتهي قريباً'],expired:['bad','منتهٍ'],revoked:['','مُبطل']};
+const KIND={desktop:'سطح مكتب',cloud:'سحابة',both:'سطح مكتب + سحابة'},CYC={yearly:'سنوي',monthly:'شهري',once:'مرة واحدة'};
+const OST={active:['ok','فعّال'],suspended:['warn','موقوف'],ended:['bad','منتهٍ']};
+function go(t,slug){ST.tab=t;ST.slug=slug||null;document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));draw()}
+document.getElementById('nav').onclick=e=>{const b=e.target.closest('button');if(b)go(b.dataset.t)};
+async function draw(){const a=$('#app');a.innerHTML='<p class="m">جارٍ التحميل…</p>';try{a.innerHTML=await({home,offices,office,ai,cloud,settings}[ST.slug?'office':ST.tab])();bind()}catch(e){a.innerHTML='<div class="alert">'+esc(e.message)+'</div>'}}
+const binds=[];function on(sel,ev,fn){binds.push([sel,ev,fn])}function bind(){for(const [s,e,f] of binds.splice(0))document.querySelectorAll(s).forEach(x=>x.addEventListener(e,f))}
+
+async function home(){const s=await api('/api/summary');
+ on('[data-o]','click',e=>go('offices',e.currentTarget.dataset.o));on('#bkNow','click',()=>go('settings'));
+ return `${!s.keyReady?'<div class="alert">مفتاح التوقيع غير موجود في '+esc(s.dir)+'. لا يمكن إصدار تراخيص قبل إنشائه.</div>':''}
+ ${s.backupDue?`<div class="alert">${s.lastBackup?'آخر نسخة احتياطية '+esc(s.lastBackup.at):'لم تُحفظ نسخة احتياطية بعد'} — مفتاح التوقيع الخاص لا يُعوَّض: احفظه على فلاشة. <button class="b" id="bkNow">النسخ الآن</button></div>`:''}
+ <div class="grid"><div class="card kpi"><b>${s.offices}</b><span>مكتباً (${s.active} فعّالاً)</span></div><div class="card kpi"><b>${s.licenses}</b><span>ترخيصاً سارياً</span></div>
+ <div class="card kpi"><b>${s.expiring.length}</b><span>ترخيصاً منتهياً أو ينتهي خلال 30 يوماً</span></div>
+ <div class="card kpi"><b>${s.income.map(i=>money(i.s,i.currency)).join(' + ')||'0'}</b><span>مدفوعات هذا الشهر</span></div></div>
+ <div class="card"><h2>تجديدات مطلوبة</h2>${s.expiring.length?`<table><tr><th>المكتب</th><th>الجهاز</th><th>ينتهي</th><th></th></tr>${s.expiring.map(x=>`<tr class="row" data-o="${esc(x.slug)}"><td>${esc(x.name)}</td><td>${esc(x.device||'—')}</td><td class="mono">${esc(x.exp)}</td><td><span class="pill ${LIC[x.state][0]}">${LIC[x.state][1]}</span></td></tr>`).join('')}</table>`:'<p class="m">لا تراخيص قريبة الانتهاء.</p>'}</div>
+ <div class="card"><h2>مستحقات</h2>${s.owed.length?`<table><tr><th>المكتب</th><th>المتبقي</th></tr>${s.owed.map(x=>`<tr class="row" data-o="${esc(x.slug)}"><td>${esc(x.name)}</td><td>${money(x.remaining,x.currency)}</td></tr>`).join('')}</table>`:'<p class="m">لا مستحقات.</p>'}</div>`}
+
+async function offices(){const os=await api('/api/offices');
+ on('[data-o]','click',e=>go('offices',e.currentTarget.dataset.o));on('#newO','click',()=>{$('#newBox').hidden=false});
+ on('#saveNew','click',async()=>{try{const b=Object.fromEntries([...document.querySelectorAll('#newBox [name]')].map(i=>[i.name,i.value]));const o=await api('/api/offices',b);toast('أُضيف المكتب');go('offices',o.slug)}catch(e){toast(e.message)}});
+ return `<div class="row2" style="margin-bottom:10px"><h2 style="margin:0">المكاتب</h2><button class="b p" id="newO">+ مكتب جديد</button></div>
+ <div class="card" id="newBox" hidden><h2>مكتب جديد</h2>${officeForm({})}<div style="margin-top:10px"><button class="b p" id="saveNew">حفظ</button></div></div>
+ <div class="card">${os.length?`<table><tr><th>المكتب</th><th>المعرّف</th><th>النوع</th><th>التراخيص</th><th>الاشتراك</th><th>المتبقي</th><th>الحالة</th></tr>${os.map(o=>`<tr class="row" data-o="${esc(o.slug)}"><td><b>${esc(o.name)}</b><div class="m">${esc(o.city||'')} ${esc(o.contact||'')}</div></td><td class="mono">${esc(o.slug)}</td><td>${KIND[o.kind]||o.kind}</td><td>${o.licActive}${o.licExpiring?` <span class="pill warn">${o.licExpiring} قريباً</span>`:''}${o.licExpired?` <span class="pill bad">${o.licExpired} منتهٍ</span>`:''}</td><td>${money(o.price,o.currency)} ${CYC[o.cycle]||''}</td><td>${o.balance.remaining>0?'<b style="color:var(--bad)">'+money(o.balance.remaining,o.currency)+'</b>':'—'}</td><td><span class="pill ${OST[o.status][0]}">${OST[o.status][1]}</span></td></tr>`).join('')}</table>`:'<p class="m">لا مكاتب بعد. أضف أول مكتب.</p>'}</div>`}
+function officeForm(o){const v=k=>esc(o[k]??'');const sel=(n,opts,cur)=>`<select name="${n}">${Object.entries(opts).map(([k,t])=>`<option value="${k}"${k===cur?' selected':''}>${t}</option>`).join('')}</select>`;
+ return `<div class="form"><label>اسم المكتب<input name="name" value="${v('name')}"></label><label>المعرّف (لاتيني، لا يتغيّر)<input name="slug" class="mono" value="${v('slug')}" ${o.slug?'readonly':''} placeholder="nablus-law"></label>
+ <label>المسؤول<input name="contact" value="${v('contact')}"></label><label>الهاتف<input name="phone" class="mono" value="${v('phone')}"></label><label>البريد<input name="email" class="mono" value="${v('email')}"></label><label>المدينة<input name="city" value="${v('city')}"></label>
+ <label>النوع${sel('kind',KIND,o.kind||'desktop')}</label><label>سعر الاشتراك<input name="price" type="number" min="0" value="${v('price')||0}"></label><label>العملة${sel('currency',{'₪':'شيكل ₪','$':'دولار $','JD':'دينار JD'},o.currency||'₪')}</label><label>الدورة${sel('cycle',CYC,o.cycle||'yearly')}</label><label>الحالة${sel('status',{active:'فعّال',suspended:'موقوف',ended:'منتهٍ'},o.status||'active')}</label></div>
+ <label class="m">ملاحظات<textarea name="notes" rows="2">${v('notes')}</textarea></label>`}
+
+async function office(){const o=await api('/api/offices/'+ST.slug);const yr=new Date();yr.setFullYear(yr.getFullYear()+1);const exp1=yr.toISOString().slice(0,10);
+ on('#back','click',()=>go('offices'));
+ on('#saveO','click',async()=>{try{const b=Object.fromEntries([...document.querySelectorAll('#oForm [name]')].map(i=>[i.name,i.value]));await api('/api/offices',b);toast('حُفظ');draw()}catch(e){toast(e.message)}});
+ on('#issue','click',async()=>{try{const b=Object.fromEntries([...document.querySelectorAll('#lForm [name]')].map(i=>[i.name,i.value]));b.slug=o.slug;const r=await api('/api/licenses',b);ST.lastCode=r.code;toast('صدر الترخيص');draw()}catch(e){toast(e.message)}});
+ on('[data-copy]','click',e=>{navigator.clipboard.writeText(e.currentTarget.dataset.copy).then(()=>toast('نُسخ الكود'))});
+ on('[data-wa]','click',e=>{const code=e.currentTarget.dataset.wa,ph=String(o.phone||'').replace(/\D/g,'').replace(/^0(5\d{8})$/,'970$1');const t=`مرحباً ${o.contact||''}،\nكود تفعيل المسبار لمكتب ${o.name}:\n\n${code}\n\nطريقة التفعيل: الإعدادات ← ترخيص المكتب ← الصق الكود ← تفعيل.`;window.open('https://wa.me/'+(ph||'')+'?text='+encodeURIComponent(t),'_blank')});
+ on('[data-rev]','click',async e=>{if(!confirm('إبطال هذا الترخيص؟ يتوقف عقل المسبار على هذا الجهاز فوراً.'))return;try{const r=await api('/api/licenses/'+e.currentTarget.dataset.rev+'/revoke',{});toast(r.cloud==='ok'?'أُبطل الترخيص':'أُبطل محلياً؛ السحابة: '+r.cloud);draw()}catch(x){toast(x.message)}});
+ on('[data-ren]','click',async e=>{const exp=prompt('تاريخ الانتهاء الجديد (YYYY-MM-DD):',exp1);if(!exp)return;try{const r=await api('/api/licenses/'+e.currentTarget.dataset.ren+'/renew',{exp});ST.lastCode=r.code;toast('صدر ترخيص التجديد؛ أرسله للمكتب');draw()}catch(x){toast(x.message)}});
+ on('#pay','click',async()=>{try{const b=Object.fromEntries([...document.querySelectorAll('#pForm [name]')].map(i=>[i.name,i.value]));b.slug=o.slug;await api('/api/payments',b);toast('سُجّلت الدفعة');draw()}catch(e){toast(e.message)}});
+ on('[data-delpay]','click',async e=>{if(!confirm('حذف الدفعة؟'))return;await api('/api/payments/'+e.currentTarget.dataset.delpay,null,'DELETE');draw()});
+ on('#aiSet','click',async()=>{try{await api('/api/ai/office',{slug:o.slug,status:$('#aiSt').value,monthly_tokens:+$('#aiQ').value||0});toast('حُدّث رصيد عقل المسبار')}catch(e){toast(e.message)}});
+ on('#cCreate','click',async()=>{try{await api('/api/cloud/create',{slug:o.slug});toast('أُنشئ المكتب السحابي: https://'+o.slug+'.palgaz.net')}catch(e){toast(e.message)}});
+ on('#cLink','click',async()=>{try{const r=await api('/api/cloud/setup-link',{slug:o.slug});$('#cOut').value=r.url||JSON.stringify(r);toast('رابط الإعداد جاهز')}catch(e){toast(e.message)}});
+ const last=ST.lastCode;ST.lastCode=null;
+ return `<button class="back" id="back">→ كل المكاتب</button><h2 style="margin:0 0 10px">${esc(o.name)} <span class="mono m">${esc(o.slug)}</span> <span class="pill ${OST[o.status][0]}">${OST[o.status][1]}</span></h2>
+ ${last?`<div class="card" style="border-color:var(--gold)"><h2>كود التفعيل الجديد</h2><textarea class="code" readonly>${esc(last)}</textarea><div class="row2" style="margin-top:6px"><button class="b p" data-copy="${esc(last)}">نسخ</button><button class="b" data-wa="${esc(last)}">إرسال عبر واتساب</button></div></div>`:''}
+ <div class="card"><h2>التراخيص (الأجهزة)</h2>
+  ${o.licenses.length?`<table><tr><th>الجهاز</th><th>البصمة</th><th>النسخة</th><th>المستخدمون</th><th>ينتهي</th><th>عقل المسبار/شهر</th><th>الحالة</th><th></th></tr>${o.licenses.map(l=>`<tr><td>${esc(l.device||'—')}<div class="m">${esc(l.issued_at)}</div></td><td class="mono">${esc(l.fp)}</td><td>${l.edition==='private'?'خاصة':'متصلة'}</td><td>${l.users}</td><td class="mono">${esc(l.exp||'دائم')}</td><td>${l.ai?Number(l.ai).toLocaleString('en'):'—'}</td><td><span class="pill ${LIC[l.state][0]}">${LIC[l.state][1]}</span></td><td class="row2">${l.state!=='revoked'?`<button class="b" data-copy="${esc(l.code)}">نسخ</button><button class="b" data-wa="${esc(l.code)}">واتساب</button><button class="b" data-ren="${l.id}">تجديد</button><button class="b d" data-rev="${l.id}">إبطال</button>`:''}</td></tr>`).join('')}</table>`:'<p class="m">لا تراخيص بعد.</p>'}
+  <h2 style="margin-top:14px">إصدار ترخيص لجهاز</h2><div class="form" id="lForm"><label>بصمة الجهاز (من «ترخيص المكتب» لديه)<input name="fp" class="mono" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX"></label><label>اسم الجهاز<input name="device" placeholder="جهاز المحامي الرئيسي"></label>
+  <label>النسخة<select name="edition"><option value="connected">متصلة (بوابة وعقل المسبار)</option><option value="private">خاصة (بلا إنترنت)</option></select></label><label>المستخدمون<input name="users" type="number" min="1" value="5"></label>
+  <label>ينتهي في<input name="exp" type="date" value="${exp1}"></label><label>رصيد عقل المسبار الشهري (0 = بلا)<input name="ai" type="number" min="0" step="100000" value="2000000"></label><label>ملاحظة<input name="note"></label></div>
+  <div style="margin-top:10px"><button class="b p" id="issue">إصدار الكود</button></div></div>
+ <div class="card"><h2>المدفوعات</h2><p>المستحق ${money(o.balance.due,o.currency)} · المدفوع ${money(o.balance.paid,o.currency)} · <b style="color:${o.balance.remaining>0?'var(--bad)':'var(--ok)'}">المتبقي ${money(o.balance.remaining,o.currency)}</b></p>
+  ${o.payments.length?`<table><tr><th>التاريخ</th><th>المبلغ</th><th>الطريقة</th><th>عن</th><th>ملاحظة</th><th></th></tr>${o.payments.map(p=>`<tr><td class="mono">${esc(p.paid_at)}</td><td>${money(p.amount,p.currency)}</td><td>${esc(p.method)}</td><td>${esc(p.purpose)}</td><td>${esc(p.note)}</td><td><button class="b d" data-delpay="${p.id}">حذف</button></td></tr>`).join('')}</table>`:''}
+  <div class="form" id="pForm" style="margin-top:8px"><label>المبلغ<input name="amount" type="number" min="0"></label><label>العملة<select name="currency"><option${o.currency==='₪'?' selected':''}>₪</option><option${o.currency==='$'?' selected':''}>$</option><option${o.currency==='JD'?' selected':''}>JD</option></select></label><label>التاريخ<input name="paid_at" type="date" value="${new Date().toISOString().slice(0,10)}"></label><label>الطريقة<select name="method"><option>نقداً</option><option>تحويل بنكي</option><option>شيك</option><option>محفظة إلكترونية</option></select></label><label>عن<select name="purpose"><option>اشتراك</option><option>تركيب وتدريب</option><option>رصيد عقل المسبار</option><option>أخرى</option></select></label><label>ملاحظة<input name="note"></label></div>
+  <div style="margin-top:8px"><button class="b p" id="pay">تسجيل دفعة</button></div></div>
+ <div class="card"><h2>عقل المسبار لهذا المكتب</h2><div class="row2"><label class="m">الحالة <select id="aiSt" style="width:auto"><option value="active">فعّال</option><option value="suspended">موقوف</option></select></label><label class="m">رصيد شهري خاص (يتقدّم على الترخيص؛ 0 = حسب الترخيص) <input id="aiQ" type="number" min="0" step="100000" value="0" style="width:160px"></label><button class="b p" id="aiSet">حفظ في السحابة</button></div></div>
+ ${o.kind!=='desktop'?`<div class="card"><h2>المكتب السحابي</h2><p class="m">العنوان: <span class="mono">https://${esc(o.slug)}.palgaz.net</span></p><div class="row2"><button class="b" id="cCreate">إنشاء المكتب في السحابة</button><button class="b p" id="cLink">رابط إعداد لمدير المكتب</button></div><input id="cOut" class="mono" readonly style="margin-top:8px" placeholder="يظهر الرابط هنا"></div>`:''}
+ <div class="card"><h2>بيانات المكتب</h2><div id="oForm">${officeForm(o)}</div><div style="margin-top:10px"><button class="b p" id="saveO">حفظ التعديلات</button></div></div>
+ <div class="card"><h2>السجل</h2>${o.events.map(e=>`<div class="m"><span class="mono">${esc(e.at)}</span> · ${esc(e.action)} <span class="mono">${esc(e.detail)}</span></div>`).join('')||'<p class="m">—</p>'}</div>`}
+
+async function ai(){const mon=ST.month||new Date().toISOString().slice(0,7);let d;try{d=await api('/api/ai?month='+mon)}catch(e){return '<div class="alert">تعذّر جلب الاستهلاك من السحابة: '+esc(e.message)+'</div>'}
+ on('#mon','change',e=>{ST.month=e.target.value;draw()});on('[data-o]','click',e=>go('offices',e.currentTarget.dataset.o));
+ const tot=d.rows.reduce((s,r)=>s+r.tokens_in+r.tokens_out,0);
+ return `<div class="row2" style="margin-bottom:10px"><h2 style="margin:0">استهلاك عقل المسبار</h2><input id="mon" type="month" value="${mon}" style="width:auto"><span class="m">المجموع ${tot.toLocaleString('en')} وحدة</span></div>
+ <div class="card">${d.rows.length?`<table><tr><th>المكتب</th><th>الطلبات</th><th>المدخلات</th><th>المخرجات</th><th>المجموع</th><th>رصيد خاص</th><th>الحالة</th></tr>${d.rows.map(r=>`<tr class="row" data-o="${esc(r.slug)}"><td>${esc(r.name||r.slug)} <span class="mono m">${esc(r.slug)}</span></td><td>${r.requests}</td><td>${r.tokens_in.toLocaleString('en')}</td><td>${r.tokens_out.toLocaleString('en')}</td><td><b>${(r.tokens_in+r.tokens_out).toLocaleString('en')}</b></td><td>${r.monthly_tokens?Number(r.monthly_tokens).toLocaleString('en'):'حسب الترخيص'}</td><td>${r.status==='suspended'?'<span class="pill warn">موقوف</span>':'<span class="pill ok">فعّال</span>'}</td></tr>`).join('')}</table>`:'<p class="m">لا استهلاك في هذا الشهر.</p>'}</div>`}
+
+async function cloud(){let rows;try{rows=await api('/api/cloud/offices')}catch(e){return '<div class="alert">تعذّر الاتصال بلوحة السحابة: '+esc(e.message)+'</div>'}
+ on('[data-cs]','click',async e=>{const [slug,st]=e.currentTarget.dataset.cs.split('|');if(!confirm((st==='suspended'?'إيقاف':'تفعيل')+' المكتب السحابي '+slug+'؟'))return;try{await api('/api/cloud/status',{slug,status:st});toast('تم');draw()}catch(x){toast(x.message)}});
+ return `<h2>المكاتب السحابية</h2><div class="card"><table><tr><th>المعرّف</th><th>الاسم</th><th>العنوان</th><th>الحالة</th><th>أُنشئ</th><th></th></tr>${rows.map(r=>`<tr><td class="mono">${esc(r.slug)}</td><td>${esc(r.name)}</td><td class="mono">https://${esc(r.slug)}.palgaz.net</td><td><span class="pill ${r.status==='active'?'ok':'warn'}">${r.status==='active'?'فعّال':'موقوف'}</span></td><td class="mono">${esc(r.created_at||'')}</td><td>${r.status==='active'?`<button class="b d" data-cs="${esc(r.slug)}|suspended">إيقاف</button>`:`<button class="b" data-cs="${esc(r.slug)}|active">تفعيل</button>`}</td></tr>`).join('')}</table>
+ <p class="m">لإنشاء مكتب سحابي جديد: أضفه في «المكاتب» بنوع «سحابة»، ثم «إنشاء المكتب في السحابة» من صفحته.</p></div>`}
+
+async function settings(){const s=await api('/api/settings'),sum=await api('/api/summary');
+ on('#saveS','click',async()=>{try{await api('/api/settings',{opsHost:$('#sHost').value,opsTokenFile:$('#sTok').value,backupDir:$('#sBk').value});toast('حُفظت الإعدادات');draw()}catch(e){toast(e.message)}});
+ on('#doBk','click',async()=>{try{const r=await api('/api/backup',{dir:$('#sBk').value});toast('حُفظت النسخة: '+r.dir);draw()}catch(e){toast(e.message)}});
+ return `<div class="card"><h2>النسخ الاحتياطي</h2><p>يُنسخ <b>مفتاح التوقيع الخاص</b> وسجل البرنامج (المكاتب والتراخيص والمدفوعات) إلى قرص خارجي. <b>ضياع المفتاح يعني أنك لا تستطيع تجديد أو إصدار تراخيص للنسخ المباعة.</b></p>
+  <p class="m">آخر نسخة: ${sum.lastBackup?esc(sum.lastBackup.at)+' — <span class="mono">'+esc(sum.lastBackup.dir)+'</span>':'لا يوجد'}</p>
+  <div class="row2"><input id="sBk" class="mono" value="${esc(s.backupDir)}" placeholder="F:\\" style="max-width:360px"><button class="b p" id="doBk">حفظ نسخة الآن</button></div></div>
+ <div class="card"><h2>الاتصال بالسحابة</h2><div class="form"><label>عنوان لوحة المشغّل<input id="sHost" class="mono" value="${esc(s.opsHost)}"></label><label>ملف رمز المشغّل<input id="sTok" class="mono" value="${esc(s.opsTokenFile)}"></label></div>
+  <p class="m">الرمز: ${s.tokenFound?'<span class="pill ok">موجود</span> (لا يُعرض)':'<span class="pill bad">غير موجود</span>'} · مجلد البرنامج ومفتاح التوقيع: <span class="mono">${esc(s.dir)}</span></p>
+  <button class="b p" id="saveS">حفظ</button></div>`}
+draw();
+</script></body></html>
