@@ -446,7 +446,21 @@ body.mb-on .mb-wrap .mb-grid{position:relative;z-index:3}
 html.night .mb-wrap .mb-card{background:rgb(20 33 58 / .68)}
 .mb-wrap .mb-t{font-weight:700;color:#0F2A45;text-shadow:0 1px 0 rgb(255 255 255 / .9),0 2px 6px rgb(11 27 43 / .22),0 0 14px rgb(201 162 74 / .18)}
 .mb-wrap .mb-it:hover .mb-t{text-shadow:0 1px 0 rgb(255 255 255 / .9),0 3px 10px rgb(11 27 43 / .28),0 0 18px rgb(201 162 74 / .35)}
-html.night .mb-wrap .mb-t{color:#F3E9CF;text-shadow:0 2px 8px rgb(0 0 0 / .6)}`;document.head.appendChild(css)}
+html.night .mb-wrap .mb-t{color:#F3E9CF;text-shadow:0 2px 8px rgb(0 0 0 / .6)}
+/* النتائج فوق الهيدر: زجاج داكن شفاف والعناوين نص مضيء */
+.mb-wrap.mb-over .mb-card{background:rgb(251 246 234 / .46)}
+.mb-wrap .mb-it{transition:background-color .25s ease,box-shadow .25s ease}
+.mb-wrap .mb-it .mb-t{transition:color .25s ease,text-shadow .25s ease}
+.mb-wrap .mb-it.mb-lit{background:rgb(11 27 43 / .42);-webkit-backdrop-filter:blur(6px) saturate(1.5);backdrop-filter:blur(6px) saturate(1.5);box-shadow:inset 0 0 0 1px rgb(243 213 138 / .25)}
+.mb-wrap .mb-it.mb-lit .mb-t{color:#FFF6DA;text-shadow:0 0 6px rgb(243 213 138 / .95),0 0 16px rgb(243 213 138 / .7),0 0 32px rgb(201 162 74 / .5)}
+.mb-wrap .mb-it.mb-lit .mb-t mark{background:rgb(243 213 138 / .35);color:#fff}
+.mb-wrap .mb-it.mb-lit,.mb-wrap .mb-it.mb-lit *{color:#F2E6C4}
+.mb-wrap .mb-it.mb-lit .mb-tags span{background:rgb(255 255 255 / .12)!important;color:#F3D58A!important}
+@media (prefers-reduced-motion:reduce){.mb-wrap .mb-it,.mb-wrap .mb-it .mb-t{transition:none}}`;document.head.appendChild(css)}
 /* إضاءة الحواف حين يعبر المحتوى فوق الهيدر (تبديل صنف فقط، دون تغيير أي مقاس) */
-document.addEventListener('scroll',ev=>{const w=ev.target;if(!w||!w.classList||!w.classList.contains('mb-wrap'))return;const on=w.scrollTop>24;if(on!==w.classList.contains('mb-over'))w.classList.toggle('mb-over',on)},true);
+let mbLitRaf=0;
+function mbLit(w){const top=w.querySelector('.mb-top');if(!top)return;const hb=top.getBoundingClientRect().bottom;
+ w.querySelectorAll('.mb-it').forEach(it=>{const r=it.getBoundingClientRect();const on=r.top<hb-6&&r.bottom>0;if(on!==it.classList.contains('mb-lit'))it.classList.toggle('mb-lit',on)})}
+document.addEventListener('scroll',ev=>{const w=ev.target;if(!w||!w.classList||!w.classList.contains('mb-wrap'))return;const on=w.scrollTop>24;if(on!==w.classList.contains('mb-over'))w.classList.toggle('mb-over',on);
+ if(!mbLitRaf)mbLitRaf=requestAnimationFrame(()=>{mbLitRaf=0;mbLit(w)})},true);
 })();
