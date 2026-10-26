@@ -128,7 +128,10 @@ function results(){
   ${d.pages>1?`<div class="mb-pg">${d.page>1?`<button class="btn sm" data-act="mbPage" data-v="${d.page-1}">→ السابق</button>`:''}<span class="m">${d.page} / ${fmtN(d.pages)}</span>${d.page<d.pages?`<button class="btn sm" data-act="mbPage" data-v="${d.page+1}">التالي ←</button>`:''}</div>`:''}`}
 /* النص بفقرات، وعناوين المواد بارزة */
 function bodyHtml(t,q){const parts=String(t||'').split(/\n+/).map(s=>s.trim()).filter(Boolean);
- return parts.map(p=>/^(?:المادة|مادة|الماده)\s*[(\d٠-٩]/.test(p)&&p.length<90?`<h4>${hl(p,q)}</h4>`:`<p>${hl(p,q)}</p>`).join('')}
+ /* زر «🔗 ربط» بجانب كل مادة: يربطها بقضية أو أكثر (case-refs.js) */
+ const R=window.MQREFS,d=MB.doc,can=R&&d&&d.kind==='law'&&(typeof window.MQ_can!=='function'||window.MQ_can('cases'));
+ const linked=n=>{try{return (typeof cases!=='undefined'?cases:[]).filter(k=>(k.refs||[]).some(r=>String(r.docId)===String(d.id)&&r.art===n)).length}catch(_){return 0}};
+ return parts.map(p=>{if(/^(?:المادة|مادة|الماده)\s*[(\d٠-٩]/.test(p)&&p.length<90){let extra='';if(can){const a=R.splitArticles(p)[0];if(a){const n=linked(a.n);extra=`<button type="button" class="cr-art" data-act="crLinkArt" data-v="${d.id}|${e(a.n)}" title="ربط ${e(a.label)} بقضية">🔗 ربط</button>${n?`<span class="cr-on">✓ مربوطة بـ ${n}</span>`:''}`}}return `<h4>${hl(p,q)}${extra}</h4>`}return `<p>${hl(p,q)}</p>`}).join('')}
 function reader(){
  const d=MB.doc;
  if(MB.docBusy)return `<div class="mb-empty">جارٍ فتح المستند…</div>`;
@@ -141,6 +144,7 @@ function reader(){
   <div class="mb-tools"><button class="btn sm" data-act="mbFs" data-v="-1">A−</button><button class="btn sm" data-act="mbFs" data-v="0">افتراضي</button><button class="btn sm" data-act="mbFs" data-v="1">A+</button>
    <button class="btn sm" data-act="mbCopy">نسخ</button><button class="btn sm" data-act="mbPrint">طباعة A4</button>
    ${d.kind==='ruling'&&can2('write')?'<button class="btn sm" data-act="mbSaveRuling">حفظ في الاجتهادات</button>':''}
+   ${window.MQREFS&&(typeof window.MQ_can!=='function'||window.MQ_can('cases'))?`<button class="btn sm pri" data-act="crLinkDoc" data-v="${d.id}" title="ربط ${d.kind==='law'?'التشريع كاملاً':'الحكم'} بقضية أو أكثر؛ ولربط مادة بعينها اضغط «🔗 ربط» بجانبها، أو ظلّل فقرة">🔗 ربط بقضية</button>`:''}
    ${can2('write')&&d.body?`<button class="btn sm pri" data-act="mbAnalyze">${d.kind==='ruling'?'تحليل الحكم وأسباب الطعن':'تحليل النص'}</button>`:''}
 </div></div>
   <div class="mb-body" style="font-size:${MB.fs}px">${d.body?bodyHtml(d.body,MB.q):`<p class="m">النص الكامل غير متوفر في القاعدة لهذا ${d.kind==='law'?'التشريع':'الحكم'}.</p>`}</div>
@@ -241,6 +245,10 @@ document.addEventListener('keydown',ev=>{if(ev.target.id!=='mbFind')return;if(ev
 /* Ctrl+F داخل القارئ يفتح البحث في النص */
 document.addEventListener('keydown',ev=>{if(!(ev.ctrlKey||ev.metaKey)||ev.key.toLowerCase()!=='f')return;const f=document.getElementById('mbFind');if(!f)return;ev.preventDefault();f.focus();f.select()});
 A.mbReaderClose=()=>{MB.doc=null;MB.docBusy=false;paintReader()};
+/* لمراجع القضية (case-refs.js): المستند المفتوح، وإعادة رسم القارئ بعد الربط، والبحث بموضوع قضية */
+window.MQ_mbDoc=()=>MB.doc;
+window.MQ_mbRepaint=()=>{const box=document.querySelector('#mbReader .mb-rbox'),top=box?box.scrollTop:0;paintReader();const b2=document.querySelector('#mbReader .mb-rbox');if(b2)b2.scrollTop=top;if(S.view!=='misbar'&&typeof render==='function')render()};
+window.MQ_mbSearch=q=>{MB.q=String(q||'');MB.view='search';A.nav('misbar');setTimeout(()=>{if(MB.q.trim())run(1)},60)};
 /* المسبار شاشة كاملة فوق المِسْبار: زر العودة وEsc يعيدان إلى الشاشة السابقة */
 let prevView='dash';
 const nav0=A.nav;A.nav=v=>{if(v==='misbar'&&S.view!=='misbar'){prevView=S.view||'dash';MB._enter=true}if(v!=='misbar'){MB.doc=null;paintReader()}return nav0(v)};

@@ -48,7 +48,7 @@ window.MQ_caseInBag=(c,ks)=>{if(!S.caseId||!ks.some(k=>k.id===S.caseId))S.caseId
  const t=document.createElement('template');t.innerHTML=V.case();const R=t.content;
  R.querySelectorAll('.hub-crumbs, [data-act="nav"][data-v="cases"]').forEach(x=>{const p=x.closest('nav,div');(p&&p.parentNode===R.firstElementChild?x:x).remove()});
  const out=document.createElement('div');out.className='cl-inbag';out.appendChild(R.cloneNode(true));return out.innerHTML};
-{const oc=A.openCase;A.openCase=(v,...r)=>{const k=K(v);if(!k)return oc&&oc(v,...r);S.view='client';S.clientId=k.client;S.bagTab='case';S.caseId=v;if(!S.caseTab||!['hub','study','hearings','track','c360','docs','deadlines','msgs','mz','rulings','gather'].includes(S.caseTab)||S.lastCase!==v)S.caseTab='hub';S.lastCase=v;window.scrollTo(0,0);render()}}
+{const oc=A.openCase;A.openCase=(v,...r)=>{const k=K(v);if(!k)return oc&&oc(v,...r);S.view='client';S.clientId=k.client;S.bagTab='case';S.caseId=v;if(!S.caseTab||!['hub','study','hearings','track','c360','docs','deadlines','msgs','mz','rulings','gather','refs','misbar'].includes(S.caseTab)||S.lastCase!==v)S.caseTab='hub';S.lastCase=v;window.scrollTo(0,0);render()}}
 A.printCase=v=>{if(window.MQP&&MQP.D&&MQP.D.case)MQP.open(MQP.D.case(v));else toast('الطباعة غير متاحة')};
 const css=document.createElement('style');css.textContent=`
 .cl-acts{display:flex!important;flex-wrap:wrap;gap:10px 22px!important;align-items:center}

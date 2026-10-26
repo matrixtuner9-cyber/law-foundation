@@ -85,7 +85,7 @@ function taskView(d,t){const fs=d.findings.filter(f=>f.task===t);
  else list=fs.map(card).join('');
  return runBox(d,t)+list}
 
-const refBtn=x=>`<button type="button" class="mbc-ref ${x.primary?'':'cmp'}" data-act="mbRefOpen" data-v="${x.id}" title="${e(x.source)}${x.primary?'':' — للمقارنة والاستئناس'}">[${e(x.ref)}] ${e(String(x.title||'').slice(0,90))}</button>`;
+const refBtn=x=>`<button type="button" class="mbc-ref ${x.primary?'':'cmp'}" data-act="mbRefOpen" data-v="${x.id}" title="${e(x.source)}${x.primary?'':' — للمقارنة والاستئناس'}">[${e(x.ref)}] ${e(String(x.title||'').slice(0,90))}</button>${window.MQREFS?`<button type="button" class="mbc-ref" data-act="crLinkDoc" data-v="${x.id}" title="اعتماد هذا المرجع وربطه بالقضية (يمكن تحديد المادة من القارئ)">🔗 اعتماد</button>`:''}`;
 const docChip=x=>`<span class="mbc-doc" title="${e(x.tag)}">📄 ${e(x.title||x.tag)}</span>`;
 function richText(t,f){const dm=new Map((f.evidence||[]).map(x=>[x.tag,x]));
  return e(t).split(/\n{1,}/).map(l=>{l=l.trim();if(!l)return '';
