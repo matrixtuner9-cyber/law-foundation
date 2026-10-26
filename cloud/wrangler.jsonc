@@ -16,7 +16,7 @@
   // نسخة احتياطية مشفّرة يومياً الساعة 03:30 بتوقيت فلسطين (00:30 UTC). تتطلب السر BACKUP_KEY
   "triggers": { "crons": ["30 0 * * *", "7 * * * *"] },
   // كل مكتب نطاق مخصص (Custom Domain) يُنشئ سجل DNS وشهادة تلقائياً
-  "routes": [{ "pattern": "test.palgaz.net", "custom_domain": true }, { "pattern": "demo.palgaz.net", "custom_domain": true }, { "pattern": "ai.palgaz.net", "custom_domain": true }],
+  "routes": [{ "pattern": "test.palgaz.net", "custom_domain": true }, { "pattern": "demo.palgaz.net", "custom_domain": true }, { "pattern": "misbar.palgaz.net", "custom_domain": true }],
   "workers_dev": false,
   "observability": { "enabled": true }
   // الأسرار (لا تُكتب هنا): OPS_TOKEN وBACKUP_KEY عبر: wrangler secret put <الاسم>

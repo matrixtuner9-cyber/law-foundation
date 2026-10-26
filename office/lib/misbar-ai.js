@@ -7,7 +7,7 @@
 const DS_API = 'https://api.deepseek.com/chat/completions', DS_MODEL = 'deepseek-chat';
 const AN_API = 'https://api.anthropic.com/v1/messages', AN_MODEL = 'claude-sonnet-5-5';
 /* نسخ المكاتب المرخّصة لا تحمل مفاتيح: «رمز الوسيط» mqgw:<بصمة>:<ترخيص> يُرسل إلى خادم المورّد الوسيط بدل المزوّد مباشرة */
-const GW = () => ((typeof process !== 'undefined' && process.env && process.env.MQ_AI_GATEWAY) || 'https://ai.palgaz.net').replace(/\/+$/, '');
+const GW = () => ((typeof process !== 'undefined' && process.env && process.env.MQ_AI_GATEWAY) || 'https://misbar.palgaz.net').replace(/\/+$/, '');
 const viaGw = key => String(key || '').startsWith('mqgw:');
 const LIMITS = { perUser: 20, window: 600e3, facts: 14000, doc: 40000, question: 1200, refs: 10, refChars: 2200 };
 

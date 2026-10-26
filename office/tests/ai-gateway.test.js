@@ -24,7 +24,7 @@ function fakeFetch() {
   const f = async (url, o) => { calls.push({ url, headers: o.headers, body: JSON.parse(o.body) }); return new Response(JSON.stringify({ choices: [{ message: { content: 'نص' } }], usage: { prompt_tokens: 300, completion_tokens: 200 } }), { status: 200 }) };
   f.calls = calls; return f;
 }
-const reqDS = (token, body = { model: 'deepseek-chat', max_tokens: 99999, messages: [] }) => new Request('https://ai.palgaz.net/deepseek/chat/completions', { method: 'POST', headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json' }, body: JSON.stringify(body) });
+const reqDS = (token, body = { model: 'deepseek-chat', max_tokens: 99999, messages: [] }) => new Request('https://misbar.palgaz.net/deepseek/chat/completions', { method: 'POST', headers: { authorization: 'Bearer ' + token, 'content-type': 'application/json' }, body: JSON.stringify(body) });
 
 test('الوسيط: يقبل الترخيص الصحيح ويمرّر بمفتاح المورّد ويحسب الاستهلاك ويوقف عند نفاد الرصيد', { skip: !CLOUD && 'مجلد السحابة غير موجود' }, async () => {
   const G = await import(pathToFileURL(path.join(CLOUD, 'src', 'ai-gateway.js')).href);

@@ -86,7 +86,7 @@ const meterNew = model => ({ model, calls: 0, in: 0, out: 0, cw: 0, cr: 0 });
 function meterUsd(m) { const [pi, po] = PRICES[m.model] || PRICES['claude-sonnet-5-5']; return Math.round(((m.in * pi) + (m.cw * pi * 1.25) + (m.cr * pi * 0.1) + (m.out * po)) / 1e6 * 10000) / 10000 }
 const meterOut = m => m && m.calls ? { calls: m.calls, in: m.in, out: m.out, cw: m.cw, cr: m.cr, usd: meterUsd(m) } : undefined;
 async function callRaw(key, body, fetchImpl, meter) {
-  const gw = String(key || '').startsWith('mqgw:'), url = gw ? ((process.env.MQ_AI_GATEWAY || 'https://ai.palgaz.net').replace(/\/+$/, '') + '/anthropic/v1/messages') : API;
+  const gw = String(key || '').startsWith('mqgw:'), url = gw ? ((process.env.MQ_AI_GATEWAY || 'https://misbar.palgaz.net').replace(/\/+$/, '') + '/anthropic/v1/messages') : API;
   let r; try { r = await fetchImpl(url, { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' }, body: JSON.stringify(body) }) }
   catch (e) { throw Object.assign(new Error('تعذّر الاتصال بخدمة الصياغة. تحقق من الإنترنت.'), { status: 502 }) }
   const j = await r.json().catch(() => ({}));
