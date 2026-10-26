@@ -29,5 +29,7 @@ fs.writeFileSync('src/seed.js', '// مولّد تلقائياً من data.js —
 { let m = fs.readFileSync(path.join(SRC, 'lib', 'misbar.js'), 'utf8');
   const cut = m.indexOf('/* محوّل خادم المكتب'); if (cut < 0) throw new Error('misbar.js: openFile anchor missing'); m = m.slice(0, cut);
   m = m.replace("'use strict';", '').replace(/\n\/\/ [^\n]*\n/, '\n');
-  fs.writeFileSync('src/misbar.js', '// مولّد تلقائياً من office/lib/misbar.js — لا تعدّله يدوياً\n' + m + '\nexport { SOURCES, STATUS, norm, ftsQuery, snippet, createMisbar, adapters };\n'); }
+  fs.writeFileSync('src/misbar.js', '// مولّد تلقائياً من office/lib/misbar.js — لا تعدّله يدوياً\n' + m + '\nexport { SOURCES, STATUS, CHUNK, CHUNK_BASE, norm, ftsQuery, snippet, createMisbar, adapters };\n');
+  let ai = fs.readFileSync(path.join(SRC, 'lib', 'misbar-ai.js'), 'utf8').replace("'use strict';", '').replace(/module\.exports\s*=\s*\{[^}]*\};?\s*$/, '');
+  fs.writeFileSync('src/misbar-ai.js', '// مولّد تلقائياً من office/lib/misbar-ai.js — لا تعدّله يدوياً\n' + ai + '\nexport { TASKS, LANGS, DS_MODEL, AN_MODEL, createAnalyzer, callDeepSeek, callClaude, citedRefs };\n'); }
 console.log('built', UI.length, 'files, portal:', fs.existsSync(portal));

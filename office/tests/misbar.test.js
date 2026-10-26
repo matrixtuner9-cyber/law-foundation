@@ -105,3 +105,33 @@ test('النصوص الطويلة المقسّمة (صيغة السحابة): ا
     assert.strictEqual((await m.verifyQuote(1, 'الكمبيالة المحجوزة سند تنفيذي')).ok, true);
   }
 });
+
+test('مختبر التحليل: استعلامات من النموذج، مراجع من القاعدة فقط، الموافقة، اختيار المزوّد، وبلا مفتاح', async () => {
+  const A = require('../lib/misbar-ai');
+  const m = mkdb(), calls = [];
+  const fetchImpl = async (url, o) => {
+    const b = JSON.parse(o.body); calls.push({ url, b, h: o.headers });
+    const isQ = JSON.stringify(b).includes('محرك توليد استعلامات');
+    const text = isQ ? '{"queries":["شيك","عدم كفاية الرصيد"]}' : 'الجواب: الشيك المرتجع يجيز المطالبة [M1]، ومبدأ أردني للاستئناس [M4]، ومادة مخترعة [M999] (يحتاج تحقق).';
+    if (url.includes('deepseek')) return { ok: true, json: async () => ({ choices: [{ message: { content: text } }], usage: { prompt_tokens: 10, completion_tokens: 5 } }) };
+    return { ok: true, json: async () => ({ content: [{ type: 'text', text }], usage: { input_tokens: 10, output_tokens: 5 } }) };
+  };
+  const audits = [];
+  const an = A.createAnalyzer({ misbar: m, keys: { deepseek: () => 'sk-test-deepseek-000000', anthropic: () => '' }, audit: x => audits.push(x), fetchImpl });
+  assert.strictEqual((await an.analyze({ task: 'search', question: 'شيك', consent: false })).status, 400, 'الموافقة مطلوبة');
+  const r = await an.analyze({ task: 'search', question: 'ما حكم الشيك المرتجع؟', consent: true }, { id: 'u1' });
+  assert.strictEqual(r.status, 200, JSON.stringify(r.body)); assert.strictEqual(r.body.provider, 'deepseek');
+  assert.ok(calls.every(c => c.url.includes('deepseek') && c.h.authorization === 'Bearer sk-test-deepseek-000000'));
+  assert.ok(r.body.refs.length >= 2); assert.ok(r.body.refs.every(x => x.ref.startsWith('M')));
+  assert.deepStrictEqual(r.body.refs.filter(x => x.cited).map(x => x.id).sort(), [1, 4], 'المرجع المخترع M999 لا يُحسب');
+  const last = calls[calls.length - 1].b.messages[1].content; assert.ok(last.includes('[M1]') && last.includes('للمقارنة والاستئناس'));
+  assert.strictEqual(audits[0].action, 'misbar.analyze');
+  /* Claude عند طلبه صراحة دون مفتاح يرجع إلى DeepSeek */
+  assert.strictEqual((await an.analyze({ task: 'search', question: 'الشيك', consent: true, provider: 'claude' }, { id: 'u2' })).body.provider, 'deepseek');
+  const none = A.createAnalyzer({ misbar: m, keys: { deepseek: () => '', anthropic: () => '' }, fetchImpl });
+  const n = await none.analyze({ task: 'search', question: 'الشيك', consent: true }); assert.strictEqual(n.status, 503); assert.strictEqual(n.body.needKey, true);
+  const cl = A.createAnalyzer({ misbar: m, keys: { deepseek: () => '', anthropic: () => 'sk-ant-test' }, fetchImpl });
+  const c = await cl.analyze({ task: 'legal_question', question: 'مكافأة نهاية الخدمة للعامل', facts: 'عامل عمل عشر سنوات ثم أنهى صاحب العمل خدمته دون إنذار مسبق', consent: true }, { id: 'u3' });
+  assert.strictEqual(c.status, 200); assert.strictEqual(c.body.provider, 'claude'); assert.ok(calls[calls.length - 1].url.includes('anthropic'));
+  assert.strictEqual((await an.analyze({ task: 'appeal', consent: true, facts: 'قصير' })).status, 400, 'الطعن يحتاج نص الحكم');
+});

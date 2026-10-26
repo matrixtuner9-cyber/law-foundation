@@ -11,7 +11,7 @@ const DATA = process.env.MQ_DATA || path.join(ROOT, 'data'), MEDIA = path.join(D
 fs.mkdirSync(MEDIA, { recursive: true });
 
 const SEED = require('./data.js');
-const Store = require('./lib/db'), Auth = require('./lib/auth'), Merge = require('./lib/merge'), Laws = require('./lib/laws'), AiDraft = require('./lib/ai-draft'), Apns = require('./lib/apns'), WebPush = require('./lib/webpush'), Tts = require('./lib/tts'), Legal = require('./lib/legal-pages'), Misbar = require('./lib/misbar'), Av = require('./lib/avatar'), http2 = require('http2');
+const Store = require('./lib/db'), Auth = require('./lib/auth'), Merge = require('./lib/merge'), Laws = require('./lib/laws'), AiDraft = require('./lib/ai-draft'), Apns = require('./lib/apns'), WebPush = require('./lib/webpush'), Tts = require('./lib/tts'), Legal = require('./lib/legal-pages'), Misbar = require('./lib/misbar'), MisbarAi = require('./lib/misbar-ai'), Av = require('./lib/avatar'), http2 = require('http2');
 const OFFICE = { name: 'مكتب الميثاق للمحاماة والاستشارات القانونية', lawyer: 'المحامي سامر عبد الله', city: 'نابلس', phone: '09-233-0000', hours: 'الأحد – الخميس · 8:30 – 16:00' };
 const STATE_F = path.join(DATA, 'state.json'), MSG_F = path.join(DATA, 'messages.json');
 const VAPID_F = path.join(DATA, 'vapid.json'), PUSH_F = path.join(DATA, 'push.json');
@@ -40,6 +40,9 @@ const MISBAR_DB = process.env.MQ_LAWINDEX || path.join(DATA, 'mithaq-lawindex.db
 const misbar = Misbar.createMisbar(Misbar.openFile(MISBAR_DB), { audit });
 const { lawSearch, rulingSearch: misbarRulings } = Misbar.adapters(misbar); /* الصياغة والمساعد يستشهدان من القاعدة نفسها */
 const aiKey = () => store.kv.get('ai_key') || process.env.ANTHROPIC_API_KEY || '';
+const dsKey = () => store.kv.get('deepseek_key') || process.env.DEEPSEEK_API_KEY || '';
+/* مختبر تحليل المسبار: DeepSeek أو Claude، مراجعه من القاعدة المحلية فقط */
+const misbarAi = MisbarAi.createAnalyzer({ misbar, keys: { deepseek: dsKey, anthropic: aiKey }, audit, models: { deepseek: process.env.MQ_DEEPSEEK_MODEL, anthropic: process.env.MQ_AI_MODEL } });
 const drafter = AiDraft.createDrafter({ audit, getKey: aiKey, laws, lawSearch, rulingSearch: misbarRulings, model: process.env.MQ_AI_MODEL });
 const extractor = AiDraft.createExtractor({ audit, getKey: aiKey, model: process.env.MQ_AI_MODEL });
 const transcriber0 = AiDraft.createTranscriber({ audit, getKey: aiKey, model: process.env.MQ_AI_MODEL });
@@ -302,7 +305,7 @@ function throttled(ip) { const now = Date.now(), t = tries.get(ip) || { n: 0, at
 async function api(req, res, u) {
   const p = u.pathname, M = req.method, ip = ipOf(req);
   if (M === 'OPTIONS') { res.writeHead(204, CORS); return res.end() }
-  if (ED.offline && (p.startsWith('/api/portal/') || p.startsWith('/api/admin/ai/') || (p.startsWith('/api/mizan/') && p !== '/api/mizan/status') || p === '/api/bar/refresh')) return json(res, 403, OFFLINE_ERR);
+  if (ED.offline && (p.startsWith('/api/portal/') || p.startsWith('/api/admin/ai/') || p === '/api/admin/misbar/analyze' || (p.startsWith('/api/mizan/') && p !== '/api/mizan/status') || p === '/api/bar/refresh')) return json(res, 403, OFFLINE_ERR);
   if (p === '/api/edition') return json(res, 200, ED.pub());
   if (p === '/api/health') return json(res, 200, { ok: true, at: stamp() });
   /* تعريف المكتب لتطبيق الآيفون قبل الدخول (اسمه فقط، دون بيانات موكلين) */
@@ -689,7 +692,19 @@ async function api(req, res, u) {
     if (a === 'draft' && M === 'POST') { if (!need('write')) return; const b = aiScoped(await jbody(req, 2 * 1024 * 1024)); if (b.error) return json(res, b.status, { error: b.error }); const r = await drafter(b.body, me, { rulings: cur().rulings || [] }); return json(res, r.status, r.body) }
     return json(res, 404, { error: 'غير موجود' });
   }
-  if (p.startsWith('/api/admin/misbar/') && M === 'GET') { const r = await misbar.handle(p.slice(18), Object.fromEntries(u.searchParams), me); return json(res, r.status, r.body) }
+  if (p.startsWith('/api/admin/misbar/')) {
+    const a = p.slice(18);
+    if (a === 'analyze' && M === 'POST') { if (!need('write')) return; const r = await misbarAi.analyze(await jbody(req, 2 * 1024 * 1024), me); return json(res, r.status, r.body) }
+    if (a === 'ai' && M === 'GET') { const d = dsKey(), c = aiKey(); return json(res, 200, { deepseek: { configured: !!d, last4: d ? d.slice(-4) : '' }, claude: { configured: !!c, last4: c ? c.slice(-4) : '' }, tasks: Object.fromEntries(Object.entries(MisbarAi.TASKS).map(([k, v]) => [k, { label: v.label, doc: !!v.doc, refs: !!v.refs }])), canManage: auth.can(me, 'manage') }) }
+    if (a === 'dskey' && M === 'POST') {
+      if (!need('manage')) return; const b = await jbody(req); const k = String(b.key || '').trim();
+      if (k && !/^sk-[\w-]{16,200}$/.test(k)) return json(res, 400, { error: 'صيغة مفتاح DeepSeek غير صحيحة (يبدأ بـ sk-).' });
+      store.kv.set('deepseek_key', k || null); audit({ ...who, action: k ? 'misbar.dskey_set' : 'misbar.dskey_removed', entity: 'settings', detail: k ? { last4: k.slice(-4) } : {} });
+      return json(res, 200, { ok: true, configured: !!k, last4: k ? k.slice(-4) : '' });
+    }
+    if (M !== 'GET') return json(res, 404, { error: 'غير موجود' });
+    const r = await misbar.handle(a, Object.fromEntries(u.searchParams), me); return json(res, r.status, r.body);
+  }
   if (p.startsWith('/api/admin/laws/')) {
     const r = await laws.handle(p.slice(16), M, Object.fromEntries(u.searchParams), () => jbody(req, 25 * 1024 * 1024), me, w => auth.can(me, w), who, audit);
     if (r.file) { res.writeHead(200, { 'Content-Type': r.file.contentType, 'Content-Disposition': `attachment; filename="${r.file.filename}"`, 'Cache-Control': 'no-store', ...CORS, ...SEC }); return res.end(r.file.body) }

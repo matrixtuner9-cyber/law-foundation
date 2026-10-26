@@ -15,6 +15,7 @@ import * as Legal from './legal-pages.js';
 import * as Av from './avatar.js';
 import { createLaws } from './laws.js';
 import { createMisbar, adapters as misbarAdapters } from './misbar.js';
+import { createAnalyzer as misbarAnalyzer, TASKS as MISBAR_TASKS } from './misbar-ai.js';
 import { createDrafter, createExtractor, createTranscriber, createAssistant, createCalcExtractor, createRulingExtractor, usageSummary, PRICES as AI_PRICES, DOC_TYPES, MODEL as AI_MODEL } from './ai-draft.js';
 
 /* توقيع داخلي يثبت أن طلب /_ops وصل من الـ Worker بعد التحقق من رمز المشغّل (لا يمكن للزائر إرساله) */
@@ -621,8 +622,22 @@ export class Office extends DurableObject {
       }
       return json(404, { error: 'غير موجود' });
     }
-    if (p.startsWith('/api/admin/misbar/') && M === 'GET') {
-      const r = await this.misbar().handle(p.slice(18), Object.fromEntries(u.searchParams), me);
+    if (p.startsWith('/api/admin/misbar/')) {
+      const a = p.slice(18), aiKey = () => this.store.kv.get('ai_key') || this.env.ANTHROPIC_API_KEY || '', dsKey = () => this.store.kv.get('deepseek_key') || this.env.DEEPSEEK_API_KEY || '';
+      if (a === 'analyze' && M === 'POST') {
+        if ((d = deny('write'))) return d;
+        this._misbarAi ||= misbarAnalyzer({ misbar: this.misbar(), keys: { deepseek: dsKey, anthropic: aiKey }, audit: e => this.audit(e), models: { deepseek: this.env.MQ_DEEPSEEK_MODEL, anthropic: this.env.MQ_AI_MODEL } });
+        const r = await this._misbarAi.analyze(await jbody(2 * 1024 * 1024), me); return json(r.status, r.body);
+      }
+      if (a === 'ai' && M === 'GET') { const dk = dsKey(), c = aiKey(); return json(200, { deepseek: { configured: !!dk, last4: dk ? dk.slice(-4) : '' }, claude: { configured: !!c, last4: c ? c.slice(-4) : '' }, tasks: Object.fromEntries(Object.entries(MISBAR_TASKS).map(([k, v]) => [k, { label: v.label, doc: !!v.doc, refs: !!v.refs }])), canManage: this.auth.can(me, 'manage') }) }
+      if (a === 'dskey' && M === 'POST') {
+        if ((d = deny('manage'))) return d; const b = await jbody(); const k = String(b.key || '').trim();
+        if (k && !/^sk-[\w-]{16,200}$/.test(k)) return json(400, { error: 'صيغة مفتاح DeepSeek غير صحيحة (يبدأ بـ sk-).' });
+        this.store.kv.set('deepseek_key', k || null); this.audit({ ...who, action: k ? 'misbar.dskey_set' : 'misbar.dskey_removed', entity: 'settings', detail: k ? { last4: k.slice(-4) } : {} });
+        return json(200, { ok: true, configured: !!k, last4: k ? k.slice(-4) : '' });
+      }
+      if (M !== 'GET') return json(404, { error: 'غير موجود' });
+      const r = await this.misbar().handle(a, Object.fromEntries(u.searchParams), me);
       return json(r.status, r.body);
     }
     if (p.startsWith('/api/admin/laws/')) {
@@ -826,7 +841,7 @@ export class Office extends DurableObject {
     /* تصدير بيانات المكتب لمزود الخدمة: فقط بإذن مؤقت من مدير المكتب، ودون أسرار (كلمات المرور ومفاتيح التدقيق والتوقيع)، ويُسجّل في سجل المكتب */
     if (p === '/_ops/export') {
       if (!granted()) { this.audit({ username: 'ops', action: 'ops.export_denied' }); return json(403, { error: 'لم يمنح المكتب إذن وصول للدعم الفني. يمنحه مدير المكتب من الإعدادات.' }) }
-      const S = this.store, SECRET = ['setup', 'media_key', 'audit_key', 'support_grant', 'ai_key', 'muqtafi_cred', 'apns_cfg', 'vapid', 'tts_cfg'];
+      const S = this.store, SECRET = ['setup', 'media_key', 'audit_key', 'support_grant', 'ai_key', 'deepseek_key', 'apns_cfg', 'vapid', 'tts_cfg'];
       this.audit({ username: 'ops', action: 'ops.export' });
       return json(200, { slug: this.slug(), at: stampS(), records: S.all('SELECT * FROM records'), kv: S.all('SELECT * FROM kv').filter(k => !SECRET.includes(k.key)), messages: S.all('SELECT * FROM messages'), users: S.all('SELECT id, username, name, role, active, must_change, cases, created_at, last_login FROM users'), audit: S.all('SELECT * FROM audit ORDER BY seq') });
     }

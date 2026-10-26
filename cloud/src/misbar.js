@@ -14,6 +14,9 @@ const SOURCES = {
 };
 const STATUS = { in_force: 'ساري', partial: 'ساري في الضفة الغربية', suspended: 'موقوف النفاذ', repealed: 'ملغى / غير ساري' };
 const SORTS = ['relevance', 'year_desc', 'year_asc'];
+/* النصوص الطويلة تُقسَّم في السحابة (حدّ D1 لطول العبارة): الجزء الأول في docs.body والباقي في body_parts،
+   وفهرس FTS يحمل صفاً لكل جزء بمعرّف rowid = id + k*CHUNK_BASE؛ قاعدة المكتب لا تحتاج التقسيم لكنها تقبل الصيغة نفسها */
+const CHUNK = 30000, CHUNK_BASE = 100000000;
 
 /* تطبيع عربي موحّد للفهرسة والاستعلام: بلا تشكيل ولا تطويل، توحيد الألف والياء والتاء المربوطة، الأرقام الهندية،
    ونزع أدوات التعريف والعطف والجر الملتصقة (وال، بال، كال، فال، لل، ال) من الكلمات الطويلة حتى تطابق «بالشيك» كلمة «شيك». */
@@ -39,8 +42,8 @@ const clip = (s, n) => String(s ?? '').trim().slice(0, n);
 
 /* مقتطف حول أول تطابق: يُطبَّع النص حرفاً حرفاً مع حفظ موضع كل حرف في الأصل، فيقع المقتطف على الكلمة نفسها */
 const CH = { 'أ': 'ا', 'إ': 'ا', 'آ': 'ا', 'ٱ': 'ا', 'ى': 'ي', 'ة': 'ه', 'ؤ': 'و', 'ئ': 'ي' };
-function snippet(body, q, len = 260) {
-  const text = String(body || '').replace(/\s+/g, ' ').trim(); if (!text) return '';
+function snippetAt(body, q, len = 260) {
+  const text = String(body || '').replace(/\s+/g, ' ').trim(); if (!text) return { hit: false, text: '' };
   const ws = norm(String(q || '').replace(/"/g, ' ')).split(' ').filter(w => w.length > 1 && !STOP.has(w)).sort((a, b) => b.length - a.length);
   let flat = '', map = [];
   for (let i = 0; i < text.length && flat.length < 400000; i++) {
@@ -50,10 +53,11 @@ function snippet(body, q, len = 260) {
   }
   let at = -1;
   for (const w of ws) { const i = flat.indexOf(w); if (i >= 0) { at = map[i]; break } }
-  if (at < 0) return text.slice(0, len) + (text.length > len ? ' …' : '');
+  if (at < 0) return { hit: false, text: text.slice(0, len) + (text.length > len ? ' …' : '') };
   let s = Math.max(0, at - Math.floor(len / 3)); if (s > 0) { const sp = text.indexOf(' ', s); if (sp > 0 && sp < at) s = sp + 1 }
-  return (s > 0 ? '… ' : '') + text.slice(s, s + len) + (s + len < text.length ? ' …' : '');
+  return { hit: true, text: (s > 0 ? '… ' : '') + text.slice(s, s + len) + (s + len < text.length ? ' …' : '') };
 }
+const snippet = (body, q, len) => snippetAt(body, q, len).text;
 
 const COLS = 'd.id,d.src,d.country,d.kind,d.ext_id,d.title,d.year,d.number,d.court,d.case_no,d.date,d.ltype,d.subject,d.status,d.status_code,d.url,d.has_text';
 /* يبني شروط البحث من الفلاتر */
@@ -72,6 +76,7 @@ function where(f) {
   if (f.number && /^[0-9]{1,6}$/.test(String(f.number).trim())) { w.push('d.number=?'); a.push(String(f.number).trim()) }
   if (f.status && STATUS[f.status]) { if (f.status === 'in_force') { w.push("d.status_code IN ('in_force','partial')") } else { w.push('d.status_code=?'); a.push(f.status) } }
   if (f.has_text === '1') w.push('d.has_text=1');
+  if (f.url && /^https?:\/\//.test(String(f.url))) { w.push('d.url=?'); a.push(clip(f.url, 400)) }
   return { w, a };
 }
 
@@ -84,25 +89,38 @@ function createMisbar(db, { audit } = {}) {
     if (!fq && !w.length) return { results: [], total: 0, page: 1, pages: 0, facets: {} };
     const per = int(f.per, 5, 50, 20), page = int(f.page, 1, 10000, 1);
     const sort = SORTS.includes(f.sort) ? f.sort : (fq ? 'relevance' : 'year_desc');
-    const from = fq ? 'fts JOIN docs d ON d.id=fts.rowid' : 'docs d';
-    const cond = (fq ? ['fts MATCH ?'] : []).concat(w), args = (fq ? [fq] : []).concat(a);
+    /* مع عبارة بحث: صفوف FTS (صف لكل جزء من نص طويل) تُجمع على معرّف المستند، والترتيب بأفضل bm25 بين الأجزاء */
+    const from = fq ? `(SELECT DISTINCT (fts.rowid % ${CHUNK_BASE}) fid FROM fts WHERE fts MATCH ?) f JOIN docs d ON d.id=f.fid` : 'docs d';
+    const fromRank = fq ? `(SELECT fid, MIN(rk) rk FROM (SELECT (rowid % ${CHUNK_BASE}) fid, rank rk FROM fts WHERE fts MATCH ? AND rank MATCH 'bm25(4.0, 1.0)') GROUP BY fid) f JOIN docs d ON d.id=f.fid` : 'docs d';
+    const cond = w, args = (fq ? [fq] : []).concat(a);
     const W = cond.length ? ' WHERE ' + cond.join(' AND ') : '';
     /* الترتيب بالصلة: bm25 مع وزن أكبر للعنوان، ثم الفلسطيني أولاً */
-    const order = sort === 'relevance' && fq ? 'bm25(fts,4.0,1.0) + (CASE d.country WHEN \'PS\' THEN -2.0 ELSE 0 END)' : sort === 'year_asc' ? 'd.year ASC, d.id' : 'd.year DESC, d.id DESC';
-    const [cnt] = await all(`SELECT COUNT(*) n FROM ${from}${W}`, ...args);
+    const order = sort === 'relevance' && fq ? 'f.rk + (CASE d.country WHEN \'PS\' THEN -2.0 ELSE 0 END)' : sort === 'year_asc' ? 'd.year ASC, d.id' : 'd.year DESC, d.id DESC';
+    const [cnt] = await all(`SELECT COUNT(DISTINCT d.id) n FROM ${from}${W}`, ...args);
     const total = Number(cnt?.n || 0);
-    const rows = total ? await all(`SELECT ${COLS}, substr(d.body,1,20000) body FROM ${from}${W} ORDER BY ${order} LIMIT ? OFFSET ?`, ...args, per, (page - 1) * per) : [];
+    const rows = total ? await all(`SELECT ${COLS}, substr(d.body,1,20000) body FROM ${sort === 'relevance' && fq ? fromRank : from}${W} ORDER BY ${order} LIMIT ? OFFSET ?`, ...args, per, (page - 1) * per) : [];
     const facets = {};
     if (total && f.facets !== '0') {
-      for (const r of await all(`SELECT d.src k, COUNT(*) n FROM ${from}${W} GROUP BY d.src`, ...args)) (facets.src ||= {})[r.k] = Number(r.n);
+      for (const r of await all(`SELECT d.src k, COUNT(DISTINCT d.id) n FROM ${from}${W} GROUP BY d.src`, ...args)) (facets.src ||= {})[r.k] = Number(r.n);
     }
-    const results = rows.map(r => { const { body, ...x } = r; return { ...x, source: SOURCES[r.src]?.label || r.src, primary: !!SOURCES[r.src]?.primary, excerpt: snippet(body, q) } });
+    const results = [];
+    for (const r of rows) {
+      const { body, ...x } = r; let sn = snippetAt(body, q);
+      /* المطابقة قد تكون في جزء لاحق من نص طويل: نجلب بقية الأجزاء لهذه النتيجة فقط */
+      if (!sn.hit && fq && body && body.length >= 20000) { const [fb] = await all('SELECT body FROM docs WHERE id=?', r.id); sn = snippetAt(await fullBody(r.id, fb && fb.body), q) }
+      results.push({ ...x, source: SOURCES[r.src]?.label || r.src, primary: !!SOURCES[r.src]?.primary, excerpt: sn.text });
+    }
     return { results, total, page, pages: Math.ceil(total / per), per, sort, query: fq, facets };
+  }
+  async function fullBody(id, first) {
+    let parts = []; try { parts = await all('SELECT txt FROM body_parts WHERE id=? ORDER BY n', id) } catch { parts = [] }
+    return parts.length ? String(first || '') + parts.map(p => p.txt).join('') : String(first || '');
   }
   async function doc(id) {
     const n = int(id, 1, 1e9, 0); if (!n) return null;
     const [r] = await all(`SELECT ${COLS}, d.file_url, d.body, d.cites, d.meta FROM docs d WHERE d.id=?`, n);
     if (!r) return null;
+    r.body = await fullBody(n, r.body);
     const j = s => { try { return JSON.parse(s || 'null') } catch { return null } };
     return { ...r, cites: j(r.cites) || [], meta: j(r.meta) || {}, source: SOURCES[r.src]?.label || r.src, primary: !!SOURCES[r.src]?.primary };
   }
@@ -166,4 +184,4 @@ function adapters(m) {
 }
 
 
-export { SOURCES, STATUS, norm, ftsQuery, snippet, createMisbar, adapters };
+export { SOURCES, STATUS, CHUNK, CHUNK_BASE, norm, ftsQuery, snippet, createMisbar, adapters };
