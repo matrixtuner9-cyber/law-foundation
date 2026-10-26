@@ -87,7 +87,7 @@ const navCount0=window.navCount;window.navCount=v=>v==='rulings'?(rulings.length
 V.rulings=()=>{
  const rs=list(),q=RS.q.trim();
  return `<div class="head"><div><h1>الاجتهادات القضائية الفلسطينية</h1><p class="sub">مكتبة المكتب من المبادئ القضائية: ابحث بالموضوع أو المبدأ أو رقم الحكم، واربط ما يفيد منها بقضاياك</p></div>
-  <div class="toolbar">${can2('write')?'<button class="btn" data-act="nav" data-v="misbar">بحث في المِسْبار</button><button class="btn pri" data-act="rNew">إضافة حكم</button>':''}</div></div>
+  <div class="toolbar">${can2('write')?'<button class="btn" data-act="nav" data-v="misbar">بحث في المِسْبار</button><button class="btn pri" data-act="rNew">إضافة حكم</button>':''}${can2('manage')&&collected().length?`<button class="btn" data-act="rPurge" title="الأحكام المجموعة من مقام والمقتفي موجودة في قاعدة المسبار">إزالة الأحكام المجموعة (${collected().length})</button>`:''}</div></div>
  <section class="panel"><div class="bd rl-search">
   <input class="field" id="rq" value="${e(RS.q)}" placeholder="مثال: بطلان التبليغ، الدفع بالتقادم، إخلاء المأجور لعدم دفع الأجرة…" autocomplete="off">
   <select class="field" id="rCourt"><option value="">كل المحاكم</option>${COURTS.map(c=>`<option ${RS.court===c?'selected':''}>${c}</option>`).join('')}</select>
@@ -227,6 +227,14 @@ A.rPrefill=(r,file)=>{if(ro())return;const dup=r&&r.srcUrl&&rulings.find(x=>x.sr
  openForm(r);if(file){pendingFile=file;const n=document.getElementById('rfFileN');if(n)n.textContent=file.name+' · '+(file.size/1048576).toFixed(1)+' م.ب'}};
 A.rNewFor=v=>{if(!ro())openForm(null,v)};
 A.rEdit=v=>{if(!ro())openForm(rulings.find(r=>r.id===v))};
+/* الأحكام التي جُمعت آلياً من المواقع الخارجية (مقام · المقتفي): تُزال من مكتبة المكتب بعد دمج قاعدة المسبار.
+   لا تُمس الأحكام المرتبطة بقضايا، ولا ما أضافه المكتب بنفسه. */
+const collected=()=>rulings.filter(r=>(/مقام|المقتفي|النجاح|بيرزيت/.test(String(r.src||''))||/maqam\.najah|muqtafi\.birzeit/i.test(String(r.srcUrl||'')))&&!casesOf(r).length);
+A.rPurge=()=>{if(ro()||!can2('manage'))return;const xs=collected();if(!xs.length)return toast('لا أحكام مجموعة لإزالتها');
+ const kept=rulings.filter(r=>(/مقام|المقتفي|النجاح|بيرزيت/.test(String(r.src||''))||/maqam\.najah|muqtafi\.birzeit/i.test(String(r.srcUrl||'')))&&casesOf(r).length).length;
+ if(!confirm('إزالة '+xs.length+' حكماً جُمعت من مقام والمقتفي من مكتبة الاجتهادات؟\n\n• أحكام محكمة النقض والعليا الفلسطينية متاحة في قاعدة المسبار للبحث والقراءة.\n• لن تُمس الأحكام التي أضافها المكتب بنفسه'+(kept?'، ولا '+kept+' حكماً مرتبطاً بقضايا':' ولا المرتبطة بقضايا')+'.\n• يُسجَّل الحذف في سجل التدقيق، ويمكن الاسترجاع من النسخة الاحتياطية.'))return;
+ for(const r of xs){const i=rulings.indexOf(r);if(i>=0)rulings.splice(i,1);if(window.MQ&&MQ.deleted)MQ.deleted('rulings',r.id)}
+ toast('أُزيل '+xs.length+' حكماً مجموعاً');render()};
 A.rDel=v=>{if(ro())return;const r=rulings.find(x=>x.id===v);if(!r||!confirm('حذف الحكم «'+(r.no||'')+'» من مكتبة المكتب؟'))return;
  const i=rulings.indexOf(r);rulings.splice(i,1);if(window.MQ&&MQ.deleted)MQ.deleted('rulings',v);A.close();toast('حُذف الحكم');render()};
 A.rMore=v=>{RS.open=RS.open===v?null:v;if(S.view==='rulings')redraw();else render()};
