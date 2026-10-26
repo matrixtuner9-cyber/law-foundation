@@ -152,7 +152,7 @@ function nextOf(k,st){const d=lastMerits(k);
  const nh=(typeof nextH==='function'?nextH(k.id):null);
  if(nh)return ['تحضير جلسة '+fmtD(nh.date),`data-act="hpGoCase" data-v="${k.id}"`];
  return ['إضافة الجلسة القادمة',`data-act="wfGo" data-v="${k.id}|9"`]}
-A.hpGoCase=v=>{S.view='case';S.caseId=v;S.caseTab='c360';render();if(A.c360Section)A.c360Section('hearing')};
+A.hpGoCase=v=>{A.openCase(v);S.caseTab='c360';render();if(A.c360Section)A.c360Section('hearing')};
 function bag(c,ks){
  const head=`<div class="st-bar"><button class="btn pri" data-act="caseFor" data-v="${c.id}">+ قضية جديدة لهذا الموكل</button></div>`;
  if(!ks.length)return head+'<section class="panel"><div class="empty">لا قضايا لهذا الموكل بعد. ابدأ بـ«قضية جديدة».</div></section>';

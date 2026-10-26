@@ -68,26 +68,54 @@ const css=document.createElement('style');css.textContent=`
 .cl-steps li.cur{background:var(--brass,#B9965A);color:#fff;font-weight:700}
 .cl-now{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between}.cl-now small{display:block;color:var(--muted);font-size:12px}.cl-now b{font-size:15.5px}`;document.head.appendChild(css);
 })();
-/* «الاستعلامات والتقارير»: باب واحد يضم الموكلين والقضايا والجلسات والمستندات والمراسلات والتقارير بدل تناثرها في القائمة الجانبية */
+/* القائمة الجانبية المختصرة: خمسة أبواب، وداخل كل باب تبويبات بدل تناثر العناصر */
 (function(){
 if(typeof NAV==='undefined'||typeof V==='undefined')return;
-const Q=[['clients','الموكلون'],['cases','القضايا'],['agenda','الجلسات والمواعيد'],['docs','المستندات'],['chats','المراسلات'],['reports','التقارير']];
-const IDS=Q.map(q=>q[0]);
-const tidy=()=>{for(let i=NAV.length-1;i>=0;i--)if(IDS.includes(NAV[i][0])&&NAV[i][0]!=='reports')NAV.splice(i,1);
- const r=NAV.findIndex(n=>n[0]==='reports');if(r>=0){const [x]=NAV.splice(r,1);x[1]='الاستعلامات والتقارير';const d=NAV.findIndex(n=>n[0]==='dash');NAV.splice(d+1,0,x)}};
+const GROUPS=[
+ {id:'reports',lb:'الاستعلامات والتقارير',tabs:[['clients','الموكلون'],['cases','القضايا'],['agenda','المواعيد والجلسات'],['docs','المستندات'],['chats','المراسلات'],['reports','التقارير']],alsoOn:['client','case']},
+ {id:'lawlib',lb:'المكتبة القانونية',tabs:[['lawlib','المكتبة القانونية'],['tpls','العقود والنماذج']]}];
+const groupOf=v=>GROUPS.find(g=>g.tabs.some(t=>t[0]===v)||(g.alsoOn||[]).includes(v));
+const strip=(g,cur)=>`<div class="tabs rq-tabs" role="tablist" aria-label="${g.lb}">${g.tabs.map(([id,lb])=>`<button class="${cur===id?'on':''}" data-act="nav" data-v="${id}">${lb}</button>`).join('')}</div>`;
+/* يُعاد مع كل رسم للقائمة لأن بعض الوحدات تضيف عناصرها لاحقاً. الأقسام القانونية الأخرى تبقى بأسمائها الكاملة ومكانها */
+function tidy(){const grp=new Set(GROUPS.flatMap(g=>g.tabs.map(t=>t[0])));let changed=false;
+ GROUPS.forEach(g=>{const entry=g.tabs[0][0];g.entry=entry;
+  for(let i=NAV.length-1;i>=0;i--){const n=NAV[i];if(n.length>1&&grp.has(n[0])&&g.tabs.some(t=>t[0]===n[0])&&n[0]!==entry){NAV.splice(i,1);changed=true}}
+  let e=NAV.findIndex(n=>n[0]===entry);
+  if(e<0){const d=NAV.findIndex(n=>n[0]==='dash');NAV.splice(d+1+GROUPS.indexOf(g),0,[entry,g.lb]);changed=true}else if(NAV[e][1]!==g.lb){NAV[e][1]=g.lb;changed=true}});
+ const r=NAV.findIndex(n=>n[0]==='clients'),d=NAV.findIndex(n=>n[0]==='dash');if(r>d+1){const [x]=NAV.splice(r,1);NAV.splice(d+1,0,x)}
+ GROUPS.forEach(g=>g.tabs.forEach(([id])=>{const f=V[id];if(typeof f!=='function'||f._grp)return;const w=function(){const h=f.apply(this,arguments);return strip(g,id)+(id==='cases'?h.replace('<h1>القضايا</h1>','<h1>استعلام القضايا</h1>'):h)};w._grp=1;V[id]=w}))}
 tidy();
-const strip=cur=>`<div class="tabs rq-tabs" role="tablist" aria-label="الاستعلامات">${Q.map(([id,lb])=>`<button class="${cur===id?'on':''}" data-act="nav" data-v="${id}">${lb}</button>`).join('')}</div>`;
-IDS.forEach(id=>{const f=V[id];if(typeof f!=='function')return;V[id]=function(){const h=f.apply(this,arguments);return strip(id)+(id==='cases'?h.replace('<h1>القضايا</h1>','<h1>استعلام القضايا</h1>'):h)}});
-/* إبراز «الاستعلامات والتقارير» في القائمة عند أي من هذه الشاشات */
-const dn=window.drawNav;if(typeof dn==='function')window.drawNav=function(){dn.apply(this,arguments);if(IDS.includes(S.view)||S.view==='client'||S.view==='case'){const b=document.querySelector('#nav button[data-v="reports"]');if(b){document.querySelectorAll('#nav button.on').forEach(x=>x.classList.remove('on'));b.classList.add('on')}}};
+const dn=window.drawNav;if(typeof dn==='function')window.drawNav=function(){tidy();dn.apply(this,arguments);const g=groupOf(S.view);if(g){const b=document.querySelector(`#nav button[data-v="${g.entry}"]`);if(b){document.querySelectorAll('#nav button.on').forEach(x=>x.classList.remove('on'));b.classList.add('on')}}};
 const css=document.createElement('style');css.textContent='.rq-tabs{margin:0 0 14px!important}';document.head.appendChild(css);
+window.MQ_navGroups=GROUPS;
 })();
-/* «المكتبة القانونية» تضم العقود والنماذج */
+/* الرئيسية: «ما يحتاج انتباهك الآن» — قائمة واحدة مرتبة بالأولوية، لكل بند زر واحد */
 (function(){
-if(typeof NAV==='undefined'||typeof V==='undefined')return;
-const Q=[['lawlib','المكتبة القانونية'],['tpls','العقود والنماذج']],IDS=Q.map(q=>q[0]);
-const t=NAV.findIndex(n=>n[0]==='tpls');if(t>=0)NAV.splice(t,1);
-const strip=cur=>`<div class="tabs rq-tabs" role="tablist" aria-label="المكتبة القانونية">${Q.map(([id,lb])=>`<button class="${cur===id?'on':''}" data-act="nav" data-v="${id}">${lb}</button>`).join('')}</div>`;
-IDS.forEach(id=>{const f=V[id];if(typeof f==='function')V[id]=function(){return strip(id)+f.apply(this,arguments)}});
-const dn=window.drawNav;if(typeof dn==='function')window.drawNav=function(){dn.apply(this,arguments);if(S.view==='tpls'){const b=document.querySelector('#nav button[data-v="lawlib"]');if(b){document.querySelectorAll('#nav button.on').forEach(x=>x.classList.remove('on'));b.classList.add('on')}}};
+if(typeof V==='undefined'||typeof V.dash!=='function')return;
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function items(){const T=iso(TODAY),tm=(()=>{const d=new Date(T+'T00:00:00');d.setDate(d.getDate()+1);return iso(d)})(),H=typeof hearings!=='undefined'?hearings:[],DL=typeof deadlines!=='undefined'?deadlines:[];
+ const live=k=>k&&k.status!=='منتهية'&&!k.closed;const out=[];const nm=k=>(C(k.client)||{}).name||'';
+ H.filter(h=>(h.date===T||h.date===tm)&&!h.result&&live(K(h.k))).sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).forEach(h=>{const k=K(h.k);
+  out.push({p:1,ic:'⚖️',cls:'hot',t:`جلسة ${h.date===T?'اليوم':'غداً'} ${esc(h.time||'')} · ${esc(k.no)}`,s:`${esc(nm(k))} · ${esc((CT(k.court)||{}).name||'')}${h.purpose?' · '+esc(h.purpose):''}${h.attend?' · حضور الموكل مطلوب':''}`,b:['تحضير الجلسة','hpGoCase',k.id]})});
+ H.filter(h=>h.date<T&&!h.result&&live(K(h.k))).sort((a,b)=>b.date.localeCompare(a.date)).forEach(h=>{const k=K(h.k);
+  out.push({p:2,ic:'📝',cls:'warn',t:`ما جرى في جلسة ${dmy(h.date)} · ${esc(k.no)}`,s:`${esc(nm(k))} ينتظر الخبر${h.purpose?' · '+esc(h.purpose):''}`,b:['تسجيل ما جرى','hrOpen',h.id]})});
+ DL.filter(d=>live(K(d.k))&&diff(d.due)<=3&&!d.done).sort((a,b)=>a.due.localeCompare(b.due)).forEach(d=>{const k=K(d.k),n=diff(d.due);
+  out.push({p:n<0?0:2,ic:'⏳',cls:n<=0?'hot':'warn',t:`${esc(d.title)}`,s:`${n<0?'متأخرة '+(-n)+' يوم':n===0?'آخر يوم اليوم':'بعد '+n+' يوم'} · ${esc(k.no)} · ${esc(nm(k))}`,b:['فتح القضية','openCase',k.id]})});
+ if(window.MQ_station)(typeof cases!=='undefined'?cases:[]).filter(live).forEach(k=>{const st=MQ_station.stationOf(k);
+  if(st==='judgment'&&!(k.post&&k.post.rec&&k.post.rec!=='wait'))out.push({p:2,ic:'📜',cls:'warn',t:`حكم بانتظار قرارك · ${esc(k.no)}`,s:`${esc(nm(k))} · ${esc(MQ_station.stageOf(k))}`,b:['استئناف أم تنفيذ؟','stPostOpen',k.id]});
+  if((st==='study'||st==='pending')&&window.MQ_steps){const c=MQ_steps.current(k);out.push({p:3,ic:'📂',cls:'',t:`${esc(k.subject||'قضية جديدة')} · الخطوة ${String(c.n).padStart(2,'0')}`,s:`${esc(nm(k))} · ${esc(c.t)}`,b:['متابعة','csGo',k.id+'|'+c.id]})}});
+ (typeof clients!=='undefined'?clients:[]).forEach(c=>{const u=window.MQ_bag&&MQ_bag.unreadOf?MQ_bag.unreadOf(c.id):0;if(u)out.push({p:2,ic:'💬',cls:'',t:`${u} ${u===1?'رسالة':'رسائل'} من ${esc(c.name)}`,s:'لم تُقرأ بعد',b:['قراءة والرد','bag',c.id]})});
+ return out.sort((a,b)=>a.p-b.p)}
+const d0=V.dash;V.dash=function(){const html=d0.apply(this,arguments),it=items();
+ const box=`<section class="now-box" aria-label="ما يحتاج انتباهك الآن"><header><b>ما يحتاج انتباهك الآن</b><span>${it.length?it.length+' بند، الأهم أولاً':'لا شيء عاجل اليوم 👌'}</span></header>${it.length?`<ol>${it.slice(0,12).map(x=>`<li class="${x.cls}"><span class="ic" aria-hidden="true">${x.ic}</span><div><b>${x.t}</b><small>${x.s}</small></div><button class="btn sm ${x.cls==='hot'?'pri':''}" data-act="${x.b[1]}" data-v="${esc(x.b[2])}">${x.b[0]} ←</button></li>`).join('')}</ol>${it.length>12?`<p class="more">و${it.length-12} بنود أخرى في «الاستعلامات والتقارير»</p>`:''}`:''}</section>`;
+ const t=document.createElement('template');t.innerHTML=html;t.content.querySelectorAll('.hb48,.hr-due').forEach(x=>x.remove());const o=document.createElement('div');o.appendChild(t.content.cloneNode(true));
+ return box+o.innerHTML};
+const css=document.createElement('style');css.textContent=`.now-box{margin:0 0 16px;border:1px solid var(--line,#E5E0D6);border-radius:16px;background:var(--panel,#fff);overflow:hidden}
+.now-box header{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line,#E5E0D6);background:linear-gradient(180deg,rgb(185 150 90 / .12),transparent)}
+.now-box header b{font-size:17px}.now-box header span{color:var(--muted);font-size:13px}
+.now-box ol{list-style:none;margin:0;padding:6px 10px 10px;display:grid;gap:6px}
+.now-box li{display:flex;gap:12px;align-items:center;padding:8px 10px;border-radius:12px;border:1px solid var(--line,#E5E0D6)}
+.now-box li.hot{border-color:#E8A3A3;background:#FFF5F5}.now-box li.warn{border-color:#F1DDB0;background:#FFFBF0}
+.now-box li .ic{font-size:18px}.now-box li div{flex:1;min-width:0}.now-box li b{display:block;font-size:14px}.now-box li small{color:var(--muted);font-size:12.5px}
+.now-box .more{margin:0 14px 10px;color:var(--muted);font-size:12.5px}`;document.head.appendChild(css);
 })();
