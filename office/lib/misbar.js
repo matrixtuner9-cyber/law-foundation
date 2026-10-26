@@ -140,10 +140,13 @@ function createMisbar(db, { audit } = {}) {
     return { sources: rows.map(r => ({ src: r.src, label: SOURCES[r.src]?.label || r.src, n: Number(r.n), texts: Number(r.t), from: r.y1, to: r.y2 })), lawTypes: pick(lt, '', 'law'), caseTypes: pick(lt, '', 'ruling'), courts: pick(ct, '', ''), version: meta.version || '', built: meta.built || '' };
   }
   /* مقتطفات موثّقة للتحليل: أفضل النتائج ذات النص، مع نص كافٍ للاستشهاد */
-  async function excerpts(q, { n = 8, src, chars = 2400 } = {}) {
-    const r = await search({ q, src, has_text: '1', per: Math.min(20, n * 2), facets: '0', mode: 'any' });
+  /* titleHas: كلمات يجب أن ترد في عنوان المرجع (لاختيار قانون بعينه)، snip: عبارة اختيار المقطع من النص (المسألة لا اسم القانون) */
+  async function excerpts(q, { n = 8, src, chars = 2400, titleHas = '', snip = '' } = {}) {
+    const r = await search({ q, src, has_text: '1', per: Math.min(30, n * (titleHas ? 6 : 2)), facets: '0', mode: 'any' });
+    const need = norm(titleHas).split(/\s+/).filter(w => w.length > 2 && !['قانون', 'رقم', 'لسنه', 'بشان', 'المواد', 'مواد'].includes(w));
+    const pool = need.length ? r.results.filter(x => { const t = norm(x.title || ''); return need.filter(w => t.includes(w)).length >= Math.min(2, need.length) }) : r.results;
     const out = [];
-    for (const x of r.results.slice(0, n)) { const d = await doc(x.id); if (d && d.body) out.push({ ref: 'M' + d.id, id: d.id, src: d.src, source: d.source, primary: d.primary, title: d.title, year: d.year, court: d.court, case_no: d.case_no, status: d.status, url: d.url, excerpt: snippet(d.body, q, chars) }) }
+    for (const x of pool.slice(0, n)) { const d = await doc(x.id); if (d && d.body) out.push({ ref: 'M' + d.id, id: d.id, src: d.src, source: d.source, primary: d.primary, title: d.title, year: d.year, court: d.court, case_no: d.case_no, status: d.status, url: d.url, excerpt: snippet(d.body, snip || q, chars) }) }
     return out;
   }
   /* هل الاقتباس موجود حرفياً (بعد التطبيع) في نص المرجع المخزّن؟ */
