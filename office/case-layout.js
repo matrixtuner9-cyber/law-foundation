@@ -68,3 +68,21 @@ const css=document.createElement('style');css.textContent=`
 .cl-steps li.cur{background:var(--brass,#B9965A);color:#fff;font-weight:700}
 .cl-now{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between}.cl-now small{display:block;color:var(--muted);font-size:12px}.cl-now b{font-size:15.5px}`;document.head.appendChild(css);
 })();
+/* دمج القوائم: «الموكلون» باب العمل الوحيد، وقائمة القضايا الشاملة صارت «استعلام القضايا» داخل «الاستعلامات والتقارير» */
+(function(){
+if(typeof NAV==='undefined'||typeof V==='undefined')return;
+const set=()=>{const i=NAV.findIndex(n=>n[0]==='cases');if(i>=0)NAV.splice(i,1);
+ const c=NAV.find(n=>n[0]==='clients');if(c)c[1]='الموكلون';const r=NAV.find(n=>n[0]==='reports');if(r)r[1]='الاستعلامات والتقارير'};
+set();
+const vc=V.cases,vr=V.reports;
+if(typeof vc==='function'&&typeof vr==='function'){
+ V.reports=function(){const t=S.repTab||'cases';
+  const tabs=`<div class="tabs rq-tabs"><button class="${t==='cases'?'on':''}" data-act="repTab" data-v="cases">استعلام القضايا</button><button class="${t==='reports'?'on':''}" data-act="repTab" data-v="reports">التقارير</button></div>`;
+  const body=t==='cases'?vc.apply(this,arguments).replace('<h1>القضايا</h1>','<h1>استعلام القضايا</h1>'):vr.apply(this,arguments);
+  return tabs+body};
+ V.cases=function(){S.view='reports';S.repTab='cases';return V.reports()}}
+A.repTab=v=>{S.repTab=v;render()};
+const n0=A.nav;A.nav=v=>{if(v==='cases'){S.repTab='cases';return n0('reports')}return n0(v)};
+/* إبراز «الموكلون» عند فتح حقيبة موكل، و«الاستعلامات» عند استعلام القضايا */
+const css=document.createElement('style');css.textContent='.rq-tabs{margin:0 0 12px!important}';document.head.appendChild(css);
+})();
