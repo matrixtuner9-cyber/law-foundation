@@ -29,6 +29,8 @@ function create({ store, DATA, ROOT, audit, broadcast, stampS }) {
     return (d.lawyers || []).length;
   }
   // أول تشغيل: إن وُجد ملف مجموع سابقاً ولم يُستورد
+  // تثبيت جديد بلا ملف: تُنسخ قائمة النقابة المضمّنة مع التطبيق (MQ_BAR_SEED) فيعمل الدليل فوراً وبلا إنترنت
+  try { const SEED = process.env.MQ_BAR_SEED; if (SEED && !fs.existsSync(FILE) && fs.existsSync(SEED)) { fs.mkdirSync(path.dirname(FILE), { recursive: true }); fs.copyFileSync(SEED, FILE) } } catch (e) { console.error('[bar seed]', e.message) }
   try { if (fs.existsSync(FILE) && !db.prepare('SELECT COUNT(*) n FROM bar_dir').get().n) { const n = importFile(); audit({ action: 'bar.result', detail: { ok: true, records: n, via: 'startup' } }) } } catch (e) { console.error('[bar]', e.message) }
 
   function getFacets() {

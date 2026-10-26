@@ -99,6 +99,10 @@
       {
         "from": "data/mithaq-lawindex.db",
         "to": "lawindex/mithaq-lawindex.db"
+      },
+      {
+        "from": "data/bar/lawyers.json",
+        "to": "bar/lawyers.json"
       }
     ]
   },

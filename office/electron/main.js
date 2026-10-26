@@ -70,6 +70,8 @@ async function startServer() {
   process.env.MQ_DATA = cfg.dataDir; process.env.PORT = String(PORT);
   // فهرس التشريعات والأحكام: نسخة بجانب البيانات إن وُجدت (تحديثها = استبدال الملف)، وإلا النسخة المضمّنة في التطبيق
   if (!process.env.MQ_LAWINDEX) { const cand = [path.join(cfg.dataDir, 'mithaq-lawindex.db'), path.join(ROOT, 'data', 'mithaq-lawindex.db'), path.join(process.resourcesPath || '', 'lawindex', 'mithaq-lawindex.db')].find(f => fs.existsSync(f)); if (cand) process.env.MQ_LAWINDEX = cand }
+  // دليل محامي النقابة المضمّن: يُنسخ إلى البيانات عند أول تشغيل إن لم يوجد
+  if (!process.env.MQ_BAR_SEED) { const seed = [path.join(process.resourcesPath || '', 'bar', 'lawyers.json'), path.join(ROOT, 'data', 'bar', 'lawyers.json')].find(f => fs.existsSync(f)); if (seed) process.env.MQ_BAR_SEED = seed }
   // النسخ في مجلد بجانب البيانات (وليس داخلها حتى لا تُنسخ النسخ مع النسخ)
   if (!process.env.MQ_BACKUP_DIR) process.env.MQ_BACKUP_DIR = path.join(path.dirname(cfg.dataDir), 'backups');
   require(path.join(ROOT, 'server.js'));
