@@ -3,7 +3,7 @@
 // لا جلب من الإنترنت: يقرأ الملفات المنزّلة فقط. الملفات الأصلية لا تُعدَّل.
 'use strict';
 const fs = require('fs'), path = require('path'), { DatabaseSync } = require('node:sqlite');
-const { norm } = require('../lib/misbar');
+const { norm, CHUNK, CHUNK_BASE } = require('../lib/misbar');
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d };
 const SRC = arg('src', 'E:\\maqam'), OUT = arg('out', 'mithaq-lawindex.db'), SQL = arg('sql', ''), LIMIT = Number(arg('limit', 0)) || 0;
@@ -116,6 +116,7 @@ CREATE TABLE docs(id INTEGER PRIMARY KEY, src TEXT NOT NULL, country TEXT, kind 
 CREATE INDEX docs_src_year ON docs(src, year);
 CREATE INDEX docs_case ON docs(case_no);
 CREATE TABLE meta(k TEXT PRIMARY KEY, v TEXT);
+CREATE TABLE body_parts(id INTEGER, n INTEGER, txt TEXT, PRIMARY KEY(id, n));
 CREATE VIRTUAL TABLE fts USING fts5(title, body, content='', tokenize='unicode61 remove_diacritics 2');`);
 const ins = db.prepare('INSERT OR IGNORE INTO docs(src,country,kind,ext_id,title,year,number,court,case_no,date,ltype,subject,status,status_code,url,file_url,body,has_text,cites,meta) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
 const fins = db.prepare('INSERT INTO fts(rowid,title,body) VALUES(?,?,?)');
@@ -141,12 +142,22 @@ if (SQL) {
 CREATE TABLE docs(id INTEGER PRIMARY KEY, src TEXT NOT NULL, country TEXT, kind TEXT, ext_id TEXT, title TEXT, year INTEGER, number TEXT, court TEXT, case_no TEXT, date TEXT, ltype TEXT, subject TEXT, status TEXT, status_code TEXT, url TEXT, file_url TEXT, body TEXT, has_text INTEGER, cites TEXT, meta TEXT, UNIQUE(src, ext_id));
 CREATE INDEX docs_src_year ON docs(src, year); CREATE INDEX docs_case ON docs(case_no);
 CREATE TABLE meta(k TEXT PRIMARY KEY, v TEXT);
+CREATE TABLE body_parts(id INTEGER, n INTEGER, txt TEXT, PRIMARY KEY(id, n));
 CREATE VIRTUAL TABLE fts USING fts5(title, body, content='', tokenize='unicode61 remove_diacritics 2');\n`);
   const cols = ['id', 'src', 'country', 'kind', 'ext_id', 'title', 'year', 'number', 'court', 'case_no', 'date', 'ltype', 'subject', 'status', 'status_code', 'url', 'file_url', 'body', 'has_text', 'cites', 'meta'];
+  /* حدّ D1 لطول العبارة الواحدة: النص الطويل يُقسَّم أجزاءً (الأول في docs.body والباقي في body_parts) وصف FTS لكل جزء */
+  let chunked = 0;
   for (const r of d2.prepare('SELECT * FROM docs ORDER BY id').iterate()) {
-    fs.writeSync(out, `INSERT INTO docs(${cols.join(',')}) VALUES(${cols.map(c => q(r[c])).join(',')});\n`);
-    fs.writeSync(out, `INSERT INTO fts(rowid,title,body) VALUES(${r.id},${q(norm(r.title + ' ' + (r.case_no || '') + ' ' + (r.subject || '')))},${q(norm(r.body))});\n`);
+    const body = String(r.body || ''), parts = []; for (let i = 0; i < Math.max(1, body.length); i += CHUNK) parts.push(body.slice(i, i + CHUNK));
+    if (parts.length > 1) chunked++;
+    fs.writeSync(out, `INSERT INTO docs(${cols.join(',')}) VALUES(${cols.map(c => q(c === 'body' ? parts[0] : r[c])).join(',')});\n`);
+    const t = norm(r.title + ' ' + (r.case_no || '') + ' ' + (r.subject || ''));
+    parts.forEach((pt, k) => {
+      if (k) fs.writeSync(out, `INSERT INTO body_parts(id,n,txt) VALUES(${r.id},${k},${q(pt)});\n`);
+      fs.writeSync(out, `INSERT INTO fts(rowid,title,body) VALUES(${r.id + k * CHUNK_BASE},${q(k ? '' : t)},${q(norm(pt))});\n`);
+    });
   }
+  log('chunked docs', chunked);
   for (const r of d2.prepare('SELECT * FROM meta').all()) fs.writeSync(out, `INSERT INTO meta VALUES(${q(r.k)},${q(r.v)});\n`);
   fs.closeSync(out); d2.close();
   log('SQL', SQL, (fs.statSync(SQL).size / 1048576).toFixed(1) + 'MB');

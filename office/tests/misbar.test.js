@@ -78,3 +78,30 @@ test('handle: الأخطاء المفهومة', async () => {
   const none = M.createMisbar(M.openFile(path.join(os.tmpdir(), 'no-such-dir-x', 'x.db')));
   const r = await none.handle('stats', {}); assert.strictEqual(r.status, 503); assert.strictEqual(r.body.code, 'NO_INDEX');
 });
+
+test('النصوص الطويلة المقسّمة (صيغة السحابة): البحث يجد المطابقة في جزء لاحق، والمستند يُعاد كاملاً، وبلا تكرار في النتائج', async () => {
+  const { execFileSync } = require('node:child_process');
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'misbar-src-'));
+  fs.mkdirSync(path.join(root, 'data'), { recursive: true }); fs.mkdirSync(path.join(root, 'legislation', 'data'), { recursive: true });
+  const long = 'مقدمة الحكم '.repeat(5000) + ' وحيث إن الكمبيالة المحجوزة سند تنفيذي ' + 'خاتمة '.repeat(4000);
+  fs.writeFileSync(path.join(root, 'data', 'judgments.jsonl'), [
+    { id: '1', url: 'u1', title: 'القضية رقم 1/2020 المنعقدة في محكمة النقض بتاريخ 2021-01-01', year: '2020', case_number: '1', court: 'محكمة النقض', litigation_type: 'طعون حقوقية', classifications: '[]', full_text: long, cited_legislation: '[]' },
+    { id: '2', url: 'u2', title: 'القضية رقم 2/2020 المنعقدة في محكمة النقض بتاريخ 2021-01-02', year: '2020', case_number: '2', court: 'محكمة النقض', litigation_type: 'طعون حقوقية', classifications: '[]', full_text: 'حكم قصير عن الكمبيالة فقط.', cited_legislation: '[]' },
+  ].map(x => JSON.stringify(x)).join('\n'));
+  fs.writeFileSync(path.join(root, 'legislation', 'data', 'legislation.json'), '[]');
+  const db = path.join(root, 'ix.db'), sql = path.join(root, 'ix.sql');
+  execFileSync(process.execPath, [path.join(__dirname, '..', 'tools', 'misbar-build.js'), '--src', root, '--out', db, '--sql', sql], { stdio: 'pipe' });
+  /* الصيغة المقسّمة تُبنى من ملف SQL كما تُستورد في D1 */
+  const cdb = path.join(root, 'cloud.db'), d = new DatabaseSync(cdb); d.exec(fs.readFileSync(sql, 'utf8')); 
+  assert.ok(d.prepare('SELECT COUNT(*) n FROM body_parts').get().n >= 1, 'نص طويل قُسِّم');
+  assert.ok(d.prepare('SELECT MAX(LENGTH(body)) n FROM docs').get().n <= M.CHUNK);
+  d.close();
+  for (const f of [db, cdb]) {
+    const m = M.createMisbar(M.openFile(f));
+    const r = await m.search({ q: 'الكمبيالة المحجوزة' });
+    assert.strictEqual(r.total, 1, f); assert.strictEqual(r.results.length, 1); assert.ok(r.results[0].excerpt.includes('الكمبيالة المحجوزة'), r.results[0].excerpt.slice(0, 80));
+    const any = await m.search({ q: 'الكمبيالة', mode: 'any' }); assert.strictEqual(any.total, 2); assert.strictEqual(any.results.length, 2);
+    const doc = await m.doc(1); assert.strictEqual(doc.body, long.trim(), 'النص الكامل يُعاد من الأجزاء');
+    assert.strictEqual((await m.verifyQuote(1, 'الكمبيالة المحجوزة سند تنفيذي')).ok, true);
+  }
+});
