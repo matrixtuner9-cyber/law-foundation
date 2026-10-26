@@ -31,6 +31,9 @@ function portableData() {
   for (const d of [here, path.join(here, '..')]) { if (fs.existsSync(path.join(d, 'data-here.txt')) || fs.existsSync(path.join(d, 'data', 'mithaq.db'))) return path.join(d, 'data') }
   return null;
 }
+/* نسخة «production» (مجلد بيانات بجانبها): ملف إعدادات خاص بها، فلا تتشارك الإعدادات ولا مجلد البيانات مع نسخة مثبّتة على الجهاز نفسه */
+const PORTABLE = ED.offline ? null : portableData();
+if (PORTABLE) app.setPath('userData', path.join(path.dirname(PORTABLE), 'profile'));
 if (!app.requestSingleInstanceLock()) { app.quit(); process.exit(0); }
 
 let win = null, tray = null, quitting = false, cfg = {};
@@ -39,12 +42,36 @@ function loadCfg() {
   try { cfg = JSON.parse(fs.readFileSync(CFG_F(), 'utf8')) } catch (e) { cfg = {} }
   // النسخة الخاصة: بياناتها دائماً في مجلدها هي، حتى لو وُجد ملف إعدادات قديم يشير لغيره
   if (ED.offline && cfg.dataDir !== path.join(app.getPath('userData'), 'data')) { cfg.dataDir = path.join(app.getPath('userData'), 'data'); saveCfg() }
+  // نسخة production: مجلد البيانات بجانبها دائماً
+  if (PORTABLE) { if (cfg.dataDir !== PORTABLE) { cfg.dataDir = PORTABLE; saveCfg() } return }
+  // نسخة مثبّتة لا تستعمل مجلد بيانات نسخة production (كان ملف الإعدادات مشتركاً سابقاً): لا يعمل خادمان على قاعدة واحدة
+  if (cfg.dataDir && fs.existsSync(path.join(path.dirname(cfg.dataDir), 'data-here.txt'))) { delete cfg.dataDir }
   if (!cfg.dataDir) {
-    // يستخدم مجلد البيانات الحالي إن وُجد، وإلا مجلداً خاصاً بالتطبيق
-    // النسخة الخاصة لا تلتقط بيانات نسخة متصلة مثبّتة على الجهاز نفسه: مجلدها الخاص فقط
-    const known = ED.offline ? null : portableData() || ['D:\\Mithaq\\data', path.join(path.dirname(process.execPath), 'data')].find(d => ['mithaq.db', 'messages.json'].some(f => fs.existsSync(path.join(d, f))));
-    cfg.dataDir = known || path.join(app.getPath('userData'), 'data');
+    // بيانات موجودة سابقاً على الجهاز تُستعمل كما هي، وإلا يُسأل المستخدم أين تُحفظ بيانات المكتب
+    const known = ED.offline ? null : ['D:\\Mithaq\\data', path.join(path.dirname(process.execPath), 'data')].find(d => ['mithaq.db', 'messages.json'].some(f => fs.existsSync(path.join(d, f))));
+    cfg.dataDir = known || chooseDataDir();
     saveCfg();
+  }
+}
+/* أول تشغيل: اختيار مكان بيانات المكتب. يُقترح قرص غير قرص النظام فتبقى البيانات إن أُعيد تثبيت Windows */
+function chooseDataDir() {
+  const fallback = path.join(app.getPath('userData'), 'data');
+  if (process.platform !== 'win32') return fallback;
+  const sysDrive = (process.env.SystemDrive || 'C:').toUpperCase();
+  const drive = 'DEFGHIJ'.split('').map(l => l + ':').find(d => d !== sysDrive && (() => { try { fs.accessSync(d + '\\', fs.constants.W_OK); return true } catch (e) { return false } })());
+  const suggested = drive ? path.join(drive + '\\', 'Misbar Data') : path.dirname(fallback);
+  for (;;) {
+    const r = dialog.showMessageBoxSync({ type: 'question', title: TITLE + ' — مكان حفظ البيانات', message: 'أين تريد حفظ بيانات المكتب؟',
+      detail: 'القضايا والموكلون والمستندات والنسخ الاحتياطية تُحفظ في هذا المكان على جهازك.' + (drive ? '\nيُنصح بقرص غير قرص النظام ' + sysDrive + '، فتبقى البيانات سليمة إن أُعيد تثبيت Windows.' : ''),
+      buttons: ['حفظ في ' + suggested, 'اختيار مجلد آخر…'], defaultId: 0, cancelId: 0, noLink: true });
+    if (r === 0) return path.join(suggested, 'data');
+    const pick = dialog.showOpenDialogSync({ title: 'اختر القرص أو المجلد لبيانات المكتب', properties: ['openDirectory', 'createDirectory'], buttonLabel: 'اختيار' });
+    if (pick && pick[0]) {
+      const p = pick[0];
+      if (fs.existsSync(path.join(p, 'mithaq.db'))) return p; // مجلد بيانات موجود
+      if (fs.existsSync(path.join(p, 'data', 'mithaq.db'))) return path.join(p, 'data');
+      return path.join(p, 'Misbar Data', 'data');
+    }
   }
 }
 function saveCfg() { fs.mkdirSync(path.dirname(CFG_F()), { recursive: true }); fs.writeFileSync(CFG_F(), JSON.stringify(cfg, null, 1)) }

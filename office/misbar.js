@@ -433,39 +433,16 @@ A.aiKeyDel=async v=>{if(!confirm('إزالة المفتاح؟'))return;try{await
 document.addEventListener('change',async ev=>{if(ev.target.id!=='k_provider')return;try{const r=await fetch('/api/admin/misbar/provider',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({provider:ev.target.value})});if(!r.ok)throw new Error('تعذّر الحفظ');toast('حُفظ المزوّد المفضّل')}catch(x){toast(x.message)}});
 if(typeof A.aiKeysGo!=='function')A.aiKeysGo=()=>A.nav('settings');
 window.MQ_misbar=MB;
-/* ── المحتوى يعبر فوق الهيدر بزجاج شفاف: الهيدر ثابت في الخلف، والنتائج تمرّ فوقه فتبقى ظاهرة من خلفها ── */
+/* ── النتائج تمرّ فوق الهيدر الثابت بأرضية بيج مصمتة: بلا شفافية ولا ضبابية ولا توهّج، لتبقى الصفحة والنصوص واضحة ── */
 {const css=document.createElement('style');css.textContent=`
 body.mb-on .mb-wrap .mb-top{z-index:1}
 body.mb-on .mb-wrap .mb-grid{position:relative;z-index:3}
-.mb-wrap .mb-card{background:rgb(251 246 234 / .66);-webkit-backdrop-filter:blur(16px) saturate(1.35);backdrop-filter:blur(16px) saturate(1.35);border:1px solid rgb(255 255 255 / .55);box-shadow:0 10px 30px rgb(11 27 43 / .10),inset 0 1px 0 rgb(255 255 255 / .6);transition:box-shadow .35s ease,background-color .35s ease}
-.mb-wrap .mb-side{background:linear-gradient(180deg,rgb(14 34 54 / .80),rgb(11 27 43 / .86));-webkit-backdrop-filter:blur(16px) saturate(1.4);backdrop-filter:blur(16px) saturate(1.4);box-shadow:0 10px 30px rgb(0 0 0 / .18);transition:box-shadow .35s ease}
-.mb-wrap.mb-over .mb-card{background:rgb(251 246 234 / .58);box-shadow:0 18px 44px rgb(11 27 43 / .22),inset 0 1px 0 rgb(255 255 255 / .7),0 0 0 1px rgb(201 162 74 / .25)}
-.mb-wrap.mb-over .mb-side{box-shadow:0 18px 44px rgb(0 0 0 / .32),0 0 0 1px rgb(243 213 138 / .25)}
-.mb-wrap .mb-card h1,.mb-wrap .mb-card h2,.mb-wrap .mb-card b{text-shadow:0 1px 0 rgb(255 255 255 / .55)}
-@supports not ((backdrop-filter:blur(2px)) or (-webkit-backdrop-filter:blur(2px))){.mb-wrap .mb-card{background:rgb(251 246 234 / .94)}.mb-wrap .mb-side{background:#0E2236}}
-html.night .mb-wrap .mb-card{background:rgb(20 33 58 / .68)}
-.mb-wrap .mb-t{font-weight:700;color:#0F2A45;text-shadow:0 1px 0 rgb(255 255 255 / .9),0 2px 6px rgb(11 27 43 / .22),0 0 14px rgb(201 162 74 / .18)}
-.mb-wrap .mb-it:hover .mb-t{text-shadow:0 1px 0 rgb(255 255 255 / .9),0 3px 10px rgb(11 27 43 / .28),0 0 18px rgb(201 162 74 / .35)}
-html.night .mb-wrap .mb-t{color:#F3E9CF;text-shadow:0 2px 8px rgb(0 0 0 / .6)}
+.mb-wrap .mb-card{background:#FBF6EA;-webkit-backdrop-filter:none;backdrop-filter:none;border:1px solid #E5D9BC;box-shadow:0 6px 18px rgb(11 27 43 / .08)}
+.mb-wrap .mb-side{background:#0E2236;-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:0 6px 18px rgb(0 0 0 / .15)}
+html.night .mb-wrap .mb-card{background:#14213A;border-color:#2A3A55}
+.mb-wrap .mb-t{font-weight:700;color:#0F2A45;text-shadow:none}
+html.night .mb-wrap .mb-t{color:#F3E9CF}
 /* مقتطف النتيجة: خلفية بيج غامق فاتحة ونص داكن واضح (منفصل عن زر الإغلاق الذي يحمل الصنف نفسه) */
-.mb-wrap p.mb-x,.mb-wrap p.mb-x:hover{position:static;display:block;margin:8px 0 2px;padding:9px 14px;border-radius:12px;border:1px solid #D2BD8F;background:#E9DCBE;color:#2B2416;font-weight:400;font-size:13.5px;line-height:1.95;cursor:inherit;-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:inset 0 1px 0 rgb(255 255 255 / .5)}
-.mb-wrap .mb-it.mb-lit p.mb-x{background:rgb(233 220 190 / .92);border-color:#C9A24A;color:#2B2416!important}
-.mb-wrap .mb-it.mb-lit p.mb-x *{color:#2B2416!important;text-shadow:none!important}
-html.night .mb-wrap p.mb-x{background:#3A3324;border-color:#5C4E2E;color:#F2E6C4}
-/* النتائج فوق الهيدر: زجاج داكن شفاف والعناوين نص مضيء */
-.mb-wrap.mb-over .mb-card{background:rgb(251 246 234 / .46)}
-.mb-wrap .mb-it{transition:background-color .25s ease,box-shadow .25s ease}
-.mb-wrap .mb-it .mb-t{transition:color .25s ease,text-shadow .25s ease}
-.mb-wrap .mb-it.mb-lit{background:rgb(11 27 43 / .42);-webkit-backdrop-filter:blur(6px) saturate(1.5);backdrop-filter:blur(6px) saturate(1.5);box-shadow:inset 0 0 0 1px rgb(243 213 138 / .25)}
-.mb-wrap .mb-it.mb-lit .mb-t{color:#FFF6DA;text-shadow:0 0 6px rgb(243 213 138 / .95),0 0 16px rgb(243 213 138 / .7),0 0 32px rgb(201 162 74 / .5)}
-.mb-wrap .mb-it.mb-lit mark,.mb-wrap .mb-it.mb-lit .mb-t mark{background:#F3D58A!important;color:#0B1B2B!important;text-shadow:none!important;font-weight:700;border-radius:4px;padding:0 3px;box-shadow:0 0 10px rgb(243 213 138 / .7)}
-.mb-wrap .mb-it.mb-lit,.mb-wrap .mb-it.mb-lit *{color:#F2E6C4}
-.mb-wrap .mb-it.mb-lit .mb-tags span{background:rgb(255 255 255 / .12)!important;color:#F3D58A!important}
-@media (prefers-reduced-motion:reduce){.mb-wrap .mb-it,.mb-wrap .mb-it .mb-t{transition:none}}`;document.head.appendChild(css)}
-/* إضاءة الحواف حين يعبر المحتوى فوق الهيدر (تبديل صنف فقط، دون تغيير أي مقاس) */
-let mbLitRaf=0;
-function mbLit(w){const top=w.querySelector('.mb-top');if(!top)return;const hb=top.getBoundingClientRect().bottom;
- w.querySelectorAll('.mb-it').forEach(it=>{const r=it.getBoundingClientRect();const on=r.top<hb-6&&r.bottom>0;if(on!==it.classList.contains('mb-lit'))it.classList.toggle('mb-lit',on)})}
-document.addEventListener('scroll',ev=>{const w=ev.target;if(!w||!w.classList||!w.classList.contains('mb-wrap'))return;const on=w.scrollTop>24;if(on!==w.classList.contains('mb-over'))w.classList.toggle('mb-over',on);
- if(!mbLitRaf)mbLitRaf=requestAnimationFrame(()=>{mbLitRaf=0;mbLit(w)})},true);
+.mb-wrap p.mb-x,.mb-wrap p.mb-x:hover{position:static;display:block;margin:8px 0 2px;padding:9px 14px;border-radius:12px;border:1px solid #D2BD8F;background:#E9DCBE;color:#2B2416;font-weight:400;font-size:13.5px;line-height:1.95;cursor:inherit;-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:none}
+html.night .mb-wrap p.mb-x{background:#3A3324;border-color:#5C4E2E;color:#F2E6C4}`;document.head.appendChild(css)}
 })();
