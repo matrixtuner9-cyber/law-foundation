@@ -58,7 +58,7 @@ function headFull(o,d){return `<header class="lh">
 function headMini(o,d){return `<header class="lh mini"><span>${e(o.name)}</span><span>${e(d.title)}${d.ref?' · '+e(d.ref):''}</span></header><div class="lh-rule thin"><i></i></div>`}
 function titleBlock(d){const now=new Date();return `<div class="ttl"><h1>${e(d.title)}</h1>${d.sub?`<div class="sub">${e(d.sub)}</div>`:''}
  <div class="meta">${d.ref?`<span>الرقم المرجعي: <b dir="ltr">${e(d.ref)}</b></span>`:''}<span>التاريخ: <b>${dm(isoD(now))} م</b></span>${OPT.hijri&&hijri(now)?`<span>الموافق: <b>${e(hijri(now))}</b></span>`:''}</div></div>`}
-function signBlock(d){const s=d.sign||[];if(!s.length)return '';return `<div class="sign">${s.map(x=>`<div><span>${e(x)}</span><i></i><small>الاسم والتوقيع</small></div>`).join('')}${d.stamp!==false?'<div class="stamp"><span>ختم المكتب</span></div>':''}</div>`}
+function signBlock(d){const s=d.sign||[];if(!s.length)return '';return `<div class="sign">${s.map(x=>`<div><span>${e(x)}</span><i></i><small>الاسم والتوقيع</small></div>`).join('')}${d.stamp===true?'<div class="stamp"><span>ختم المكتب</span></div>':''}</div>`}
 
 /* ── بناء المستند داخل إطار المعاينة ── */
 const FONT=location.origin+'/fonts/fonts.css'; /* خطوط مضمّنة محلياً */
@@ -307,7 +307,7 @@ D.statement=cid=>({label:'كشف حساب الأتعاب',build(){const c=C(cid)
  ],sign:['المحاسب','المحامي']}}});
 
 D.receipt=(cid,pid)=>({label:'سند قبض',build(){const c=C(cid),ps=pays(c),p=(pid?ps.find(x=>x.id===pid):ps[ps.length-1])||{amount:0,date:isoD(new Date()),no:'—'};
- return {title:'سند قبض',ref:p.no,file:fname('سند قبض',p.no),orient:'port',blocks:[
+ return {title:'سند قبض',ref:p.no,file:fname('سند قبض',p.no),orient:'port',stamp:true,blocks:[
   B.kv([['رقم السند',`<b class="mono">${e(p.no)}</b>`],['التاريخ',dm(p.date)],['استلمنا من','<b>'+e(c.name)+'</b>'],['رقم الهوية',`<span class="mono">${e(c.idNo)}</span>`],['طريقة الدفع',e(p.method||'نقداً')+(payInfo(p)?'<br><small>'+e(payInfo(p))+'</small>':'')],['القضية',p.k&&K(p.k)?`<span class="mono">${e(K(p.k).no)}</span>`:(clientCases(c).map(k=>k.no).join('، ')||'—')]]),
   B.box(`<div style="font-size:1.6em;color:#0B1B2B">${cur(p.amount)} ₪</div>${e(P.amount(p.amount))}`,'amt'),
   B.p('وذلك عن: '+e(p.note||'دفعة من أتعاب المحاماة المتفق عليها')+'.'),
@@ -333,7 +333,7 @@ D.tpl=()=>({label:'المستند من النموذج',build(){const t=TPL[S.tpl
   if(/^(الوقائع|الطلبات|أسباب|أولاً|ثانياً|ثالثاً|رابعاً|لذلك|الطلب)[:\s]?/.test(s)&&s.length<60)return B.p(e(s),'b');
   return B.p(e(s))});
  const sig=t.name.includes('اتفاقية')?['الطرف الأول','الطرف الثاني']:t.name.includes('وكالة')?['الموكّل']:['وكيل '+(k.role||'')];
- return {title:t.name,ref:'ن/'+k.no,file:fname(t.name,C(k.client).name),blocks:bl,sign:sig,noTitle:true}}});
+ return {title:t.name,ref:'ن/'+k.no,file:fname(t.name,C(k.client).name),blocks:bl,sign:sig,noTitle:true,stamp:true}}});
 
 D.agenda=()=>({label:'جدول الجلسات',build(){const st=this.state||{};const r=st.range||'30';
  const from=isoD(TODAY),to=r==='all'?'9999':isoD(new Date(TODAY.getTime()+Number(r)*864e5));

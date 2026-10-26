@@ -139,12 +139,20 @@ const css=document.createElement('style');css.textContent=`
 .att-card{all:unset;cursor:pointer;box-sizing:border-box;width:100%;display:flex;gap:10px;align-items:center;padding:10px 12px;margin:0 0 6px;border-radius:14px;background:rgb(255 255 255 / .06);border:1px solid rgb(255 255 255 / .08);transition:background .15s,transform .15s}
 .att-card:hover{background:rgb(255 255 255 / .12);transform:translateX(-2px)}
 .att-card.late{border-color:rgb(255 138 128 / .5)}.att-card.today{border-color:rgb(255 209 102 / .5)}
+.att-card{position:relative;overflow:hidden}
+.att-card::before{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgb(255 255 255 / .16) 45%,rgb(233 196 106 / .28) 50%,rgb(255 255 255 / .16) 55%,transparent 70%);transform:translateX(120%);animation:attShine 3.2s ease-in-out infinite;pointer-events:none}
+.att-card.late::before{background:linear-gradient(110deg,transparent 30%,rgb(255 138 128 / .22) 45%,rgb(255 180 170 / .38) 50%,rgb(255 138 128 / .22) 55%,transparent 70%);animation-duration:2.2s}
+.att-card.today::before{animation-duration:2.6s}
+.att-card:nth-child(2n)::before{animation-delay:.5s}.att-card:nth-child(3n)::before{animation-delay:1s}
+.att-card.late,.att-card.today{animation:attGlow 2.4s ease-in-out infinite}
+@keyframes attShine{0%{transform:translateX(120%)}55%,100%{transform:translateX(-120%)}}
+@keyframes attGlow{0%,100%{box-shadow:0 0 0 0 rgb(233 196 106 / 0)}50%{box-shadow:0 0 14px 1px rgb(233 196 106 / .35)}}
 .att-card .ic{font-size:20px}.att-card .tx{flex:1;min-width:0}.att-card b{display:block;font-size:14px;color:#fff}.att-card small{display:block;color:#B9C6CF;font-size:12px;line-height:1.5}
 .att-card em{font-style:normal;font-size:12px;color:#E9C46A;white-space:nowrap}
 .att-empty{display:grid;place-items:center;text-align:center;gap:6px;padding:60px 20px}.att-empty span{font-size:36px}.att-empty b{font-size:18px}.att-empty small{color:#B9C6CF}
 .att-n{position:absolute;top:-4px;left:-4px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#E25555;color:#fff;font-size:11.5px;font-weight:800;display:grid;place-items:center;box-shadow:0 0 0 2px #fff}
 .att-pulse{position:relative}.att-pulse::after{content:"";position:absolute;inset:-3px;border-radius:50%;border:2px solid #E25555;animation:attP 1.8s ease-out infinite;pointer-events:none}
 @keyframes attP{0%{transform:scale(.8);opacity:.9}100%{transform:scale(1.5);opacity:0}}
-@media (prefers-reduced-motion:reduce){#attHost .att,.att-card{transition:none}.att-pulse::after{animation:none}}`;document.head.appendChild(css);
+@media (prefers-reduced-motion:reduce){.att-card::before,.att-card.late,.att-card.today{animation:none}#attHost .att,.att-card{transition:none}.att-pulse::after{animation:none}}`;document.head.appendChild(css);
 
 })();

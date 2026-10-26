@@ -158,7 +158,7 @@ A.stPrint=v=>{const f=find(v);if(!f||!root.MQP)return;const M=MQP,B=M.B,E=M.esc,
  if(a.accel)blocks.push(B.box('<b>شرط حلول الأقساط:</b> عند التخلف عن سداد '+a.accelN+' أقساط أو أكثر يصير المبلغ المتبقي كله مستحق الأداء فوراً.'));
  if(a.terms)blocks.push(B.box('<b>شروط الاتفاقية:</b><br>'+E(a.terms).replace(/\n/g,'<br>')));
  blocks.push(B.p('<small>يُلتزم بسداد كل قسط في موعده. هذه نسخة من جدول السداد المتفق عليه، وتُسجَّل الدفعات فور استلامها.</small>','s'));
- M.open({label:'جدول سداد اتفاقية تسوية',build(){return {title:a.title||'جدول سداد اتفاقية تسوية',sub:'قضية رقم '+k.no,ref:'تس/'+k.no,file:'جدول سداد - '+k.no,orient:'port',blocks,sign:['الدائن (الموكل)','المدين','المحامي']}}})};
+ M.open({label:'جدول سداد اتفاقية تسوية',build(){return {title:a.title||'جدول سداد اتفاقية تسوية',sub:'قضية رقم '+k.no,ref:'تس/'+k.no,file:'جدول سداد - '+k.no,orient:'port',blocks,sign:['الدائن (الموكل)','المدين','المحامي'],stamp:true}}})};
 /* رسالة للموكل: واتساب / بريد / نسخ */
 function msgText(f,how){const a=f.a,k=f.k,T=today(),s=summary(a,T),cu=a.cur||'₪',cl=C(k.client)||{},st=(root.MQ&&MQ.settings)||{};
  const B=t=>how==='wa'?'*'+t+'*':t,ofc=st.officeName||OFFICE.name,lw=st.lawyerName||OFFICE.lawyer,ph=st.phone||'';
