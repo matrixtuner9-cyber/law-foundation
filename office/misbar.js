@@ -443,7 +443,10 @@ body.mb-on .mb-wrap .mb-grid{position:relative;z-index:3}
 .mb-wrap.mb-over .mb-side{box-shadow:0 18px 44px rgb(0 0 0 / .32),0 0 0 1px rgb(243 213 138 / .25)}
 .mb-wrap .mb-card h1,.mb-wrap .mb-card h2,.mb-wrap .mb-card b{text-shadow:0 1px 0 rgb(255 255 255 / .55)}
 @supports not ((backdrop-filter:blur(2px)) or (-webkit-backdrop-filter:blur(2px))){.mb-wrap .mb-card{background:rgb(251 246 234 / .94)}.mb-wrap .mb-side{background:#0E2236}}
-html.night .mb-wrap .mb-card{background:rgb(20 33 58 / .68)}`;document.head.appendChild(css)}
+html.night .mb-wrap .mb-card{background:rgb(20 33 58 / .68)}
+.mb-wrap .mb-t{font-weight:700;color:#0F2A45;text-shadow:0 1px 0 rgb(255 255 255 / .9),0 2px 6px rgb(11 27 43 / .22),0 0 14px rgb(201 162 74 / .18)}
+.mb-wrap .mb-it:hover .mb-t{text-shadow:0 1px 0 rgb(255 255 255 / .9),0 3px 10px rgb(11 27 43 / .28),0 0 18px rgb(201 162 74 / .35)}
+html.night .mb-wrap .mb-t{color:#F3E9CF;text-shadow:0 2px 8px rgb(0 0 0 / .6)}`;document.head.appendChild(css)}
 /* إضاءة الحواف حين يعبر المحتوى فوق الهيدر (تبديل صنف فقط، دون تغيير أي مقاس) */
 document.addEventListener('scroll',ev=>{const w=ev.target;if(!w||!w.classList||!w.classList.contains('mb-wrap'))return;const on=w.scrollTop>24;if(on!==w.classList.contains('mb-over'))w.classList.toggle('mb-over',on)},true);
 })();
