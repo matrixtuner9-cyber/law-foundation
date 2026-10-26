@@ -11,7 +11,7 @@ const DATA = process.env.MQ_DATA || path.join(ROOT, 'data'), MEDIA = path.join(D
 fs.mkdirSync(MEDIA, { recursive: true });
 
 const SEED = require('./data.js');
-const Store = require('./lib/db'), Auth = require('./lib/auth'), Merge = require('./lib/merge'), Laws = require('./lib/laws'), AiDraft = require('./lib/ai-draft'), Apns = require('./lib/apns'), WebPush = require('./lib/webpush'), Tts = require('./lib/tts'), Legal = require('./lib/legal-pages'), Misbar = require('./lib/misbar'), MisbarAi = require('./lib/misbar-ai'), Av = require('./lib/avatar'), http2 = require('http2');
+const Store = require('./lib/db'), Auth = require('./lib/auth'), Merge = require('./lib/merge'), Laws = require('./lib/laws'), AiDraft = require('./lib/ai-draft'), Apns = require('./lib/apns'), WebPush = require('./lib/webpush'), Tts = require('./lib/tts'), Legal = require('./lib/legal-pages'), Misbar = require('./lib/misbar'), MisbarAi = require('./lib/misbar-ai'), License = require('./lib/license'), Av = require('./lib/avatar'), http2 = require('http2');
 const OFFICE = { name: 'مكتب الميثاق للمحاماة والاستشارات القانونية', lawyer: 'المحامي سامر عبد الله', city: 'نابلس', phone: '09-233-0000', hours: 'الأحد – الخميس · 8:30 – 16:00' };
 const STATE_F = path.join(DATA, 'state.json'), MSG_F = path.join(DATA, 'messages.json');
 const VAPID_F = path.join(DATA, 'vapid.json'), PUSH_F = path.join(DATA, 'push.json');
@@ -772,10 +772,38 @@ async function rulingFile(req, res, u, who) {
 
 /* ملفات شاشة المكتب: قائمة محددة فقط، وكلها تتطلب تسجيل الدخول عدا صفحة الدخول */
 const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'guide.js', 'workflow.js', 'casework.js', 'stations.js', 'hearing-report.js', 'case-layout.js', 'case-steps.js', 'announce.js', 'reader.js', 'case-hub.js', 'case-wizard.js', 'consistency.js', 'searchsel.js', 'wa-chat.js', 'fulltext.js', 'ai-mark.js', 'night.css', 'qrcode.js', 'app-invite.js', 'avatar.js', 'wa-skin.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'misbar.js', 'misbar-emblem.webp', 'misbar-hero.webp', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'settlements.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+/* التفعيل: النسخة الموزّعة لا تعمل إطلاقاً قبل إدخال كود صادر لبصمة هذا الجهاز (فحص في الخادم لكل طلب) */
+const license = License.createLicense({ dataDir: DATA, enforce: !!ED.license });
+const ACTIVATE_HTML = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تفعيل ميثاق</title><style>
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at 50% 20%,#1B3654,#0B1B2B 70%);font-family:Tahoma,Arial;color:#F2E6C4}
+main{width:min(560px,92vw);background:#10263a;border:1px solid #C9A24A;border-radius:18px;padding:28px;box-shadow:0 0 40px rgb(201 162 74 / .25)}
+h1{margin:0 0 6px;color:#F3D58A}p{line-height:1.8;color:#C9D4DB}.fp{direction:ltr;text-align:center;font:700 24px/1.4 monospace;letter-spacing:2px;color:#F3D58A;background:#0B1B2B;border:1px dashed #C9A24A;border-radius:12px;padding:14px;margin:10px 0;user-select:all}
+textarea{width:100%;box-sizing:border-box;min-height:110px;direction:ltr;font-family:monospace;background:#0B1B2B;color:#fff;border:1px solid #C9A24A;border-radius:10px;padding:10px}
+button{margin-top:12px;padding:12px 22px;border:0;border-radius:10px;background:linear-gradient(180deg,#F3D58A,#C9A24A);color:#0B1B2B;font-weight:700;font-size:15px;cursor:pointer}.err{color:#ff9b9b}.ok{color:#9be3b5}.cp{background:transparent;border:1px solid #C9A24A;color:#F3D58A;margin-inline-start:8px}</style></head>
+<body><main><h1>تفعيل ميثاق</h1><p id="why"></p><p>أرسل <b>بصمة هذا الجهاز</b> إلى الدعم الفني للحصول على كود التفعيل، ثم الصقه أدناه.</p>
+<div class="fp" id="fp">…</div><button class="cp" id="cp" type="button">نسخ البصمة</button>
+<p style="margin-top:18px">كود التفعيل</p><textarea id="code" placeholder="MQ1.…"></textarea><button id="go">تفعيل</button><p id="msg"></p></main>
+<script>const $=i=>document.getElementById(i);fetch('/api/license/status').then(r=>r.json()).then(j=>{$('fp').textContent=j.fp;$('why').textContent=j.error||'';if(j.ok)location.replace('/')});
+$('cp').onclick=()=>navigator.clipboard.writeText($('fp').textContent).then(()=>{$('msg').className='ok';$('msg').textContent='نُسخت البصمة'});
+$('go').onclick=async()=>{$('msg').textContent='';const r=await fetch('/api/license/activate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code:$('code').value})});const j=await r.json().catch(()=>({}));if(!r.ok||!j.ok){$('msg').className='err';$('msg').textContent=j.error||'تعذّر التفعيل';return}$('msg').className='ok';$('msg').textContent='تم التفعيل: '+(j.office||'');setTimeout(()=>location.replace('/'),900)}</script></body></html>`;
+/* قبل التفعيل: لا شيء سوى شاشة التفعيل وحالتها */
+async function gateLicense(req, res, u) {
+  const p = u.pathname, st = license.status(), sec = { 'Cache-Control': 'no-store', 'X-Frame-Options': 'DENY' };
+  if (p === '/api/license/status' && req.method === 'GET') { res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', ...sec }); return res.end(JSON.stringify({ ok: st.ok, fp: st.fp, error: st.error || '', expired: !!st.expired })) }
+  if (p === '/api/license/activate' && req.method === 'POST') {
+    let b = ''; for await (const c of req) { b += c; if (b.length > 8192) break }
+    let code = ''; try { code = JSON.parse(b || '{}').code } catch (e) {}
+    const r = license.activate(code); audit({ action: r.ok ? 'license.activated' : 'license.failed', entity: 'settings', detail: r.ok ? { office: r.office, edition: r.edition, exp: r.exp } : { error: r.error } });
+    res.writeHead(r.ok ? 200 : 400, { 'content-type': 'application/json; charset=utf-8', ...sec }); return res.end(JSON.stringify(r.ok ? { ok: true, office: r.office, exp: r.exp } : { ok: false, error: r.error }));
+  }
+  if (p === '/' || p === '/activate' || (req.method === 'GET' && !p.startsWith('/api/'))) { res.writeHead(p === '/activate' ? 200 : 302, p === '/activate' ? { 'content-type': 'text/html; charset=utf-8', ...sec } : { Location: '/activate' }); return res.end(p === '/activate' ? ACTIVATE_HTML : '') }
+  res.writeHead(403, { 'content-type': 'application/json; charset=utf-8', ...sec }); res.end(JSON.stringify({ error: 'النسخة غير مفعّلة', license: false }));
+}
 const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css', 'edition.js']);
 
 http.createServer((req, res) => {
   const u = new URL(req.url, 'http://localhost');
+  if (!license.status().ok) return gateLicense(req, res, u);
   /* وضع النشر العام: الزيارات القادمة عبر نفق Cloudflare ترى بوابة الموكل فقط */
   if (viaTunnel(req) && officeHost(req)) {
     if (!req.headers['cf-access-jwt-assertion']) { res.writeHead(403, { 'content-type': 'text/plain; charset=utf-8' }); return res.end('شاشة المكتب مغلقة: لم تُفعَّل حماية Cloudflare Access لهذا النطاق بعد.') }
