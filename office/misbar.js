@@ -26,14 +26,17 @@ const TOOLS=[
  ['minutes','◉','محضر اجتماع','القرارات والمسؤوليات والمواعيد']];
 const LAB={task:'search',provider:'',q:'',facts:'',doc:'',docName:'',lang:'en',consent:false,busy:false,res:null,err:'',ai:null,src:''};
 /* مهام مختبر التحليل (DeepSeek أو Claude، والمراجع من القاعدة فقط) */
-const LABT=[['search','✦','عقل مِسْبار','اسأل بلغتك فيبحث بالمصطلحات القانونية ويجيب من القاعدة بالمراجع'],['legal_question','◇','السؤال القانوني','النصوص المنطبقة والمبادئ والثغرات وما يلزم إثباته'],['gaps','⌕','الثغرات والدفوع','استقصاء الثغرات والدفوع وخطة قابلة للتنفيذ'],['document','▤','تحليل المستند','الالتزامات والتناقضات والعيوب والنصوص ذات الصلة'],['appeal','⚖','أسباب الطعن','أسباب الطعن المحتملة في الحكم والمهل الواجب التحقق منها'],['contract','▣','مراجعة عقد','المخاطر والشروط المجحفة والغموض والتوصيات'],['hearing','◷','ملخص قبل الجلسة','الوقائع والطلبات والبينات والأسئلة المتوقعة'],['minutes','◉','محضر اجتماع','القرارات والمسؤوليات والمواعيد من التفريغ النصي'],['translate','⇄','الترجمة القانونية','ترجمة دقيقة تحفظ الترقيم والمصطلحات']];
+/* علامة الميزان المميزة: تُستعمل حيثما ذُكر مِسْبار */
+const MK='<img src="misbar-emblem.webp" alt="" class="mb-mk" width="20" height="19">';
+const LABT=[['search',MK,'عقل مِسْبار','اسأل بلغتك فيبحث بالمصطلحات القانونية ويجيب من القاعدة بالمراجع'],['legal_question','◇','السؤال القانوني','النصوص المنطبقة والمبادئ والثغرات وما يلزم إثباته'],['gaps','⌕','الثغرات والدفوع','استقصاء الثغرات والدفوع وخطة قابلة للتنفيذ'],['document','▤','تحليل المستند','الالتزامات والتناقضات والعيوب والنصوص ذات الصلة'],['appeal','⚖','أسباب الطعن','أسباب الطعن المحتملة في الحكم والمهل الواجب التحقق منها'],['contract','▣','مراجعة عقد','المخاطر والشروط المجحفة والغموض والتوصيات'],['hearing','◷','ملخص قبل الجلسة','الوقائع والطلبات والبينات والأسئلة المتوقعة'],['minutes','◉','محضر اجتماع','القرارات والمسؤوليات والمواعيد من التفريغ النصي'],['translate','⇄','الترجمة القانونية','ترجمة دقيقة تحفظ الترقيم والمصطلحات']];
 const MB={view:'search',kind:'',number:'',ltype:'',date_from:'',date_to:'',country:'',q:'',src:'',year_from:'',year_to:'',court:'',case_no:'',status:'',has_text:'',sort:'relevance',page:1,data:null,busy:false,err:'',open:null,doc:null,docBusy:false,fs:17,stats:null,statsErr:''};
 try{const f=Number(localStorage.getItem('mq_mb_fs'));if(f>=14&&f<=24)MB.fs=f}catch(x){}
 
 /* ── القائمة: المسبار بدل الشاشات القديمة ── */
 for(const v of ['laws','maqamsearch','sources']){const i=NAV.findIndex(n=>n[0]===v);if(i>=0)NAV.splice(i,1)}
 {const i=NAV.findIndex(n=>n[0]==='dash');NAV.splice(i+1,0,['misbar','المِسْبار'])}
-if(window.NAV_ICON)NAV_ICON.misbar='<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 5v14M8 9l-3 5h6zM16 9l-3 5h6z"/><path d="M8 9h8"/></svg>';
+window.MQ_misbarMark=MK;
+if(window.NAV_ICON)NAV_ICON.misbar='<svg viewBox="0 0 24 24" class="mb-navmk"><image href="misbar-emblem.webp" x="0" y="0" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg>';
 const nc0=window.navCount;if(typeof nc0==='function')window.navCount=v=>v==='misbar'?'':nc0(v);
 
 async function call(path,p){
@@ -102,7 +105,7 @@ function form(){
    <label>حتى سنة<input class="field mono" id="mbY2" value="${e(MB.year_to)}" inputmode="numeric" maxlength="4" placeholder="${new Date().getFullYear()}"></label>`;
  return `<form class="mb-form" id="mbForm" autocomplete="off">
   <div class="mb-qrow"><input class="field mb-q" id="mbQ" value="${e(MB.q)}" placeholder="${k==='ruling'?'ابحث في الأحكام: موضوع النزاع، مبدأ، عبارة من التسبيب…':k==='law'?'ابحث في التشريعات: اسم القانون، موضوعه، أو نص مادة…':'ابحث بالكلمات أو بعبارة بين علامتي تنصيص: “عدم كفاية الرصيد”، إخلاء المأجور…'}" maxlength="300" aria-label="عبارة البحث">
-   <button class="btn mb-go" id="mbGo" ${MB.busy?'disabled':''}>⌕ بحث قانوني</button><button type="button" class="btn mb-smart" data-act="mbSmart" title="اسأل بلغتك فيبحث بالمصطلحات القانونية ويجيب من القاعدة">✦ عقل مِسْبار</button></div>
+   <button class="btn mb-go" id="mbGo" ${MB.busy?'disabled':''}>⌕ بحث قانوني</button><button type="button" class="btn mb-smart" data-act="mbSmart" title="اسأل بلغتك فيبحث بالمصطلحات القانونية ويجيب من القاعدة">${MK} عقل مِسْبار</button></div>
   <div class="mb-kind" role="tablist" aria-label="نوع المرجع">${[['','الكل','⌕'],['law','التشريعات والقوانين','§'],['ruling','الأحكام والقرارات القضائية','⚖']].map(([v,t,i])=>`<button type="button" role="tab" aria-selected="${k===v}" class="${k===v?'on':''}" data-act="mbKind" data-v="${v}"><i>${i}</i>${t}</button>`).join('')}</div>
   <div class="mb-f">${common}${k==='law'?lawF:k==='ruling'?rulF:allF}
    <label>توافر النص<select class="field" id="mbText"><option value="">جميع النتائج</option><option value="1" ${MB.has_text==='1'?'selected':''}>النصوص المتاحة فقط</option></select></label>
@@ -160,7 +163,7 @@ function labView(){
     ${prov.length?`<span class="mb-prov">المزوّد: ${prov.map(([v,t,ok])=>`<button type="button" class="mb-chip sm ${cur===v?'on':''} ${ok?'':'off'}" data-act="mbProv" data-v="${v}" ${ok?'':'disabled title="المفتاح غير مضبوط"'}>${t}</button>`).join('')}</span>`:''}
     <label class="mb-consent"><input type="checkbox" id="mbLc" ${LAB.consent?'checked':''}> أوافق على إرسال النص المدخل والمقتطفات المسترجعة إلى خدمة الذكاء الاصطناعي الخارجية، بعد حذف البيانات الشخصية والسرية.</label>
    </div>
-   <div class="mb-labrow"><button class="btn mb-go" id="mbLgo" ${LAB.busy?'disabled':''}>${LAB.busy?'جارٍ التحليل…':'✦ '+(LAB.task==='search'?'عقل مِسْبار':'استخراج النتائج القانونية')}</button>${LAB.busy?'<span class="m">يبحث في القاعدة ثم يحلل…</span>':''}</div>
+   <div class="mb-labrow"><button class="btn mb-go" id="mbLgo" ${LAB.busy?'disabled':''}>${LAB.busy?'جارٍ التحليل…':MK+' '+(LAB.task==='search'?'عقل مِسْبار':'استخراج النتائج القانونية')}</button>${LAB.busy?'<span class="m">يبحث في القاعدة ثم يحلل…</span>':''}</div>
   </form>
   ${keyBox}
   ${ai&&ai.error?`<div class="mb-empty bad">${e(ai.error)}</div>`:ai&&!ai.deepseek.configured&&!ai.claude.configured?`<div class="mb-cmp">لم يُضبط مفتاح الذكاء الاصطناعي بعد (DeepSeek أو Claude). ${ai.canManage?'اضبطه من «إعداد مفاتيح الذكاء الاصطناعي» أعلاه.':'يضبطه مدير المكتب.'}</div>`:''}
@@ -315,6 +318,9 @@ body.mb-rd{overflow:hidden}
 .mb-card{background:var(--panel);border:1px solid #e3d5b5;border-radius:16px;padding:16px;box-shadow:0 6px 18px rgb(83 65 42 / .07)}
 .mb-h h1{margin:0;font-size:24px}.mb-qrow{display:flex;gap:10px;margin-top:10px}.mb-q{flex:1;font-size:16px;padding:12px 14px}
 .mb-go{background:linear-gradient(180deg,#D9B45C,#B38B49)!important;color:#0B1B2B!important;border:0!important;font-weight:800;padding:0 22px}
+.mb-mk{width:20px;height:auto;vertical-align:-4px;border-radius:50%;box-shadow:0 0 0 1px rgb(233 196 106 / .8),0 0 6px rgb(243 213 138 / .6)}
+.mb-side .mb-mk,.mb-tabs .mb-mk{width:18px}
+svg.mb-navmk{border-radius:50%;filter:drop-shadow(0 0 3px rgb(243 213 138 / .7))}
 .mb-kind{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.mb-kind button{display:flex;align-items:center;gap:8px;font:inherit;font-size:14px;font-weight:700;padding:9px 16px;border-radius:12px;border:1px solid #e4d3a6;background:#FBF6EA;color:#5a4a26;cursor:pointer;transition:all .2s}
 .mb-kind button i{font-style:normal;color:#B38B49;font-size:16px}.mb-kind button.on{background:linear-gradient(160deg,#16314A,#0B1B2B);color:#F3D58A;border-color:#C9A24A;box-shadow:0 4px 14px rgb(11 27 43 / .25)}.mb-kind button.on i{color:#F3D58A}
 .mb-f{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px;align-items:end}.mb-f label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#7a6a4c}.mb-clear{height:40px}
