@@ -241,6 +241,7 @@ const FILE_EXT = { 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 
 const EXT_OK = new Set(['jpg', 'jpeg', 'png', 'webp', 'heic', 'gif', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'txt', 'rtf', 'odt']);
 const AUDIO_EXT = { 'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/mp4': 'm4a', 'audio/m4a': 'm4a', 'audio/x-m4a': 'm4a', 'audio/aac': 'aac', 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/mpeg': 'mp3' };
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'content-type, x-client', 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS' };
+const BOOT = Date.now().toString(36);
 const SEC = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-origin', 'X-Frame-Options': 'SAMEORIGIN' };
 function json(res, code, obj, extra = {}) { res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...CORS, ...SEC, ...extra }); res.end(JSON.stringify(obj)) }
 function body(req, limit = 15 * 1024 * 1024) {
@@ -888,6 +889,8 @@ http.createServer((req, res) => {
     if (name.endsWith('.html')) { res.writeHead(302, { Location: '/login.html' }); return res.end() }
     res.writeHead(401); return res.end();
   }
+  /* كسر ذاكرة المتصفح: روابط ملفات الواجهة في الصفحة تحمل رقم نسخة (وقت تشغيل الخادم) فتصل التعديلات فور النشر */
+  if (name === 'index.html') { const h = fs.readFileSync(path.join(ROOT, name), 'utf8').replace(/(<script src="|<link rel="stylesheet" href=")([\w.-]+\.(?:js|css))(")/g, `$1$2?v=${BOOT}$3`); res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', ...SEC }); return res.end(h) }
   sendFile(req, res, path.join(ROOT, name));
 }).listen(PORT, process.env.MQ_BIND || (ED.offline ? '127.0.0.1' : '0.0.0.0'), () => {
   audit({ action: 'system.start', detail: { pid: process.pid, electron: process.versions.electron || null, edition: ED.id } });

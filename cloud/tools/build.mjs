@@ -6,6 +6,8 @@ fs.rmSync(path.join(OUT, 'app'), { recursive: true, force: true }); fs.mkdirSync
 for (const f of UI) fs.copyFileSync(path.join(SRC, f), path.join(OUT, 'app', f));
 // الخطوط المضمّنة محلياً
 fs.cpSync(path.join(SRC, 'fonts'), path.join(OUT, 'app', 'fonts'), { recursive: true });
+// كسر ذاكرة المتصفح: رقم نسخة على روابط ملفات الواجهة في الصفحة الرئيسية
+{ const ix = path.join(OUT, 'app', 'index.html'), V = Date.now().toString(36); fs.writeFileSync(ix, fs.readFileSync(ix, 'utf8').replace(/(<script src="|<link rel="stylesheet" href=")([\w.-]+\.(?:js|css))(")/g, `$1$2?v=${V}$3`)) }
 // محركات القراءة المحلية (التعرف على النص العربي وقارئ PDF)
 fs.cpSync(path.join(SRC, 'vendor'), path.join(OUT, 'app', 'vendor'), { recursive: true });
 // صفحة الدخول: إعداد أول مدير برابط لمرة واحدة بدل "من جهاز المكتب فقط"
