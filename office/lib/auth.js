@@ -1,13 +1,9 @@
 // المستخدمون والصلاحيات والجلسات
 const crypto = require('crypto');
 
-/* الأدوار: ما يستطيع كل دور فعله */
-const ROLES = {
-  admin:    { label: 'مدير النظام',   write: true,  all: true,  manage: true  },
-  lawyer:   { label: 'محامٍ',          write: true,  all: true,  manage: false },
-  external: { label: 'محامٍ خارجي',    write: false, all: false, manage: false },
-  viewer:   { label: 'مطّلع',          write: false, all: true,  manage: false },
-};
+/* الأدوار والصلاحيات المفصّلة: lib/perms.js */
+const Perms = require('./perms');
+const ROLES = Perms.ROLES;
 const SESSION_MS = 12 * 3600e3, LOCK_AFTER = 5, LOCK_MS = 15 * 60e3;
 const COOKIE = 'mq_s';
 
@@ -38,7 +34,8 @@ function create(store) {
     fail: db.prepare('UPDATE users SET failed = ?, locked_until = ? WHERE id = ?'),
     okLogin: db.prepare('UPDATE users SET failed = 0, locked_until = 0, last_login = ? WHERE id = ?'),
     setPw: db.prepare('UPDATE users SET salt = ?, hash = ?, must_change = ? WHERE id = ?'),
-    upd: db.prepare('UPDATE users SET name = ?, role = ?, active = ?, cases = ? WHERE id = ?'),
+    upd: db.prepare('UPDATE users SET name = ?, role = ?, active = ?, cases = ?, perms = ? WHERE id = ?'),
+    setPerms: db.prepare('UPDATE users SET perms = ? WHERE id = ?'),
     sIns: db.prepare('INSERT INTO sessions(token, user_id, created, expires, ip, ua) VALUES(?, ?, ?, ?, ?, ?)'),
     sGet: db.prepare('SELECT * FROM sessions WHERE token = ?'),
     sTouch: db.prepare('UPDATE sessions SET expires = ? WHERE token = ?'),
@@ -47,7 +44,8 @@ function create(store) {
     sGc: db.prepare('DELETE FROM sessions WHERE expires < ?'),
   };
 
-  const pub = u => u && ({ id: u.id, username: u.username, name: u.name, role: u.role, roleLabel: (ROLES[u.role] || {}).label, active: !!u.active, mustChange: !!u.must_change, cases: JSON.parse(u.cases || '[]'), lastLogin: u.last_login, createdAt: u.created_at, locked: u.locked_until > Date.now() });
+  const ownPerms = u => { try { const x = JSON.parse(u.perms || 'null'); return Array.isArray(x) ? x : null } catch (e) { return null } };
+  const pub = u => u && ({ id: u.id, username: u.username, name: u.name, role: u.role, roleLabel: (ROLES[u.role] || {}).label, custom: !!ownPerms(u) && u.role !== 'admin', perms: Perms.permsOf({ role: u.role, perms: ownPerms(u) }), active: !!u.active, mustChange: !!u.must_change, cases: JSON.parse(u.cases || '[]'), lastLogin: u.last_login, createdAt: u.created_at, locked: u.locked_until > Date.now() });
 
   const A = {
     ROLES, COOKIE,
@@ -56,7 +54,7 @@ function create(store) {
     get: id => pub(q.byId.get(id)),
     pub,
 
-    createUser({ username, name, role, password, cases = [], mustChange = false }, at) {
+    createUser({ username, name, role, password, cases = [], mustChange = false, perms = null }, at) {
       username = String(username || '').trim();
       if (!/^[A-Za-z0-9._-]{3,32}$/.test(username)) throw new Error('اسم المستخدم: 3–32 حرفاً لاتينياً أو أرقاماً أو . _ -');
       if (!String(name || '').trim()) throw new Error('الاسم مطلوب.');
@@ -65,20 +63,24 @@ function create(store) {
       if (q.byName.get(username)) throw new Error('اسم المستخدم مستخدم من قبل.');
       const id = 'u' + rid(), salt = rid() + rid();
       q.ins.run(id, username, String(name).trim().slice(0, 80), role, salt, hashPw(password, salt), mustChange ? 1 : 0, JSON.stringify(cases), at);
+      const own = Perms.clean(perms, role); if (own) q.setPerms.run(JSON.stringify(own), id);
       return pub(q.byId.get(id));
     },
 
-    updateUser(id, { name, role, active, cases }, actorId) {
+    updateUser(id, { name, role, active, cases, perms }, actorId) {
       const u = q.byId.get(id); if (!u) throw new Error('المستخدم غير موجود.');
       const next = { name: name != null ? String(name).trim().slice(0, 80) : u.name, role: role || u.role, active: active == null ? u.active : (active ? 1 : 0), cases: cases ? JSON.stringify(cases) : u.cases };
+      // الصلاحيات: قائمة مرسلة = مخصّصة (أو حسب الدور إن طابقته)، وتغيير الدور وحده يعيدها لصلاحيات الدور
+      const own = perms !== undefined ? Perms.clean(perms, next.role) : (next.role !== u.role ? null : ownPerms(u));
+      next.perms = own && next.role !== 'admin' ? JSON.stringify(own) : null;
       if (!ROLES[next.role]) throw new Error('دور غير معروف.');
       if (id === actorId && (next.role !== 'admin' || !next.active)) throw new Error('لا يمكنك إلغاء صلاحية الإدارة أو تعطيل حسابك بنفسك.');
       if (u.role === 'admin' && (next.role !== 'admin' || !next.active)) {
         const admins = q.all.all().filter(x => x.role === 'admin' && x.active && x.id !== id).length;
         if (!admins) throw new Error('يجب أن يبقى مدير نظام واحد فعّال على الأقل.');
       }
-      q.upd.run(next.name, next.role, next.active, next.cases, id);
-      if (!next.active || next.role !== u.role) q.sDelUser.run(id);
+      q.upd.run(next.name, next.role, next.active, next.cases, next.perms, id);
+      if (!next.active || next.role !== u.role || next.perms !== (u.perms || null)) q.sDelUser.run(id);
       return { before: pub(u), after: pub(q.byId.get(id)) };
     },
 
@@ -120,9 +122,10 @@ function create(store) {
     },
     cookie(token) { return `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${SESSION_MS / 1000}` },
     clearCookie() { return `${COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0` },
-    can: (u, what) => !!(u && ROLES[u.role] && ROLES[u.role][what]),
+    can: (u, what) => !!(u && ROLES[u.role] && Perms.can(u, what)),
+    perms: Perms,
   };
   return A;
 }
 
-module.exports = { create, ROLES, pwProblem, parseCookies };
+module.exports = { create, ROLES, Perms, pwProblem, parseCookies };

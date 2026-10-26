@@ -31,6 +31,9 @@ function open(DATA) {
     CREATE TRIGGER IF NOT EXISTS audit_no_delete BEFORE DELETE ON audit BEGIN SELECT RAISE(ABORT, 'audit log is append-only'); END;
   `);
 
+  // صلاحيات مخصّصة لكل مستخدم (JSON)؛ فارغ = حسب دوره
+  if (!db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name = 'perms'").get()) db.exec('ALTER TABLE users ADD COLUMN perms TEXT');
+
   let depth = 0; // معاملات متداخلة: الخارجية فقط تفتح وتغلق
   const tx = fn => {
     if (depth) { depth++; try { return fn() } finally { depth-- } }

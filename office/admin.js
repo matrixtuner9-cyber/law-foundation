@@ -2,38 +2,60 @@
 (function(){
 const ROLE_INFO={
  admin:['مدير النظام','كل الصلاحيات: البيانات، المستخدمون، سجل التدقيق، الإعدادات، والربط مع ميزان'],
- lawyer:['محامٍ','يرى كل القضايا ويعدّلها، ويراسل الموكلين. لا يدير المستخدمين ولا يرى سجل التدقيق'],
- external:['محامٍ خارجي','يرى القضايا المسندة إليه فقط وموكليها، للاطلاع (التحديث من الجوال في المرحلة القادمة)'],
- viewer:['مطّلع','يرى كل البيانات دون أي تعديل، مناسب للإدارة العليا أو المدقق']};
+ lawyer:['محامٍ','يرى كل القضايا ويعدّلها، ويراسل الموكلين، ويستعمل عقل المسبار. لا يدير المستخدمين ولا يرى سجل التدقيق'],
+ secretary:['سكرتارية','يُدخل الموكلين والقضايا والجلسات ويرفع المستندات ويراسل الموكلين ويطبع، دون الأتعاب ودون حذف'],
+ data_entry:['مدخل بيانات','يُدخل ويعدّل الموكلين والقضايا والجلسات ويرفع المستندات فقط: لا حذف ولا أتعاب ولا طباعة ولا مراسلة'],
+ accountant:['محاسب','يرى القضايا ويسجّل الأتعاب والدفعات والمصاريف ويطبع الإيصالات، دون تعديل بيانات القضايا'],
+ print_only:['طباعة فقط','يطّلع على البيانات ويطبعها فقط، دون أي تعديل'],
+ external:['محامٍ خارجي','يرى القضايا المسندة إليه فقط وموكليها للاطلاع والطباعة'],
+ viewer:['مطّلع','يرى كل البيانات دون أي تعديل ولا طباعة، مناسب للإدارة العليا أو المدقق']};
+/* الصلاحيات المفصّلة: نسخة مطابقة لـ lib/perms.js (يتحقق منها اختبار) */
+const PERM_INFO={view_all:'الاطلاع على كل القضايا والموكلين',clients:'إضافة وتعديل الموكلين والخصوم',cases:'إضافة وتعديل القضايا والجلسات والمهل',docs:'رفع المستندات والملفات والأحكام',delete:'حذف السجلات',finance_view:'الاطلاع على الأتعاب والدفعات والمصاريف',finance:'تسجيل الأتعاب والدفعات والمصاريف',print:'الطباعة والتصدير',messages:'مراسلة الموكلين',ai:'عقل المسبار: التحليل والصياغة والاستخراج',library:'تعديل النماذج والمراجع القانونية',manage:'إدارة المستخدمين والإعدادات'};
+const PALL=Object.keys(PERM_INFO);
+const ROLE_PERMS={admin:PALL,lawyer:PALL.filter(p=>p!=='manage'),secretary:['view_all','clients','cases','docs','messages','print'],data_entry:['view_all','clients','cases','docs'],accountant:['view_all','finance_view','finance','print'],print_only:['view_all','print'],external:['print'],viewer:['view_all']};
 const ACT={'auth.login':'دخول','auth.login_failed':'محاولة دخول فاشلة','auth.locked':'قفل الحساب مؤقتاً','auth.logout':'خروج','auth.setup':'إعداد النظام',
  'user.create':'إنشاء مستخدم','user.update':'تعديل مستخدم','user.password_reset':'إعادة تعيين كلمة مرور','user.password_change':'تغيير كلمة المرور',
  'record.create':'إضافة','record.update':'تعديل','record.delete':'حذف','message.send':'رسالة إلى الموكل','message.receive':'رسالة من الموكل',
  'portal.login':'دخول الموكل للبوابة','mizan.credentials':'حفظ بيانات ميزان','mizan.forget':'حذف بيانات ميزان','mizan.run':'تشغيل موصل ميزان','mizan.result':'نتيجة موصل ميزان',
  'state.init':'تهيئة بيانات المكتب','state.reset':'إعادة ضبط البيانات','settings.update':'تعديل الإعدادات','system.start':'تشغيل الخادم','system.migrate':'نقل البيانات إلى قاعدة البيانات','system.repair':'إصلاح بيانات منقولة','rules.update':'تعديل مدد الطعن','bar.refresh':'تحديث دليل المحامين','bar.result':'نتيجة تحديث دليل المحامين'};
 const ENT={rules:'مدة طعن',clients:'موكل',cases:'قضية',hearings:'جلسة',deadlines:'مهلة',docs:'مستند',opponents:'خصم',users:'مستخدم',messages:'رسالة'};
-const FLD={lawyerName:'اسم المحامي',city:'المدينة',hours:'ساعات الدوام',days:'المدة بالأيام',verified:'مؤكَّدة',ref:'السند',cat:'التصنيف',refs:'المراجع',track:'مسار التقاضي',decisions:'الأحكام والقرارات',subject:'الموضوع',no:'الرقم',date:'التاريخ',time:'الوقت',purpose:'الغاية',status:'الحالة',stage:'المرحلة',step:'الخطوة',paid:'المدفوع',fee:'الأتعاب',phone:'الهاتف',phone2:'هاتف إضافي',whatsapp:'واتساب',portal:'البوابة',shared:'مشاركة مع الموكل',name:'الاسم',role:'الدور',active:'فعّال',cases:'القضايا المسندة',edition:'النسخة',officeName:'اسم الجهة',last:'آخر دخول',result:'القرار',attend:'حضور الموكل',title:'العنوان',kind:'النوع',value:'القيمة',court:'المحكمة',pri:'الأولوية',due:'الاستحقاق',type:'النوع'};
+const FLD={lawyerName:'اسم المحامي',city:'المدينة',hours:'ساعات الدوام',days:'المدة بالأيام',verified:'مؤكَّدة',ref:'السند',cat:'التصنيف',refs:'المراجع',track:'مسار التقاضي',decisions:'الأحكام والقرارات',subject:'الموضوع',no:'الرقم',date:'التاريخ',time:'الوقت',purpose:'الغاية',status:'الحالة',stage:'المرحلة',step:'الخطوة',paid:'المدفوع',fee:'الأتعاب',phone:'الهاتف',phone2:'هاتف إضافي',whatsapp:'واتساب',portal:'البوابة',shared:'مشاركة مع الموكل',name:'الاسم',role:'الدور',perms:'الصلاحيات',active:'فعّال',cases:'القضايا المسندة',edition:'النسخة',officeName:'اسم الجهة',last:'آخر دخول',result:'القرار',attend:'حضور الموكل',title:'العنوان',kind:'النوع',value:'القيمة',court:'المحكمة',pri:'الأولوية',due:'الاستحقاق',type:'النوع'};
 const CAT=[['','كل العمليات'],['auth.','الدخول والخروج'],['record.','تعديلات البيانات'],['message.','الرسائل'],['portal.','بوابة الموكل'],['user.','المستخدمون'],['mizan.','ميزان'],['settings.','الإعدادات'],['bar.','دليل المحامين'],['system.','النظام'],['state.','تهيئة البيانات']];
 const MUT=new Set(['share','togglePortal','applyU','dropU','newCase','saveTpl','rule','sync','toCase','toCaseK','recStart']);
 const FORMS=new Set(['fH','fMsg','fPay','fCase','fBag']);
 const AU={list:[],more:true,f:{cat:'',q:'',user:''},verify:null,busy:false};
 const US={list:null};
 const api=(url,body)=>fetch(url,body===undefined?{}:{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}).then(async r=>{const j=await r.json().catch(()=>({}));if(r.status===401){location.replace('/login.html');throw new Error('انتهت الجلسة')}if(!r.ok)throw new Error(j.error||'تعذّر التنفيذ');return j});
-const can=w=>MQ.user&&({admin:{write:1,manage:1},lawyer:{write:1}}[MQ.user.role]||{})[w];
+const myPerms=()=>MQ.user?(MQ.user.role==='admin'?PALL:Array.isArray(MQ.user.perms)?MQ.user.perms:(ROLE_PERMS[MQ.user.role]||[])):[];
+const can=w=>{const ps=myPerms();return w==='write'?['clients','cases','docs','finance','library'].some(p=>ps.includes(p)):w==='all'?ps.includes('view_all'):ps.includes(w)};
+window.MQ_can=can;
+/* عناصر الواجهة حسب الصلاحية: الطباعة والأتعاب والمراسلة وعقل المسبار والحذف */
+const PRINT_SEL='[data-act*="Print"],[data-act^="print"],[data-act="print"],[data-act$="Pdf"],[data-act$="Export"],[data-act="rExpMenu"],[data-act="auditCsv"]';
+const FIN_SEL='.pay-all,.pay-det,.pay-f,.pay-h,.pay-t,.pay-x,[data-act="stPay"],[data-act^="clFee"],[data-act="printPays"],[data-act="printReceipt"],#fPay';
+(function(){const st=document.createElement('style');st.textContent=`body.no-print :is(${PRINT_SEL}){display:none!important}@media print{body.no-print *{display:none!important}body.no-print::after{content:'لا تملك صلاحية الطباعة';display:block;font:20px sans-serif;padding:40px}}
+body.no-fin :is(${FIN_SEL}){display:none!important}
+.perm-pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:4px 14px;border:1px solid var(--line,#e5dccb);border-radius:10px;padding:10px 12px}.perm-pick legend{padding:0 6px;font-weight:600}.perm-pick .ck{display:flex;gap:8px;align-items:center}`;document.head.appendChild(st)})();
+function permGuard(e){const t=e.target.closest('[data-act]');if(!t||!MQ.user)return;const a=t.dataset.act;
+ if(!can('print')&&t.matches(PRINT_SEL)){e.stopImmediatePropagation();e.preventDefault();toast('لا تملك صلاحية الطباعة والتصدير');return}
+ if(!can('finance')&&t.matches(FIN_SEL)){e.stopImmediatePropagation();e.preventDefault();toast('لا تملك صلاحية تسجيل الأتعاب والدفعات')}}
+document.addEventListener('click',permGuard,true);
 
 /* تطبيق المستخدم على الواجهة بعد تحميل البيانات */
 window.MQ_applyUser=function(u,st){
  MQ.user=u;MQ.settings=st||{};MQ.readOnly=!can('write');
+ if(!can('print')){window.print=()=>toast('لا تملك صلاحية الطباعة')}
+ for(const [c,w] of [['no-print','print'],['no-fin','finance_view'],['no-msg','messages'],['no-ai','ai'],['no-del','delete']])document.body.classList.toggle(c,!can(w));
  if(st)Object.assign(OFFICE,{name:st.officeName||OFFICE.name,lawyer:st.lawyerName||OFFICE.lawyer,city:st.city||OFFICE.city});
  document.body.classList.toggle('ro',MQ.readOnly);
  const who=document.querySelector('.who');
- who.innerHTML=`<button class="me" id="meBtn" aria-haspopup="menu"><span class="me-t"><b>${esc(u.name)}</b><small>${esc(ROLE_INFO[u.role]?.[0]||u.role)}</small></span><span class="avatar">${esc(u.name.replace(/^(المحامي|المحامية|الأستاذ)\s+/,'').trim()[0]||'م')}</span></button>
+ who.innerHTML=`<button class="me" id="meBtn" aria-haspopup="menu"><span class="me-t"><b>${esc(u.name)}</b><small>${esc(ROLE_INFO[u.role]?.[0]||u.role)}${u.custom?' · مخصّصة':''}</small></span><span class="avatar">${esc(u.name.replace(/^(المحامي|المحامية|الأستاذ)\s+/,'').trim()[0]||'م')}</span></button>
   <div class="me-menu" id="meMenu" role="menu" hidden><button data-act="pwModal" role="menuitem">تغيير كلمة المرور</button><button data-act="logout" role="menuitem" class="danger">تسجيل الخروج</button></div>`;
  const sub=document.querySelector('.brand small');if(sub)sub.textContent=(st&&st.edition==='insurance'?'الإدارة القانونية':'مكتب المحاماة')+' · '+OFFICE.city;
  /* أقسام الإدارة لمدير النظام فقط، وميزان كذلك */
  const i=NAV.findIndex(n=>n[0]==='mizan');if(!can('manage')&&i>=0)NAV.splice(i,1);
  if(can('manage')&&!NAV.some(n=>n[0]==='users'))NAV.push(['الإدارة'],['users','المستخدمون والصلاحيات'],['audit','سجل التدقيق'],['settings','الإعدادات']);
  let bn=document.getElementById('roBanner');
- if(MQ.readOnly&&!bn){bn=document.createElement('div');bn.id='roBanner';bn.className='ro-banner';bn.textContent=u.role==='external'?'وضع الاطلاع: تظهر لك القضايا المسندة إليك فقط':'وضع الاطلاع فقط: لا تملك صلاحية التعديل';document.querySelector('.main').prepend(bn)}
+ if(MQ.readOnly&&!bn){bn=document.createElement('div');bn.id='roBanner';bn.className='ro-banner';bn.textContent=!can('all')?'وضع الاطلاع: تظهر لك القضايا المسندة إليك فقط':can('print')?'وضع الاطلاع والطباعة: لا تملك صلاحية التعديل':'وضع الاطلاع فقط: لا تملك صلاحية التعديل';document.querySelector('.main').prepend(bn)}
  if(u.mustChange)setTimeout(()=>A.pwModal(true),300);
 };
 const navCount0=navCount;window.navCount=function(v){if(v==='users')return US.list?US.list.length:'';if(v==='audit')return '';if(v==='settings')return '';return navCount0(v)};
@@ -60,24 +82,29 @@ V.users=()=>{if(!US.list){loadUsers();return '<div class="empty">جارٍ الت
  return `<div class="head"><div><h1>المستخدمون والصلاحيات</h1><p class="sub">كل مستخدم يدخل باسمه، ويرى ويعدّل حسب دوره، وكل ما يفعله مسجّل في سجل التدقيق</p></div><button class="btn pri" data-act="userNew">مستخدم جديد</button></div>
  <div class="roles">${Object.entries(ROLE_INFO).map(([k,[n,d]])=>`<div class="role-card r-${k}"><b>${n}</b><span>${d}</span><small>${US.list.filter(u=>u.role===k&&u.active).length} مستخدم</small></div>`).join('')}</div>
  <section class="panel tablewrap"><table><thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الدور</th><th>القضايا المسندة</th><th>آخر دخول</th><th>الحالة</th><th></th></tr></thead><tbody>
- ${US.list.map(u=>`<tr><td style="font-weight:600">${esc(u.name)}${u.id===MQ.user.id?' <span class="pill">أنت</span>':''}</td><td class="mono">${esc(u.username)}</td><td><span class="pill role-${u.role}">${esc(ROLE_INFO[u.role]?.[0]||u.role)}</span></td>
-  <td>${u.role==='external'?(u.cases.length?u.cases.map(c=>`<span class="mono">${esc(caseNo(c))}</span>`).join('، '):'<span class="m">لا قضايا</span>'):'<span class="m">كل القضايا</span>'}</td>
+ ${US.list.map(u=>`<tr><td style="font-weight:600">${esc(u.name)}${u.id===MQ.user.id?' <span class="pill">أنت</span>':''}</td><td class="mono">${esc(u.username)}</td><td><span class="pill role-${u.role}">${esc(ROLE_INFO[u.role]?.[0]||u.role)}</span>${u.custom?' <span class="pill warn" title="'+esc((u.perms||[]).map(p=>PERM_INFO[p]).join('، '))+'">صلاحيات مخصّصة</span>':''}</td>
+  <td>${!(u.perms||ROLE_PERMS[u.role]||[]).includes('view_all')?(u.cases.length?u.cases.map(c=>`<span class="mono">${esc(caseNo(c))}</span>`).join('، '):'<span class="m">لا قضايا</span>'):'<span class="m">كل القضايا</span>'}</td>
   <td class="num">${u.lastLogin?esc(u.lastLogin.slice(0,16)):'<span class="m">لم يدخل بعد</span>'}</td>
   <td>${!u.active?'<span class="pill">معطّل</span>':u.locked?'<span class="pill bad">مقفل مؤقتاً</span>':u.mustChange?'<span class="pill warn">بانتظار تغيير كلمة المرور</span>':'<span class="pill ok">فعّال</span>'}</td>
   <td style="white-space:nowrap"><button class="btn sm" data-act="userEdit" data-v="${u.id}">تعديل</button> <button class="btn sm" data-act="userPw" data-v="${u.id}">كلمة مرور مؤقتة</button></td></tr>`).join('')}</tbody></table></section>
  <p class="note">كلمات المرور محفوظة مشفّرة (scrypt) ولا يمكن لأحد قراءتها، حتى مدير النظام. عند إنشاء مستخدم أو إعادة تعيين كلمته تُعطى كلمة مؤقتة يُطلب تغييرها عند أول دخول.</p>`};
-function userForm(u){const isNew=!u;u=u||{role:'lawyer',cases:[],active:true,name:'',username:''};
+function permBoxes(list){return PALL.map(p=>`<label class="ck"><input type="checkbox" value="${p}" ${list.includes(p)?'checked':''}> ${esc(PERM_INFO[p])}</label>`).join('')}
+function userForm(u){const isNew=!u;u=u||{role:'data_entry',cases:[],active:true,name:'',username:''};const ps=u.perms||ROLE_PERMS[u.role]||[];
  return `<form class="form" id="fUser" data-id="${u.id||''}"><label class="wide">الاسم الكامل<input class="field" id="uN" required value="${esc(u.name)}"></label>
  <label>اسم المستخدم<input class="field mono" id="uU" required ${isNew?'':'disabled'} value="${esc(u.username)}" dir="ltr" placeholder="ahmad.k"></label>
  <label>الدور<select class="field" id="uR">${Object.entries(ROLE_INFO).map(([k,[n]])=>`<option value="${k}" ${u.role===k?'selected':''}>${n}</option>`).join('')}</select></label>
  ${isNew?`<label class="wide">كلمة المرور المؤقتة<span class="pwgen"><input class="field mono" id="uP" required dir="ltr" value="${genPw()}"><button type="button" class="btn sm" data-act="genPw">توليد</button></span></label>`:`<label class="wide" style="flex-direction:row;align-items:center;gap:8px;color:var(--ink)"><input type="checkbox" id="uA" ${u.active?'checked':''}> الحساب فعّال</label>`}
- <fieldset class="wide cases-pick" id="uCases" ${u.role==='external'?'':'hidden'}><legend>القضايا المسندة لهذا المحامي</legend>${cases.map(k=>`<label class="ck"><input type="checkbox" value="${k.id}" ${u.cases.includes(k.id)?'checked':''}> <span class="mono">${esc(k.no)}</span> · ${esc(k.subject)} <span class="m">(${esc((C(k.client)||{}).name||'')})</span></label>`).join('')}</fieldset>
+ <fieldset class="wide perm-pick" id="uPerms" ${u.role==='admin'?'disabled':''}><legend>الصلاحيات — تبدأ بصلاحيات الدور، ويمكن تعديلها لهذا المستخدم</legend>${permBoxes(ps)}</fieldset>
+ <fieldset class="wide cases-pick" id="uCases" ${ps.includes('view_all')?'hidden':''}><legend>القضايا المسندة لهذا المستخدم</legend>${cases.map(k=>`<label class="ck"><input type="checkbox" value="${k.id}" ${u.cases.includes(k.id)?'checked':''}> <span class="mono">${esc(k.no)}</span> · ${esc(k.subject)} <span class="m">(${esc((C(k.client)||{}).name||'')})</span></label>`).join('')}</fieldset>
  <p class="note wide" id="uHint">${esc(ROLE_INFO[u.role][1])}</p>
  <button class="btn pri">${isNew?'إنشاء المستخدم':'حفظ التعديلات'}</button></form>`}
 A.userNew=()=>{modal('مستخدم جديد',userForm(null),true);bindUserForm()};
 A.userEdit=id=>{modal('تعديل مستخدم',userForm(US.list.find(u=>u.id===id)),true);bindUserForm()};
 A.genPw=()=>{const i=document.getElementById('uP');if(i)i.value=genPw()};
-function bindUserForm(){const r=document.getElementById('uR');r.onchange=()=>{document.getElementById('uCases').hidden=r.value!=='external';document.getElementById('uHint').textContent=ROLE_INFO[r.value][1]}}
+function bindUserForm(){const r=document.getElementById('uR'),fp=document.getElementById('uPerms');
+ const sync=()=>{const v=fp.querySelector('input[value=view_all]');document.getElementById('uCases').hidden=!!(v&&v.checked);const fin=fp.querySelector('input[value=finance]'),fv=fp.querySelector('input[value=finance_view]');if(fin.checked)fv.checked=true};
+ r.onchange=()=>{fp.innerHTML='<legend>الصلاحيات — تبدأ بصلاحيات الدور، ويمكن تعديلها لهذا المستخدم</legend>'+permBoxes(ROLE_PERMS[r.value]||[]);fp.disabled=r.value==='admin';document.getElementById('uHint').textContent=ROLE_INFO[r.value][1];sync()};
+ fp.onchange=sync}
 A.userPw=id=>{const u=US.list.find(x=>x.id===id),pw=genPw();
  modal('كلمة مرور مؤقتة',`<p>ستُعيَّن كلمة مرور مؤقتة لـ <b>${esc(u.name)}</b>، ويُطلب منه تغييرها عند الدخول، وتُنهى جلساته المفتوحة.</p><div class="secret mono" id="tmpPw">${pw}</div><p class="note">انسخها وسلّمها له بطريقة آمنة. لن تظهر مرة أخرى.</p><div class="toolbar"><button class="btn pri" data-act="userPwOk" data-v="${id}">تعيين</button><button class="btn" data-act="close">إلغاء</button></div>`)};
 A.userPwOk=id=>{const pw=document.getElementById('tmpPw').textContent;api(`/api/users/${id}/password`,{password:pw}).then(()=>{toast('عُيّنت كلمة المرور المؤقتة');A.close();loadUsers()}).catch(e=>mErr(e.message))};
@@ -137,8 +164,8 @@ document.addEventListener('submit',e=>{const f=e.target;
  if(f.id==='fPw'){e.preventDefault();e.stopImmediatePropagation();if(f.pwN.value!==f.pwN2.value)return mErr('كلمتا المرور غير متطابقتين.');
   api('/api/me/password',{current:f.pwC.value,password:f.pwN.value}).then(()=>{MQ.user.mustChange=false;A.close();toast('غُيّرت كلمة المرور')}).catch(x=>mErr(x.message))}
  if(f.id==='fUser'){e.preventDefault();e.stopImmediatePropagation();const id=f.dataset.id,role=f.uR.value;
-  const sel=[...f.querySelectorAll('#uCases input:checked')].map(i=>i.value);
-  const req=id?api('/api/users/'+id,{name:f.uN.value,role,active:f.uA.checked,cases:role==='external'?sel:[]}):api('/api/users',{name:f.uN.value,username:f.uU.value,role,password:f.uP.value,cases:role==='external'?sel:[]});
+  const sel=[...f.querySelectorAll('#uCases input:checked')].map(i=>i.value),perms=[...f.querySelectorAll('#uPerms input:checked')].map(i=>i.value),scoped=!perms.includes('view_all');
+  const req=id?api('/api/users/'+id,{name:f.uN.value,role,active:f.uA.checked,cases:scoped?sel:[],perms}):api('/api/users',{name:f.uN.value,username:f.uU.value,role,password:f.uP.value,cases:scoped?sel:[],perms});
   req.then(u=>{A.close();toast(id?'حُفظت التعديلات':'أُنشئ المستخدم '+u.username+'. سلّمه كلمة المرور المؤقتة');loadUsers()}).catch(x=>mErr(x.message))}
  if(f.id==='fSet'){e.preventDefault();e.stopImmediatePropagation();const ed=(f.querySelector('input[name=ed]:checked')||{}).value;
   api('/api/settings',{edition:ed,officeName:f.setName.value,lawyerName:f.setLawyer.value,city:f.setCity.value,phone:f.setPhone.value,hours:f.setHours.value}).then(st=>{MQ.settings=st;MQ_applyUser(MQ.user,st);toast('حُفظت الإعدادات');render()}).catch(x=>toast(x.message))}

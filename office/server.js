@@ -11,7 +11,7 @@ const DATA = process.env.MQ_DATA || path.join(ROOT, 'data'), MEDIA = path.join(D
 fs.mkdirSync(MEDIA, { recursive: true });
 
 const SEED = require('./data.js');
-const Store = require('./lib/db'), Auth = require('./lib/auth'), Merge = require('./lib/merge'), Laws = require('./lib/laws'), AiDraft = require('./lib/ai-draft'), Apns = require('./lib/apns'), WebPush = require('./lib/webpush'), Tts = require('./lib/tts'), Legal = require('./lib/legal-pages'), Misbar = require('./lib/misbar'), MisbarAi = require('./lib/misbar-ai'), MisbarCase = require('./lib/misbar-case'), License = require('./lib/license'), Av = require('./lib/avatar'), http2 = require('http2');
+const Store = require('./lib/db'), Auth = require('./lib/auth'), Merge = require('./lib/merge'), Perms = require('./lib/perms'), Laws = require('./lib/laws'), AiDraft = require('./lib/ai-draft'), Apns = require('./lib/apns'), WebPush = require('./lib/webpush'), Tts = require('./lib/tts'), Legal = require('./lib/legal-pages'), Misbar = require('./lib/misbar'), MisbarAi = require('./lib/misbar-ai'), MisbarCase = require('./lib/misbar-case'), License = require('./lib/license'), Av = require('./lib/avatar'), http2 = require('http2');
 const OFFICE = { name: 'مكتب الميثاق للمحاماة والاستشارات القانونية', lawyer: 'المحامي سامر عبد الله', city: 'نابلس', phone: '09-233-0000', hours: 'الأحد – الخميس · 8:30 – 16:00' };
 const STATE_F = path.join(DATA, 'state.json'), MSG_F = path.join(DATA, 'messages.json');
 const VAPID_F = path.join(DATA, 'vapid.json'), PUSH_F = path.join(DATA, 'push.json');
@@ -240,7 +240,8 @@ if (!ED.offline) { setTimeout(runHearingAlerts, 20000); setInterval(runHearingAl
 function broadcastRecords(recs, byId, del = []) {
   if (!recs.length && !del.length) return;
   const s = `event: records\ndata: ${JSON.stringify({ by: byId, recs, del })}\n\n`;
-  streams.forEach((u, r) => { if (auth.can(u, 'all')) r.write(s) });
+  let sNoFin = null; // من لا يرى الأتعاب يستلم السجلات بدونها
+  streams.forEach((u, r) => { if (!auth.can(u, 'all')) return; if (auth.can(u, 'finance_view')) return r.write(s); sNoFin = sNoFin || `event: records\ndata: ${JSON.stringify({ by: byId, recs: recs.map(x => ({ kind: x.kind, rec: Perms.stripFin(x.kind, x.rec) })), del })}\n\n`; r.write(sNoFin) });
 }
 
 /* ربط الرسالة بقضيتها: صريحاً إن أُرسل رقم قضية للموكل نفسه، وإلا تلقائياً إن كانت للموكل قضية جارية واحدة */
@@ -439,7 +440,7 @@ async function api(req, res, u) {
   const who = { user_id: me.id, username: me.username, ip };
   const need = what => { if (!auth.can(me, what)) { json(res, 403, { error: 'لا تملك صلاحية لهذا الإجراء.' }); return false } return true };
 
-  if (p === '/api/auth/me') return json(res, 200, { user: { ...me, token: undefined }, roles: Object.fromEntries(Object.entries(auth.ROLES).map(([k, v]) => [k, v.label])), settings: settings(), edition: ED.pub() });
+  if (p === '/api/auth/me') return json(res, 200, { user: { ...me, token: undefined }, roles: Object.fromEntries(Object.entries(auth.ROLES).map(([k, v]) => [k, v.label])), perms: Object.fromEntries(Object.entries(Perms.PERMS).map(([k, v]) => [k, v.label])), rolePerms: Object.fromEntries(Object.keys(auth.ROLES).map(k => [k, Perms.permsOf({ role: k })])), settings: settings(), edition: ED.pub() });
   if (p === '/api/me/password' && M === 'POST') {
     const b = await jbody(req);
     if (!auth.checkPassword(me.id, b.current)) return json(res, 400, { error: 'كلمة المرور الحالية غير صحيحة.' });
@@ -523,7 +524,7 @@ async function api(req, res, u) {
   if (p === '/api/users' && M === 'POST') {
     if (!need('manage')) return;
     const b = await jbody(req);
-    let user; try { user = auth.createUser({ username: b.username, name: b.name, role: b.role, password: b.password, cases: Array.isArray(b.cases) ? b.cases : [], mustChange: true }, stampS()) } catch (e) { return json(res, 400, { error: e.message }) }
+    let user; try { user = auth.createUser({ username: b.username, name: b.name, role: b.role, password: b.password, cases: Array.isArray(b.cases) ? b.cases : [], perms: Array.isArray(b.perms) ? b.perms : null, mustChange: true }, stampS()) } catch (e) { return json(res, 400, { error: e.message }) }
     audit({ ...who, action: 'user.create', entity: 'users', entity_id: user.id, detail: { label: user.name, username: user.username, role: user.role, cases: user.cases } });
     return json(res, 201, user);
   }
@@ -536,8 +537,8 @@ async function api(req, res, u) {
       audit({ ...who, action: 'user.password_reset', entity: 'users', entity_id: um[1], detail: { label: (auth.get(um[1]) || {}).name } });
       return json(res, 200, { ok: true });
     }
-    let r; try { r = auth.updateUser(um[1], { name: b.name, role: b.role, active: b.active, cases: Array.isArray(b.cases) ? b.cases : null }, me.id) } catch (e) { return json(res, 400, { error: e.message }) }
-    const strip = x => ({ name: x.name, role: x.role, active: x.active, cases: x.cases });
+    let r; try { r = auth.updateUser(um[1], { name: b.name, role: b.role, active: b.active, cases: Array.isArray(b.cases) ? b.cases : null, perms: Array.isArray(b.perms) || b.perms === null ? b.perms : undefined }, me.id) } catch (e) { return json(res, 400, { error: e.message }) }
+    const strip = x => ({ name: x.name, role: x.role, active: x.active, cases: x.cases, perms: (x.perms || []).join(',') });
     audit({ ...who, action: 'user.update', entity: 'users', entity_id: um[1], detail: { label: r.after.name, fields: Store.diffFields(strip(r.before), strip(r.after)) } });
     return json(res, 200, r.after);
   }
@@ -628,16 +629,17 @@ async function api(req, res, u) {
 
   /* ── شاشة المكتب ── */
   if (p === '/api/admin/bootstrap') {
-    const st = auth.can(me, 'all') ? state : scope(me, cur());
+    const st = Perms.viewState(me, auth.can(me, 'all') ? state : scope(me, cur()));
     return json(res, 200, { state: st, messages: msgs.filter(m => canSeeClient(me, m.client)).map(pubAdmin), push: pushCount(), pushReady: !!webpush || !!(apnsCfg() || {}).p8, user: { ...me, token: undefined }, settings: settings(), edition: ED.pub() });
   }
   /* الحفظ الآمن: المتصفح يرسل السجلات المتغيرة فقط مع رقم إصدار كل سجل (lib/merge.js) */
   if (p === '/api/admin/state' && M === 'POST') {
     if (!need('write')) return;
-    const b = await jbody(req, 25 * 1024 * 1024);
+    const b = Perms.restoreFin(me, state, await jbody(req, 25 * 1024 * 1024));
     const first = !state, at = stampS();
     const r = Merge.plan(state, b, { randomBytes: n => crypto.randomBytes(n), hashId: (k, x) => 'a' + crypto.createHash('sha1').update(k + JSON.stringify(x)).digest('hex').slice(0, 10) });
     if (!r) return json(res, 400, { error: 'طلب حفظ غير صالح' });
+    const pg = Perms.guardWrites(me, r.writes, state); if (pg) return json(res, 403, { error: pg });
     const lg = Merge.lawformsGuard(state, r.writes, auth.can(me, 'manage')); if (lg) return json(res, 403, { error: lg });
     store.applyWrites(r.writes, r.next.mzLog, me.username, at); state = r.next;
     if (first) audit({ ...who, action: 'state.init', detail: { records: r.writes.length } });
@@ -649,7 +651,7 @@ async function api(req, res, u) {
   }
   /* تجديد رمز دخول موكل (عند الشك بتسريبه)، أو كل الرموز القديمة الضعيفة دفعة واحدة */
   if ((p === '/api/admin/client-code' || p === '/api/admin/rotate-weak') && M === 'POST') {
-    if (!need(p.endsWith('weak') ? 'manage' : 'write')) return;
+    if (!need(p.endsWith('weak') ? 'manage' : 'clients')) return;
     if (!state) return json(res, 409, { error: 'لا توجد بيانات محفوظة بعد.' });
     const { client } = p.endsWith('weak') ? {} : await jbody(req);
     if (!p.endsWith('weak') && !state.clients.some(c => c.id === client)) return json(res, 404, { error: 'الموكل غير موجود' });
@@ -661,7 +663,7 @@ async function api(req, res, u) {
   }
   if (p === '/api/admin/message-case' && M === 'POST') {
     /* ربط رسالة أو مرفق بقضية من قضايا الموكل نفسه (أو إلغاء الربط) */
-    if (!need('write')) return;
+    if (!need('messages')) return;
     const { id, k } = await jbody(req) || {}; const m = msgs.find(x => x.id === id);
     if (!m || !canSeeClient(me, m.client)) return json(res, 404, { error: 'الرسالة غير موجودة' });
     if (k && !(cur().cases || []).some(x => x.id === k && x.client === m.client)) return json(res, 400, { error: 'القضية لا تخص هذا الموكل' });
@@ -670,15 +672,15 @@ async function api(req, res, u) {
     return json(res, 200, { ok: true, k: m.k || '' });
   }
   if (p === '/api/admin/messages' && M === 'POST') {
-    if (!need('write')) return;
+    if (!need('messages')) return;
     const { client, text, ch, type, k } = await jbody(req); const t = String(text || '').trim().slice(0, 4000);
     if (!client || !t) return json(res, 400, { error: 'missing' });
     const m = addMsg({ client, from: 'lawyer', type: type === 'notice' ? 'notice' : 'text', text: t, ch: ch || 'البوابة', by: me.username, k });
     audit({ ...who, action: 'message.send', entity: 'messages', entity_id: m.id, detail: { client, label: (cur().clients.find(c => c.id === client) || {}).name, type: m.type, preview: t.slice(0, 80) } });
     return json(res, 201, pubAdmin(m));
   }
-  if (p === '/api/admin/voice' && M === 'POST') { if (!need('write')) return; return voice(req, res, u, u.searchParams.get('client'), 'lawyer', who) }
-  if (p === '/api/admin/file' && M === 'POST') { if (!need('write')) return; return attach(req, res, u, u.searchParams.get('client'), 'lawyer', who) }
+  if (p === '/api/admin/voice' && M === 'POST') { if (!need('messages')) return; return voice(req, res, u, u.searchParams.get('client'), 'lawyer', who) }
+  if (p === '/api/admin/file' && M === 'POST') { if (!need('messages')) return; return attach(req, res, u, u.searchParams.get('client'), 'lawyer', who) }
     /* الصورة الشخصية، واختيارياً صورة محامي المكتب التي تظهر للموكلين في تطبيقهم */
     if (p === '/api/admin/me/avatar') {
       const canC = auth.can(me, 'manage') || me.role === 'lawyer', op = store.kv.get('office_photo');
@@ -748,11 +750,11 @@ async function api(req, res, u) {
       const opp = (k.opps || []).map(o => (S.opponents || []).find(x => x.id === o)).filter(Boolean), cfg = settings();
       return { body: { ...input, case: { no: k.no, court: ct.name || '', type: k.type, subject: k.subject, role: k.role, stage: k.stage, value: k.value, client: c.name || '', opponents: opp.map(o => o.name), opponentLawyers: opp.map(o => o.lawyer).filter(Boolean), lawyer: cfg.lawyerName || '', office: cfg.officeName || '' } } };
     };
-    if (a === 'extract' && M === 'POST') { if (!need('write')) return; const b = aiScoped(await jbody(req, 16 * 1024 * 1024)); if (b.error) return json(res, b.status, { error: b.error }); const r = await extractor(b.body, me); return json(res, r.status, r.body) }
-    if (a === 'calc' && M === 'POST') { if (!need('write')) return; const r = await calcExtract(await jbody(req), me); return json(res, r.status, r.body) }
+    if (a === 'extract' && M === 'POST') { if (!need('ai')) return; const b = aiScoped(await jbody(req, 16 * 1024 * 1024)); if (b.error) return json(res, b.status, { error: b.error }); const r = await extractor(b.body, me); return json(res, r.status, r.body) }
+    if (a === 'calc' && M === 'POST') { if (!need('ai')) return; const r = await calcExtract(await jbody(req), me); return json(res, r.status, r.body) }
     if (a === 'usage' && M === 'GET') { if (!need('manage')) return; const m = /^\d{4}-\d{2}$/.test(u.searchParams.get('month') || '') ? u.searchParams.get('month') : stampS().slice(0, 7); const next = (() => { const [y, mo] = m.split('-').map(Number); return mo === 12 ? `${y + 1}-01` : `${y}-${String(mo + 1).padStart(2, '0')}` })(); return json(res, 200, { month: m, prices: AiDraft.PRICES, model: AiDraft.MODEL, ...AiDraft.usageSummary(store.aiAudit(m + '-01').filter(r => r.at < next + '-01')) }) }
-    if (a === 'ruling' && M === 'POST') { if (!need('write')) return; const r = await rulingExtract(await jbody(req), me); return json(res, r.status, r.body) }
-    if (a === 'transcribe' && M === 'POST') { if (!need('write')) return; const r = await transcriber0(await jbody(req, 16 * 1024 * 1024), me); return json(res, r.status, r.body) }
+    if (a === 'ruling' && M === 'POST') { if (!need('ai')) return; const r = await rulingExtract(await jbody(req), me); return json(res, r.status, r.body) }
+    if (a === 'transcribe' && M === 'POST') { if (!need('ai')) return; const r = await transcriber0(await jbody(req, 16 * 1024 * 1024), me); return json(res, r.status, r.body) }
     if (a === 'legal-review' && M === 'POST') {
       /* تدقيق مسودة محفوظة بعقل المسبار الواعي: موافقة صريحة، والنص يُقرأ من المسودة المحفوظة في القضية نفسها */
       if (!need('write')) return;
@@ -766,14 +768,14 @@ async function api(req, res, u) {
       const r = await assistant({ ...sc.body, mode: 'gaps', text: doc.text, web: false, question: '' }, me, { rulings: cur().rulings || [] });
       return json(res, r.status, { ...r.body, docId: doc.id, docVersion: doc._v || 0 });
     }
-    if (a === 'assist' && M === 'POST') { if (!need('write')) return; const b = aiScoped(await jbody(req, 16 * 1024 * 1024)); if (b.error) return json(res, b.status, { error: b.error }); const r = await assistant(b.body, me, { rulings: cur().rulings || [] }); return json(res, r.status, r.body) }
-    if (a === 'draft' && M === 'POST') { if (!need('write')) return; const b = aiScoped(await jbody(req, 2 * 1024 * 1024)); if (b.error) return json(res, b.status, { error: b.error }); const r = await drafter(b.body, me, { rulings: cur().rulings || [] }); return json(res, r.status, r.body) }
+    if (a === 'assist' && M === 'POST') { if (!need('ai')) return; const b = aiScoped(await jbody(req, 16 * 1024 * 1024)); if (b.error) return json(res, b.status, { error: b.error }); const r = await assistant(b.body, me, { rulings: cur().rulings || [] }); return json(res, r.status, r.body) }
+    if (a === 'draft' && M === 'POST') { if (!need('ai')) return; const b = aiScoped(await jbody(req, 2 * 1024 * 1024)); if (b.error) return json(res, b.status, { error: b.error }); const r = await drafter(b.body, me, { rulings: cur().rulings || [] }); return json(res, r.status, r.body) }
     return json(res, 404, { error: 'غير موجود' });
   }
   if (p.startsWith('/api/admin/misbar/')) {
     const a = p.slice(18);
-    if (a.startsWith('case/')) { if (ED.offline && a === 'case/run') return json(res, 403, OFFLINE_ERR); const r = await caseBrain.handle(a.slice(5), M, Object.fromEntries(u.searchParams), () => jbody(req, 2 * 1024 * 1024), me, w => auth.can(me, w), who); return json(res, r.status, r.body) }
-    if (a === 'analyze' && M === 'POST') { if (!need('write')) return; const r = await misbarAi.analyze(await jbody(req, 2 * 1024 * 1024), me); return json(res, r.status, r.body) }
+    if (a.startsWith('case/')) { if (ED.offline && a === 'case/run') return json(res, 403, OFFLINE_ERR); const r = await caseBrain.handle(a.slice(5), M, Object.fromEntries(u.searchParams), () => jbody(req, 2 * 1024 * 1024), me, w => auth.can(me, w === 'write' ? 'ai' : w), who); return json(res, r.status, r.body) }
+    if (a === 'analyze' && M === 'POST') { if (!need('ai')) return; const r = await misbarAi.analyze(await jbody(req, 2 * 1024 * 1024), me); return json(res, r.status, r.body) }
     if (a === 'ai' && M === 'GET') { const d = dsKey(), c = aiKey(); return json(res, 200, { deepseek: { configured: !!d, last4: d ? d.slice(-4) : '' }, claude: { configured: !!c, last4: c ? c.slice(-4) : '' }, provider: store.kv.get('ai_provider') || '', tasks: Object.fromEntries(Object.entries(MisbarAi.TASKS).map(([k, v]) => [k, { label: v.label, doc: !!v.doc, refs: !!v.refs }])), canManage: auth.can(me, 'manage') }) }
     if (a === 'provider' && M === 'POST') { if (!need('manage')) return; const b = await jbody(req); const v = ['deepseek', 'claude'].includes(b.provider) ? b.provider : ''; store.kv.set('ai_provider', v || null); audit({ ...who, action: 'misbar.provider', entity: 'settings', detail: { provider: v || 'auto' } }); return json(res, 200, { ok: true, provider: v }) }
     if (a === 'dskey' && M === 'POST') {
@@ -790,8 +792,8 @@ async function api(req, res, u) {
     if (r.file) { res.writeHead(200, { 'Content-Type': r.file.contentType, 'Content-Disposition': `attachment; filename="${r.file.filename}"`, 'Cache-Control': 'no-store', ...CORS, ...SEC }); return res.end(r.file.body) }
     return json(res, r.status, r.body);
   }
-  if (p === '/api/admin/ruling-file' && M === 'POST') { if (!need('write')) return; return rulingFile(req, res, u, who) }
-  if (p === '/api/admin/case-file' && M === 'POST') { if (!need('write')) return; return rulingFile(req, res, u, who, 'case') }
+  if (p === '/api/admin/ruling-file' && M === 'POST') { if (!need('docs')) return; return rulingFile(req, res, u, who) }
+  if (p === '/api/admin/case-file' && M === 'POST') { if (!need('docs')) return; return rulingFile(req, res, u, who, 'case') }
   if (p === '/api/admin/read' && M === 'POST') {
     const { client } = await jbody(req);
     if (!canSeeClient(me, client)) return json(res, 403, { error: 'لا تملك صلاحية لهذا الموكل.' });
