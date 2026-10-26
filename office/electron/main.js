@@ -20,6 +20,9 @@ const isAppUrl = u => { try { const x = new URL(u); return x.origin === new URL(
 const isWebUrl = u => { try { return ['http:', 'https:'].includes(new URL(u).protocol) } catch (e) { return false } };
 const isLocalUrl = u => { try { const x = new URL(u); return !/^(https?|wss?):$/.test(x.protocol) || ['127.0.0.1', 'localhost', '[::1]'].includes(x.hostname) } catch (e) { return false } };
 const ICON = path.join(__dirname, 'icon.png');
+/* الإصدار الفعلي: قد تعمل شيفرة محدَّثة (electron/boot.js) غير المشحونة مع المثبّت */
+const BOOT = globalThis.MQ_BOOT || null;
+const APP_VERSION = (BOOT && BOOT.version) || app.getVersion();
 
 // كل نسخة باسمها ومجلد إعداداتها الخاص (%APPDATA%\Mithaq Private) — لا تقرأ الخاصة إعدادات «ميثاق متصل» ولا مجلد بياناته
 if (ED.offline) { app.setName('Mithaq Private'); app.setPath('userData', path.join(app.getPath('appData'), 'Mithaq Private')) }
@@ -34,7 +37,7 @@ function portableData() {
 /* نسخة «production» (مجلد بيانات بجانبها): ملف إعدادات خاص بها، فلا تتشارك الإعدادات ولا مجلد البيانات مع نسخة مثبّتة على الجهاز نفسه */
 const PORTABLE = ED.offline ? null : portableData();
 if (PORTABLE) app.setPath('userData', path.join(path.dirname(PORTABLE), 'profile'));
-if (!app.requestSingleInstanceLock()) { app.quit(); process.exit(0); }
+if (!(BOOT && BOOT.locked) && !app.requestSingleInstanceLock()) { app.quit(); process.exit(0); }
 
 let win = null, tray = null, quitting = false, cfg = {};
 const CFG_F = () => path.join(app.getPath('userData'), 'config.json');
@@ -233,11 +236,15 @@ function createTray() {
     { label: 'حفظ نسخة على قرص خارجي…', click: exportBackup },
     { label: 'فتح مجلد النسخ الاحتياطية', click: () => { const b = globalThis.MQ_DESKTOP; shell.openPath(b ? b.backup.ROOT : path.dirname(cfg.dataDir)) } },
     { label: 'فتح مجلد البيانات', click: () => shell.openPath(cfg.dataDir) }]),
+    ...(UPD ? [{ type: 'separator' }, UPD.status().pending
+      ? { label: 'إعادة التشغيل لتطبيق التحديث ' + UPD.status().pending, click: applyUpdate }
+      : { label: 'التحقق من التحديثات (الإصدار ' + APP_VERSION + ')', click: async () => { const s = await updTick(); if (s && !s.pending) new Notification({ title: TITLE, body: s.status === 'uptodate' ? 'المسبار محدَّث: الإصدار ' + APP_VERSION : s.status === 'error' ? 'تعذّر التحقق من التحديثات: ' + s.error : s.status === 'idle' ? 'التحديثات تتطلب ترخيصاً فعّالاً لهذا المكتب' : 'جارٍ…', icon: ICON }).show() } }] : []),
     { label: 'تشغيل المِسْبار مع بدء Windows', type: 'checkbox', checked: login(), click: i => { app.setLoginItemSettings({ openAtLogin: i.checked, args: ['--hidden'] }); tray.setContextMenu(menu()) } },
     { type: 'separator' },
     { label: 'إغلاق المِسْبار نهائياً', click: () => { quitting = true; app.quit() } },
   ]);
   tray.setContextMenu(menu());
+  refreshTray = () => { if (tray && !tray.isDestroyed()) tray.setContextMenu(menu()) };
   tray.on('click', show);
 }
 
@@ -256,7 +263,49 @@ async function exportBackup() {
 }
 ipcMain.handle('mq:pickFolder', (e, title) => pickFolder(title));
 ipcMain.handle('mq:openPath', (e, p) => { if (typeof p === 'string' && path.isAbsolute(p)) shell.openPath(p); return true });
-ipcMain.handle('mq:info', () => ({ version: app.getVersion(), dataDir: cfg.dataDir, edition: ED.id }));
+ipcMain.handle('mq:info', () => ({ version: APP_VERSION, dataDir: cfg.dataDir, edition: ED.id, update: UPD ? UPD.status() : null }));
+
+/* ── التحديث التلقائي (lib/updater.js): فحص بعد دقيقتين ثم كل 6 ساعات، تنزيل في الخلفية، تطبيق عند إعادة التشغيل ── */
+let UPD = null, updNotified = null, refreshTray = () => {};
+function updToken() {
+  try {
+    const L = require(path.join(ROOT, 'lib', 'license.js'));
+    const code = fs.readFileSync(path.join(cfg.dataDir, 'license.key'), 'utf8').trim(), fp = L.fingerprint();
+    const r = L.verify(code, { fp }); return r.ok && r.payload.slug ? 'mqgw:' + fp + ':' + code : '';
+  } catch (e) { return '' }
+}
+function startUpdater() {
+  if (!BOOT || !BOOT.updatesDir || ED.offline || cfg.mode === 'client') return;
+  let pub = ''; try { pub = fs.readFileSync(path.join(BOOT.bundled, 'license.pub'), 'utf8') } catch (e) {}
+  UPD = require(path.join(ROOT, 'lib', 'updater.js')).create({ dir: BOOT.updatesDir, current: APP_VERSION, electron: parseInt(process.versions.electron, 10) || 0,
+    token: updToken, gateway: () => process.env.MQ_UPDATE_SERVER || 'https://misbar.palgaz.net', pub, log: (a, d) => console.log('[update]', a, d) });
+  setTimeout(updTick, 2 * 60e3); setInterval(updTick, 6 * 3600e3).unref();
+}
+async function updTick() {
+  if (!UPD) return null;
+  const s = await UPD.run(); refreshTray();
+  if (s.pending && updNotified !== s.pending) {
+    updNotified = s.pending;
+    const n = new Notification({ title: TITLE + ' — تحديث جاهز (' + s.pending + ')', body: (s.notes ? s.notes.slice(0, 120) + '\n' : '') + 'يُطبَّق عند إعادة تشغيل المسبار. اضغط لإعادة التشغيل الآن (تُحفظ نسخة احتياطية أولاً).', icon: ICON, timeoutType: 'never' });
+    n.on('click', applyUpdate); n.show();
+  } else if (s.status === 'installer' && updNotified !== 'installer:' + s.version) {
+    updNotified = 'installer:' + s.version;
+    new Notification({ title: TITLE + ' — إصدار جديد ' + s.version, body: 'هذا الإصدار يحتاج مثبّتاً جديداً؛ تواصل مع المورّد للحصول عليه.', icon: ICON }).show();
+  }
+  return s;
+}
+/* إعادة التشغيل لتطبيق التحديث: نسخة احتياطية أولاً، ثم الإقلاع بالشيفرة الجديدة */
+function applyUpdate() {
+  const r = backupNow('preupdate');
+  if (globalThis.MQ_DESKTOP && !r.ok && dialog.showMessageBoxSync({ type: 'warning', title: TITLE, message: 'تعذّرت النسخة الاحتياطية قبل التحديث', detail: r.error + '\n\nهل تريد المتابعة؟', buttons: ['إلغاء', 'متابعة التحديث'], defaultId: 0, cancelId: 0, noLink: true }) !== 1) return;
+  app.__exitBackup = true; quitting = true; app.relaunch(); app.quit();
+}
+ipcMain.handle('mq:update', async (e, action) => {
+  if (!UPD) return { status: 'off', current: APP_VERSION };
+  if (action === 'check') return await updTick();
+  if (action === 'apply') { if (UPD.status().pending) setTimeout(applyUpdate, 300); return UPD.status() }
+  return UPD.status();
+});
 
 /* تذكير سطح المكتب كل 48 ساعة (أو ما ضُبط في الإعدادات) بحفظ نسخة خارج الجهاز — يعمل حتى والنافذة مغلقة */
 let lastRemind = 0;
@@ -289,7 +338,13 @@ app.whenReady().then(async () => {
     process.env.MQ_EDITION = 'private';
   }
   if (cfg.mode === 'client') { if (!(await startClient())) { app.exit(0); return } createTray(); if (!process.argv.includes('--hidden')) createWindow(); return }
-  try { await startServer() } catch (e) { dialog.showErrorBox(TITLE, e.message); app.exit(1); return }
-  createTray(); setTimeout(remindCheck, 90e3);
+  try { await startServer() } catch (e) {
+    // الإصدار المحدَّث لم يشغّل الخادم: رجوع فوري للإصدار السابق
+    if (BOOT && BOOT.updated) { console.error('[update] server failed on', APP_VERSION, e); BOOT.fail(); app.relaunch(); app.exit(0); return }
+    dialog.showErrorBox(TITLE, e.message); app.exit(1); return;
+  }
+  startUpdater(); createTray(); setTimeout(remindCheck, 90e3);
+  // الخادم يعمل: الإصدار سليم
+  if (BOOT) { const c = BOOT.confirm(); if (c.justUpdated) new Notification({ title: TITLE, body: 'تم تحديث المسبار إلى الإصدار ' + c.justUpdated, icon: ICON }).show(); else if (c.reverted) new Notification({ title: TITLE, body: 'تعذّر تشغيل الإصدار ' + c.reverted + ' فعاد المسبار للإصدار السابق تلقائياً. بياناتك سليمة.', icon: ICON }).show() }
   if (!process.argv.includes('--hidden')) createWindow();
 });

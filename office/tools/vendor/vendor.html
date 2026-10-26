@@ -25,7 +25,7 @@ input,select,textarea{font:inherit;border:1px solid var(--line);border-radius:10
 .alert{border:1px solid #E8C979;background:#FFF6E0;border-radius:12px;padding:9px 14px;margin-bottom:12px}
 </style></head><body>
 <header><div><h1>إدارة نسخ المسبار</h1><small>للمورّد فقط · يعمل على هذا الجهاز</small></div>
-<nav id="nav"><button data-t="home" class="on">اللوحة</button><button data-t="offices">المكاتب</button><button data-t="ai">عقل المسبار</button><button data-t="cloud">السحابة</button><button data-t="settings">الإعدادات والنسخ</button></nav></header>
+<nav id="nav"><button data-t="home" class="on">اللوحة</button><button data-t="offices">المكاتب</button><button data-t="ai">عقل المسبار</button><button data-t="cloud">السحابة</button><button data-t="releases">الإصدارات</button><button data-t="settings">الإعدادات والنسخ</button></nav></header>
 <main id="app"></main><div id="toast"></div>
 <script>
 const VK='__VK__';
@@ -39,7 +39,7 @@ const KIND={desktop:'سطح مكتب',cloud:'سحابة',both:'سطح مكتب +
 const OST={active:['ok','فعّال'],suspended:['warn','موقوف'],ended:['bad','منتهٍ']};
 function go(t,slug){ST.tab=t;ST.slug=slug||null;document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));draw()}
 document.getElementById('nav').onclick=e=>{const b=e.target.closest('button');if(b)go(b.dataset.t)};
-async function draw(){const a=$('#app');a.innerHTML='<p class="m">جارٍ التحميل…</p>';try{a.innerHTML=await({home,offices,office,ai,cloud,settings}[ST.slug?'office':ST.tab])();bind()}catch(e){a.innerHTML='<div class="alert">'+esc(e.message)+'</div>'}}
+async function draw(){const a=$('#app');a.innerHTML='<p class="m">جارٍ التحميل…</p>';try{a.innerHTML=await({home,offices,office,ai,cloud,releases,settings}[ST.slug?'office':ST.tab])();bind()}catch(e){a.innerHTML='<div class="alert">'+esc(e.message)+'</div>'}}
 const binds=[];function on(sel,ev,fn){binds.push([sel,ev,fn])}function bind(){for(const [s,e,f] of binds.splice(0))document.querySelectorAll(s).forEach(x=>x.addEventListener(e,f))}
 
 async function home(){const s=await api('/api/summary');
@@ -105,6 +105,24 @@ async function cloud(){let rows;try{rows=await api('/api/cloud/offices')}catch(e
  on('[data-cs]','click',async e=>{const [slug,st]=e.currentTarget.dataset.cs.split('|');if(!confirm((st==='suspended'?'إيقاف':'تفعيل')+' المكتب السحابي '+slug+'؟'))return;try{await api('/api/cloud/status',{slug,status:st});toast('تم');draw()}catch(x){toast(x.message)}});
  return `<h2>المكاتب السحابية</h2><div class="card"><table><tr><th>المعرّف</th><th>الاسم</th><th>العنوان</th><th>الحالة</th><th>أُنشئ</th><th></th></tr>${rows.map(r=>`<tr><td class="mono">${esc(r.slug)}</td><td>${esc(r.name)}</td><td class="mono">https://${esc(r.slug)}.palgaz.net</td><td><span class="pill ${r.status==='active'?'ok':'warn'}">${r.status==='active'?'فعّال':'موقوف'}</span></td><td class="mono">${esc(r.created_at||'')}</td><td>${r.status==='active'?`<button class="b d" data-cs="${esc(r.slug)}|suspended">إيقاف</button>`:`<button class="b" data-cs="${esc(r.slug)}|active">تفعيل</button>`}</td></tr>`).join('')}</table>
  <p class="m">لإنشاء مكتب سحابي جديد: أضفه في «المكاتب» بنوع «سحابة»، ثم «إنشاء المكتب في السحابة» من صفحته.</p></div>`}
+
+const RST={active:['ok','يُطرح'],paused:['warn','متوقف'],withdrawn:['bad','مسحوب']};
+async function releases(){let d;try{d=await api('/api/releases')}catch(e){return '<div class="alert">تعذّر الاتصال بخادم التحديثات: '+esc(e.message)+'</div>'}
+ const latest=d.releases.filter(r=>r.status==='active').map(r=>r.version)[0]||'';
+ on('#pub','click',async e=>{const v=$('#rV').value.trim();if(!confirm('حزم الإصدار '+v+' من المجلد المبني وتوقيعه ورفعه؟\nيُرفع متوقفاً، ثم تبدأ طرحه بنفسك.'))return;e.target.disabled=true;e.target.textContent='جارٍ الحزم والرفع…';try{const r=await api('/api/releases/publish',{version:v,notes:$('#rN').value,channel:$('#rC').value,appDir:$('#rD').value,min_electron:$('#rE').value});toast('رُفع '+r.version+' ('+(r.size/1048576).toFixed(1)+' م.ب، '+r.files+' ملفاً)');draw()}catch(x){toast(x.message);e.target.disabled=false;e.target.textContent='حزم ورفع'}});
+ on('[data-ro]','click',async e=>{const [v,ro]=e.currentTarget.dataset.ro.split('|');const st=ro==='stop'?'paused':ro==='wd'?'withdrawn':'active';if(st!=='active'&&!confirm((st==='paused'?'إيقاف طرح ':'سحب ')+v+'؟ لا يصل لمكاتب جديدة (من حدّث يبقى عليه).'))return;try{await api('/api/releases/'+v,st==='active'?{status:st,rollout:+ro}:{status:st});toast('تم');draw()}catch(x){toast(x.message)}});
+ on('[data-uo]','click',async e=>{const [slug,act]=e.currentTarget.dataset.uo.split('|');const c=d.offices.find(o=>o.slug===slug)||{};const b={slug,channel:c.channel||'stable',hold:c.hold?1:0,max_version:c.max_version||''};if(act==='hold')b.hold=b.hold?0:1;if(act==='beta')b.channel=b.channel==='beta'?'stable':'beta';try{await api('/api/updates/office',b);toast('تم');draw()}catch(x){toast(x.message)}});
+ const conf=s=>d.offices.find(o=>o.slug===s)||{};
+ const slugs=[...new Set([...d.seen.map(r=>r.slug),...d.offices.map(o=>o.slug)])];
+ return `<div class="card"><h2>إصدار جديد</h2><p class="m">ابنِ المسبار أولاً (build_production)، ثم يُحزم مجلد التطبيق المبني ويُوقّع بمفتاحك الخاص ويُرفع. المكاتب لا تطبّق إلا حزمة موقّعة بمفتاحك، وتنزّلها في الخلفية وتطبّقها عند إعادة التشغيل بعد نسخة احتياطية، وتعود تلقائياً للإصدار السابق إن تعطّل.</p>
+  <div class="form"><label>رقم الإصدار<input id="rV" class="mono" placeholder="1.0.5" value=""></label><label>القناة<select id="rC"><option value="stable">مستقر (لكل المكاتب حسب النسبة)</option><option value="beta">تجريبي (مكاتب التجربة فقط)</option></select></label>
+  <label style="grid-column:1/-1">ما الجديد (يظهر للمكتب)<textarea id="rN" rows="2" placeholder="مثال: تحسين البحث في التشريعات، وزر التواصل مع محامٍ"></textarea></label>
+  <label style="grid-column:1/-1">مجلد التطبيق المبني<input id="rD" class="mono" value="${esc(d.appDir||'')}"></label><label>أدنى إصدار Electron يلزمه (0 = أي)<input id="rE" class="mono" value="0"></label></div>
+  <button class="b p" id="pub" style="margin-top:8px">حزم ورفع</button></div>
+ <div class="card"><h2>الإصدارات</h2>${d.releases.length?`<table><tr><th>الإصدار</th><th>القناة</th><th>الحجم</th><th>الطرح</th><th>الحالة</th><th>ما الجديد</th><th></th></tr>${d.releases.map(r=>`<tr><td class="mono"><b>${esc(r.version)}</b><div class="m">${esc(r.created_at)}</div></td><td>${r.channel==='beta'?'تجريبي':'مستقر'}</td><td>${(r.size/1048576).toFixed(1)} م.ب${r.uploaded?'':' <span class="pill bad">لم يُرفع</span>'}</td><td>${r.channel==='beta'?'مكاتب التجربة':r.rollout+'%'}</td><td><span class="pill ${RST[r.status][0]}">${RST[r.status][1]}</span></td><td>${esc(r.notes||'')}</td>
+  <td class="row2">${r.status!=='withdrawn'?[5,25,50,100].map(x=>`<button class="b${r.status==='active'&&r.rollout===x?' p':''}" data-ro="${esc(r.version)}|${x}">${x}%</button>`).join('')+(r.status==='active'?`<button class="b d" data-ro="${esc(r.version)}|stop">إيقاف</button>`:'')+`<button class="b d" data-ro="${esc(r.version)}|wd">سحب</button>`:''}</td></tr>`).join('')}</table>`:'<p class="m">لا إصدارات منشورة بعد.</p>'}
+  <p class="m">ابدأ بنسبة صغيرة (5%) أو بمكاتب التجربة، وراقب، ثم ارفع النسبة. «إيقاف» يمنع وصوله لمكاتب أخرى فوراً.</p></div>
+ <div class="card"><h2>المكاتب والأجهزة</h2>${slugs.length?`<table><tr><th>المكتب</th><th>الجهاز</th><th>إصداره</th><th>عُرض عليه</th><th>آخر فحص</th><th>التحديثات</th><th></th></tr>${d.seen.map(r=>`<tr><td>${esc(r.name||r.slug)} <span class="mono m">${esc(r.slug)}</span></td><td class="mono">${esc(r.fp)}</td><td class="mono"><b>${esc(r.version||'')}</b>${latest&&r.version===latest?' <span class="pill ok">الأحدث</span>':''}</td><td class="mono">${esc(r.offered||'—')}</td><td class="mono">${esc(r.last_check||'')}</td><td>${conf(r.slug).hold?'<span class="pill warn">موقوفة</span>':''}${conf(r.slug).channel==='beta'?' <span class="pill">تجربة</span>':''}</td><td class="row2"><button class="b" data-uo="${esc(r.slug)}|hold">${conf(r.slug).hold?'استئناف':'إيقاف التحديثات'}</button><button class="b" data-uo="${esc(r.slug)}|beta">${conf(r.slug).channel==='beta'?'إخراج من التجربة':'مكتب تجربة'}</button></td></tr>`).join('')}</table>`:'<p class="m">لم يتصل أي جهاز بخادم التحديثات بعد.</p>'}</div>`}
 
 async function settings(){const s=await api('/api/settings'),sum=await api('/api/summary');
  on('#saveS','click',async()=>{try{await api('/api/settings',{opsHost:$('#sHost').value,opsTokenFile:$('#sTok').value,backupDir:$('#sBk').value});toast('حُفظت الإعدادات');draw()}catch(e){toast(e.message)}});

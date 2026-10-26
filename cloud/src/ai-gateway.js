@@ -27,7 +27,7 @@ async function pubKey(pem) {
 }
 
 /* التحقق من كود الترخيص: MQ1.<payload>.<sig> — نفس صيغة office/lib/license.js */
-export async function verifyLicense(code, fp, pem, now = new Date()) {
+export async function verifyLicense(code, fp, pem, now = new Date(), { needAi = true } = {}) {
   const m = /^MQ1\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)$/.exec(String(code || '').trim());
   if (!m) return { ok: false, error: 'صيغة الترخيص غير صحيحة' };
   if (!pem) return { ok: false, error: 'الوسيط غير مجهّز بمفتاح التحقق' };
@@ -38,7 +38,7 @@ export async function verifyLicense(code, fp, pem, now = new Date()) {
   if (normFp(p.fp) !== normFp(fp)) return { ok: false, error: 'الترخيص صادر لجهاز آخر' };
   if (p.exp && now.toISOString().slice(0, 10) > p.exp) return { ok: false, error: 'انتهت مدة الترخيص في ' + p.exp };
   if (!SLUG_RE.test(String(p.slug || ''))) return { ok: false, error: 'الترخيص بلا معرّف مكتب' };
-  if (!(Number(p.ai) > 0)) return { ok: false, error: 'هذا الترخيص لا يشمل عقل المسبار الواعي' };
+  if (needAi && !(Number(p.ai) > 0)) return { ok: false, error: 'هذا الترخيص لا يشمل عقل المسبار الواعي' };
   return { ok: true, payload: p };
 }
 

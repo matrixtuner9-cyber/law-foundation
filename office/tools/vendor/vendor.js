@@ -6,6 +6,7 @@
 const fs = require('fs'), path = require('path'), crypto = require('crypto'), http = require('http'), os = require('os');
 const { DatabaseSync } = require('node:sqlite');
 const L = require('../../lib/license');
+const UP = require('../../lib/update-pack');
 
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d };
 const DIR = path.resolve(arg('dir', process.env.MQ_VENDOR_DIR || path.join(os.homedir(), 'mithaq-activator')));
@@ -23,7 +24,8 @@ function open() {
   CREATE INDEX IF NOT EXISTS lic_slug ON licenses(slug);
   CREATE TABLE IF NOT EXISTS payments(id INTEGER PRIMARY KEY AUTOINCREMENT, slug TEXT NOT NULL, amount REAL NOT NULL, currency TEXT, paid_at TEXT, method TEXT, purpose TEXT, note TEXT, created_at TEXT);
   CREATE TABLE IF NOT EXISTS events(id INTEGER PRIMARY KEY AUTOINCREMENT, at TEXT, slug TEXT, action TEXT, detail TEXT);
-  CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);`);
+  CREATE TABLE IF NOT EXISTS meta(key TEXT PRIMARY KEY, value TEXT);
+  CREATE TABLE IF NOT EXISTS releases(version TEXT PRIMARY KEY, at TEXT, sha256 TEXT, size INTEGER, files INTEGER, file TEXT, notes TEXT, channel TEXT);`);
   return db;
 }
 const now = () => new Date().toISOString().replace('T', ' ').slice(0, 16), today = () => new Date().toISOString().slice(0, 10);
@@ -31,14 +33,15 @@ function create(db) {
   const meta = (k, d) => { const r = db.prepare('SELECT value FROM meta WHERE key=?').get(k); try { return r ? JSON.parse(r.value) : d } catch (e) { return d } };
   const setMeta = (k, v) => db.prepare('INSERT INTO meta(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').run(k, JSON.stringify(v));
   const log = (slug, action, detail) => db.prepare('INSERT INTO events(at,slug,action,detail) VALUES(?,?,?,?)').run(now(), slug || '', action, JSON.stringify(detail || {}));
-  const settings = () => ({ opsHost: 'test.palgaz.net', opsTokenFile: 'E:\\methaq-final-folder21102026\\cloud-deploy\\.ops_token', backupDir: '', cloudBase: 'palgaz.net', ...meta('settings', {}) });
+  const settings = () => ({ opsHost: 'test.palgaz.net', opsTokenFile: 'E:\\methaq-final-folder21102026\\cloud-deploy\\.ops_token', backupDir: '', cloudBase: 'palgaz.net', appDir: 'E:\\methaq-final-folder21102026\\office-server\\dist\\win-unpacked\\resources\\app', ...meta('settings', {}) });
 
   /* ── السحابة: لوحة المشغّل (/_ops) برمز سري يُقرأ من ملفه ولا يُعرض ── */
   async function ops(method, p, body, fetchImpl = fetch) {
     const s = settings(); let tok = process.env.MQ_OPS_TOKEN || '';
     if (!tok) { try { tok = fs.readFileSync(s.opsTokenFile, 'utf8').trim() } catch (e) {} }
     if (!tok) throw new Error('رمز لوحة المشغّل غير موجود؛ حدّد ملفه في الإعدادات');
-    const r = await fetchImpl(`https://${s.opsHost}${p}`, { method, headers: { authorization: 'Bearer ' + tok, 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined });
+    const raw = Buffer.isBuffer(body);
+    const r = await fetchImpl(`https://${s.opsHost}${p}`, { method, headers: { authorization: 'Bearer ' + tok, 'content-type': raw ? 'application/octet-stream' : 'application/json' }, body: raw ? body : body ? JSON.stringify(body) : undefined });
     const t = await r.text(); let j; try { j = JSON.parse(t) } catch (e) { j = { raw: t.slice(0, 200) } }
     if (!r.ok) throw new Error((j && j.error) || ('خطأ من السحابة ' + r.status));
     return j;
@@ -145,7 +148,33 @@ function create(db) {
     const v = { t: Date.now(), at: now(), dir: dst }; setMeta('last_backup', v); log('', 'vendor.backup', v); return { ok: true, ...v, files };
   }
 
-  return { db, meta, setMeta, settings, ops, saveOffice, office, offices, issue, revoke, renew, pay, unpay, summary, backup, log };
+  /* ── الإصدارات والتحديث التلقائي: حزم شيفرة التطبيق المبنية، توقيعها بالمفتاح الخاص، رفعها، ثم طرحها تدريجياً ── */
+  async function publish(b, fetchImpl) {
+    if (!fs.existsSync(PRIV)) throw new Error('مفتاح التوقيع غير موجود');
+    const version = String(b.version || '').trim(); if (!UP.VER_RE.test(version)) throw new Error('رقم الإصدار بصيغة 1.0.5');
+    const appDir = String(b.appDir || settings().appDir || '').trim(); if (!fs.existsSync(appDir)) throw new Error('مجلد التطبيق المبني غير موجود: ' + appDir + ' — ابنِ المسبار أولاً');
+    const last = db.prepare('SELECT version FROM releases').all().map(r => r.version).sort(UP.cmpVer).pop();
+    if (last && UP.cmpVer(version, last) <= 0) throw new Error('رقم الإصدار يجب أن يكون أكبر من آخر إصدار منشور ' + last);
+    const pk = UP.pack(appDir, version);
+    const meta_ = { version, sha256: pk.sha256, size: pk.size, min_electron: Math.max(0, parseInt(b.min_electron || 0, 10) || 0) };
+    meta_.sig = UP.signRelease(meta_, fs.readFileSync(PRIV, 'utf8'));
+    if (!UP.verifyRelease(meta_, fs.readFileSync(PUB, 'utf8'))) throw new Error('فشل التحقق الذاتي من التوقيع');
+    const rdir = path.join(DIR, 'releases'); fs.mkdirSync(rdir, { recursive: true });
+    const file = path.join(rdir, `misbar-${version}.mqp`); fs.writeFileSync(file, pk.buf);
+    const notes = String(b.notes || '').slice(0, 2000), channel = b.channel === 'beta' ? 'beta' : 'stable';
+    await ops('POST', '/_ops/updates/release', { ...meta_, notes, channel, rollout: 0, status: 'paused' }, fetchImpl);
+    await ops('PUT', '/_ops/updates/upload/' + version, pk.buf, fetchImpl);
+    db.prepare('INSERT OR REPLACE INTO releases(version,at,sha256,size,files,file,notes,channel) VALUES(?,?,?,?,?,?,?,?)').run(version, now(), pk.sha256, pk.size, pk.files, file, notes, channel);
+    log('', 'release.publish', { version, size: pk.size, files: pk.files, channel });
+    return { ok: true, version, size: pk.size, files: pk.files, sha256: pk.sha256, status: 'paused' };
+  }
+  async function releaseSet(version, b, fetchImpl) {
+    if (!UP.VER_RE.test(String(version))) throw new Error('رقم الإصدار');
+    const body = { version }; for (const k of ['status', 'rollout', 'channel', 'notes']) if (b[k] != null) body[k] = b[k];
+    const r = await ops('POST', '/_ops/updates/release', body, fetchImpl); log('', 'release.set', body); return r;
+  }
+
+  return { db, meta, setMeta, settings, ops, publish, releaseSet, saveOffice, office, offices, issue, revoke, renew, pay, unpay, summary, backup, log };
 }
 
 /* ── الخادم المحلي ── */
@@ -180,8 +209,16 @@ function serve(V, { port = PORT, fetchImpl } = {}) {
       if (p === '/api/cloud/create' && M === 'POST') { const b = await body(req); const o = V.office(b.slug); if (!o) throw new Error('المكتب غير موجود'); const r = await V.ops('POST', '/_ops/offices', { slug: o.slug, name: o.name }, fetchImpl); V.log(o.slug, 'cloud.create', {}); return send(res, 200, r) }
       if (p === '/api/cloud/setup-link' && M === 'POST') { const b = await body(req); const r = await V.ops('POST', `/_ops/offices/${encodeURIComponent(b.slug)}/setup-link`, {}, fetchImpl); V.log(b.slug, 'cloud.setup_link', {}); return send(res, 200, r) }
       if (p === '/api/cloud/status' && M === 'POST') { const b = await body(req); const r = await V.ops('POST', `/_ops/offices/${encodeURIComponent(b.slug)}/status`, { status: b.status }, fetchImpl); V.log(b.slug, 'cloud.status', { status: b.status }); return send(res, 200, r) }
+      if (p === '/api/releases' && M === 'GET') {
+        const [rel, up] = await Promise.all([V.ops('GET', '/_ops/updates/releases', null, fetchImpl), V.ops('GET', '/_ops/updates/offices', null, fetchImpl)]);
+        const names = Object.fromEntries(V.offices().map(o => [o.slug, o.name]));
+        return send(res, 200, { releases: rel, seen: up.seen.map(r => ({ ...r, name: names[r.slug] || '' })), offices: up.offices, local: V.db.prepare('SELECT * FROM releases ORDER BY at DESC').all(), appDir: V.settings().appDir });
+      }
+      if (p === '/api/releases/publish' && M === 'POST') return send(res, 200, await V.publish(await body(req), fetchImpl));
+      if ((m = /^\/api\/releases\/(\d{1,3}\.\d{1,3}\.\d{1,4})$/.exec(p)) && M === 'POST') return send(res, 200, await V.releaseSet(m[1], await body(req), fetchImpl));
+      if (p === '/api/updates/office' && M === 'POST') { const b = await body(req); const r = await V.ops('POST', '/_ops/updates/office', b, fetchImpl); V.log(b.slug, 'updates.office', b); return send(res, 200, r) }
       if (p === '/api/settings' && M === 'GET') return send(res, 200, { ...V.settings(), tokenFound: (() => { try { return !!(process.env.MQ_OPS_TOKEN || fs.readFileSync(V.settings().opsTokenFile, 'utf8').trim()) } catch (e) { return false } })(), dir: DIR });
-      if (p === '/api/settings' && M === 'POST') { const b = await body(req); const s = { ...V.settings() }; for (const k of ['opsHost', 'opsTokenFile', 'backupDir', 'cloudBase']) if (k in b) s[k] = String(b[k] || '').trim(); V.setMeta('settings', s); return send(res, 200, s) }
+      if (p === '/api/settings' && M === 'POST') { const b = await body(req); const s = { ...V.settings() }; for (const k of ['opsHost', 'opsTokenFile', 'backupDir', 'cloudBase', 'appDir']) if (k in b) s[k] = String(b[k] || '').trim(); V.setMeta('settings', s); return send(res, 200, s) }
       if (p === '/api/backup' && M === 'POST') { const b = await body(req); return send(res, 200, V.backup(b.dir)) }
       return send(res, 404, { error: 'غير موجود' });
     } catch (e) { return send(res, 400, { error: e.message }) }

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "المِسْبار - نظام إدارة مكتب المحاماة وعقل القانون",
-  "main": "electron/main.js",
+  "main": "electron/boot.js",
   "scripts": {
     "start": "node server.js",
     "app": "electron .",
