@@ -19,9 +19,9 @@ function setup(){const p=page();if(!p)return;
  mark()}
 function mark(){raf=0;if(!head||!document.body.classList.contains('gs-on'))return;
  const hb=head.getBoundingClientRect().bottom,p=page();
- document.body.classList.toggle('gs-over',window.scrollY>24);
+ document.body.classList.toggle('gs-over',head.getBoundingClientRect().top<=parseFloat(getComputedStyle(head).top||0)+1&&(window.scrollY>24||(page().parentElement&&page().parentElement.scrollTop>24)));
  p.querySelectorAll(LIT).forEach(el=>{if(head.contains(el))return;const r=el.getBoundingClientRect();const on=r.height>0&&r.top<hb-6&&r.bottom>0;if(on!==el.classList.contains('gs-lit'))el.classList.toggle('gs-lit',on)})}
-window.addEventListener('scroll',()=>{if(!raf)raf=requestAnimationFrame(mark)},{passive:true});
+document.addEventListener('scroll',()=>{if(!raf)raf=requestAnimationFrame(mark)},{passive:true,capture:true});
 window.addEventListener('resize',()=>{if(head)document.documentElement.style.setProperty('--gsTop',topOffset()+'px');if(!raf)raf=requestAnimationFrame(mark)});
 const start=()=>{const p=page();if(!p)return setTimeout(start,200);new MutationObserver(()=>{head=head&&p.contains(head)?head:null;setup()}).observe(p,{childList:true});setup()};
 start();
