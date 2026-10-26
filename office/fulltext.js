@@ -6,7 +6,7 @@ const e=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;
 const get=(k,d)=>{try{const v=localStorage.getItem(k);return v==null?d:+v}catch(x){return d}};
 const put=(k,v)=>{try{localStorage.setItem(k,String(v))}catch(x){}};
 const F={size:get('mq_ft_size',20),lh:get('mq_ft_lh',2),cur:null};
-const paras=t=>String(t||'').replace(/\r/g,'').split(/\n{2,}|\n(?=\s*[0-9٠-٩]+[.\-)]\s)/).map(x=>x.replace(/[ \t]+/g,' ').trim()).filter(Boolean);
+const paras=t=>String(t||'').replace(/[ \t]*(?:شاهد\s+[\u0621-\u064A]+\s*[:：]\s*)?(?:https?:\/\/)?(?:www\.)?maqam\.najah\.edu[^\s،,)\]]*/gi,'').replace(/\r/g,'').split(/\n{2,}|\n(?=\s*[0-9٠-٩]+[.\-)]\s)/).map(x=>x.replace(/[ \t]+/g,' ').trim()).filter(Boolean);
 function hl(t,q){t=e(t);const ws=(window.MQ_rnorm?MQ_rnorm(q):String(q||'')).split(' ').filter(w=>w.length>1);if(!ws.length)return t;
  try{const re=new RegExp('('+ws.map(w=>w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/ا/g,'[اأإآ]').replace(/ي/g,'[يى]').replace(/ه/g,'[هة]')).join('|')+')','giu');return t.replace(re,'<mark>$1</mark>')}catch(x){return t}}
 

@@ -12,7 +12,7 @@ const PER=18;
 const canWrite=()=>!!(window.MQ&&MQ.user&&['admin','lawyer'].includes(MQ.user.role)&&!MQ.readOnly);
 const validUrl=s=>{try{const u=new URL(s);return /^https?:$/.test(u.protocol)?u.href:''}catch(x){return ''}};
 /* روابط تحتاج تسجيل دخول (المقتفي) لا تُعرض، كما في بقية الشاشات */
-const shownUrl=s=>{const u=validUrl(s);return u&&!/muqtafi\.birzeit\.edu/i.test(u)?u:''};
+const shownUrl=s=>{const u=validUrl(s);return u&&!/muqtafi\.birzeit\.edu|maqam\.najah\.edu/i.test(u)?u:''};
 const P={tab:'الكل',q:'',authority:'',nature:'',page:1,laws:[],totalLaws:0,partial:false,busy:false,error:'',loadedQ:null,seq:0,t:0};
 
 {const i=NAV.findIndex(n=>n[0]==='laws');NAV.splice(i<0?NAV.length:i+1,0,['legalShelf','مكتبتي القانونية'])}

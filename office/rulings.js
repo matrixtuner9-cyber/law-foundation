@@ -21,11 +21,10 @@ function savedNotice(r){const page=document.getElementById('page');if(!page)retu
  page.prepend(box)}
 A.rNoteX=()=>document.getElementById('rlSavedNote')?.remove();
 /* روابط المصادر التي تتطلب تسجيل دخول (المقتفي) لا تُعرض ولا تُطبع؛ الحكم محفوظ في المكتبة أصلاً. يبقى الرابط في السجل داخلياً لمنع التكرار */
-const pubUrl=u=>u&&!/muqtafi\.birzeit\.edu/i.test(String(u))?u:'';
+const pubUrl=u=>u&&!/muqtafi\.birzeit\.edu|maqam\.najah\.edu/i.test(String(u))?u:'';
 const COURTS=['محكمة النقض','المحكمة العليا','المحكمة الدستورية العليا','محكمة الاستئناف','محكمة البداية','محكمة الصلح','المحكمة الإدارية','محكمة الجنايات الكبرى','المحكمة الشرعية العليا','محكمة الاستئناف الشرعية','أخرى'];
 const FIELDS=['مدني','تجاري','عمالي','جزائي','أحوال شخصية','إداري','دستوري','تنفيذ','إيجارات','أراضٍ وعقارات','إجراءات وإثبات','ضريبي','تأمين','أخرى'];
 const SOURCES=[
- ['maqam','مقام · جامعة النجاح','https://maqam.najah.edu/judgments/'],
  ['qistas','قسطاس','https://qistas.com/']];
 
 /* ── تطبيع عربي ── */

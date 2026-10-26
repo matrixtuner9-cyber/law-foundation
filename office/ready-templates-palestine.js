@@ -6,7 +6,7 @@
 'use strict';
 const BASE='قانون أصول المحاكمات المدنية والتجارية رقم (2) لسنة 2001 وتعديلاته';
 const D='[تُستكمل الوقائع والبيانات بعد مراجعة الملف]';
-const src=id=>'https://maqam.najah.edu/legislation/4/item/'+id+'/';
+const src=id=>''; /* لا روابط لمصادر خارجية في النماذج */
 const okSrc=u=>/^https:\/\/maqam\.najah\.edu\/legislation\/4\/item\/\d+\/$/.test(String(u||''));
 const T=(name,category,hint,art,item,fields,body)=>({name,category,hint,status:'draft',basis:BASE+' — المادة '+art,sourceUrl:src(item),fields:fields.map(([k,l])=>[k,l,D]),body});
 Object.assign(TPL,{
