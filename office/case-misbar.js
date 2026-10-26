@@ -298,12 +298,32 @@ const TD={data:null,at:0,busy:false};
 async function loadToday(){if(TD.busy)return;TD.busy=true;try{const r=await fetch('/api/admin/misbar/case/today',{credentials:'same-origin'});if(r.ok){TD.data=await r.json();TD.at=Date.now()}}catch(x){}TD.busy=false;const b=document.getElementById('mbToday');if(b)b.outerHTML=todayHtml()}
 function todayHtml(){const d=TD.data;if(!d||(!d.cases.length&&!d.hearings.length&&!d.deadlines.length))return '<div id="mbToday"></div>';
  const dd=s=>{try{return new Date(s+'T12:00:00').toLocaleDateString('ar-EG-u-nu-latn',{weekday:'short',day:'numeric',month:'short'})}catch(x){return s}};
- return `<section id="mbToday" class="mbt"><header>${MK}<div><b>المِسْبار · اليوم في قضاياك</b><small>ما يوصي به عقل القضية، وما ينتظر مراجعتك، وما يقترب موعده</small></div></header>
- <div class="mbt-g">${d.cases.length?`<div class="mbt-c"><h4>توصيات المسبار</h4>${d.cases.map(c=>`<button type="button" class="mbt-r" data-act="mbtOpen" data-v="${e(c.id)}"><span class="mbt-no">${e(c.no)}</span><span class="mbt-t"><b>${e(c.next?c.next.title:c.subject)}</b><small>${e(c.client)}${c.next&&c.next.due?' · الموعد '+e(c.next.due):''}</small></span><span class="mbt-tags">${c.next&&c.next.urgency==='high'?'<i class="h">عاجل</i>':''}${c.changes?`<i class="c">🔄 ${c.changes} تغيير</i>`:''}${c.pending?`<i class="p">${c.pending} للمراجعة</i>`:''}</span></button>`).join('')}</div>`:''}
- ${d.hearings.length||d.deadlines.length?`<div class="mbt-c"><h4>خلال الأيام القادمة</h4>${d.hearings.map(h=>`<button type="button" class="mbt-r" data-act="mbtOpen" data-v="${e(h.id)}"><span class="mbt-no">⚖️ ${e(dd(h.date))}${h.time?' '+e(h.time):''}</span><span class="mbt-t"><b>جلسة: ${e(h.purpose||h.subject)}</b><small>${e(h.no)} · ${e(h.client)}</small></span></button>`).join('')}${d.deadlines.map(x=>`<button type="button" class="mbt-r" data-act="mbtOpen" data-v="${e(x.id)}"><span class="mbt-no">⏳ ${e(dd(x.due))}</span><span class="mbt-t"><b>${e(x.title)}</b><small>${e(x.no)} · ${e(x.client)}${x.kind?' · '+e(x.kind):''}</small></span></button>`).join('')}</div>`:''}</div></section>`}
+ /* شريط نصّي متحرك (بدل اللوحة الكبيرة): توصيات المسبار، ثم الجلسات والمهل القريبة. يتوقف عند مرور المؤشر، وكل بند يفتح قضيته */
+ const it=(id,ic,t,sub,cls)=>`<button type="button" class="mbtk-i ${cls||''}" data-act="mbtOpen" data-v="${e(id)}"><i>${ic}</i><b>${e(t)}</b>${sub?`<small>${e(sub)}</small>`:''}</button>`;
+ const items=[
+  ...d.cases.map(c=>it(c.id,c.next&&c.next.urgency==='high'?'🔴':'🧭',c.next?c.next.title:(c.pending?c.pending+' بانتظار مراجعتك':c.changes+' تغيير جديد'),c.no+(c.client?' · '+c.client:''),c.next&&c.next.urgency==='high'?'hot':'')),
+  ...d.hearings.map(h=>it(h.id,'⚖️',dd(h.date)+(h.time?' '+h.time:'')+' — '+(h.purpose||'جلسة'),h.no+(h.client?' · '+h.client:''))),
+  ...d.deadlines.map(x=>it(x.id,'⏳',dd(x.due)+' — '+x.title,x.no+(x.client?' · '+x.client:'')))];
+ const sec=Math.max(25,items.length*7);
+ return `<section id="mbToday" class="mbtk" aria-label="المِسْبار · اليوم في قضاياك"><span class="mbtk-lb">${MK}<b>المِسْبار · اليوم</b></span><div class="mbtk-vp"><div class="mbtk-tr" style="--mbtkT:${sec}s"><span class="mbtk-set">${items.join('<i class="mbtk-sep">•</i>')}</span><span class="mbtk-set" aria-hidden="true">${items.join('<i class="mbtk-sep">•</i>')}</span></div></div></section>`}
 A.mbtOpen=id=>{S.caseId=id;S.caseTab='misbar';if(A.openCase)A.openCase(id);else{S.view='case';render()}setTimeout(()=>{if(S.caseTab!=='misbar'&&A.caseTab)A.caseTab('misbar')},50)};
 if(typeof V.dash==='function'){const d0=V.dash;V.dash=function(){const html=d0.apply(this,arguments);if(!TD.data||Date.now()-TD.at>60e3)setTimeout(loadToday,30);
  const i=html.indexOf('<div class="dgrid">');return i<0?todayHtml()+html:html.slice(0,i)+todayHtml()+html.slice(i)}}
+{const css=document.createElement('style');css.textContent=`
+.mbtk{display:flex;align-items:stretch;margin:0 0 16px;border-radius:14px;border:1px solid #D2BD8F;background:#FBF6EA;overflow:hidden;min-height:46px}
+.mbtk-lb{flex:none;display:flex;align-items:center;gap:8px;padding:0 14px;background:#0B1B2B;color:#F3D58A;font-size:14px;white-space:nowrap}
+.mbtk-lb img,.mbtk-lb svg{width:22px;height:22px;border-radius:50%}
+.mbtk-vp{flex:1;min-width:0;overflow:hidden;display:flex;align-items:center;-webkit-mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent);mask-image:linear-gradient(90deg,transparent,#000 4%,#000 96%,transparent)}
+.mbtk-tr{display:inline-flex;width:max-content;animation:mbtk var(--mbtkT,40s) linear infinite}
+.mbtk:hover .mbtk-tr,.mbtk:focus-within .mbtk-tr{animation-play-state:paused}
+.mbtk-set{display:inline-flex;align-items:center;gap:6px;padding-inline-end:6px}
+.mbtk-i{display:inline-flex;align-items:baseline;gap:6px;white-space:nowrap;background:transparent;border:0;font:inherit;color:#0F2A45;cursor:pointer;padding:6px 8px;border-radius:8px}
+.mbtk-i:hover{background:#F1E6CC}.mbtk-i b{font-size:14px}.mbtk-i small{font-size:12px;color:#6B5E44}.mbtk-i i{font-style:normal}
+.mbtk-i.hot b{color:#9B1C1C}
+.mbtk-sep{font-style:normal;color:#C9A24A}
+@keyframes mbtk{from{transform:translateX(0)}to{transform:translateX(50%)}}
+@media (prefers-reduced-motion:reduce){.mbtk-tr{animation:none}.mbtk-vp{overflow-x:auto}}
+html.night .mbtk{background:#14213A;border-color:#2A3A55}html.night .mbtk-i{color:#F2E6C4}html.night .mbtk-i small{color:#C9D4DB}html.night .mbtk-i:hover{background:#1E2D4A}`;document.head.appendChild(css)}
 
 const css=document.createElement('style');css.textContent=`
 .mbc{display:grid;gap:12px;margin-top:6px}.mbc .m{color:var(--muted,#6b7280)}
