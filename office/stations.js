@@ -147,14 +147,14 @@ function nextOf(k,st){const d=lastMerits(k);const H=typeof hearings!=='undefined
  if(st==='closed')return ['فتح الملف المؤرشف',`data-act="openCase" data-v="${k.id}"`];
  const pend=H.filter(h=>h.k===k.id&&!h.result&&h.date<=iso(TODAY)).sort((a,b)=>b.date.localeCompare(a.date))[0];
  if(pend)return ['ما جرى في جلسة '+fmtD(pend.date),`data-act="hrOpen" data-v="${pend.id}"`];
- const nh=root.nextH?nextH(k.id):null;
+ const nh=(typeof nextH==='function'?nextH(k.id):null);
  if(nh)return ['تحضير جلسة '+fmtD(nh.date),`data-act="hpGoCase" data-v="${k.id}"`];
  return ['إضافة الجلسة القادمة',`data-act="wfGo" data-v="${k.id}|9"`]}
 A.hpGoCase=v=>{S.view='case';S.caseId=v;S.caseTab='c360';render();if(A.c360Section)A.c360Section('hearing')};
 function bag(c,ks){
  const head=`<div class="st-bar"><button class="btn pri" data-act="caseFor" data-v="${c.id}">+ قضية جديدة لهذا الموكل</button></div>`;
  if(!ks.length)return head+'<section class="panel"><div class="empty">لا قضايا لهذا الموكل بعد. ابدأ بـ«قضية جديدة».</div></section>';
- return head+ks.map(k=>{const st=sync(k),si=idx(st),stage=stageOf(k,ctx()),d=lastMerits(k),nh=root.nextH?nextH(k.id):null,dl=(typeof deadlines!=='undefined'?deadlines:[]).filter(x=>x.k===k.id&&diff(x.due)>=0).sort((a,b)=>a.due.localeCompare(b.due))[0],miss=((k.gather||{}).need||[]).filter(n=>n.st==='client'||n.st==='agency').length,[nt,na]=nextOf(k,st),open=S.stMap===k.id;
+ return head+ks.map(k=>{const st=sync(k),si=idx(st),stage=stageOf(k,ctx()),d=lastMerits(k),nh=(typeof nextH==='function'?nextH(k.id):null),dl=(typeof deadlines!=='undefined'?deadlines:[]).filter(x=>x.k===k.id&&diff(x.due)>=0).sort((a,b)=>a.due.localeCompare(b.due))[0],miss=((k.gather||{}).need||[]).filter(n=>n.st==='client'||n.st==='agency').length,[nt,na]=nextOf(k,st),open=S.stMap===k.id;
   const usedAppeal=st==='appeal'||(k.track||[]).some(t=>APPEAL_LV.test(t.lvl||''));const steps=ST.map((s,i)=>s.opt&&!usedAppeal?'':`<div class="wfs ${i<si?'done':i===si?'cur':''}"><i>${i<si?'✓':''}</i><b>${s.t}</b><small>${i===si?esc(stage):''}</small></div>`).join('');
   const facts=[nh?['الجلسة القادمة',fmtD(nh.date)+' · '+esc(nh.purpose||'')]:null,dl?['أقرب مهلة',fmtD(dl.due)+' · '+esc(dl.title)]:null,miss?['مستندات ناقصة',miss+' من الموكل أو جهة']:null,d?['آخر حكم',fmtD(d.date)+(d.due?' · الطعن حتى '+fmtD(d.due):'')]:null,k.exec?['ملف التنفيذ','<button class="link mono" data-act="openCase" data-v="'+k.exec+'">'+esc((K(k.exec)||{}).no||k.exec)+'</button>']:null,k.parent?['القضية الأصل','<button class="link mono" data-act="openCase" data-v="'+k.parent+'">'+esc((K(k.parent)||{}).no||'')+'</button>']:null].filter(Boolean);
   return `<section class="panel wf-case st-case"><header><h2>${esc(k.subject)}</h2><span class="mono">${esc(k.no)}</span>${isExec(k)?'<span class="pill warn">تنفيذ</span>':''}${(k.flow==='criminal'||/جزائ/.test(String(k.type||'')))?'<span class="pill bad">جزائي</span>':''}<span class="grow"></span><button class="btn sm" data-act="openCase" data-v="${k.id}">فتح الملف</button></header>
