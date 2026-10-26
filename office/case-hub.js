@@ -91,7 +91,7 @@ S.caseTab='hub';
 A.hubTab=v=>{S.caseTab=v;render();setTimeout(()=>{const f=document.querySelector('#page form');if(f){f.scrollIntoView({block:'center'});const i=f.querySelector('input,select,textarea');if(i)i.focus()}},60)};
 A.hubFilter=v=>{H.filter=v;H.limit=60;render()};
 A.hubMore=()=>{H.limit+=60;render()};
-A.hubPay=cid=>{if(S.view==='case'&&S.caseId)root.MQ_payCase=S.caseId;S.view='client';S.clientId=cid;S.bagTab='acct';window.scrollTo(0,0);render()};
+A.hubPay=cid=>{if((S.view==='case'||(S.view==='client'&&S.bagTab==='case'))&&S.caseId)root.MQ_payCase=S.caseId;S.view='client';S.clientId=cid;S.bagTab='acct';window.scrollTo(0,0);render()};
 A.hubDraft=id=>A.aiOpen&&A.aiOpen(id);
 A.hubAssist=id=>A.asOpen&&A.asOpen(id);
 A.hubPrep=()=>A.hpOpen&&A.hpOpen();

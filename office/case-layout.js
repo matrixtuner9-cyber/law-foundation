@@ -15,7 +15,8 @@ V.case=function(){const html=v0.apply(this,arguments);const k=K(S.caseId);if(!k)
  R.querySelectorAll('.head .toolbar button, .head .toolbar a.btn').forEach(b=>b.remove());
  /* المرحلة والخطوة التالية أولاً: ماذا أفعل الآن؟ */
  const SS=window.MQ_station;
- if(SS&&SS.nextOf){const st=SS.stationOf(k),[nt,na]=SS.nextOf(k),ST=[['study','التقييم'],['pending','التسجيل'],['active','التقاضي'],['judgment','الحكم'],['appeal','الاستئناف'],['exec','التنفيذ'],['closed','مغلقة']].filter(x=>x[0]!=='appeal'||st==='appeal'||(k.track||[]).some(t=>/استئناف|نقض|إعادة محاكمة/.test(t.lvl||'')));
+ if(window.MQ_steps){const box=document.createElement('div');box.innerHTML=MQ_steps.panel(k);const anchor=R.querySelector('.hub-strip')||R.querySelector('.hub-acts')||R.querySelector('.tabs');if(anchor)anchor.before(box.firstElementChild)}
+ else if(SS&&SS.nextOf){const st=SS.stationOf(k),[nt,na]=SS.nextOf(k),ST=[['study','التقييم'],['pending','التسجيل'],['active','التقاضي'],['judgment','الحكم'],['appeal','الاستئناف'],['exec','التنفيذ'],['closed','مغلقة']].filter(x=>x[0]!=='appeal'||st==='appeal'||(k.track||[]).some(t=>/استئناف|نقض|إعادة محاكمة/.test(t.lvl||'')));
   const si=ST.findIndex(x=>x[0]===st);const box=document.createElement('section');box.className='cl-next';
   box.innerHTML=`<ol class="cl-steps">${ST.map((x,i)=>`<li class="${i<si?'done':i===si?'cur':''}">${x[1]}</li>`).join('')}</ol><div class="cl-now"><div><small>المرحلة الآن</small><b>${SS.stageOf(k)}</b></div><button class="btn pri" ${na}>الخطوة التالية: ${nt} ←</button></div>`;
   const anchor=R.querySelector('.hub-strip')||R.querySelector('.hub-acts')||R.querySelector('.tabs');if(anchor)anchor.before(box)}
@@ -40,6 +41,13 @@ V.case=function(){const html=v0.apply(this,arguments);const k=K(S.caseId);if(!k)
  const fl=R.querySelector('.hub-filters');
  if(fl&&!fl.querySelector('[data-v="rulings"]')){const b=document.createElement('button');b.type='button';b.className='chip';b.dataset.act='caseTab';b.dataset.v='rulings';b.textContent='الاجتهادات';fl.appendChild(b)}
  const out=document.createElement('div');out.className='cl-case';out.appendChild(R.cloneNode(true));return out.outerHTML};
+/* ملف القضية داخل حقيبة الموكل: كل الإجراءات في مكان واحد */
+window.MQ_caseInBag=(c,ks)=>{if(!S.caseId||!ks.some(k=>k.id===S.caseId))S.caseId=(ks[0]||{}).id;if(!S.caseId)return '<section class="panel"><div class="empty">لا قضايا لهذا الموكل.</div></section>';
+ const pick=ks.length>1?`<div class="cl-pick">${ks.map(k=>`<button type="button" class="chip ${k.id===S.caseId?'on':''}" data-act="openCase" data-v="${k.id}">${k.no&&k.no!=='قيد التسجيل'?k.no:'جديدة'} · ${String(k.subject||'').slice(0,30)}</button>`).join('')}</div>`:'';
+ const t=document.createElement('template');t.innerHTML=V.case();const R=t.content;
+ R.querySelectorAll('.hub-crumbs, [data-act="nav"][data-v="cases"]').forEach(x=>{const p=x.closest('nav,div');(p&&p.parentNode===R.firstElementChild?x:x).remove()});
+ const out=document.createElement('div');out.className='cl-inbag';out.appendChild(R.cloneNode(true));return out.innerHTML};
+{const oc=A.openCase;A.openCase=(v,...r)=>{const k=K(v);if(!k)return oc&&oc(v,...r);S.view='client';S.clientId=k.client;S.bagTab='case';S.caseId=v;if(!S.caseTab||!['hub','study','hearings','track','c360','docs','deadlines','msgs','mz','rulings','gather'].includes(S.caseTab)||S.lastCase!==v)S.caseTab='hub';S.lastCase=v;window.scrollTo(0,0);render()}}
 A.printCase=v=>{if(window.MQP&&MQP.D&&MQP.D.case)MQP.open(MQP.D.case(v));else toast('الطباعة غير متاحة')};
 const css=document.createElement('style');css.textContent=`
 .cl-acts{display:flex!important;flex-wrap:wrap;gap:10px 22px!important;align-items:center}
@@ -48,6 +56,8 @@ const css=document.createElement('style');css.textContent=`
 .cl-sub{display:flex;gap:12px;align-items:center;margin:8px 16px 0;font-size:14px}
 .cl-sub b{font-weight:700}
 .cl-case{display:contents}
+.cl-pick{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.cl-inbag .head h1{font-size:24px}
 .cl-case .head .toolbar .btn{display:none!important}
 .cl-next{margin:10px 16px 4px;border:1px solid var(--brass,#B9965A);border-radius:16px;padding:12px 14px;background:linear-gradient(180deg,rgb(185 150 90 / .10),transparent)}
 .cl-steps{list-style:none;display:flex;flex-wrap:wrap;gap:4px;margin:0 0 10px;padding:0;counter-reset:c}

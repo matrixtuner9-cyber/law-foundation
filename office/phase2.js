@@ -107,7 +107,7 @@ document.addEventListener('change',e=>{
  if(e.target.id==='mL'){const want=e.target.value,sel=document.getElementById('mC'),o=[...sel.options].find(o=>o.dataset.t===want);if(o)sel.value=o.value}
  if(e.target.id==='catF'){S.cat=e.target.value;const tb=document.getElementById('ctb');if(tb)tb.innerHTML=caseRows();else render()}
 });
-const r0=render;render=function(){r0();if(S.view==='case'&&S.caseTab==='track'){decPreview();const ml=document.getElementById('mL');if(ml)ml.dispatchEvent(new Event('change',{bubbles:true}))}};
+const r0=render;render=function(){r0();if((S.view==='case'||(S.view==='client'&&S.bagTab==='case'))&&S.caseTab==='track'){decPreview();const ml=document.getElementById('mL');if(ml)ml.dispatchEvent(new Event('change',{bubbles:true}))}};
 
 /* ── قضية جديدة: التصنيف والمراجع ── */
 const om=openModal;window.openModal=function(){om();const note=document.querySelector('#fCase .note.wide');if(!note)return;

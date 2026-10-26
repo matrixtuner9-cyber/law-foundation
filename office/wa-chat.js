@@ -83,7 +83,7 @@ document.addEventListener('keydown',ev=>{if(ev.key==='Escape'&&S.view==='chats'&
 window.MQ_chatMsg=m=>{drawList();if(S.chatOpen&&S.clientId===m.client){B().refreshThread&&B().refreshThread();if(m.from==='client'&&MQ.read)setTimeout(()=>{MQ.read(m.client);drawList()},1200)}};
 
 /* «بوابة الموكل» وأيقونات الرسائل في الشريط العلوي تفتح المراسلات؛ و«مراسلة الموكل» من القضية تفتح محادثته */
-const bag0=A.bag;A.bag=v=>{if(S.view==='case'||S.view==='chats'){A.waOpen(v);return}bag0(v)};
+const bag0=A.bag;A.bag=v=>{if(S.view==='chats'){A.waOpen(v);return}bag0(v)};
 const r0=render;render=function(){r0();
  document.querySelectorAll('#topIcons [data-act="nav"][data-v="portal"]').forEach(b=>{b.dataset.v='chats';if(/الرسائل|بوابة/.test(b.title||''))b.title=b.title.includes('الجديدة')?'الرسائل الجديدة':'المراسلات'});
  const bell=document.getElementById('tbBell');if(bell){const n=unreadAll();bell.textContent=n||'';bell.hidden=!n}

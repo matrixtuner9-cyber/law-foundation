@@ -39,6 +39,7 @@
       "stations.js",
       "hearing-report.js",
       "case-layout.js",
+      "case-steps.js",
       "sync.js",
       "mizan-ui.js",
       "style.css",

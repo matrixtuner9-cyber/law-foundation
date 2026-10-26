@@ -54,7 +54,7 @@ V.client=()=>{
  const c=C(S.clientId),ks=cases.filter(k=>k.client===c.id),u=unreadOf(c.id),md=media(c.id),tab=S.bagTab||'msgs';
  const voiceN=(messages[c.id]||[]).filter(m=>m.type==='voice').length;
  const lastSeen=c.last?(diff(c.last)===0?'نشط اليوم':'آخر دخول '+dmy(c.last)):'لم يدخل البوابة بعد';
- const tabs=[['msgs','المراسلات',u],['media','المرفقات',md.length],['cases','محطات القضايا',ks.length],['settle','التسويات والأقساط',(window.MQ_settle?MQ_settle.lateOf(c.id)||MQ_settle.count(c.id)||'':'')],['acct','الأتعاب والبيانات','']];
+ const tabs=[['msgs','المراسلات',u],['media','المرفقات',md.length],['cases','محطات القضايا',ks.length],...(S.caseId&&ks.some(k=>k.id===S.caseId)?[['case','ملف '+(K(S.caseId).no&&K(S.caseId).no!=='قيد التسجيل'?K(S.caseId).no:'القضية'),'']]:[]),['settle','التسويات والأقساط',(window.MQ_settle?MQ_settle.lateOf(c.id)||MQ_settle.count(c.id)||'':'')],['acct','الأتعاب والبيانات','']];
  return `<div><button class="link" data-act="nav" data-v="clients">→ كل الموكلين</button></div>
  <section class="bag-head">
   <div class="bag-id"><div class="bag-av">${esc(c.name.trim()[0])}</div><div><div class="bag-k">${I.bag}<span>حقيبة الموكل</span></div><h1>${esc(c.name)}</h1>
@@ -81,6 +81,7 @@ function bagBody(c,ks,tab){
   return md.length?`<div class="mgrid">${md.map(m=>m.type==='image'?`<figure class="mitem"><button class="bc-img" data-act="lightbox" data-v="${m.file}"><img src="${m.file}" alt="${esc(m.name||'صورة')}" loading="lazy"></button><figcaption><b>${esc(m.name||'صورة')}</b><small>${m.f==='them'?'من الموكل':'من المكتب'} · ${dmy(m.at.slice(0,10))}</small></figcaption></figure>`
    :`<figure class="mitem file"><span class="ficon big ${(FT[m.ext]||['','txt'])[1]}">${(FT[m.ext]||[String(m.ext||'').toUpperCase()])[0]}</span><figcaption><b>${esc(m.name)}</b><small>${size(m.size)} · ${m.f==='them'?'من الموكل':'من المكتب'} · ${dmy(m.at.slice(0,10))}</small><span class="fact"><a class="btn sm" href="${m.file}" target="_blank" rel="noopener">فتح</a>${m.f==='them'?`<button class="btn sm" data-act="toCase" data-v="${m.id}">إلى مستندات القضية</button>`:''}</span></figcaption></figure>`).join('')}</div>`
    :`<section class="panel"><div class="th-empty">${I.clip}<b>لا مرفقات بعد</b><span>الصور التي يلتقطها الموكل بالكاميرا أو يختارها من المعرض، والمستندات التي يرفعها من جهازه، تُجمع هنا.</span></div></section>`}
+ if(tab==='case'&&window.MQ_caseInBag)return MQ_caseInBag(c,ks);
  if(tab==='settle'&&window.MQ_settle)return MQ_settle.body(c,ks);
  if(tab==='cases'&&window.MQ_station)return MQ_station.bag(c,ks);
  if(tab==='cases'&&window.MQ_flow)return MQ_flow.bag(c,ks);
@@ -104,7 +105,7 @@ function refreshThread(){const th=document.getElementById('th');if(!th)return re
 window.MQ_onMsg=m=>{
  if(S.view==='chats'&&window.MQ_chatMsg)return MQ_chatMsg(m);
  if(S.view==='client'&&S.clientId===m.client){if((S.bagTab||'msgs')==='msgs'){refreshThread();if(m.from==='client'&&MQ.read)setTimeout(()=>MQ.read(m.client),1200)}else render()}
- else if((S.view==='portal'&&S.pc===m.client)||(S.view==='case'&&S.caseTab==='msgs'&&K(S.caseId).client===m.client))render();
+ else if((S.view==='portal'&&S.pc===m.client)||((S.view==='case'||(S.view==='client'&&S.bagTab==='case'))&&S.caseTab==='msgs'&&K(S.caseId)&&K(S.caseId).client===m.client))render();
 };
 
 /* رفع ملف من المحامي */

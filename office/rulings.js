@@ -198,7 +198,7 @@ document.addEventListener('submit',async ev=>{const f=ev.target;if(f.id!=='fRuli
   const fromExternal=isNew&&(S.view==='sources'||S.view==='maqamsearch');
   A.close();toast(isNew?'أُضيف الحكم إلى المكتبة':'حُفظ التعديل');
   // من شاشات البحث الخارجية يبقى المحامي مكانه ليكمل البحث، مع رسالة وزر «عرض في مكتبتي»
-  if(!fromExternal&&S.view!=='rulings'&&S.view!=='case')S.view='rulings';
+  if(!fromExternal&&S.view!=='rulings'&&!(S.view==='case'||(S.view==='client'&&S.bagTab==='case')))S.view='rulings';
   render();
   if(fromExternal)savedNotice(r);
   else if(S.view==='rulings'){const el=document.getElementById('rl_'+r.id);if(el)el.scrollIntoView({block:'center'})}

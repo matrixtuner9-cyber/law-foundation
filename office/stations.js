@@ -74,6 +74,7 @@ function acceptModal(k){const c=C(k.client)||{},q=oppNames(k);
  <div class="st-opts">
   <div class="st-opt" style="cursor:default"><b>✓ قبول القضية</b><small>بعد توقيع الوكالة والاتفاق على الأتعاب</small>
    <form id="fStAcc" class="form" style="margin-top:8px"><label>الأتعاب ₪<input class="field" type="number" id="saF" min="0" value="${esc(k.fee||'')}"></label><label>طريقة السداد<select class="field" id="saP">${['دفعة واحدة','دفعات حسب المراحل','نسبة من المحصَّل'].map(x=>`<option>${x}</option>`).join('')}</select></label>
+   <div class="wide" style="display:flex;gap:6px;flex-wrap:wrap"><button type="button" class="btn sm" data-act="csTpl" data-v="${k.id}|t1">طباعة الوكالة</button><button type="button" class="btn sm" data-act="csTpl" data-v="${k.id}|t6">طباعة اتفاقية الأتعاب</button></div>
    <label class="wide ck"><input type="checkbox" id="saW" checked> وُقّعت الوكالة واتفاقية الأتعاب</label>
    <label class="wide">نوع الإجراء<select class="field" id="saT"><option value="civil">دعوى حقوقية</option><option value="criminal" ${/جزائ/.test(String(k.type||''))?'selected':''}>شكوى جزائية</option></select></label>
    <button class="btn pri wide">قبول ← قيد التسجيل</button></form></div>
@@ -139,7 +140,8 @@ let CK=null;A.stClose=v=>{const k=K(v);if(!k)return;if(!can())return toast('صل
 {const g0=A.wfGo;if(typeof g0==='function')A.wfGo=v=>{const [a,b]=String(v).split('|');if(+(b||a)===22){A.stClose(b?a:S.caseId);return}return g0(v)}}
 
 /* ── حقيبة الموكل: المحطات الخمس لكل قضية وزر واحد «الخطوة التالية» ── */
-function nextOf(k,st){const d=lastMerits(k);const H=typeof hearings!=='undefined'?hearings:[];
+function nextOf(k,st){const d=lastMerits(k);
+ if(root.MQ_steps&&['study','pending'].includes(st)){const c=MQ_steps.current(k);if(c&&c.n<=9)return [String(c.n).padStart(2,'0')+' · '+c.t,`data-act="csGo" data-v="${k.id}|${c.id}"`]}const H=typeof hearings!=='undefined'?hearings:[];
  if(st==='study')return ['تقييم القضية: قبول أو رفض',`data-act="stAccept" data-v="${k.id}"`];
  if(st==='pending')return (k.flow==='criminal'||/جزائ/.test(String(k.type||'')))?['تسجيل الشكوى ورقمها',`data-act="wfGo" data-v="${k.id}|30"`]:['تسجيل الدعوى في المحكمة ورقمها',`data-act="wfGo" data-v="${k.id}|7"`];
  if(st==='judgment')return [d&&d.due&&diff(d.due)<0?'انقضت مهلة الطعن: التحويل للتنفيذ':'هل الحكم نهائي أم يحتاج استئنافاً؟',`data-act="stPostOpen" data-v="${k.id}"`];
