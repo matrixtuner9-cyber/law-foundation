@@ -65,7 +65,7 @@ test('الخادم المقفل: قبل التفعيل لا صفحة ولا API 
     for (const p of ['/api/health', '/api/auth/status', '/api/admin/bootstrap', '/api/portal/login', '/login.html', '/app.js']) {
       const r = await fetch(B + p, { redirect: 'manual' }); assert.ok([302, 403].includes(r.status), p + ' ' + r.status);
     }
-    assert.match(await (await fetch(B + '/activate')).text(), /تفعيل ميثاق/);
+    assert.match(await (await fetch(B + '/activate')).text(), /تفعيل المِسْبار/); assert.equal((await fetch(B + '/misbar-banner.webp')).status, 200, 'الشعار يظهر قبل التفعيل');
     const bad = await fetch(B + '/api/license/activate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code: L.sign({ fp: 'AAAA-AAAA-AAAA-AAAA-AAAA', office: 'x' }, k.priv) }) });
     assert.equal(bad.status, 400);
     const good = await fetch(B + '/api/license/activate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code: L.sign({ fp: st.fp, office: 'مكتب', edition: 'private', users: 5 }, k.priv) }) });
