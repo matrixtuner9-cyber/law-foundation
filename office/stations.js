@@ -127,14 +127,16 @@ function closeModal(k){const c=C(k.client)||{},due=Math.max(0,(Number(k.fee)||0)
  document.getElementById('modal').innerHTML=`<div class="modal-bg" data-act="close"><div class="modal" role="dialog" aria-label="إقفال الملف"><div class="head"><h1 style="font-size:22px">إقفال الملف وأرشفته</h1><button class="btn sm" data-act="close">إغلاق</button></div><form class="form" id="fStClose">
  <label>تاريخ الإقفال<input class="field" type="date" id="scD" value="${iso(TODAY)}" required></label><label>النتيجة النهائية<select class="field" id="scR">${['تحصيل الحق كاملاً','تحصيل جزئي','تسوية ودية','رد الدعوى','براءة','إدانة','تنازل الموكل','اعتذار عن القضية','أخرى'].map(x=>`<option>${x}</option>`).join('')}</select></label>
  <fieldset class="wide cw-h"><legend>قائمة التحقق قبل الإقفال</legend>
-  <label class="wide ck"><input type="checkbox" id="scF" required> الأتعاب مسدّدة أو مجدولة${cdue?` <span class="pill warn">متبقٍ على الموكل ${money(cdue)}</span>`:' <span class="pill ok">لا متبقٍ</span>'}</label>
+
   <label class="wide ck"><input type="checkbox" id="scO" required> أُعيدت المستندات الأصلية إلى الموكل بإيصال</label>
   <label class="wide ck"><input type="checkbox" id="scM" required> أُبلغ الموكل بنتيجة القضية النهائية</label>
   <label class="wide">رقم الأرشفة / مكان الملف الورقي<input class="field" id="scA" required placeholder="مثال: خزانة 3 — رف ب"></label></fieldset>
+ <fieldset class="wide cw-h"><legend>الوضع المالي (للعلم، ولا يمنع الإقفال)</legend>
+  <p class="wide m" style="margin:0">${cdue?`<span class="pill warn">متبقٍ على الموكل ${money(cdue)}</span> يُغلق الملف إجرائياً، وتبقى الذمة المالية مفتوحة في «المالية» حتى تحصيلها.`:'<span class="pill ok">لا متبقٍ على الموكل</span>'}</p></fieldset>
  <p class="note wide">تُنقل القضية إلى «منتهية» ويبقى ملفها كاملاً للرجوع إليه، ويُسجَّل الإقفال باسمك وتاريخه.</p>
  <button class="btn pri" style="background:var(--danger)">إقفال الملف</button></form></div></div>`}
 document.addEventListener('submit',e=>{const f=e.target;if(f.id!=='fStClose')return;e.preventDefault();e.stopImmediatePropagation();if(!can())return toast('صلاحيتك للاطلاع فقط');const k=K(CK);if(!k)return;const g=id=>(document.getElementById(id)||{}).value||'';
- k.status='منتهية';k.stage='مقفلة ومؤرشفة';k.closed={date:g('scD'),result:g('scR'),archive:g('scA').trim(),by:me(),checks:['fees','originals','client']};k.flowAt=22;setStation(k,'closed','إقفال الملف: '+g('scR'),me());A.close();save();toast('أُقفل الملف وأُرشف');S.view='client';S.clientId=k.client;S.bagTab='cases';render()});
+ k.status='منتهية';k.stage='مقفلة ومؤرشفة';k.closed={date:g('scD'),result:g('scR'),archive:g('scA').trim(),by:me(),checks:['originals','client'],feesDue:Math.max(0,(Number((C(k.client)||{}).fee)||0)-(Number((C(k.client)||{}).paid)||0))};k.flowAt=22;setStation(k,'closed','إقفال الملف: '+g('scR'),me());A.close();save();toast('أُقفل الملف وأُرشف');S.view='client';S.clientId=k.client;S.bagTab='cases';render()});
 let CK=null;A.stClose=v=>{const k=K(v);if(!k)return;if(!can())return toast('صلاحيتك للاطلاع فقط');CK=k.id;closeModal(k)};
 /* الصندوق 22 في الخريطة المرجعية يستخدم قائمة التحقق نفسها */
 {const g0=A.wfGo;if(typeof g0==='function')A.wfGo=v=>{const [a,b]=String(v).split('|');if(+(b||a)===22){A.stClose(b?a:S.caseId);return}return g0(v)}}
