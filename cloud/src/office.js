@@ -256,7 +256,7 @@ export class Office extends DurableObject {
       const okSig = e > Date.now() / 1000 && s.length === 32 && crypto.timingSafeEqual(Buffer.from(s), Buffer.from(this.sign(file, e)));
       if (!okSig) {
         const me = this.auth.fromReq(req), m = this.msgs.find(x => x.file === file);
-        const ref = '/api/media/' + file, ruling = !m && !!me && ((this.cur().rulings || []).some(r => r.file === ref) || (this.cur().lawforms || []).some(r => r.official && r.official.file === ref));
+        const ref = '/api/media/' + file, ruling = !m && !!me && ((this.cur().rulings || []).some(r => r.file === ref) || (this.cur().lawforms || []).some(r => r.official && r.official.file === ref) || (this.cur().docs || []).some(d => d.file === ref && (this.auth.can(me, 'all') || (me.cases || []).includes(d.k))));
         if (!me || (!ruling && (!m || !this.canSeeClient(me, m.client)))) return new Response('Forbidden', { status: 403, headers: CORS });
       }
       return this.media(req, file);
@@ -656,6 +656,7 @@ export class Office extends DurableObject {
       return json(r.status, r.body);
     }
     if (p === '/api/admin/ruling-file' && M === 'POST') { if ((d = deny('write'))) return d; return this.rulingFile(req, u, who) }
+    if (p === '/api/admin/case-file' && M === 'POST') { if ((d = deny('write'))) return d; return this.rulingFile(req, u, who, 'case') }
     if (p === '/api/admin/read' && M === 'POST') {
       const { client } = await jbody();
       if (!this.canSeeClient(me, client)) return json(403, { error: 'لا تملك صلاحية لهذا الموكل.' });
@@ -720,7 +721,7 @@ export class Office extends DurableObject {
   }
 
   // نص حكم قضائي لمكتبة الاجتهادات: ملف فقط دون رسالة لأي موكل
-  async rulingFile(req, u, who) {
+  async rulingFile(req, u, who, kind = 'ruling') {
     const name = String(u.searchParams.get('name') || 'حكم').replace(/[\\/:*?"<>|]/g, '_').slice(0, 120);
     const type = String(req.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
     const dot = name.lastIndexOf('.');
@@ -729,7 +730,7 @@ export class Office extends DurableObject {
     let buf; try { buf = await this.readBody(req, 25 * 1024 * 1024) } catch (e) { return json(413, { error: 'الملف أكبر من المسموح (25 ميغابايت).' }) }
     if (!buf.length) return json(400, { error: 'الملف فارغ.' });
     const id = rid(), file = `${id}.${ext}`; await this.env.MEDIA.put(this.slug() + '/' + file, buf, { httpMetadata: { contentType: TYPES[ext] || 'application/octet-stream' } });
-    this.audit({ ...who, action: 'ruling.file', entity: 'rulings', entity_id: id, detail: { name, size: buf.length, sha256: crypto.createHash('sha256').update(buf).digest('hex') } });
+    this.audit({ ...who, action: kind + '.file', entity: kind === 'case' ? 'docs' : 'rulings', entity_id: id, detail: { name, size: buf.length, sha256: crypto.createHash('sha256').update(buf).digest('hex') } });
     return json(201, { file: '/api/media/' + file, name, size: buf.length, ext });
   }
 

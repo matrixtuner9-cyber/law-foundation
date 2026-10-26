@@ -128,3 +128,20 @@ test('case brain: drafting uses the case brain, splits review notes, and superse
   assert.deepEqual(ds.map(x => x.dtype).sort(), ['answer', 'claim']);
   assert.ok(r3.body.drafts.evidence_list);
 });
+
+test('case brain: point-by-point rebuttal of the opponent pleading', async () => {
+  const reply = JSON.stringify({ summary: 'مطالبة بقيمة بضاعة', formal: [{ defense: 'عدم الاختصاص القيمي', basis: 'القيمة', law: ['M77'], strength: 'محتمل' }],
+    points: [{ n: '1', claim: 'تعاقد الطرفان', position: 'تسليم جزئي', reply: 'العقد لم يحدد الكميات [هوية-1]', law: ['M77'], evidence: ['D1.1'], needed: 'سندات الاستلام' }, { n: '2', claim: 'سُلّمت البضاعة', position: 'إنكار', reply: 'لا سند استلام', law: ['M404'] }],
+    requests: [{ request: 'إلزام المدعى عليه بالمبلغ', reply: 'يُرد لعدم الإثبات', law: [] }], notes: ['تحقق من مهلة اللائحة الجوابية'] });
+  const t = setup({ reply });
+  await t.call('enable', 'POST', { k: 'k1', on: true });
+  assert.equal((await t.call('run', 'POST', { k: 'k1', task: 'rebut', doc: 'd1' })).status, 400, 'needs read text');
+  await t.call('doctext', 'POST', { k: 'k1', doc: 'd1', text: 'لائحة دعوى. 1- تعاقد الطرفان على توريد بضاعة والمدعى عليه هويته 401234567. 2- سُلّمت البضاعة كاملة ولم يدفع الثمن. الطلبات: إلزام المدعى عليه بالمبلغ.' });
+  const r = await t.call('run', 'POST', { k: 'k1', task: 'rebut', doc: 'd1' });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const f = r.body.findings[0];
+  assert.equal(f.kind, 'rebuttal'); assert.equal(f.doc, 'd1'); assert.equal(f.points.length, 2);
+  assert.match(f.points[0].reply, /401234567/, 'hidden values restored'); assert.equal(f.points[1].unverified, true, 'unknown ref → unverified');
+  assert.equal(f.formal[0].law[0].id, 77); assert.equal(f.requests.length, 1); assert.deepEqual(f.notes, ['تحقق من مهلة اللائحة الجوابية']);
+  const sent = t.sent.at(-1).user; assert.match(sent, /لائحة الخصم «عقد التوريد»/); assert.ok(!sent.includes('401234567'));
+});

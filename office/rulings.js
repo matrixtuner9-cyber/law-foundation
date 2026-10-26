@@ -137,7 +137,7 @@ function card(r,q){
   ${r.summary?`<div class="rl-s">${hl(r.summary,q)}</div>`:''}
   ${RS.open===r.id&&r.text?`<div class="rl-t">${hl(r.text,q)}</div>`:r.text?`<button class="link" data-act="rMore" data-v="${r.id}">عرض نص الحكم (${r.text.length.toLocaleString('en-US')} حرف)</button>`:''}
   <div class="rl-f"><div class="chips">${(r.keywords||[]).map(k=>`<button class="chip" data-act="rKw" data-v="${e(k)}">${e(k)}</button>`).join('')}</div>
-  <div class="m">${ks.length?'مرتبط بـ: '+ks.map(k=>`<button class="link mono" data-act="openCase" data-v="${k.id}">${k.no}</button>`).join('، '):'غير مرتبط بقضية'}${r.src?' · المصدر: '+(pubUrl(r.srcUrl)?`<a href="${e(r.srcUrl)}" target="_blank" rel="noopener">${e(r.src)} ↗</a>`:e(r.src)):''}${r.by?' · أضافه '+e(r.by):''}</div></div>
+  <div class="m">${ks.length?'مرتبط بـ: '+ks.map(k=>`<button class="link mono" data-act="openCase" data-v="${k.id}">${k.no}</button>`).join('، '):'غير مرتبط بقضية'}${r.by?' · أضافه '+e(r.by):''}</div></div>
   ${r.notes?`<div class="note">${e(r.notes)}</div>`:''}</div></section>`;
 }
 function redraw(){const el=document.getElementById('rlRes');if(el)el.innerHTML=results(list());const t=document.getElementById('rlAdvT');if(t)t.innerHTML=advT()}
@@ -293,7 +293,7 @@ function rulingsDoc(items,tpl0){
    const head=[k?['القضية','<span class="mono">'+E(k.no)+'</span> · '+E(k.subject||'')]:null,k?['الموكل',E((C(k.client)||{}).name||'')]:null,st.to?['إلى',E(st.to)]:null,['عدد الأحكام',items.length]].filter(Boolean);
    const blocks=[B.kv(head,head.length>1?2:1)];
    if(String(st.note||'').trim())blocks.push(B.box(E(st.note).replace(/\n/g,'<br>')));
-   const srcLine=r=>src&&(r.srcUrl||r.src)?B.p('<small>المصدر: '+E(r.src||'')+(pubUrl(r.srcUrl)?' — <span dir="ltr">'+E(r.srcUrl)+'</span>':'')+'</small>','s'):'';
+   const srcLine=r=>false&&src&&(r.srcUrl||r.src)?B.p('<small>المصدر: '+E(r.src||'')+(pubUrl(r.srcUrl)?' — <span dir="ltr">'+E(r.srcUrl)+'</span>':'')+'</small>','s'):'';
    if(t==='list'){
     blocks.push(B.t(['#','المحكمة','رقم الحكم','التاريخ','الفرع','المبدأ القضائي'],items.map((r,i)=>[i+1,E(r.court),E(r.no||''),r.date?dmy(r.date):'—',E(r.field||'—'),E(String(r.principle||r.title||'').slice(0,220))]),{w:['4%','16%','16%','10%','10%','44%']}));
     if(src)blocks.push(B.p('<small>'+items.map((r,i)=>pubUrl(r.srcUrl)?(i+1)+'. <span dir="ltr">'+E(r.srcUrl)+'</span>':'').filter(Boolean).join('<br>')+'</small>','s'));

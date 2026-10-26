@@ -321,7 +321,8 @@ async function api(req, res, u) {
     if (!mediaSigned(f, u.searchParams)) {
       const me = auth.fromReq(req), m = msgs.find(x => x.file === f);
       if (!me) return json(res, 403, { error: 'لا تملك صلاحية لهذا الملف.' });
-      if (!auth.can(me, 'all') && (!m || !canSeeClient(me, m.client))) return json(res, 403, { error: 'لا تملك صلاحية لهذا الملف.' });
+      const caseDoc = (cur().docs || []).some(d => d.file === '/api/media/' + f && (me.cases || []).includes(d.k)); /* مستند قضية رُفع إليها مباشرة */
+      if (!auth.can(me, 'all') && !caseDoc && (!m || !canSeeClient(me, m.client))) return json(res, 403, { error: 'لا تملك صلاحية لهذا الملف.' });
     }
     return sendFile(req, res, path.join(MEDIA, f));
   }
@@ -714,6 +715,7 @@ async function api(req, res, u) {
     return json(res, r.status, r.body);
   }
   if (p === '/api/admin/ruling-file' && M === 'POST') { if (!need('write')) return; return rulingFile(req, res, u, who) }
+  if (p === '/api/admin/case-file' && M === 'POST') { if (!need('write')) return; return rulingFile(req, res, u, who, 'case') }
   if (p === '/api/admin/read' && M === 'POST') {
     const { client } = await jbody(req);
     if (!canSeeClient(me, client)) return json(res, 403, { error: 'لا تملك صلاحية لهذا الموكل.' });
@@ -761,7 +763,7 @@ async function attach(req, res, u, client, from, who) {
 
 
 // نص حكم قضائي (PDF أو Word أو صورة) لمكتبة الاجتهادات: يُحفظ كملف فقط دون رسالة لأي موكل
-async function rulingFile(req, res, u, who) {
+async function rulingFile(req, res, u, who, kind = 'ruling') {
   const name = String(u.searchParams.get('name') || 'حكم').replace(/[\\/:*?"<>|]/g, '_').slice(0, 120);
   const type = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
   let ext = (path.extname(name).slice(1) || FILE_EXT[type] || '').toLowerCase(); if (ext === 'jpeg') ext = 'jpg';
@@ -769,7 +771,7 @@ async function rulingFile(req, res, u, who) {
   let buf; try { buf = await body(req, 25 * 1024 * 1024) } catch (e) { return json(res, 413, { error: 'الملف أكبر من المسموح (25 ميغابايت).' }) }
   if (!buf.length) return json(res, 400, { error: 'الملف فارغ.' });
   const id = rid(), file = `${id}.${ext}`; fs.writeFileSync(path.join(MEDIA, file), buf);
-  audit({ ...who, action: 'ruling.file', entity: 'rulings', entity_id: id, detail: { name, size: buf.length, sha256: crypto.createHash('sha256').update(buf).digest('hex') } });
+  audit({ ...who, action: kind + '.file', entity: kind === 'case' ? 'docs' : 'rulings', entity_id: id, detail: { name, size: buf.length, sha256: crypto.createHash('sha256').update(buf).digest('hex') } });
   return json(res, 201, { file: '/api/media/' + file, name, size: buf.length, ext });
 }
 

@@ -9,11 +9,12 @@
 if(typeof V==='undefined')return;
 const e=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const MK='<img src="misbar-emblem.webp" alt="" class="mbc-mk">';
-const SUBS=[['next','الخطوة التالية'],['facts','خريطة الوقائع'],['brain','الثغرات والتعارضات'],['mizan','ميزان الحجج'],['hearing','تحضير الجلسة'],['draft','الصياغة'],['docs','المستندات المقروءة'],['log','سجل الإرسال']];
+const SUBS=[['next','الخطوة التالية'],['facts','خريطة الوقائع'],['brain','الثغرات والتعارضات'],['mizan','ميزان الحجج'],['rebut','الرد على لائحة الخصم'],['hearing','تحضير الجلسة'],['draft','الصياغة'],['docs','المستندات المقروءة'],['log','سجل الإرسال']];
 const HINT={facts:'يرتّب وقائع القضية زمنياً، ويبيّن لكل واقعة: مثبتة بمستند، أم ادعاء بلا دليل، أم متنازع عليها، ويكشف التناقضات وما يلزم جمعه.',
  next:'يفحص: هل يوجد إجراء عاجل؟ ما آخر إجراء مثبت؟ ماذا طلبت المحكمة؟ هل الملف جاهز؟ ثم يقترح الإجراء وسببه والمسؤول.',
  brain:'الاختصاص والصفة والمصلحة والتمثيل والتبليغات والمدد وشروط القبول، والتعارض بين الأقوال والمستندات، والبينات الناقصة.',
  mizan:'ثلاث قراءات مستقلة لكل مسألة: ما يؤيد الموكل، وما قد يدفع به الخصم مع الرد، والفجوات المحايدة.',
+ rebut:'ارفع لائحة الخصم كما وصلتك (صورة ممسوحة أو PDF أو Word)، فيقرؤها المسبار على جهازك ثم يُعدّ الرد على كل بند وكل مطلب فيها، مسنداً إلى القوانين الفلسطينية وقرارات المحاكم.',
  draft:'يكتب المسبار الورقة كاملة من عقل القضية: الوقائع وبيناتها، وردود ميزان الحجج، والنصوص والأحكام من القاعدة؛ وما لا يعرفه يتركه بين معقوفين [..] لتكمله.',
  hearing:'ورقة جاهزة: ما جرى سابقاً، المطلوب، المستندات، الردود الممكنة، أسئلة الشهود، نقاط المرافعة.'};
 const URG={high:['عاجل','u-h'],medium:['متوسط','u-m'],low:['عادي','u-l']};
@@ -70,6 +71,7 @@ function runBox(d,t){
 
 function taskView(d,t){const fs=d.findings.filter(f=>f.task===t);
  if(t==='draft')return draftView(d,fs);
+ if(t==='rebut')return rebutView(d,fs);
  if(t==='facts')return runBox(d,t)+(fs.length?fs.map(mapView).join(''):'<p class="m mbc-empty">لم تُبنَ خريطة الوقائع بعد. اضغط الزر أعلاه، وسيقرأ المسبار المستندات ويرتّب الوقائع.</p>');
  let list='';
  if(!fs.length)list=`<p class="m mbc-empty">لا نتائج بعد.</p>`;
@@ -123,6 +125,33 @@ function mapView(f){const s=STAT[f.status]||STAT.proposed,fs=f.facts||[],c=f.con
   ${x.status!=='proven'&&x.need?`<div class="mbc-need"><span>🔎 ما يلزم: ${e(x.need)}</span>${ST.data.canWrite?(ST.added[key]?'<b class="mbc-ok">✓ أُضيف لقائمة الجمع</b>':`<button type="button" class="btn sm" data-act="mbcNeed" data-v="${e(key)}">+ إلى قائمة البينات المطلوبة</button>`):''}</div>`:''}</div></li>`}).join('')||'<li class="m">لا وقائع بهذا التصنيف.</li>'}</ol>
  ${c.length?`<section class="mbc-cx" id="mbcCx"><h4>⚡ تعارضات كشفها المسبار</h4>${c.map(x=>`<div class="mbc-cxi"><b>${e(x.title)}</b><div class="mbc-vs"><div>${e(x.a)}</div><span>⚡</span><div>${e(x.b)}</div></div>${(x.evidence||[]).length?`<div class="mbc-meta">${x.evidence.map(docChip).join('')}</div>`:''}${x.risk?`<p><span class="mbc-l">الأثر:</span> ${e(x.risk)}</p>`:''}${x.reply?`<p><span class="mbc-l">المعالجة:</span> ${e(x.reply)}</p>`:''}</div>`).join('')}</section>`:''}
  <footer><small>لا تُعدّ واقعة «مثبتة» إلا بمقطع من مستندات القضية. راجع الخريطة قبل اعتمادها.</small>${dec}</footer></article>`}
+
+/* ── الرد على لائحة الخصم بنداً بنداً ── */
+const POSC={'إنكار':'bad','تسليم':'ok','تسليم جزئي':'warn','غير منتج':'neu'};
+function rebutView(d,fs){
+ if(ST.busy==='rebut')return runBox(d,'rebut');
+ const docsT=d.docs.filter(x=>x.hasText||(x.file&&READABLE.includes(extOf(x.file))));
+ const up=d.canWrite?`<label class="mbc-drop"><input type="file" id="mbcPlFile" accept="image/*,.pdf,.docx,.txt" multiple hidden><span class="mbc-di">📥</span><b>ارفع لائحة الخصم من جهازك</b><small>صورة ممسوحة (يمكن اختيار عدة صفحات بالترتيب) أو PDF أو Word — تُقرأ على هذا الجهاز ثم يُعدّ المسبار الرد على كل بند ومطلب.</small></label>`:'';
+ const pick=docsT.length?`<div class="mbc-rowb mbc-or"><small>أو اختر لائحة موجودة في مستندات القضية:</small><select class="field" id="mbcPlDoc">${docsT.map(x=>`<option value="${e(x.id)}">${e(x.title)}${x.hasText?'':' (ستُقرأ أولاً)'}</option>`).join('')}</select><button type="button" class="btn pri mbc-go" data-act="mbcRebutDoc" ${ST.busy||!d.canWrite?'disabled':''}>${MK}<span>الرد على هذه اللائحة</span></button></div>`:'';
+ return `<div class="mbc-run"><p>${e(HINT.rebut)}</p>${up}${d.canWrite?`<details class="mbc-paste"${MIC.on?' open':''}><summary>✍️ أو الصق نص اللائحة أو أملِه بصوتك</summary><div class="mbc-rowb"><small>للإملاء: اضغط المايكروفون واقرأ اللائحة بنداً بنداً، ثم اضغط مرة أخرى للإيقاف.</small><button type="button" class="btn sm mbc-mic ${MIC.on?'on':''}" data-act="mbcMic">🎙️ ${MIC.on?'إيقاف الإملاء':'إملاء صوتي'}</button></div><textarea class="field" id="mbcPlText" rows="7" placeholder="الصق هنا نص لائحة الخصم كما هو، ببنوده وطلباته…"></textarea><div class="mbc-rowb"><small>يُحفظ النص في مستندات القضية باسم «لائحة الخصم (نص)».</small><button type="button" class="btn pri mbc-go" data-act="mbcRebutText" ${ST.busy?'disabled':''}>${MK}<span>الرد على هذا النص</span></button></div></details>`:''}${pick}
+  <details class="mbc-opt"${ST.note.rebut?' open':''}><summary>توجيه للمسبار (اختياري)</summary><textarea class="field" id="mbcNote" rows="2" maxlength="600" placeholder="مثلاً: الموكل ينكر استلام الدفعة الثانية، وركّز على عدم الاختصاص القيمي">${e(ST.note.rebut||'')}</textarea></details></div>
+  ${fs.filter(f=>f.kind==='rebuttal').map(rebutCard).join('')||'<p class="m mbc-empty">لم يُعدّ ردّ على لائحة بعد.</p>'}`}
+function rebutCard(f){const s=STAT[f.status]||STAT.proposed;
+ const lawB=a=>(a||[]).length?`<div class="mbc-meta">${a.map(refBtn).join('')}</div>`:'<span class="mbc-unv">بلا سند من القاعدة — يحتاج تحقق</span>';
+ const dec=f.status==='proposed'&&ST.data.canWrite?`<button type="button" class="btn sm" data-act="mbcDecide" data-v="${e(f.id)}|approved">اعتماد الردود</button><button type="button" class="btn sm" data-act="mbcDecide" data-v="${e(f.id)}|rejected">رفض</button>`:f.status!=='proposed'?`<span class="mbc-who">${s[0]} بواسطة ${e(f.decidedName||f.decidedBy)}</span>`:'';
+ return `<article class="mbc-rb is-${e(f.status)}"><header><span class="mbc-di">🛡️</span><div><b>${e(f.title)}</b>${f.summary?`<small>${e(f.summary)}</small>`:''}</div><span class="mbc-s ${s[1]}">${s[0]}</span></header>
+ ${(f.formal||[]).length?`<section class="mbc-rbs"><h4>الدفوع الشكلية</h4>${f.formal.map(x=>`<div class="mbc-fd"><div><b>${e(x.defense)}</b><span class="mbc-u ${x.strength==='قوي'?'u-l':x.strength==='ضعيف'?'u-h':'u-m'}">${e(x.strength)}</span></div><p>${e(x.basis)}</p>${lawB(x.law)}</div>`).join('')}</section>`:''}
+ <section class="mbc-rbs"><h4>الرد على بنود اللائحة</h4>${(f.points||[]).map(x=>`<div class="mbc-pt2"><div class="mbc-cl"><span class="mbc-pn">البند ${e(x.n)}</span><p>${e(x.claim)}</p></div>
+  <div class="mbc-rp"><span class="mbc-pos ${POSC[x.position]||'neu'}">${e(x.position)}</span><p>${e(x.reply)}</p>${lawB(x.law)}${(x.evidence||[]).length?`<div class="mbc-meta">${x.evidence.map(docChip).join('')}</div>`:''}${x.needed?`<div class="mbc-need"><span>🔎 يلزم لدعم الرد: ${e(x.needed)}</span></div>`:''}</div></div>`).join('')}</section>
+ ${(f.requests||[]).length?`<section class="mbc-rbs"><h4>الرد على المطالب</h4>${f.requests.map(x=>`<div class="mbc-pt2"><div class="mbc-cl"><span class="mbc-pn">المطلب</span><p>${e(x.request)}</p></div><div class="mbc-rp"><p>${e(x.reply)}</p>${lawB(x.law)}</div></div>`).join('')}</section>`:''}
+ ${(f.notes||[]).length?`<div class="mbc-notes"><b>للتحقق قبل التقديم</b><ul>${f.notes.map(n=>`<li>${e(n)}</li>`).join('')}</ul></div>`:''}
+ <footer><div class="mbc-dec"><button type="button" class="btn sm pri" data-act="mbcToAnswer" data-v="${e(f.id)}" ${ST.data.canWrite?'':'disabled'}>تحويلها إلى لائحة جوابية كاملة ←</button><button type="button" class="btn sm" data-act="mbcRbSave" data-v="${e(f.id)}">حفظ الردود في المستندات</button><button type="button" class="btn sm" data-act="mbcRbCopy" data-v="${e(f.id)}">نسخ</button></div><div class="mbc-dec">${dec}</div></footer></article>`}
+const refName=l=>'('+l.title+')';
+function rebutText(f){const L=[`الرد على «${f.docTitle}»`,''];
+ if((f.formal||[]).length){L.push('أولاً: الدفوع الشكلية');f.formal.forEach((x,i)=>L.push(`${i+1}. ${x.defense}: ${x.basis} ${(x.law||[]).map(refName).join(' ')}`.trim()));L.push('')}
+ L.push('ثانياً: الرد على بنود اللائحة');(f.points||[]).forEach(x=>L.push(`- البند ${x.n} (${x.position}): ${x.reply} ${(x.law||[]).map(refName).join(' ')}`.trim()));
+ if((f.requests||[]).length){L.push('','ثالثاً: الرد على المطالب');f.requests.forEach(x=>L.push(`- ${x.request}: ${x.reply} ${(x.law||[]).map(refName).join(' ')}`.trim()))}
+ return L.join('\n')}
 
 function draftView(d,fs){const rec=/مدع[يى]\s*عليه|مدعى عليها|مستأنف ضده/.test(d.role||'')?'answer':'claim';
  const tiles=Object.entries(d.drafts||{}).map(([id,lb])=>`<button type="button" class="mbc-dt ${ST.dtype===id?'on':''}" data-act="mbcDT" data-v="${id}"><span class="mbc-di">${DICON[id]||'📄'}</span><b>${e(lb)}</b><small>${e(DDESC[id]||'')}</small>${id===rec?'<i>مقترح لصفة الموكل</i>':''}</button>`).join('');
@@ -181,6 +210,55 @@ A.mbcSaveDraft=id=>{const f=ST.data.findings.find(x=>x.id===id);if(!f||typeof do
  if(window.MQ&&MQ.saveState)MQ.saveState();paint();toast('حُفظت المسودة في مستندات القضية؛ يمكنك تعديلها من «المستندات»')};
 A.mbcViewDraft=id=>{const f=ST.data.findings.find(x=>x.id===id);if(f&&A.ftOpen)A.ftOpen({title:ST.data.drafts[f.dtype]||'مسودة',sub:'مسودة المِسْبار — تُراجع قبل الاعتماد',text:cleanDraft(f)})};
 A.mbcCopyDraft=id=>{const f=ST.data.findings.find(x=>x.id===id);if(f)navigator.clipboard.writeText(cleanDraft(f)).then(()=>toast('نُسخ نص المسودة'),()=>toast('تعذّر النسخ'))};
+/* رفع لائحة الخصم: قراءة محلية لكل صفحة، ثم حفظها في مستندات القضية، ثم الرد بنداً بنداً */
+async function ensureEnabled(){if(ST.data.enabled)return true;if(!confirm(ENABLE_MSG))return false;ST.data=await api('enable',{on:true});return true}
+function think(on){clearInterval(thinkT);if(!on)return;let i=0;thinkT=setInterval(()=>{if(/^يقرأ/.test(ST.stage))return;i=(i+1)%THINK.length;ST.stage=THINK[i];const el=document.getElementById('mbcStage');if(el){el.classList.remove('in');void el.offsetWidth;el.textContent=ST.stage;el.classList.add('in')}},2400)}
+const setStage=t=>{ST.stage=t;const el=document.getElementById('mbcStage');if(el)el.textContent=t};
+async function runRebut(docId){const n=document.getElementById('mbcNote');ST.note.rebut=n?n.value:'';
+ const r=await api('run',{task:'rebut',doc:docId,note:ST.note.rebut});ST.data=r;toast('أُعدّت الردود على اللائحة بنداً بنداً')}
+A.mbcPlPick=async(v,el)=>{const files=[...((el&&el.files)||[])];if(!files.length)return;el.value='';
+ try{if(!(await ensureEnabled()))return}catch(x){return toast(x.message)}
+ ST.busy='rebut';ST.stage='يقرأ اللائحة…';paint();think(true);
+ try{const texts=[],stored=[];
+  for(let i=0;i<files.length;i++){const f=files[i],ext=extOf(f.name),url=URL.createObjectURL(f);
+   window.MQ_extractStage=t=>setStage('يقرأ '+(files.length>1?'الصفحة '+(i+1)+' من '+files.length:'اللائحة')+': '+t);
+   try{const r=await MQ_extract(url,ext);texts.push(String(r.text||'').trim())}finally{URL.revokeObjectURL(url);window.MQ_extractStage=null}
+   setStage('يحفظ اللائحة في مستندات القضية…');
+   const up=await fetch('/api/admin/case-file?name='+encodeURIComponent(f.name),{method:'POST',headers:{'content-type':f.type||'application/octet-stream'},credentials:'same-origin',body:f});const j=await up.json().catch(()=>({}));if(!up.ok)throw new Error(j.error||'تعذّر حفظ الملف');stored.push(j.file)}
+  const text=texts.filter(Boolean).join('\n\n');if(text.replace(/\s/g,'').length<80)throw new Error('لم يُقرأ نص كافٍ من اللائحة. جرّب صورة أوضح أو ملف PDF.');
+  const did='d'+Date.now().toString(36),name=files[0].name.replace(/\.[^.]+$/,'');
+  docs.push({id:did,k:ST.k,title:'لائحة الخصم — '+name,kind:'لائحة الخصم',date:new Date().toISOString().slice(0,10),src:'رفع إلى المسبار',pages:files.length,shared:false,file:stored[0],files:stored});
+  MQ.saveState();if(MQ.flush)await MQ.flush();
+  ST.data=await api('doctext',{doc:did,text,via:'ocr'});
+  ST.stage=THINK[0];await runRebut(did)}
+ catch(x){toast(x.message)}think(false);ST.busy='';paint()};
+document.addEventListener('change',ev=>{if(ev.target&&ev.target.id==='mbcPlFile')A.mbcPlPick(null,ev.target)});
+/* الإملاء الصوتي في مربع اللائحة (عبر خدمة التعرف على الكلام في المتصفح) */
+const MIC={on:false,rec:null};
+A.mbcMic=()=>{const SRc=window.SpeechRecognition||window.webkitSpeechRecognition,ta=()=>document.getElementById('mbcPlText');
+ if(MIC.on){MIC.on=false;try{MIC.rec&&MIC.rec.stop()}catch(x){}MIC.rec=null;const v=ta()&&ta().value;paint();const t2=ta();if(t2&&v)t2.value=v;return}
+ if(!SRc||/electron/i.test(navigator.userAgent)){toast('في تطبيق سطح المكتب: ضع المؤشر في مربع النص واضغط Win+H للإملاء');const t=ta();if(t)t.focus();return}
+ const r=new SRc();r.lang='ar-PS';r.continuous=true;r.interimResults=false;
+ r.onresult=ev=>{let fin='';for(let i=ev.resultIndex;i<ev.results.length;i++)if(ev.results[i].isFinal)fin+=ev.results[i][0].transcript;const t=ta();if(fin&&t){t.value=(t.value&&!/\s$/.test(t.value)?t.value+' ':t.value)+fin.trim()}};
+ r.onerror=ev=>{if(ev.error==='not-allowed'||ev.error==='service-not-allowed'){toast('اسمح للمتصفح باستخدام المايكروفون');MIC.on=false}else if(ev.error==='language-not-supported'){r.lang='ar-JO'}else if(ev.error==='network'){toast('الإملاء الصوتي في المتصفح يحتاج اتصالاً بالإنترنت');MIC.on=false}};
+ r.onend=()=>{if(MIC.on){try{r.start()}catch(x){}}};
+ const keep=ta()&&ta().value;try{r.start();MIC.on=true;MIC.rec=r}catch(x){return toast('تعذّر تشغيل المايكروفون')}
+ paint();const det=document.querySelector('.mbc-paste');if(det)det.open=true;const t=ta();if(t){if(keep)t.value=keep;t.focus()}};
+A.mbcRebutText=async()=>{const ta=document.getElementById('mbcPlText');const text=String(ta&&ta.value||'').trim();if(text.replace(/\s/g,'').length<80)return toast('الصق نص اللائحة كاملاً (80 حرفاً على الأقل).');
+ try{if(!(await ensureEnabled()))return}catch(x){return toast(x.message)}
+ ST.busy='rebut';ST.stage='يحفظ نص اللائحة في مستندات القضية…';paint();think(true);
+ try{const did='d'+Date.now().toString(36);docs.push({id:did,k:ST.k,title:'لائحة الخصم (نص) — '+new Date().toISOString().slice(0,10),kind:'لائحة الخصم',date:new Date().toISOString().slice(0,10),src:'لصق في المسبار',pages:1,shared:false});
+  MQ.saveState();if(MQ.flush)await MQ.flush();ST.data=await api('doctext',{doc:did,text,via:'manual'});ST.stage=THINK[0];await runRebut(did)}catch(x){toast(x.message)}
+ think(false);ST.busy='';paint()};
+A.mbcRebutDoc=async()=>{const sel=document.getElementById('mbcPlDoc');const id=sel&&sel.value;if(!id)return;
+ try{if(!(await ensureEnabled()))return}catch(x){return toast(x.message)}
+ ST.busy='rebut';ST.stage=THINK[0];paint();think(true);
+ try{const x=ST.data.docs.find(d=>String(d.id)===String(id));if(x&&!x.hasText){if(!(await readOne(id,true)))throw new Error('تعذّرت قراءة اللائحة.')}await runRebut(id)}catch(er){toast(er.message)}
+ think(false);ST.busy='';paint()};
+A.mbcToAnswer=async id=>{const f=ST.data.findings.find(x=>x.id===id);if(!f)return;ST.sub='draft';ST.dtype='answer';ST.note.draft='ابنِ اللائحة الجوابية على الردود المعدّة بنداً بنداً على «'+f.docTitle+'»، بالترتيب نفسه، مع الدفوع الشكلية أولاً.';paint();await A.mbcRun('draft')};
+A.mbcRbCopy=id=>{const f=ST.data.findings.find(x=>x.id===id);if(f)navigator.clipboard.writeText(rebutText(f)).then(()=>toast('نُسخت الردود'),()=>toast('تعذّر النسخ'))};
+A.mbcRbSave=id=>{const f=ST.data.findings.find(x=>x.id===id);if(!f||typeof docs==='undefined')return;if(docs.some(d=>d.mbFinding===f.id))return toast('الردود محفوظة في مستندات القضية');
+ docs.push({id:'d'+Date.now().toString(36),k:ST.k,title:'الردود على '+f.docTitle+' (المِسْبار)',kind:'مذكرة',date:new Date().toISOString().slice(0,10),src:'المِسْبار',pages:1,shared:false,mbFinding:f.id,text:rebutText(f)});MQ.saveState();toast('حُفظت الردود في مستندات القضية')};
 A.mbcFF=v=>{ST.ff=v||'';paint()};
 A.mbcNeed=key=>{const [fid,i]=String(key).split(':'),f=ST.data.findings.find(x=>x.id===fid),x=f&&f.facts[+i];const k=typeof K==='function'?K(ST.k):null;if(!x||!k)return;
  k.gather=k.gather||{};const need=k.gather.need||[];if(need.some(n=>n.t===x.need))return toast('موجود في قائمة البينات المطلوبة');
@@ -289,6 +367,22 @@ const css=document.createElement('style');css.textContent=`
 .mbc-draft footer{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
 @media (max-width:640px){.mbc-paper{padding:16px;font-size:15.5px}}
 html.night .mbc-dt,html.night .mbc-draft{background:#14213a;color:#e5e7eb}html.night .mbc-paper{background:#0f1a2e;color:#e5e7eb}
+.mbc-drop{display:grid;justify-items:center;gap:4px;text-align:center;padding:22px 16px;margin:6px 0 10px;border:2px dashed #C9A24A;border-radius:16px;background:linear-gradient(180deg,#FFFDF6,#FBF3DE);cursor:pointer;transition:.15s}
+.mbc-drop:hover{background:#FBF0D2;transform:translateY(-1px)}.mbc-drop b{font-size:16px;color:#0B1B2B}.mbc-drop small{color:var(--muted,#6b7280);max-width:560px}.mbc-drop .mbc-di{font-size:32px}
+.mbc-or select{flex:1;min-width:200px}
+.mbc-paste{margin:0 0 10px}.mbc-mic.on{background:#9B1C1C!important;color:#fff!important;animation:mbcPulse 1.2s infinite}.mbc-paste summary{cursor:pointer;font-weight:700;color:#0B1B2B;padding:6px 0}.mbc-paste textarea{width:100%;box-sizing:border-box;margin-top:6px}
+.mbc-rb{background:#fff;border:1px solid var(--brass,#C9A24A);border-radius:16px;padding:14px 16px;display:grid;gap:12px}
+.mbc-rb>header{display:flex;gap:10px;align-items:flex-start}.mbc-rb>header>div{flex:1}.mbc-rb>header b{font-size:16px;display:block}.mbc-rb>header small{color:var(--muted,#6b7280)}
+.mbc-rbs h4{margin:0 0 8px;padding:6px 12px;border-radius:10px;background:linear-gradient(135deg,#0B1B2B,#1B3654);color:#F3D58A;font-size:14px}
+.mbc-fd{border:1px solid #efe6d0;border-radius:12px;padding:8px 12px;margin-bottom:8px;background:#FCFAF4}.mbc-fd>div{display:flex;gap:8px;align-items:center;justify-content:space-between}.mbc-fd p{margin:4px 0}
+.mbc-pt2{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:0;border:1px solid #efe6d0;border-radius:12px;overflow:hidden;margin-bottom:8px}
+.mbc-cl{background:#F7F3EA;padding:10px 12px;border-inline-end:3px solid #C9A24A}.mbc-cl p{margin:4px 0 0;color:#4B5563;font-size:13.5px;line-height:1.75}
+.mbc-pn{font-size:12px;font-weight:700;color:#8A6A25}
+.mbc-rp{padding:10px 12px;display:grid;gap:6px}.mbc-rp p{margin:0;line-height:1.85}
+.mbc-pos{justify-self:start;font-size:12px;font-weight:700;border-radius:999px;padding:1px 10px}.mbc-pos.bad{background:#FDE2E2;color:#9B1C1C}.mbc-pos.ok{background:#E5F4E4;color:#2F5D3A}.mbc-pos.warn{background:#FEF3C7;color:#92400E}.mbc-pos.neu{background:#F3F4F6;color:#4B5563}
+.mbc-rb footer{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+@media (max-width:760px){.mbc-pt2{grid-template-columns:1fr}.mbc-cl{border-inline-end:0;border-bottom:3px solid #C9A24A}}
+html.night .mbc-rb,html.night .mbc-rp{background:#14213a;color:#e5e7eb}html.night .mbc-cl,html.night .mbc-fd{background:#1b2a47;color:#e5e7eb}
 html.night .mbc-map,html.night .mbc-fx{background:#14213a;color:#e5e7eb}
 html.night .mbc-f,html.night .mbc-tbl{background:#14213a;color:#e5e7eb}html.night .mbc-ch>span,html.night .mbc-tbl th{background:#1b2a47;color:#F3D58A}`;
 document.head.appendChild(css);
