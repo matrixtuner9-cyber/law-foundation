@@ -25,7 +25,7 @@ input,select,textarea{font:inherit;border:1px solid var(--line);border-radius:10
 .alert{border:1px solid #E8C979;background:#FFF6E0;border-radius:12px;padding:9px 14px;margin-bottom:12px}
 </style></head><body>
 <header><div><h1>إدارة نسخ المسبار</h1><small>للمورّد فقط · يعمل على هذا الجهاز</small></div>
-<nav id="nav"><button data-t="home" class="on">اللوحة</button><button data-t="offices">المكاتب</button><button data-t="ai">عقل المسبار</button><button data-t="cloud">السحابة</button><button data-t="releases">الإصدارات</button><button data-t="settings">الإعدادات والنسخ</button></nav></header>
+<nav id="nav"><button data-t="home" class="on">اللوحة</button><button data-t="offices">المكاتب</button><button data-t="ai">عقل المسبار</button><button data-t="cloud">السحابة</button><button data-t="releases">الإصدارات</button><button data-t="settings">الإعدادات والنسخ</button><button id="quitBtn" title="أغلق البرنامج قبل نزع الفلاشة" style="margin-inline-start:auto">إغلاق البرنامج ⏻</button></nav></header>
 <main id="app"></main><div id="toast"></div>
 <script>
 const VK='__VK__';
@@ -38,7 +38,7 @@ const LIC={active:['ok','فعّال'],expiring:['warn','ينتهي قريباً'
 const KIND={desktop:'سطح مكتب',cloud:'سحابة',both:'سطح مكتب + سحابة'},CYC={yearly:'سنوي',monthly:'شهري',once:'مرة واحدة'};
 const OST={active:['ok','فعّال'],suspended:['warn','موقوف'],ended:['bad','منتهٍ']};
 function go(t,slug){ST.tab=t;ST.slug=slug||null;document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));draw()}
-document.getElementById('nav').onclick=e=>{const b=e.target.closest('button');if(b)go(b.dataset.t)};
+document.getElementById('nav').onclick=e=>{const b=e.target.closest('button');if(!b)return;if(b.id==='quitBtn'){if(confirm('إغلاق «إدارة نسخ المسبار»؟ تُحفظ البيانات، ويمكنك بعدها نزع الفلاشة بأمان.'))api('/api/quit',{}).finally(()=>{document.body.innerHTML='<p style="padding:40px;font-size:20px">أُغلق البرنامج وحُفظت البيانات. يمكنك نزع الفلاشة الآن.</p>'});return}go(b.dataset.t)};
 async function draw(){const a=$('#app');a.innerHTML='<p class="m">جارٍ التحميل…</p>';try{a.innerHTML=await({home,offices,office,ai,cloud,releases,settings}[ST.slug?'office':ST.tab])();bind()}catch(e){a.innerHTML='<div class="alert">'+esc(e.message)+'</div>'}}
 const binds=[];function on(sel,ev,fn){binds.push([sel,ev,fn])}function bind(){for(const [s,e,f] of binds.splice(0))document.querySelectorAll(s).forEach(x=>x.addEventListener(e,f))}
 

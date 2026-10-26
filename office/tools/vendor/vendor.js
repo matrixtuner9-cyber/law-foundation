@@ -13,6 +13,7 @@ const DIR = path.resolve(arg('dir', process.env.MQ_VENDOR_DIR || path.join(os.ho
 const PORT = Number(arg('port', process.env.MQ_VENDOR_PORT || 8778));
 const PRIV = path.join(DIR, 'activator-private.pem'), PUB = path.join(DIR, 'license.pub'), REG = path.join(DIR, 'issued.csv');
 const SLUG_RE = /^[a-z][a-z0-9-]{2,30}$/, RESERVED = new Set(['www', 'admin', 'ops', 'api', 'ai', 'misbar', 'app', 'portal', 'mail', 'static', 'office', 'support', 'status', 'test', 'demo']);
+const PORTABLE = process.argv.includes('--portable');
 const KEY = crypto.randomBytes(24).toString('base64url'); // مفتاح الجلسة: يُضمَّن في الصفحة فقط، ويمنع أي موقع آخر من استدعاء البرنامج
 
 function open() {
@@ -35,10 +36,12 @@ function create(db) {
   const log = (slug, action, detail) => db.prepare('INSERT INTO events(at,slug,action,detail) VALUES(?,?,?,?)').run(now(), slug || '', action, JSON.stringify(detail || {}));
   const settings = () => ({ opsHost: 'test.palgaz.net', opsTokenFile: 'E:\\methaq-final-folder21102026\\cloud-deploy\\.ops_token', backupDir: '', cloudBase: 'palgaz.net', appDir: 'E:\\methaq-final-folder21102026\\office-server\\dist\\win-unpacked\\resources\\app', ...meta('settings', {}) });
 
-  /* ── السحابة: لوحة المشغّل (/_ops) برمز سري يُقرأ من ملفه ولا يُعرض ── */
+  /* ── السحابة: لوحة المشغّل (/_ops) برمز سري يُقرأ من ملفه ولا يُعرض ──
+     النسخة المحمولة (فلاشة): الرمز في ملف .ops_token بجانب بيانات البرنامج نفسها */
+  const readTok = s => { for (const f of [s.opsTokenFile, path.join(DIR, '.ops_token')]) { try { const t = fs.readFileSync(f, 'utf8').trim(); if (t) return t } catch (e) {} } return '' };
   async function ops(method, p, body, fetchImpl = fetch) {
     const s = settings(); let tok = process.env.MQ_OPS_TOKEN || '';
-    if (!tok) { try { tok = fs.readFileSync(s.opsTokenFile, 'utf8').trim() } catch (e) {} }
+    if (!tok) tok = readTok(s);
     if (!tok) throw new Error('رمز لوحة المشغّل غير موجود؛ حدّد ملفه في الإعدادات');
     const raw = Buffer.isBuffer(body);
     const r = await fetchImpl(`https://${s.opsHost}${p}`, { method, headers: { authorization: 'Bearer ' + tok, 'content-type': raw ? 'application/octet-stream' : 'application/json' }, body: raw ? body : body ? JSON.stringify(body) : undefined });
@@ -142,7 +145,7 @@ function create(db) {
     if (!fs.existsSync(target)) throw new Error('المجلد غير موجود أو القرص غير موصول: ' + target);
     const dst = path.join(target, 'Misbar-Vendor-Backup', new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)); fs.mkdirSync(dst, { recursive: true });
     db.exec(`VACUUM INTO '${path.join(dst, 'vendor.db').replace(/'/g, "''")}'`);
-    const files = ['vendor.db']; for (const f of [PRIV, PUB, REG, path.join(DIR, 'activation-private.pem'), path.join(DIR, 'activation.pub')]) if (fs.existsSync(f)) { fs.copyFileSync(f, path.join(dst, path.basename(f))); files.push(path.basename(f)) }
+    const files = ['vendor.db']; for (const f of [PRIV, PUB, REG, path.join(DIR, 'activation-private.pem'), path.join(DIR, 'activation.pub'), path.join(DIR, '.ops_token')]) if (fs.existsSync(f)) { fs.copyFileSync(f, path.join(dst, path.basename(f))); files.push(path.basename(f)) }
     const sums = Object.fromEntries(files.map(f => [f, crypto.createHash('sha256').update(fs.readFileSync(path.join(dst, f))).digest('hex')]));
     fs.writeFileSync(path.join(dst, 'manifest.json'), JSON.stringify({ at: now(), files: sums }, null, 1));
     const v = { t: Date.now(), at: now(), dir: dst }; setMeta('last_backup', v); log('', 'vendor.backup', v); return { ok: true, ...v, files };
@@ -189,7 +192,7 @@ function create(db) {
   }
   async function actDevice(b, fetchImpl) { const r = await ops('POST', '/_ops/act/device', { id: b.id, status: b.status }, fetchImpl); log(b.slug, 'act.device.' + b.status, { id: b.id }); return r }
 
-  return { db, meta, setMeta, settings, ops, publish, releaseSet, actGet, actSave, actDevice, saveOffice, office, offices, issue, revoke, renew, pay, unpay, summary, backup, log };
+  return { db, meta, setMeta, settings, readTok, ops, publish, releaseSet, actGet, actSave, actDevice, saveOffice, office, offices, issue, revoke, renew, pay, unpay, summary, backup, log };
 }
 
 /* ── الخادم المحلي ── */
@@ -205,6 +208,7 @@ function serve(V, { port = PORT, fetchImpl } = {}) {
     if (req.headers['x-vk'] !== KEY) return send(res, 403, { error: 'جلسة غير صالحة؛ أعد فتح البرنامج' });
     try {
       let m;
+      if (p === '/api/quit' && M === 'POST') { send(res, 200, { ok: true }); setTimeout(() => { try { V.db.close() } catch (e) {} process.exit(0) }, 300); return }
       if (p === '/api/summary') return send(res, 200, V.summary());
       if (p === '/api/offices' && M === 'GET') return send(res, 200, V.offices());
       if (p === '/api/offices' && M === 'POST') return send(res, 200, V.saveOffice(await body(req)));
@@ -235,7 +239,7 @@ function serve(V, { port = PORT, fetchImpl } = {}) {
       if (p === '/api/releases/publish' && M === 'POST') return send(res, 200, await V.publish(await body(req), fetchImpl));
       if ((m = /^\/api\/releases\/(\d{1,3}\.\d{1,3}\.\d{1,4})$/.exec(p)) && M === 'POST') return send(res, 200, await V.releaseSet(m[1], await body(req), fetchImpl));
       if (p === '/api/updates/office' && M === 'POST') { const b = await body(req); const r = await V.ops('POST', '/_ops/updates/office', b, fetchImpl); V.log(b.slug, 'updates.office', b); return send(res, 200, r) }
-      if (p === '/api/settings' && M === 'GET') return send(res, 200, { ...V.settings(), tokenFound: (() => { try { return !!(process.env.MQ_OPS_TOKEN || fs.readFileSync(V.settings().opsTokenFile, 'utf8').trim()) } catch (e) { return false } })(), dir: DIR });
+      if (p === '/api/settings' && M === 'GET') return send(res, 200, { ...V.settings(), tokenFound: !!(process.env.MQ_OPS_TOKEN || V.readTok(V.settings())), dir: DIR, portable: PORTABLE });
       if (p === '/api/settings' && M === 'POST') { const b = await body(req); const s = { ...V.settings() }; for (const k of ['opsHost', 'opsTokenFile', 'backupDir', 'cloudBase', 'appDir']) if (k in b) s[k] = String(b[k] || '').trim(); V.setMeta('settings', s); return send(res, 200, s) }
       if (p === '/api/backup' && M === 'POST') { const b = await body(req); return send(res, 200, V.backup(b.dir)) }
       return send(res, 404, { error: 'غير موجود' });
