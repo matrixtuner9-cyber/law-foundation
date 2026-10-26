@@ -2,9 +2,10 @@
 // عمليات مزود الخدمة (/_ops) محمية برمز سري، ولا تمر لأي مكتب إلا عبرها.
 import crypto from 'node:crypto';
 import { norm, opsSig } from './office.js';
+import * as aiGateway from './ai-gateway.js';
 export { Office } from './office.js';
 
-const RESERVED = new Set(['www', 'admin', 'ops', 'api', 'app', 'portal', 'mail', 'static', 'office', 'support', 'status']);
+const RESERVED = new Set(['www', 'admin', 'ops', 'api', 'ai', 'app', 'portal', 'mail', 'static', 'office', 'support', 'status']);
 const SLUG_RE = /^[a-z][a-z0-9-]{2,30}$/;
 const cache = new Map(); // سجل المكاتب في الذاكرة لدقيقة
 const page = (title, body, status = 404) => new Response(`<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><body style="font-family:Cairo,Tahoma,sans-serif;background:#F5F0E6;color:#121B2E;display:grid;place-items:center;min-height:100vh;margin:0"><div style="text-align:center;padding:24px"><h1 style="font-size:24px">${title}</h1><p style="color:#5D6375">${body}</p></div>`, { status, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' } });
@@ -44,6 +45,7 @@ function opsAuthorized(req, env) {
 async function ops(req, env, u) {
   if (!opsAuthorized(req, env)) return json(404, { error: 'not found' });
   const p = u.pathname, M = req.method;
+  if (p.startsWith('/_ops/ai/')) { const r = await aiGateway.ops(req, env, p); if (r) return r }
   if (p === '/_ops/offices' && M === 'GET') return json(200, (await env.DB.prepare('SELECT * FROM offices ORDER BY created_at').all()).results);
   if (p === '/_ops/offices' && M === 'POST') {
     const b = await req.json().catch(() => ({})), slug = String(b.slug || '').toLowerCase();
@@ -113,6 +115,8 @@ export default {
     const secure = r => { if (u.protocol !== 'https:') return r; const x = new Response(r.body, r); x.headers.set('Strict-Transport-Security', 'max-age=31536000'); return x };
     if (u.pathname.startsWith('/_ops/')) return opsHost(req, u, env) ? ops(req, env, u) : json(404, { error: 'not found' });
     if (!h.base) return page('غير موجود', 'هذا العنوان غير مرتبط بأي مكتب.');
+    /* الخادم الوسيط لعقل المسبار: ai.<الدومين> — للنسخ المكتبية المرخّصة فقط */
+    if (h.sub === 'ai') { try { return secure(await aiGateway.handle(req, env, u.pathname)) } catch (e) { console.error('[ai-gw]', e); return json(502, { error: { message: 'تعذّر الوصول إلى عقل المسبار الواعي؛ حاول بعد قليل' } }) } }
     if (h.root) {
       const r = await env.ASSETS.fetch(new Request(new URL('/site/index.html', u)));
       return secure(r.ok ? r : page('المِسْبار', 'نظام إدارة مكاتب المحاماة', 200));

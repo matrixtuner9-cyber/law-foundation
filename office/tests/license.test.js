@@ -48,8 +48,10 @@ test('المُفعِّل: init ثم issue يصدر كوداً صالحاً وي�
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mq-act-')), tool = path.join(ROOT, 'tools', 'activator.js');
   execFileSync(process.execPath, [tool, 'init', '--dir', dir], { stdio: 'pipe' });
   const fp = L.fingerprint({ id: 'x', mac: [] });
-  const code = execFileSync(process.execPath, [tool, 'issue', '--dir', dir, '--fp', fp, '--office', 'مكتب النجاح', '--users', '4', '--exp', '2040-01-01'], { encoding: 'utf8' }).trim();
+  const code = execFileSync(process.execPath, [tool, 'issue', '--dir', dir, '--fp', fp, '--office', 'مكتب النجاح', '--slug', 'najah-law', '--edition', 'connected', '--ai', '2000000', '--users', '4', '--exp', '2040-01-01'], { encoding: 'utf8' }).trim();
   const v = L.verify(code, { fp, pub: fs.readFileSync(path.join(dir, 'license.pub'), 'utf8') }); assert.equal(v.ok, true); assert.equal(v.payload.users, 4);
+  assert.equal(v.payload.slug, 'najah-law', 'معرّف المكتب الموحّد في الترخيص'); assert.equal(v.payload.ai, 2000000);
+  assert.throws(() => execFileSync(process.execPath, [tool, 'issue', '--dir', dir, '--fp', fp, '--office', 'بلا معرّف'], { stdio: 'pipe' }), 'المعرّف مطلوب');
   assert.match(fs.readFileSync(path.join(dir, 'issued.csv'), 'utf8'), /مكتب النجاح/);
   assert.throws(() => execFileSync(process.execPath, [tool, 'issue', '--dir', dir, '--fp', 'bad', '--office', 'x'], { stdio: 'pipe' }));
   fs.rmSync(dir, { recursive: true, force: true });

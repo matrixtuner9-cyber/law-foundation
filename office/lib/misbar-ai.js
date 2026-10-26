@@ -6,6 +6,9 @@
 
 const DS_API = 'https://api.deepseek.com/chat/completions', DS_MODEL = 'deepseek-chat';
 const AN_API = 'https://api.anthropic.com/v1/messages', AN_MODEL = 'claude-sonnet-5-5';
+/* نسخ المكاتب المرخّصة لا تحمل مفاتيح: «رمز الوسيط» mqgw:<بصمة>:<ترخيص> يُرسل إلى خادم المورّد الوسيط بدل المزوّد مباشرة */
+const GW = () => ((typeof process !== 'undefined' && process.env && process.env.MQ_AI_GATEWAY) || 'https://ai.palgaz.net').replace(/\/+$/, '');
+const viaGw = key => String(key || '').startsWith('mqgw:');
 const LIMITS = { perUser: 20, window: 600e3, facts: 14000, doc: 40000, question: 1200, refs: 10, refChars: 2200 };
 
 /* المهام: المطلوب من النموذج في كل مهمة، وهل تحتاج مراجع من القاعدة */
@@ -34,13 +37,15 @@ const jparse = s => { try { const m = String(s).match(/\{[\s\S]*\}/); return m ?
 /* ── المزوّدون ── */
 async function callDeepSeek(key, { system, user, maxTokens = 3200, json = false }, fetchImpl, model = DS_MODEL) {
   const body = { model, messages: [{ role: 'system', content: system }, { role: 'user', content: user }], max_tokens: maxTokens, temperature: 0.2, stream: false, ...(json ? { response_format: { type: 'json_object' } } : {}) };
-  const r = await fetchImpl(DS_API, { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + key }, body: JSON.stringify(body) });
+  const r = await fetchImpl(viaGw(key) ? GW() + '/deepseek/chat/completions' : DS_API, { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + key }, body: JSON.stringify(body) });
+  if (!r.ok && viaGw(key)) { const j = await r.json().catch(() => ({})); throw Object.assign(new Error((j.error && j.error.message) || 'تعذّر الوصول إلى عقل المسبار الواعي.'), { status: r.status === 402 ? 402 : 502 }) }
   if (!r.ok) { const e = new Error(r.status === 401 ? 'مفتاح عقل المسبار الواعي غير صالح؛ راجع الإعدادات.' : r.status === 402 ? 'رصيد عقل المسبار الواعي غير كافٍ.' : r.status === 429 ? 'عقل المسبار الواعي مشغولة؛ حاول بعد قليل.' : 'تعذّر الاتصال بعقل المسبار الواعي (' + r.status + ').'); e.status = 502; throw e }
   const j = await r.json(); const text = j.choices && j.choices[0] && j.choices[0].message ? String(j.choices[0].message.content || '') : '';
   return { text, usage: { in: j.usage && j.usage.prompt_tokens || 0, out: j.usage && j.usage.completion_tokens || 0 }, model };
 }
 async function callClaude(key, { system, user, maxTokens = 3200 }, fetchImpl, model = AN_MODEL) {
-  const r = await fetchImpl(AN_API, { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] }) });
+  const r = await fetchImpl(viaGw(key) ? GW() + '/anthropic/v1/messages' : AN_API, { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] }) });
+  if (!r.ok && viaGw(key)) { const j = await r.json().catch(() => ({})); throw Object.assign(new Error((j.error && j.error.message) || 'تعذّر الوصول إلى عقل المسبار الواعي.'), { status: r.status === 402 ? 402 : 502 }) }
   if (!r.ok) { const e = new Error(r.status === 401 ? 'مفتاح عقل المسبار الواعي غير صالح؛ راجع الإعدادات.' : r.status === 429 ? 'عقل المسبار الواعي مشغولة؛ حاول بعد قليل.' : 'تعذّر الاتصال بعقل المسبار الواعي (' + r.status + ').'); e.status = 502; throw e }
   const j = await r.json(); const text = (j.content || []).filter(x => x.type === 'text').map(x => x.text).join('\n');
   return { text, usage: { in: j.usage && j.usage.input_tokens || 0, out: j.usage && j.usage.output_tokens || 0 }, model };

@@ -41,8 +41,15 @@ const laws = Laws.createLaws({ all: (q, ...a) => store.raw.prepare(q).all(...a),
 const MISBAR_DB = process.env.MQ_LAWINDEX || path.join(DATA, 'mithaq-lawindex.db');
 const misbar = Misbar.createMisbar(Misbar.openFile(MISBAR_DB), { audit });
 const { lawSearch, rulingSearch: misbarRulings } = Misbar.adapters(misbar); /* الصياغة والمساعد يستشهدان من القاعدة نفسها */
-const aiKey = () => store.kv.get('ai_key') || process.env.ANTHROPIC_API_KEY || '';
-const dsKey = () => store.kv.get('deepseek_key') || process.env.DEEPSEEK_API_KEY || '';
+/* بلا مفتاح محلي: ترخيص المكتب (إن شمل عقل المسبار) يُستعمل عبر خادم المورّد الوسيط، فلا تُوضع مفاتيح المورّد في نسخ المكاتب */
+let gwCache = { at: 0, v: '' };
+function gwToken() {
+  if (Date.now() - gwCache.at < 60e3) return gwCache.v;
+  let v = ''; try { const code = fs.readFileSync(path.join(DATA, 'license.key'), 'utf8').trim(); const fp = License.fingerprint(); const r = License.verify(code, { fp }); if (r.ok && Number(r.payload.ai) > 0 && r.payload.slug) v = 'mqgw:' + fp + ':' + code.replace(/\s+/g, '') } catch (e) {}
+  gwCache = { at: Date.now(), v }; return v;
+}
+const aiKey = () => store.kv.get('ai_key') || process.env.ANTHROPIC_API_KEY || gwToken();
+const dsKey = () => store.kv.get('deepseek_key') || process.env.DEEPSEEK_API_KEY || gwToken();
 /* مختبر تحليل المسبار: DeepSeek أو Claude، مراجعه من القاعدة المحلية فقط */
 const misbarAi = MisbarAi.createAnalyzer({ misbar, keys: { deepseek: dsKey, anthropic: aiKey, provider: () => store.kv.get('ai_provider') || '' }, audit, models: { deepseek: process.env.MQ_DEEPSEEK_MODEL, anthropic: process.env.MQ_AI_MODEL } });
 const caseBrain = MisbarCase.createCaseBrain({ kv: store.kv, state: () => cur(), courts: () => SEED.courts || [], analyzer: misbarAi, system: MisbarAi.SYSTEM, norm: Misbar.norm, audit, match: require('./mizan/match').match });
@@ -452,6 +459,17 @@ async function api(req, res, u) {
   /* النسخ الاحتياطي: حالة آخر نسخة، وتشغيل يدوي */
   if (p === '/api/backup/status') { if (!need('manage')) return; return json(res, 200, backup.status()) }
   if (p === '/api/backup/run' && M === 'POST') { if (!need('manage')) return; const r = backup.run('manual:' + me.username); return json(res, r.ok ? 200 : 500, r.ok ? r : { error: 'تعذّر النسخ الاحتياطي: ' + r.error }) }
+  /* ترخيص المكتب: بصمة الجهاز وتفاصيل الترخيص، وتفعيل كود جديد (يشمل رصيد عقل المسبار عبر الخادم الوسيط) */
+  if (p === '/api/admin/license' && M === 'GET') {
+    if (!need('manage')) return; const fp = License.fingerprint(); let code = ''; try { code = fs.readFileSync(path.join(DATA, 'license.key'), 'utf8').trim() } catch (e) {}
+    const r = code ? License.verify(code, { fp }) : null, pl = r && r.payload || {};
+    return json(res, 200, { fp, active: !!(r && r.ok), error: r && !r.ok ? r.error : '', office: pl.office || '', slug: pl.slug || '', edition: pl.edition || '', users: pl.users || 0, exp: pl.exp || '', ai: Number(pl.ai || 0), gateway: !!gwToken(), localKeys: !!(store.kv.get('deepseek_key') || process.env.DEEPSEEK_API_KEY || store.kv.get('ai_key') || process.env.ANTHROPIC_API_KEY), pubReady: !!License.PUBLIC_KEY_PEM });
+  }
+  if (p === '/api/admin/license' && M === 'POST') {
+    if (!need('manage')) return; const b = await jbody(req); const r = license.activate(String(b.code || ''));
+    audit({ ...who, action: r.ok ? 'license.activated' : 'license.failed', entity: 'settings', detail: r.ok ? { office: r.office, slug: (License.verify(String(b.code || '').trim(), { fp: License.fingerprint() }).payload || {}).slug } : { error: r.error } });
+    gwCache.at = 0; return json(res, r.ok ? 200 : 400, r.ok ? { ok: true } : { error: r.error });
+  }
   if (p === '/api/backup/remind' && M === 'GET') { if (!need('manage')) return; return json(res, 200, backup.remind()) }
   if (p === '/api/backup/snooze' && M === 'POST') { if (!need('manage')) return; audit({ user_id: me.id, username: me.username, action: 'system.backup_snooze' }); return json(res, 200, backup.snooze()) }
   if (p === '/api/backup/config' && M === 'POST') { if (!need('manage')) return; const r = backup.setCfg(await jbody(req)); return json(res, r.ok ? 200 : 400, r.ok ? r : { error: r.error }) }

@@ -12,11 +12,11 @@
     // قاعدة «مِسْبار» (التشريعات والقرارات) للقراءة فقط، تُحدَّث بالاستيراد من misbar/mithaq-lawindex.sql
     { "binding": "LAWINDEX", "database_name": "mithaq-lawindex", "database_id": "a9bf27e1-2479-44e2-9acd-651fbfc0d1f0" }],
   "r2_buckets": [{ "binding": "MEDIA", "bucket_name": "mithaq-media" }],
-  "vars": { "BASE_DOMAINS": "palgaz.net", "OPS_HOSTS": "test.palgaz.net" },
+  "vars": { "BASE_DOMAINS": "palgaz.net", "OPS_HOSTS": "test.palgaz.net", "LICENSE_PUB": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAM+BLUCow1xx43+hQVivH+yW+Z6+6/AsSbBUYBEZtv34=\n-----END PUBLIC KEY-----\n" },
   // نسخة احتياطية مشفّرة يومياً الساعة 03:30 بتوقيت فلسطين (00:30 UTC). تتطلب السر BACKUP_KEY
   "triggers": { "crons": ["30 0 * * *", "7 * * * *"] },
   // كل مكتب نطاق مخصص (Custom Domain) يُنشئ سجل DNS وشهادة تلقائياً
-  "routes": [{ "pattern": "test.palgaz.net", "custom_domain": true }, { "pattern": "demo.palgaz.net", "custom_domain": true }],
+  "routes": [{ "pattern": "test.palgaz.net", "custom_domain": true }, { "pattern": "demo.palgaz.net", "custom_domain": true }, { "pattern": "ai.palgaz.net", "custom_domain": true }],
   "workers_dev": false,
   "observability": { "enabled": true }
   // الأسرار (لا تُكتب هنا): OPS_TOKEN وBACKUP_KEY عبر: wrangler secret put <الاسم>

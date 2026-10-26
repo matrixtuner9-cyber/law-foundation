@@ -186,6 +186,17 @@ A.supportGrant=()=>{const h=+(document.getElementById('supH')||{}).value||24;if(
  call('/api/support/grant',{hours:h}).then(j=>{MQ.settings.supportUntil=j.until;render();toast('مُنح الإذن حتى '+fmtT(j.until))}).catch(x=>toast(x.message))};
 A.supportRevoke=()=>call('/api/support/revoke',{}).then(()=>{MQ.settings.supportUntil=null;render();toast('أُلغي إذن الدعم')}).catch(x=>toast(x.message));
 
+/* ── ترخيص المكتب وعقل المسبار ── */
+let licCache=null;
+function licHtml(l){if(!l)return '<div class="note" style="border:0">جارٍ التحميل…</div>';
+ const ai=l.localKeys?'<span class="pill ok">مفاتيح محلية على هذا الجهاز</span>':l.gateway?`<span class="pill ok">عبر خادم المورّد</span> رصيد شهري ${Number(l.ai).toLocaleString('en')} وحدة`:'<span class="pill warn">غير مشمول</span> — يتطلب ترخيصاً يشمل عقل المسبار الواعي';
+ return `<dl class="kv"><dt>بصمة هذا الجهاز</dt><dd class="mono" dir="ltr" style="text-align:right">${e(l.fp)} <button class="btn sm" type="button" data-act="licCopyFp">نسخ</button></dd>
+  <dt>الترخيص</dt><dd>${l.active?`<span class="pill ok">مفعّل</span> ${e(l.office)} · المعرّف <b class="mono">${e(l.slug||'—')}</b>${l.exp?' · حتى '+e(l.exp):''}`:l.error?'<span class="pill bad">'+e(l.error)+'</span>':'<span class="pill warn">غير مفعّل</span>'}</dd>
+  <dt>عقل المسبار الواعي</dt><dd>${ai}</dd></dl>
+  ${l.pubReady?`<div style="display:flex;gap:8px;margin-top:10px"><input class="field mono" id="licCode" dir="ltr" placeholder="MQ1.…" style="flex:1"><button class="btn pri" type="button" data-act="licActivate">تفعيل</button></div><p class="m" style="margin-top:6px">أرسل بصمة الجهاز للمورّد، فيصلك كود تفعيل خاص بهذا الجهاز ومكتبك.</p>`:'<p class="m">هذه النسخة لم تُجهَّز بمفتاح التحقق بعد.</p>'}`}
+function loadLic(){fetch('/api/admin/license').then(r=>r.ok?r.json():null).then(l=>{licCache=l;const el=document.getElementById('licPanel');if(el)el.innerHTML=licHtml(l)}).catch(()=>{})}
+A.licCopyFp=()=>{if(licCache&&navigator.clipboard)navigator.clipboard.writeText(licCache.fp).then(()=>toast('نُسخت بصمة الجهاز'))};
+A.licActivate=()=>{const i=document.getElementById('licCode');call('/api/admin/license',{code:i?i.value.trim():''}).then(()=>{toast('فُعّل الترخيص');loadLic()}).catch(x=>toast(x.message))};
 const vs=V.settings;V.settings=()=>{const st=MQ.settings||{},man=can2('manage');let h=vs();if(!man)return h;
  const weak=clients.filter(isWeak).length;
  h+=`<section class="panel" style="margin-top:16px"><header><h2>رموز دخول بوابة الموكل</h2><span class="m">الرمز القوي 10 خانات عشوائية يولّدها الخادم، ولا يتكرر بين موكلين</span></header><div class="bd st-row">
@@ -200,6 +211,7 @@ const vs=V.settings;V.settings=()=>{const st=MQ.settings||{},man=can2('manage');
    <div style="display:flex;gap:8px;align-items:center">${until?'<button class="btn" type="button" data-act="supportRevoke">إلغاء الإذن الآن</button>':`<select class="field" id="supH" style="width:auto"><option value="4">4 ساعات</option><option value="24" selected>24 ساعة</option><option value="72">72 ساعة</option></select><button class="btn" type="button" data-act="supportGrant">منح إذن مؤقت</button>`}</div></div></section>`;
  }else{
   h+=`<section class="panel" style="margin-top:16px"><header><h2>النسخ الاحتياطي</h2><span class="m">نسخة يومية تلقائية متحقق من سلامتها: القاعدة والمفاتيح والمرفقات</span></header><div class="bd" id="bkPanel">${backupHtml(bkCache)}</div></section>`;
+  h+=`<section class="panel" style="margin-top:16px"><header><h2>ترخيص المكتب</h2><span class="m">معرّف المكتب وتفعيل هذه النسخة، وعقل المسبار الواعي عبر خادم المورّد</span></header><div class="bd" id="licPanel">${licHtml(licCache)}</div></section>`;
  }
  return h};
 
@@ -210,6 +222,7 @@ function inject(){
  if(S.view==='client'&&can2('write')){const c=C(S.clientId);const host=document.getElementById('waBar')||pg.querySelector('.bag-head .bag-id>div:last-child');
   if(c&&host&&!pg.querySelector('[data-act="editClient"]')){host.insertAdjacentHTML('beforeend',`<button class="btn sm" data-act="editClient" data-v="${e(c.id)}">تعديل البيانات</button><button class="btn sm" data-act="rotateCode" data-v="${e(c.id)}" title="عند الشك بتسريب الرمز">تجديد رمز الدخول</button>${isWeak(c)?'<span class="weak-code" title="رمز قديم من 4 أرقام يمكن تخمينه">رمز ضعيف</span>':''}`)}}
  if(S.view==='settings'&&!bkCache&&!(MQ.settings||{}).cloud&&can2('manage'))loadBackup();
+ if(S.view==='settings'&&!licCache&&!(MQ.settings||{}).cloud&&can2('manage'))loadLic();
 }
 const r0=render;render=function(){r0();try{inject()}catch(x){console.warn(x)}};
 })();

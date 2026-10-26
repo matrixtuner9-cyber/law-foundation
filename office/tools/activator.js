@@ -1,6 +1,8 @@
 // «مُفعِّل المِسْبار» — أداة المطوّر وحده لإصدار أكواد التفعيل. لا تُشحن مع نسخ المكاتب.
 //   node tools/activator.js init  [--dir D]              يولّد زوج المفاتيح (الخاص يبقى في D، والعام license.pub يُشحن مع النسخ)
-//   node tools/activator.js issue --fp XXXX-XXXX-XXXX-XXXX-XXXX --office "اسم المكتب" [--edition private|connected] [--users 5] [--exp 2027-12-31] [--dir D]
+//   node tools/activator.js issue --fp XXXX-XXXX-XXXX-XXXX-XXXX --office "اسم المكتب" --slug nablus-law [--edition private|connected] [--users 5] [--exp 2027-12-31] [--ai 2000000] [--dir D]
+//     --slug: معرّف المكتب الموحّد (هو عنوانه السحابي إن وُجد، ومعرّفه في استهلاك عقل المسبار)
+//     --ai:   رصيد عقل المسبار الشهري بالوحدات (tokens) عبر الخادم الوسيط؛ 0 = بلا تحليل
 //   node tools/activator.js serve [--dir D] [--port 8777]   واجهة صغيرة على هذا الجهاز فقط (127.0.0.1)
 //   node tools/activator.js list  [--dir D]                 سجل الأكواد الصادرة
 'use strict';
@@ -17,7 +19,7 @@ function init() {
   const { publicKey, privateKey } = crypto.generateKeyPairSync('ed25519');
   fs.writeFileSync(PRIV, privateKey.export({ type: 'pkcs8', format: 'pem' }), { mode: 0o600 });
   fs.writeFileSync(PUB, publicKey.export({ type: 'spki', format: 'pem' }));
-  fs.writeFileSync(REG, 'issued_at,office,edition,users,exp,fp,code_id\n');
+  fs.writeFileSync(REG, 'issued_at,office,slug,edition,users,exp,ai,fp,code_id\n');
   console.log('تم. المفتاح الخاص:', PRIV, '\n(احفظ نسخة احتياطية منه في مكان آمن؛ ضياعه يعني عدم القدرة على إصدار أكواد للنسخ الحالية)\nالمفتاح العام للشحن مع النسخ:', PUB);
 }
 function issue(o) {
@@ -27,11 +29,13 @@ function issue(o) {
   const edition = o.edition === 'connected' ? 'connected' : 'private';
   const users = Math.max(1, Math.min(500, parseInt(o.users || '5', 10) || 5));
   const exp = /^\d{4}-\d{2}-\d{2}$/.test(String(o.exp || '')) ? o.exp : '';
-  const payload = { v: 1, fp: fp.match(/.{4}/g).join('-'), office, edition, users, exp, iat: new Date().toISOString().slice(0, 10), id: crypto.randomBytes(4).toString('hex') };
+  const slug = String(o.slug || '').trim().toLowerCase(); if (!/^[a-z][a-z0-9-]{2,30}$/.test(slug)) throw new Error('معرّف المكتب (slug): 3–31 حرفاً لاتينياً صغيراً أو أرقاماً أو -، يبدأ بحرف، مثل nablus-law');
+  const ai = edition === 'private' ? 0 : Math.max(0, Math.round(+o.ai || 0));
+  const payload = { v: 2, fp: fp.match(/.{4}/g).join('-'), office, slug, edition, users, exp, ai, iat: new Date().toISOString().slice(0, 10), id: crypto.randomBytes(4).toString('hex') };
   const code = L.sign(payload, fs.readFileSync(PRIV, 'utf8'));
   const chk = L.verify(code, { fp, pub: fs.readFileSync(PUB, 'utf8') }); if (!chk.ok) throw new Error('فشل التحقق الذاتي: ' + chk.error);
   const q = v => '"' + String(v).replace(/"/g, '""') + '"';
-  fs.appendFileSync(REG, [payload.iat, q(office), edition, users, exp, payload.fp, payload.id].join(',') + '\n');
+  fs.appendFileSync(REG, [payload.iat, q(office), slug, edition, users, exp, ai, payload.fp, payload.id].join(',') + '\n');
   return { code, payload };
 }
 const PAGE = `<!doctype html><html lang="ar" dir="rtl"><meta charset="utf-8"><title>مُفعِّل المِسْبار</title><style>
@@ -41,10 +45,10 @@ button{margin-top:16px;padding:12px 20px;border:0;border-radius:10px;background:
 textarea{width:100%;box-sizing:border-box;min-height:110px;margin-top:12px;direction:ltr;font-family:monospace;background:#0B1B2B;color:#F3D58A;border:1px solid #C9A24A;border-radius:8px;padding:10px}.err{color:#ff9b9b}</style>
 <main><h1>مُفعِّل المِسْبار</h1><p>أدخل بصمة الجهاز كما تظهر في شاشة التفعيل لدى المكتب.</p>
 <label>بصمة الجهاز</label><input id="fp" dir="ltr" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX">
-<label>اسم المكتب</label><input id="office"><label>النسخة</label><select id="edition"><option value="private">المِسْبار الخاص (بلا إنترنت)</option><option value="connected">المِسْبار المتصل</option></select>
+<label>اسم المكتب</label><input id="office"><label>معرّف المكتب (لاتيني، مثل nablus-law)</label><input id="slug" dir="ltr"><label>رصيد عقل المسبار الشهري (وحدات؛ 0 = بلا تحليل)</label><input id="ai" type="number" value="2000000" min="0" dir="ltr"><label>النسخة</label><select id="edition"><option value="private">المِسْبار الخاص (بلا إنترنت)</option><option value="connected">المِسْبار المتصل</option></select>
 <label>عدد المستخدمين</label><input id="users" type="number" value="5" min="1"><label>تاريخ الانتهاء (اختياري)</label><input id="exp" type="date">
 <button id="go">إصدار كود التفعيل</button><p id="msg"></p><textarea id="out" readonly placeholder="يظهر الكود هنا"></textarea></main>
-<script>go.onclick=async()=>{msg.textContent='';out.value='';const r=await fetch('/issue',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({fp:fp.value,office:office.value,edition:edition.value,users:users.value,exp:exp.value})});const j=await r.json();if(!r.ok){msg.className='err';msg.textContent=j.error;return}out.value=j.code;out.select();msg.className='';msg.textContent='صدر الكود وسُجّل في issued.csv'}</script></html>`;
+<script>go.onclick=async()=>{msg.textContent='';out.value='';const r=await fetch('/issue',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({slug:slug.value,ai:ai.value,fp:fp.value,office:office.value,edition:edition.value,users:users.value,exp:exp.value})});const j=await r.json();if(!r.ok){msg.className='err';msg.textContent=j.error;return}out.value=j.code;out.select();msg.className='';msg.textContent='صدر الكود وسُجّل في issued.csv'}</script></html>`;
 function serve() {
   const port = Number(arg('port', 8777));
   http.createServer((req, res) => {
@@ -60,7 +64,7 @@ function serve() {
 }
 try {
   if (cmd === 'init') init();
-  else if (cmd === 'issue') { const r = issue({ fp: arg('fp'), office: arg('office'), edition: arg('edition'), users: arg('users'), exp: arg('exp') }); console.log(r.code) }
+  else if (cmd === 'issue') { const r = issue({ fp: arg('fp'), office: arg('office'), slug: arg('slug'), edition: arg('edition'), users: arg('users'), exp: arg('exp'), ai: arg('ai') }); console.log(r.code) }
   else if (cmd === 'serve') serve();
   else if (cmd === 'list') console.log(fs.existsSync(REG) ? fs.readFileSync(REG, 'utf8') : 'لا سجل بعد');
   else console.log(fs.readFileSync(__filename, 'utf8').split('\n').slice(1, 6).join('\n'));
