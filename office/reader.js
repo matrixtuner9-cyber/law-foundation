@@ -32,15 +32,16 @@ function aiPanel(x){if(!AI_TYPES[x.ext]||!can())return '';
  return `<div class="rd-ai note"><p>تتم القراءة الأدق بإرسال المرفق إلى مزوّد الذكاء الاصطناعي (Claude)، وتُحسب كلفتها من استهلاك المكتب. قد يحتوي المرفق بيانات شخصية أو سرية للموكل.</p><label class="rl-ck"><input type="checkbox" id="rdConsent"> أؤكد أن لدي صلاحية معالجة هذا المستند لدى مزوّد خارجي.</label><div class="toolbar" style="margin-top:8px"><button class="btn pri" data-act="rdAi">قراءة أدق</button></div></div>`}
 const can=()=>!!(window.MQ&&MQ.user&&['admin','lawyer'].includes(MQ.user.role)&&!MQ.readOnly);
 
-/* ── المحركات المجانية (تُحمَّل عند أول استخدام من jsdelivr بإصدارات مثبّتة) ── */
-const LIB={tess:'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js',tessWorker:'https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js',tessCore:'https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1',
- pdf:'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs',pdfWorker:'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs'};
-const stage=t=>{R.stage=t;const el=document.getElementById('rdStage');if(el)el.textContent=t};
-const loadScript=src=>new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.async=true;s.onload=ok;s.onerror=()=>no(new Error('تعذّر تحميل محرك القراءة. تحقق من الاتصال بالإنترنت.'));document.head.appendChild(s)});
+/* ── المحركات المجانية: مضمّنة في التطبيق نفسه (vendor/) فتعمل دون إنترنت؛ tesseract.js 5.1.1 وpdf.js 4.10.38 ── */
+const VB=new URL('vendor/',location.href).href;
+const LIB={tess:VB+'ocr/tesseract.min.js',tessWorker:VB+'ocr/worker.min.js',tessCore:VB+'ocr',tessLang:VB+'ocr',
+ pdf:VB+'pdf/pdf.min.mjs',pdfWorker:VB+'pdf/pdf.worker.min.mjs'};
+const stage=t=>{R.stage=t;if(window.MQ_extractStage)try{MQ_extractStage(t)}catch(x){}const el=document.getElementById('rdStage');if(el)el.textContent=t};
+const loadScript=src=>new Promise((ok,no)=>{const s=document.createElement('script');s.src=src;s.async=true;s.onload=ok;s.onerror=()=>no(new Error('تعذّر تحميل محرك القراءة المحلي.'));document.head.appendChild(s)});
 let tessW=null,pdfLib=null;
 async function ocrWorker(){if(tessW)return tessW;
  if(!window.Tesseract){stage('جارٍ تحميل محرك القراءة العربية (مرة واحدة على هذا الجهاز)…');await loadScript(LIB.tess)}
- tessW=await Tesseract.createWorker('ara',1,{workerPath:LIB.tessWorker,corePath:LIB.tessCore,logger:l=>{if(l.status==='recognizing text')stage('جارٍ التعرّف على النص… '+Math.round((l.progress||0)*100)+'٪');else if(/load/.test(l.status||''))stage('جارٍ تجهيز اللغة العربية… '+Math.round((l.progress||0)*100)+'٪')}});
+ tessW=await Tesseract.createWorker('ara',1,{workerPath:LIB.tessWorker,corePath:LIB.tessCore,langPath:LIB.tessLang,gzip:false,logger:l=>{if(l.status==='recognizing text')stage('جارٍ التعرّف على النص… '+Math.round((l.progress||0)*100)+'٪');else if(/load/.test(l.status||''))stage('جارٍ تجهيز اللغة العربية… '+Math.round((l.progress||0)*100)+'٪')}});
  return tessW}
 async function ocr(src){const w=await ocrWorker(),r=await w.recognize(src);return {text:String(r.data.text||'').replace(/[ \t]+\n/g,'\n').trim(),conf:r.data.confidence}}
 async function pdfjs(){if(pdfLib)return pdfLib;stage('جارٍ تحميل قارئ PDF…');pdfLib=await import(LIB.pdf);pdfLib.GlobalWorkerOptions.workerSrc=LIB.pdfWorker;return pdfLib}
@@ -73,6 +74,8 @@ async function extractFree(m,ext){
  if(ext==='docx'){if(!window.MQ_docxText)throw new Error('قارئ Word غير متاح.');return {text:String(await MQ_docxText(await r.arrayBuffer())||'').trim(),via:'local'}}
  if(ext==='pdf')return readPdf(await r.arrayBuffer());
  const res=await ocr(await r.blob());return {...res,via:'ocr'}}
+/* لعقل القضية في المسبار: استخراج نص مستند القضية محلياً (لا يخرج الملف من جهاز المكتب) */
+window.MQ_extract=async(file,ext)=>{ext=String(ext||'').toLowerCase();if(ext==='jpeg')ext='jpg';if(!READ_EXT.includes(ext)&&ext!=='jpg')throw new Error('نوع الملف لا يُقرأ آلياً ('+ext+').');return extractFree({file},ext)};
 A.rdOpen=async id=>{
  const f=findMsg(id);if(!f)return toast('المرفق غير موجود');
  const ext=f.m.type==='image'&&!f.m.ext?'jpg':extOf(f.m);

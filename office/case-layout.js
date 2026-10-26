@@ -6,7 +6,7 @@
 (function(){
 'use strict';
 if(typeof V==='undefined'||typeof V.case!=='function')return;
-const MAIN=[['hub','نظرة عامة'],['study','1 · الدراسة والقرار'],['hearings','2 · الجلسات ومحاضرها'],['track','3 · الأحكام والطعن'],['c360','ملف 360°']];
+const MAIN=[['hub','نظرة عامة'],['misbar','<img src="misbar-emblem.webp" alt="" style="width:18px;height:18px;vertical-align:-4px;border-radius:50%;margin-inline-end:5px">المِسْبار'],['study','1 · الدراسة والقرار'],['hearings','2 · الجلسات ومحاضرها'],['track','3 · الأحكام والطعن'],['c360','ملف 360°']];
 const SUB={docs:'المستندات',deadlines:'المهل',msgs:'مراسلات الموكل',mz:'سجل ميزان',rulings:'الاجتهادات المرتبطة',gather:'الدراسة والقرار'};
 const v0=V.case;
 V.case=function(){const html=v0.apply(this,arguments);const k=K(S.caseId);if(!k)return html;

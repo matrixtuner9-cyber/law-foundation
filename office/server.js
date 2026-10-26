@@ -11,7 +11,7 @@ const DATA = process.env.MQ_DATA || path.join(ROOT, 'data'), MEDIA = path.join(D
 fs.mkdirSync(MEDIA, { recursive: true });
 
 const SEED = require('./data.js');
-const Store = require('./lib/db'), Auth = require('./lib/auth'), Merge = require('./lib/merge'), Laws = require('./lib/laws'), AiDraft = require('./lib/ai-draft'), Apns = require('./lib/apns'), WebPush = require('./lib/webpush'), Tts = require('./lib/tts'), Legal = require('./lib/legal-pages'), Misbar = require('./lib/misbar'), MisbarAi = require('./lib/misbar-ai'), License = require('./lib/license'), Av = require('./lib/avatar'), http2 = require('http2');
+const Store = require('./lib/db'), Auth = require('./lib/auth'), Merge = require('./lib/merge'), Laws = require('./lib/laws'), AiDraft = require('./lib/ai-draft'), Apns = require('./lib/apns'), WebPush = require('./lib/webpush'), Tts = require('./lib/tts'), Legal = require('./lib/legal-pages'), Misbar = require('./lib/misbar'), MisbarAi = require('./lib/misbar-ai'), MisbarCase = require('./lib/misbar-case'), License = require('./lib/license'), Av = require('./lib/avatar'), http2 = require('http2');
 const OFFICE = { name: 'مكتب الميثاق للمحاماة والاستشارات القانونية', lawyer: 'المحامي سامر عبد الله', city: 'نابلس', phone: '09-233-0000', hours: 'الأحد – الخميس · 8:30 – 16:00' };
 const STATE_F = path.join(DATA, 'state.json'), MSG_F = path.join(DATA, 'messages.json');
 const VAPID_F = path.join(DATA, 'vapid.json'), PUSH_F = path.join(DATA, 'push.json');
@@ -43,6 +43,7 @@ const aiKey = () => store.kv.get('ai_key') || process.env.ANTHROPIC_API_KEY || '
 const dsKey = () => store.kv.get('deepseek_key') || process.env.DEEPSEEK_API_KEY || '';
 /* مختبر تحليل المسبار: DeepSeek أو Claude، مراجعه من القاعدة المحلية فقط */
 const misbarAi = MisbarAi.createAnalyzer({ misbar, keys: { deepseek: dsKey, anthropic: aiKey, provider: () => store.kv.get('ai_provider') || '' }, audit, models: { deepseek: process.env.MQ_DEEPSEEK_MODEL, anthropic: process.env.MQ_AI_MODEL } });
+const caseBrain = MisbarCase.createCaseBrain({ kv: store.kv, state: () => cur(), courts: () => SEED.courts || [], analyzer: misbarAi, system: MisbarAi.SYSTEM, norm: Misbar.norm, audit });
 const drafter = AiDraft.createDrafter({ audit, getKey: aiKey, laws, lawSearch, rulingSearch: misbarRulings, model: process.env.MQ_AI_MODEL });
 const extractor = AiDraft.createExtractor({ audit, getKey: aiKey, model: process.env.MQ_AI_MODEL });
 const transcriber0 = AiDraft.createTranscriber({ audit, getKey: aiKey, model: process.env.MQ_AI_MODEL });
@@ -248,7 +249,7 @@ function body(req, limit = 15 * 1024 * 1024) {
     req.on('end', () => ok(Buffer.concat(chunks))); req.on('error', bad) });
 }
 const jbody = async (req, limit = 4 * 1024 * 1024) => { try { return JSON.parse((await body(req, limit)).toString('utf8') || '{}') } catch (e) { return {} } };
-function sendFile(req, res, file) {
+function sendFile(req, res, file, cache = 'private, no-store') {
   fs.stat(file, (err, st) => {
     if (err || !st.isFile()) { res.writeHead(404, CORS); return res.end('Not found') }
     const type = TYPES[path.extname(file).toLowerCase()] || 'application/octet-stream';
@@ -259,7 +260,7 @@ function sendFile(req, res, file) {
       res.writeHead(206, { 'Content-Type': type, 'Content-Range': `bytes ${start}-${end}/${st.size}`, 'Cache-Control': 'private, no-store', ...SEC, 'Accept-Ranges': 'bytes', 'Content-Length': end - start + 1, ...CORS });
       return fs.createReadStream(file, { start, end }).pipe(res);
     }
-    res.writeHead(200, { 'Content-Type': type, 'Content-Length': st.size, 'Accept-Ranges': 'bytes', 'Cache-Control': 'private, no-store', ...CORS, ...SEC });
+    res.writeHead(200, { 'Content-Type': type, 'Content-Length': st.size, 'Accept-Ranges': 'bytes', 'Cache-Control': cache, ...CORS, ...SEC });
     fs.createReadStream(file).pipe(res);
   });
 }
@@ -694,6 +695,7 @@ async function api(req, res, u) {
   }
   if (p.startsWith('/api/admin/misbar/')) {
     const a = p.slice(18);
+    if (a.startsWith('case/')) { if (ED.offline && a === 'case/run') return json(res, 403, OFFLINE_ERR); const r = await caseBrain.handle(a.slice(5), M, Object.fromEntries(u.searchParams), () => jbody(req, 2 * 1024 * 1024), me, w => auth.can(me, w), who); return json(res, r.status, r.body) }
     if (a === 'analyze' && M === 'POST') { if (!need('write')) return; const r = await misbarAi.analyze(await jbody(req, 2 * 1024 * 1024), me); return json(res, r.status, r.body) }
     if (a === 'ai' && M === 'GET') { const d = dsKey(), c = aiKey(); return json(res, 200, { deepseek: { configured: !!d, last4: d ? d.slice(-4) : '' }, claude: { configured: !!c, last4: c ? c.slice(-4) : '' }, provider: store.kv.get('ai_provider') || '', tasks: Object.fromEntries(Object.entries(MisbarAi.TASKS).map(([k, v]) => [k, { label: v.label, doc: !!v.doc, refs: !!v.refs }])), canManage: auth.can(me, 'manage') }) }
     if (a === 'provider' && M === 'POST') { if (!need('manage')) return; const b = await jbody(req); const v = ['deepseek', 'claude'].includes(b.provider) ? b.provider : ''; store.kv.set('ai_provider', v || null); audit({ ...who, action: 'misbar.provider', entity: 'settings', detail: { provider: v || 'auto' } }); return json(res, 200, { ok: true, provider: v }) }
@@ -772,7 +774,7 @@ async function rulingFile(req, res, u, who) {
 }
 
 /* ملفات شاشة المكتب: قائمة محددة فقط، وكلها تتطلب تسجيل الدخول عدا صفحة الدخول */
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'guide.js', 'workflow.js', 'casework.js', 'stations.js', 'hearing-report.js', 'case-layout.js', 'case-steps.js', 'announce.js', 'reader.js', 'case-hub.js', 'case-wizard.js', 'consistency.js', 'searchsel.js', 'wa-chat.js', 'fulltext.js', 'ai-mark.js', 'night.css', 'qrcode.js', 'app-invite.js', 'avatar.js', 'wa-skin.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'misbar.js', 'misbar-emblem.webp', 'misbar-hero.webp', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'settlements.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'guide.js', 'workflow.js', 'casework.js', 'stations.js', 'hearing-report.js', 'case-layout.js', 'case-steps.js', 'case-misbar.js', 'announce.js', 'reader.js', 'case-hub.js', 'case-wizard.js', 'consistency.js', 'searchsel.js', 'wa-chat.js', 'fulltext.js', 'ai-mark.js', 'night.css', 'qrcode.js', 'app-invite.js', 'avatar.js', 'wa-skin.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'misbar.js', 'misbar-emblem.webp', 'misbar-hero.webp', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'settlements.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 /* التفعيل: النسخة الموزّعة لا تعمل إطلاقاً قبل إدخال كود صادر لبصمة هذا الجهاز (فحص في الخادم لكل طلب) */
 const license = License.createLicense({ dataDir: DATA, enforce: !!ED.license });
 const ACTIVATE_HTML = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تفعيل المِسْبار</title><style>
@@ -844,6 +846,8 @@ http.createServer((req, res) => {
     if (name === 'login.html' && auth.fromReq(req)) { res.writeHead(302, { Location: '/' }); return res.end() }
     return sendFile(req, res, path.join(ROOT, name));
   }
+  /* محركات القراءة المحلية (التعرف على النص العربي وقارئ PDF): تعمل دون إنترنت، للمستخدمين المسجلين فقط */
+  if (/^vendor\/(?:ocr|pdf)\/[\w.-]+$/.test(name)) { if (!auth.fromReq(req)) { res.writeHead(401); return res.end() } return sendFile(req, res, path.join(ROOT, name), 'private, max-age=604800') }
   if (!ADMIN_FILES.has(name)) { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); return res.end('Not found') }
   if (!auth.fromReq(req)) {
     if (name.endsWith('.html')) { res.writeHead(302, { Location: '/login.html' }); return res.end() }

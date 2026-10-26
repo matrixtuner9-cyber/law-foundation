@@ -15,7 +15,9 @@ import * as Legal from './legal-pages.js';
 import * as Av from './avatar.js';
 import { createLaws } from './laws.js';
 import { createMisbar, adapters as misbarAdapters } from './misbar.js';
-import { createAnalyzer as misbarAnalyzer, TASKS as MISBAR_TASKS } from './misbar-ai.js';
+import { createAnalyzer as misbarAnalyzer, TASKS as MISBAR_TASKS, SYSTEM as MISBAR_SYSTEM } from './misbar-ai.js';
+import { createCaseBrain } from './misbar-case.js';
+import { norm as misbarNorm } from './misbar.js';
 import { createDrafter, createExtractor, createTranscriber, createAssistant, createCalcExtractor, createRulingExtractor, usageSummary, PRICES as AI_PRICES, DOC_TYPES, MODEL as AI_MODEL } from './ai-draft.js';
 
 /* توقيع داخلي يثبت أن طلب /_ops وصل من الـ Worker بعد التحقق من رمز المشغّل (لا يمكن للزائر إرساله) */
@@ -47,7 +49,7 @@ const SEC = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-orig
 const json = (code, obj, extra = {}) => new Response(JSON.stringify(obj), { status: code, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...CORS, ...SEC, ...extra } });
 const MEDIA_TTL = 24 * 3600; // صلاحية رابط الملف الموقّع: يوم واحد، ويتجدد بتحميل المحادثة
 
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'guide.js', 'workflow.js', 'casework.js', 'stations.js', 'hearing-report.js', 'case-layout.js', 'case-steps.js', 'announce.js', 'reader.js', 'case-hub.js', 'case-wizard.js', 'consistency.js', 'searchsel.js', 'wa-chat.js', 'fulltext.js', 'ai-mark.js', 'night.css', 'qrcode.js', 'app-invite.js', 'avatar.js', 'wa-skin.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'misbar.js', 'misbar-emblem.webp', 'misbar-hero.webp', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'settlements.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'guide.js', 'workflow.js', 'casework.js', 'stations.js', 'hearing-report.js', 'case-layout.js', 'case-steps.js', 'case-misbar.js', 'announce.js', 'reader.js', 'case-hub.js', 'case-wizard.js', 'consistency.js', 'searchsel.js', 'wa-chat.js', 'fulltext.js', 'ai-mark.js', 'night.css', 'qrcode.js', 'app-invite.js', 'avatar.js', 'wa-skin.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'misbar.js', 'misbar-emblem.webp', 'misbar-hero.webp', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'settlements.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css', 'edition.js', 'misbar-banner.webp']);
 
 /* توحيد الكتابة العربية للبحث في دليل المحامين */
@@ -225,6 +227,7 @@ export class Office extends DurableObject {
       if (name === 'login.html' && this.auth.fromReq(req)) return Response.redirect(new URL('/', u.origin).href, 302);
       return noStore(await asset('/app/' + name));
     }
+    if (/^vendor\/(?:ocr|pdf)\/[\w.-]+$/.test(name)) { if (!this.auth.fromReq(req)) return new Response(null, { status: 401 }); const r = await asset('/app/' + name); const h = new Headers(r.headers); h.set('Cache-Control', 'private, max-age=604800'); return new Response(r.body, { status: r.status, headers: h }) }
     if (!ADMIN_FILES.has(name)) return new Response('Not found', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
     if (!this.auth.fromReq(req)) {
       if (name.endsWith('.html')) return Response.redirect(new URL('/login.html', u.origin).href, 302);
@@ -624,9 +627,13 @@ export class Office extends DurableObject {
     }
     if (p.startsWith('/api/admin/misbar/')) {
       const a = p.slice(18), aiKey = () => this.store.kv.get('ai_key') || this.env.ANTHROPIC_API_KEY || '', dsKey = () => this.store.kv.get('deepseek_key') || this.env.DEEPSEEK_API_KEY || '';
+      this._misbarAi ||= misbarAnalyzer({ misbar: this.misbar(), keys: { deepseek: dsKey, anthropic: aiKey, provider: () => this.store.kv.get('ai_provider') || '' }, audit: e => this.audit(e), models: { deepseek: this.env.MQ_DEEPSEEK_MODEL, anthropic: this.env.MQ_AI_MODEL } });
+      if (a.startsWith('case/')) {
+        this._caseBrain ||= createCaseBrain({ kv: this.store.kv, state: () => this.cur(), courts: () => courts, analyzer: this._misbarAi, system: MISBAR_SYSTEM, norm: misbarNorm, audit: e => this.audit(e) });
+        const r = await this._caseBrain.handle(a.slice(5), M, Object.fromEntries(u.searchParams), () => jbody(2 * 1024 * 1024), me, w => this.auth.can(me, w), who); return json(r.status, r.body);
+      }
       if (a === 'analyze' && M === 'POST') {
         if ((d = deny('write'))) return d;
-        this._misbarAi ||= misbarAnalyzer({ misbar: this.misbar(), keys: { deepseek: dsKey, anthropic: aiKey, provider: () => this.store.kv.get('ai_provider') || '' }, audit: e => this.audit(e), models: { deepseek: this.env.MQ_DEEPSEEK_MODEL, anthropic: this.env.MQ_AI_MODEL } });
         const r = await this._misbarAi.analyze(await jbody(2 * 1024 * 1024), me); return json(r.status, r.body);
       }
       if (a === 'ai' && M === 'GET') { const dk = dsKey(), c = aiKey(); return json(200, { deepseek: { configured: !!dk, last4: dk ? dk.slice(-4) : '' }, claude: { configured: !!c, last4: c ? c.slice(-4) : '' }, provider: this.store.kv.get('ai_provider') || '', tasks: Object.fromEntries(Object.entries(MISBAR_TASKS).map(([k, v]) => [k, { label: v.label, doc: !!v.doc, refs: !!v.refs }])), canManage: this.auth.can(me, 'manage') }) }

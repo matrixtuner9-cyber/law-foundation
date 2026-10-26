@@ -106,7 +106,26 @@ function createAnalyzer({ misbar, keys = {}, audit, fetchImpl = fetch, models = 
       return { status: e.status || 500, body: { error: e.status ? e.message : 'تعذّر إتمام التحليل.' } };
     }
   }
-  return { analyze, providers, TASKS };
+  /* لعقل القضية: اختيار المزوّد ونداء واحد، وتوليد الاستعلامات واسترجاع المراجع (نفس قواعد المختبر) */
+  async function connect(user) {
+    const av = await providers(), pref = String((keys.provider && await keys.provider()) || '');
+    const want = pref === 'claude' || pref === 'deepseek' ? pref : (av.deepseek ? 'deepseek' : 'claude');
+    const provider = av[want] ? want : (av.deepseek ? 'deepseek' : av.claude ? 'claude' : '');
+    if (!provider) return { error: { status: 503, body: { error: 'لم يُضبط مفتاح الذكاء الاصطناعي بعد. يضبطه مدير المكتب من الإعدادات.', needKey: true } } };
+    const wait = limited(String(user && (user.id || user.username))); if (wait) return { error: { status: 429, body: { error: `طلبات كثيرة. حاول بعد ${wait} ثانية.` } } };
+    const key = provider === 'deepseek' ? await keys.deepseek() : await keys.anthropic();
+    const usage = { in: 0, out: 0 };
+    const call = async args => { const r = provider === 'deepseek' ? await callDeepSeek(key, args, fetchImpl, models.deepseek) : await callClaude(key, args, fetchImpl, models.anthropic); usage.in += r.usage.in; usage.out += r.usage.out; return r };
+    const research = async (seed, extra = []) => {
+      let queries = [];
+      try { const r = await call({ system: QUERY_SYSTEM, user: 'النص:\n' + clip(seed, 600), maxTokens: 300, json: true }); const j = jparse(r.text); queries = Array.isArray(j && j.queries) ? j.queries.map(x => clip(x, 60)).filter(Boolean).slice(0, 6) : [] } catch (e) { queries = [] }
+      for (const x of extra) if (x && !queries.includes(x)) queries.push(clip(x, 80));
+      if (!queries.length) queries = [clip(seed, 120)];
+      return { queries, refs: await retrieve(queries) };
+    };
+    return { provider, call, research, usage };
+  }
+  return { analyze, providers, connect, TASKS };
 }
 
-module.exports = { TASKS, LANGS, DS_MODEL, AN_MODEL, createAnalyzer, callDeepSeek, callClaude, citedRefs };
+module.exports = { TASKS, LANGS, DS_MODEL, AN_MODEL, SYSTEM, createAnalyzer, callDeepSeek, callClaude, citedRefs, jparse };

@@ -1,11 +1,13 @@
 // يجهّز مجلد public من ملفات واجهة المِسْبار (المصدر: ../office أو MQ_SRC) ويولّد src/seed.js
 import fs from 'node:fs'; import path from 'node:path';
 const SRC = process.env.MQ_SRC || path.resolve('../office'), OUT = path.resolve('public');
-const UI = ['index.html','app.js','ready-templates-palestine.js','legal-shelf.js','print.js','intake.js','rulings.js','guide.js','workflow.js','casework.js','stations.js','hearing-report.js','case-layout.js','case-steps.js','announce.js','reader.js','case-hub.js','case-wizard.js','consistency.js','searchsel.js','wa-chat.js','fulltext.js','ai-mark.js','night.css','qrcode.js','app-invite.js','avatar.js','wa-skin.js','case360.js','hearing-prep.js','draft-versions.js','reference-check.js','legal-qa.js','reference-ui.js','lawlib-data.js','lawlib.js','legislation.js','misbar.js','misbar-emblem.webp','misbar-hero.webp','misbar-banner.webp','aidraft.js','calc-engine.js','calc.js','dash.js','briefcase.js','settlements.js','sync.js','mizan-ui.js','data.js','admin.js','phase2.js','phase2.css','bar.js','bar.css','responsive.js','responsive.css','style.css','dash.css','briefcase.css','mizan.css','admin.css','prestige.css','login.html','login.js','login.css','scales.js','edition.js','hdr-banner.jpg','hdr-side.jpg','hdr-side.webp','hdr-emblem.jpg','hdr-logo.jpg'];
+const UI = ['index.html','app.js','ready-templates-palestine.js','legal-shelf.js','print.js','intake.js','rulings.js','guide.js','workflow.js','casework.js','stations.js','hearing-report.js','case-layout.js','case-steps.js','case-misbar.js','announce.js','reader.js','case-hub.js','case-wizard.js','consistency.js','searchsel.js','wa-chat.js','fulltext.js','ai-mark.js','night.css','qrcode.js','app-invite.js','avatar.js','wa-skin.js','case360.js','hearing-prep.js','draft-versions.js','reference-check.js','legal-qa.js','reference-ui.js','lawlib-data.js','lawlib.js','legislation.js','misbar.js','misbar-emblem.webp','misbar-hero.webp','misbar-banner.webp','aidraft.js','calc-engine.js','calc.js','dash.js','briefcase.js','settlements.js','sync.js','mizan-ui.js','data.js','admin.js','phase2.js','phase2.css','bar.js','bar.css','responsive.js','responsive.css','style.css','dash.css','briefcase.css','mizan.css','admin.css','prestige.css','login.html','login.js','login.css','scales.js','edition.js','hdr-banner.jpg','hdr-side.jpg','hdr-side.webp','hdr-emblem.jpg','hdr-logo.jpg'];
 fs.rmSync(path.join(OUT, 'app'), { recursive: true, force: true }); fs.mkdirSync(path.join(OUT, 'app'), { recursive: true });
 for (const f of UI) fs.copyFileSync(path.join(SRC, f), path.join(OUT, 'app', f));
 // الخطوط المضمّنة محلياً
 fs.cpSync(path.join(SRC, 'fonts'), path.join(OUT, 'app', 'fonts'), { recursive: true });
+// محركات القراءة المحلية (التعرف على النص العربي وقارئ PDF)
+fs.cpSync(path.join(SRC, 'vendor'), path.join(OUT, 'app', 'vendor'), { recursive: true });
 // صفحة الدخول: إعداد أول مدير برابط لمرة واحدة بدل "من جهاز المكتب فقط"
 const lj = path.join(OUT, 'app', 'login.js'); let s = fs.readFileSync(lj, 'utf8');
 const rep = (a, b) => { if (!s.includes(a)) throw new Error('login.js anchor missing: ' + a); s = s.replace(a, b) };
@@ -31,5 +33,7 @@ fs.writeFileSync('src/seed.js', '// مولّد تلقائياً من data.js —
   m = m.replace("'use strict';", '').replace(/\n\/\/ [^\n]*\n/, '\n');
   fs.writeFileSync('src/misbar.js', '// مولّد تلقائياً من office/lib/misbar.js — لا تعدّله يدوياً\n' + m + '\nexport { SOURCES, STATUS, CHUNK, CHUNK_BASE, norm, ftsQuery, snippet, scrub, createMisbar, adapters };\n');
   let ai = fs.readFileSync(path.join(SRC, 'lib', 'misbar-ai.js'), 'utf8').replace("'use strict';", '').replace(/module\.exports\s*=\s*\{[^}]*\};?\s*$/, '');
-  fs.writeFileSync('src/misbar-ai.js', '// مولّد تلقائياً من office/lib/misbar-ai.js — لا تعدّله يدوياً\n' + ai + '\nexport { TASKS, LANGS, DS_MODEL, AN_MODEL, createAnalyzer, callDeepSeek, callClaude, citedRefs };\n'); }
+  fs.writeFileSync('src/misbar-ai.js', '// مولّد تلقائياً من office/lib/misbar-ai.js — لا تعدّله يدوياً\n' + ai + '\nexport { TASKS, LANGS, DS_MODEL, AN_MODEL, SYSTEM, createAnalyzer, callDeepSeek, callClaude, citedRefs, jparse };\n');
+  let mc = fs.readFileSync(path.join(SRC, 'lib', 'misbar-case.js'), 'utf8').replace("'use strict';", '').replace(/module\.exports\s*=\s*\{[^}]*\};?\s*$/, '');
+  fs.writeFileSync('src/misbar-case.js', '// مولّد تلقائياً من office/lib/misbar-case.js — لا تعدّله يدوياً\n' + mc + '\nexport { TASKS, KINDS, LIM, redactor, chunks, createCaseBrain };\n'); }
 console.log('built', UI.length, 'files, portal:', fs.existsSync(portal));
