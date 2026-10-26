@@ -360,7 +360,7 @@ svg.mb-navmk{border-radius:50%;filter:drop-shadow(0 0 3px rgb(243 213 138 / .7))
 .mb-t{display:block;color:#13304d;font-size:15.5px;line-height:1.7;margin:4px 0}.mb-meta{color:#8a7a5a;font-size:12.5px}.mb-x{margin:6px 0 0;color:#3d4a57;font-size:13.5px;line-height:1.9}
 .mb-tags{display:flex;gap:6px;flex-wrap:wrap}.mb-src{font-size:11.5px;padding:2px 9px;border-radius:999px;background:#F3E7C8;color:#6b5320}.mb-src.cmp{background:#E8EEF3;color:#3c536b}
 .mb-st{font-size:11.5px;padding:2px 9px;border-radius:999px;background:#eee;color:#555}.mb-st.ok{background:#E2F3E8;color:#1E7A4C}.mb-st.warn{background:#FFF1D6;color:#8A5A00}.mb-st.bad{background:#FBE3E3;color:#A33}
-mark{background:#FCE9A8;color:inherit;padding:0 1px;border-radius:3px}
+mark{background:#F3D58A;color:#0B1B2B!important;font-weight:700;padding:0 2px;border-radius:4px;text-shadow:none!important}
 .mb-pg{display:flex;gap:10px;justify-content:center;align-items:center;margin-top:12px}
 .mb-empty{padding:30px 10px;text-align:center;color:#7a6a4c;display:flex;flex-direction:column;gap:6px}.mb-empty.bad{color:#A33}
 .mb-reader{position:sticky;top:10px;max-height:calc(100vh - 30px);overflow:auto}
@@ -453,7 +453,7 @@ html.night .mb-wrap .mb-t{color:#F3E9CF;text-shadow:0 2px 8px rgb(0 0 0 / .6)}
 .mb-wrap .mb-it .mb-t{transition:color .25s ease,text-shadow .25s ease}
 .mb-wrap .mb-it.mb-lit{background:rgb(11 27 43 / .42);-webkit-backdrop-filter:blur(6px) saturate(1.5);backdrop-filter:blur(6px) saturate(1.5);box-shadow:inset 0 0 0 1px rgb(243 213 138 / .25)}
 .mb-wrap .mb-it.mb-lit .mb-t{color:#FFF6DA;text-shadow:0 0 6px rgb(243 213 138 / .95),0 0 16px rgb(243 213 138 / .7),0 0 32px rgb(201 162 74 / .5)}
-.mb-wrap .mb-it.mb-lit .mb-t mark{background:rgb(243 213 138 / .35);color:#fff}
+.mb-wrap .mb-it.mb-lit mark,.mb-wrap .mb-it.mb-lit .mb-t mark{background:#F3D58A!important;color:#0B1B2B!important;text-shadow:none!important;font-weight:700;border-radius:4px;padding:0 3px;box-shadow:0 0 10px rgb(243 213 138 / .7)}
 .mb-wrap .mb-it.mb-lit,.mb-wrap .mb-it.mb-lit *{color:#F2E6C4}
 .mb-wrap .mb-it.mb-lit .mb-tags span{background:rgb(255 255 255 / .12)!important;color:#F3D58A!important}
 @media (prefers-reduced-motion:reduce){.mb-wrap .mb-it,.mb-wrap .mb-it .mb-t{transition:none}}`;document.head.appendChild(css)}
