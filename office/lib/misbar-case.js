@@ -11,6 +11,7 @@ const KINDS = { client_msg: 'رسالة للموكل', rebuttal: 'الرد عل�
 const DRAFT_COMMON = 'اكتب الورقة كاملة جاهزة للمراجعة بالصيغة المتعارف عليها أمام المحاكم النظامية الفلسطينية، بالعربية الفصحى القانونية، بفقرات مرقمة. '
   + 'ابنِها على «خلاصة عقل القضية» ووقائع الملف ومقاطع المستندات. ضع بين معقوفين [..] كل معلومة غير متوفرة في الملف (رقم الدعوى، العنوان، اسم الشاهد، التاريخ…) ولا تخترعها. '
   + 'استشهد بالنصوص بأرقام المراجع [M..] فقط وبالمستندات [D..]، ولا تذكر رقم مادة أو حكماً غير وارد في المراجع. '
+  + 'الورقة تُقدَّم للمحكمة: لا تكتب داخلها «(يحتاج تحقق)» ولا تقديرات قوة الدفوع ولا أي حديث موجّه للمحامي، ولا تُدرج دفعاً ضعيفاً أو بلا أساس من الملف؛ كل ذلك مكانه ملاحظات المراجعة. '
   + 'بعد نهاية الورقة اكتب سطراً مستقلاً: === ملاحظات للمراجعة === ثم نقاطاً بما يجب على المحامي التحقق منه أو استكماله (المهل وبدء احتسابها، الرسوم، المرفقات، المعلومات الناقصة، ما يحتاج تحقق).';
 const DRAFTS = {
   claim: { label: 'لائحة دعوى', ask: 'اكتب لائحة دعوى: «لدى محكمة [..] الموقرة»، المدعي ووكيله، المدعى عليه، موضوع الدعوى وقيمتها، الوقائع مرقمة ومسندة كل منها ببينتها، الأسانيد القانونية، الإشارة إلى قائمة البينات المرفقة، الطلبات (ومنها الرسوم والمصاريف وأتعاب المحاماة)، ثم الختام وتوقيع الوكيل.' },
@@ -192,7 +193,7 @@ function createCaseBrain({ kv, state, courts = () => [], analyzer, system = '', 
     const ex = picked.map(x => `[${x.tag}]\n${R.redact(x.c)}`).join('\n\n');
     const q = clip(extra, 600);
     try {
-      let { queries, refs } = T.norefs ? { queries: [], refs: [] } : await conn.research(R.redact([k.type, k.subject, q, pl && pl.text.slice(0, 700)].filter(Boolean).join(' — ')), [clip(k.subject, 80)]);
+      let { queries, refs } = T.norefs ? { queries: [], refs: [] } : await conn.research(R.redact([k.type, k.subject, q, pl && pl.text.slice(0, 700)].filter(Boolean).join(' — ')), [clip(k.subject, 80)].concat(pl || DR ? ['البينة على من ادعى', 'عبء الإثبات', 'اللائحة الجوابية'] : []));
       if (pl && pl.text.length > 1500) { const r2 = await conn.research(R.redact(pl.text.slice(Math.floor(pl.text.length / 2), Math.floor(pl.text.length / 2) + 900))); const seen = new Set(refs.map(x => x.id)); refs = refs.concat(r2.refs.filter(x => !seen.has(x.id))).slice(0, 16); queries = queries.concat(r2.queries) }
       const refTxt = refs.map(r => `[M${r.id}] ${r.source}${r.primary ? '' : ' (للمقارنة والاستئناس)'} — ${r.title}${r.case_no ? ' — رقم ' + r.case_no : ''}${r.year ? ' — ' + r.year : ''}${r.status ? ' — ' + r.status : ''}\n${r.excerpt}`).join('\n\n');
       const brainCtx = T.draft || T.rebut || T.norefs ? R.redact(brainSummary(v.findings)) : '';

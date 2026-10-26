@@ -121,7 +121,10 @@ function createAnalyzer({ misbar, keys = {}, audit, fetchImpl = fetch, models = 
       try { const r = await call({ system: QUERY_SYSTEM, user: 'النص:\n' + clip(seed, 600), maxTokens: 300, json: true }); const j = jparse(r.text); queries = Array.isArray(j && j.queries) ? j.queries.map(x => clip(x, 60)).filter(Boolean).slice(0, 6) : [] } catch (e) { queries = [] }
       for (const x of extra) if (x && !queries.includes(x)) queries.push(clip(x, 80));
       if (!queries.length) queries = [clip(seed, 120)];
-      return { queries, refs: await retrieve(queries) };
+      /* مزيج متوازن: نصوص التشريعات الفلسطينية أولاً، ثم الأحكام وبقية المصادر */
+      const laws = await retrieve(queries, 'PS_LEGISLATION'), rest = await retrieve(queries), seen = new Set();
+      const refs = []; for (const x of laws.slice(0, 5).concat(rest)) { if (seen.has(x.id)) continue; seen.add(x.id); refs.push(x); if (refs.length >= 12) break }
+      return { queries, refs };
     };
     return { provider, call, research, usage };
   }
