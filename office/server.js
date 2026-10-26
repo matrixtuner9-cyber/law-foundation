@@ -857,6 +857,12 @@ async function rulingFile(req, res, u, who, kind = 'ruling') {
 const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'id-card.js', 'lawyer-contact.js', 'genie.js', 'genie-face.webp', 'rulings.js', 'guide.js', 'workflow.js', 'casework.js', 'stations.js', 'hearing-report.js', 'case-layout.js', 'case-steps.js', 'case-misbar.js', 'misbar-mizan.js', 'expenses.js', 'glass-scroll.js', 'announce.js', 'reader.js', 'case-hub.js', 'case-wizard.js', 'consistency.js', 'searchsel.js', 'wa-chat.js', 'fulltext.js', 'ai-mark.js', 'night.css', 'qrcode.js', 'app-invite.js', 'avatar.js', 'wa-skin.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'misbar.js', 'misbar-emblem.webp', 'misbar-hero.webp', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'settlements.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 /* التفعيل: النسخة الموزّعة لا تعمل إطلاقاً قبل إدخال كود صادر لبصمة هذا الجهاز (فحص في الخادم لكل طلب) */
 const license = License.createLicense({ dataDir: DATA, enforce: !!ED.license });
+/* التفعيل باسم المكتب وكلمة المرور، والتجديد التلقائي كل 12 ساعة (يصل التمديد، ويُطبَّق الإبطال) */
+const activation = require('./lib/activation').create({ license, version: (() => { try { return require('./package.json').version } catch (e) { return '' } })() });
+if (ED.license && !ED.offline) {
+  const tick = () => activation.refresh().then(r => { if (r.renewed) audit({ action: 'license.renewed', entity: 'settings', detail: { exp: (license.status() || {}).exp } }); if (r.status === 'revoked') audit({ action: 'license.revoked', entity: 'settings', detail: { message: r.message || '' } }) }).catch(e => console.log('[license] refresh:', e.message));
+  setTimeout(tick, 30e3).unref(); setInterval(tick, 12 * 3600e3).unref();
+}
 const ACTIVATE_HTML = `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>تفعيل المِسْبار</title><style>
 body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial-gradient(circle at 50% 20%,#1B3654,#0B1B2B 70%);font-family:Tahoma,Arial;color:#F2E6C4}
 main{width:min(620px,92vw);background:#10263a;border:1px solid #C9A24A;border-radius:18px;padding:28px;box-shadow:0 0 40px rgb(201 162 74 / .25)}
@@ -866,18 +872,41 @@ button{margin-top:12px;padding:12px 22px;border:0;border-radius:10px;background:
 .shine{position:relative;display:block;margin:-6px 0 14px}.shine img{display:block;width:100%;height:auto;animation:gl 3.2s ease-in-out infinite}
 .shine::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(110deg,transparent 44%,rgb(255 244 205 / .38) 48.5%,rgb(255 238 180 / .55) 50%,rgb(255 244 205 / .38) 51.5%,transparent 56%);background-size:260% 100%;-webkit-mask:url(/misbar-banner.webp) center/100% 100% no-repeat;mask:url(/misbar-banner.webp) center/100% 100% no-repeat;mix-blend-mode:screen;animation:sw 4.2s cubic-bezier(.45,.05,.3,1) infinite}
 @keyframes sw{0%{background-position:130% 0}55%,100%{background-position:-30% 0}}@keyframes gl{0%,100%{filter:drop-shadow(0 8px 18px rgb(0 0 0 / .5)) drop-shadow(0 0 8px rgb(201 162 74 / .25))}50%{filter:drop-shadow(0 8px 18px rgb(0 0 0 / .5)) drop-shadow(0 0 24px rgb(243 213 138 / .7))}}
-@media (prefers-reduced-motion:reduce){.shine img,.shine::after{animation:none}}</style></head>
-<body><main><span class="shine"><img src="/misbar-banner.webp" alt="المِسْبار — عقل القانون"></span><h1>تفعيل المِسْبار</h1><p id="why"></p><p>أرسل <b>بصمة هذا الجهاز</b> إلى الدعم الفني للحصول على كود التفعيل، ثم الصقه أدناه.</p>
+@media (prefers-reduced-motion:reduce){.shine img,.shine::after{animation:none}}
+.tabs{display:flex;gap:6px;margin:6px 0 4px}.tabs button{margin:0;flex:1;background:transparent;border:1px solid #C9A24A;color:#F3D58A;font-weight:600}.tabs button.on{background:linear-gradient(180deg,#F3D58A,#C9A24A);color:#0B1B2B}
+label{display:block;margin:10px 0;color:#F2E6C4;font-size:14px}label input{display:block;width:100%;box-sizing:border-box;margin-top:5px;padding:11px 12px;background:#0B1B2B;color:#fff;border:1px solid #C9A24A;border-radius:10px;font-size:15px}button:disabled{opacity:.6;cursor:wait}</style></head>
+<body><main><span class="shine"><img src="/misbar-banner.webp" alt="المِسْبار — عقل القانون"></span><h1>تفعيل المِسْبار</h1><p id="why" class="err"></p>
+<nav class="tabs"><button type="button" class="on" data-t="on">باسم المكتب وكلمة المرور</button><button type="button" data-t="man">تفعيل يدوي بلا إنترنت</button></nav>
+<section id="t-on"><p>أدخل <b>معرّف المكتب</b> و<b>كلمة مرور التفعيل</b> كما وصلتك من المورّد. يلزم الإنترنت هذه المرة فقط، ثم يعمل المسبار بلا إنترنت ويتجدد ترخيصه تلقائياً.</p>
+<label>معرّف المكتب<input id="slug" dir="ltr" autocomplete="username" placeholder="najah-law" autocapitalize="off" spellcheck="false"></label>
+<label>كلمة مرور التفعيل<input id="pw" type="password" dir="ltr" autocomplete="current-password" placeholder="XXXX-XXXX-XXXX"></label>
+<label>اسم هذا الجهاز<input id="dev" placeholder="الجهاز الرئيسي في المكتب"></label>
+<button id="goOn">تفعيل</button></section>
+<section id="t-man" hidden><p>أرسل <b>بصمة هذا الجهاز</b> إلى المورّد للحصول على كود التفعيل، ثم الصقه أدناه.</p>
 <div class="fp" id="fp">…</div><button class="cp" id="cp" type="button">نسخ البصمة</button>
-<p style="margin-top:18px">كود التفعيل</p><textarea id="code" placeholder="MQ1.…"></textarea><button id="go">تفعيل</button><p id="msg"></p></main>
-<script>const $=i=>document.getElementById(i);fetch('/api/license/status').then(r=>r.json()).then(j=>{$('fp').textContent=j.fp;$('why').textContent=j.error||'';if(j.ok)location.replace('/')});
+<p style="margin-top:18px">كود التفعيل</p><textarea id="code" placeholder="MQ1.…"></textarea><button id="go">تفعيل</button></section><p id="msg"></p></main>
+<script>const $=i=>document.getElementById(i);
+document.querySelector('.tabs').onclick=e=>{const b=e.target.closest('button');if(!b)return;document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));$('t-on').hidden=b.dataset.t!=='on';$('t-man').hidden=b.dataset.t!=='man'};
+fetch('/api/license/status').then(r=>r.json()).then(j=>{$('fp').textContent=j.fp;$('why').textContent=j.note||(j.expired?j.error:'');if(j.device)$('dev').value=j.device;if(j.slug)$('slug').value=j.slug;if(j.offline){document.querySelector('.tabs').hidden=true;$('t-on').hidden=true;$('t-man').hidden=false}if(j.ok)location.replace('/')});
 $('cp').onclick=()=>navigator.clipboard.writeText($('fp').textContent).then(()=>{$('msg').className='ok';$('msg').textContent='نُسخت البصمة'});
-$('go').onclick=async()=>{$('msg').textContent='';const r=await fetch('/api/license/activate',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({code:$('code').value})});const j=await r.json().catch(()=>({}));if(!r.ok||!j.ok){$('msg').className='err';$('msg').textContent=j.error||'تعذّر التفعيل';return}$('msg').className='ok';$('msg').textContent='تم التفعيل: '+(j.office||'');setTimeout(()=>location.replace('/'),900)}</script></body></html>`;
+const done=j=>{$('msg').className='ok';$('msg').textContent='تم التفعيل: '+(j.office||'')+(j.exp?' · حتى '+j.exp:'');setTimeout(()=>location.replace('/'),1200)};
+const fail=t=>{$('msg').className='err';$('msg').textContent=t};
+const send=async(url,body,btn)=>{$('msg').textContent='';btn.disabled=true;try{const r=await fetch(url,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});const j=await r.json().catch(()=>({}));if(!r.ok||!j.ok)return fail(j.error||'تعذّر التفعيل');done(j)}catch(e){fail('تعذّر الاتصال')}finally{btn.disabled=false}};
+$('goOn').onclick=()=>send('/api/license/online',{slug:$('slug').value,password:$('pw').value,device:$('dev').value},$('goOn'));
+$('pw').onkeydown=e=>{if(e.key==='Enter')$('goOn').click()};
+$('go').onclick=()=>send('/api/license/activate',{code:$('code').value},$('go'))</script></body></html>`;
 /* قبل التفعيل: لا شيء سوى شاشة التفعيل وحالتها */
 async function gateLicense(req, res, u) {
   const p = u.pathname, st = license.status(), sec = { 'Cache-Control': 'no-store', 'X-Frame-Options': 'DENY' };
   if (p === '/misbar-banner.webp' && req.method === 'GET') return sendFile(req, res, path.join(ROOT, 'misbar-banner.webp'));
-  if (p === '/api/license/status' && req.method === 'GET') { res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', ...sec }); return res.end(JSON.stringify({ ok: st.ok, fp: st.fp, error: st.error || '', expired: !!st.expired })) }
+  if (p === '/api/license/status' && req.method === 'GET') { res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', ...sec }); const pl = (License.verify(license.code() || (() => { try { return fs.readFileSync(path.join(DATA, 'license.revoked'), 'utf8') } catch (e) { return '' } })(), { fp: st.fp, now: new Date(0) }).payload) || {}; return res.end(JSON.stringify({ ok: st.ok, fp: st.fp, error: st.error || '', expired: !!st.expired, note: license.note(), slug: pl.slug || '', device: require('os').hostname(), offline: !!ED.offline })) }
+  if (p === '/api/license/online' && req.method === 'POST') {
+    let b = ''; for await (const c of req) { b += c; if (b.length > 8192) break }
+    let j = {}; try { j = JSON.parse(b || '{}') } catch (e) {}
+    let out; try { const r = await activation.activate({ slug: j.slug, password: j.password, device: j.device }); out = [200, { ok: true, office: r.office, exp: r.exp }]; audit({ action: 'license.activated', entity: 'settings', detail: { office: r.office, edition: r.edition, exp: r.exp, slug: String(j.slug || ''), online: true } }) }
+    catch (e) { out = [400, { ok: false, error: e.message }]; audit({ action: 'license.failed', entity: 'settings', detail: { error: e.message, slug: String(j.slug || '').slice(0, 40), online: true } }) }
+    res.writeHead(out[0], { 'content-type': 'application/json; charset=utf-8', ...sec }); return res.end(JSON.stringify(out[1]));
+  }
   if (p === '/api/license/activate' && req.method === 'POST') {
     let b = ''; for await (const c of req) { b += c; if (b.length > 8192) break }
     let code = ''; try { code = JSON.parse(b || '{}').code } catch (e) {}

@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import { norm, opsSig } from './office.js';
 import * as aiGateway from './ai-gateway.js';
 import * as updates from './updates.js';
+import * as activation from './activation.js';
 export { Office } from './office.js';
 
 const RESERVED = new Set(['www', 'admin', 'ops', 'api', 'ai', 'misbar', 'app', 'portal', 'mail', 'static', 'office', 'support', 'status']);
@@ -48,6 +49,7 @@ async function ops(req, env, u) {
   const p = u.pathname, M = req.method;
   if (p.startsWith('/_ops/ai/')) { const r = await aiGateway.ops(req, env, p); if (r) return r }
   if (p.startsWith('/_ops/updates/')) { const r = await updates.ops(req, env, p); if (r) return r }
+  if (p.startsWith('/_ops/act/')) { const r = await activation.ops(req, env, p); if (r) return r }
   if (p === '/_ops/offices' && M === 'GET') return json(200, (await env.DB.prepare('SELECT * FROM offices ORDER BY created_at').all()).results);
   if (p === '/_ops/offices' && M === 'POST') {
     const b = await req.json().catch(() => ({})), slug = String(b.slug || '').toLowerCase();
@@ -118,6 +120,7 @@ export default {
     if (u.pathname.startsWith('/_ops/')) return opsHost(req, u, env) ? ops(req, env, u) : json(404, { error: 'not found' });
     if (!h.base) return page('غير موجود', 'هذا العنوان غير مرتبط بأي مكتب.');
     /* الخادم الوسيط لعقل المسبار: misbar.<الدومين> — للنسخ المكتبية المرخّصة فقط */
+    if (h.sub === 'misbar' && (u.pathname === '/activate' || u.pathname === '/activate/refresh')) { try { return secure(await activation.handle(req, env, u.pathname)) } catch (e) { console.error('[activation]', e); return json(502, { error: { message: 'تعذّر الوصول إلى خادم التفعيل؛ حاول بعد قليل' } }) } }
     if (h.sub === 'misbar' && u.pathname.startsWith('/updates/')) { try { return secure(await updates.handle(req, env, u.pathname)) } catch (e) { console.error('[updates]', e); return json(502, { error: { message: 'تعذّر الوصول إلى خادم التحديثات' } }) } }
     if (h.sub === 'misbar') { try { return secure(await aiGateway.handle(req, env, u.pathname)) } catch (e) { console.error('[ai-gw]', e); return json(502, { error: { message: 'تعذّر الوصول إلى عقل المسبار الواعي؛ حاول بعد قليل' } }) } }
     if (h.root) {

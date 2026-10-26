@@ -147,6 +147,8 @@ async function startServer() {
   }
   fs.mkdirSync(cfg.dataDir, { recursive: true });
   process.env.MQ_DATA = cfg.dataDir; process.env.PORT = String(PORT);
+  // النسخ الموزّعة تعمل بترخيص: أول تشغيل يعرض شاشة التفعيل (اسم المكتب وكلمة مرور التفعيل، أو كود يدوي)
+  if (process.env.MQ_LICENSE == null) process.env.MQ_LICENSE = '1';
   // فهرس التشريعات والأحكام: نسخة بجانب البيانات إن وُجدت (تحديثها = استبدال الملف)، وإلا النسخة المضمّنة في التطبيق
   if (!process.env.MQ_LAWINDEX) { const cand = [path.join(cfg.dataDir, 'mithaq-lawindex.db'), path.join(ROOT, 'data', 'mithaq-lawindex.db'), path.join(process.resourcesPath || '', 'lawindex', 'mithaq-lawindex.db')].find(f => fs.existsSync(f)); if (cand) process.env.MQ_LAWINDEX = cand }
   // دليل محامي النقابة المضمّن: يُنسخ إلى البيانات عند أول تشغيل إن لم يوجد

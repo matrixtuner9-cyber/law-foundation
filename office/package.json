@@ -67,7 +67,8 @@
       "!_bak*/**",
       "!_new/**",
       "!edition.json",
-      "license.pub"
+      "license.pub",
+      "activation.pub"
     ],
     "win": {
       "target": [

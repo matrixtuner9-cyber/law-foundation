@@ -10,6 +10,14 @@ function readPub() {
   try { return fs.readFileSync(path.join(__dirname, '..', 'license.pub'), 'utf8') } catch (e) { return '' }
 }
 const PUBLIC_KEY_PEM = readPub();
+/* مفتاح التفعيل عبر الإنترنت (خادم المسبار يوقّع به عند التفعيل باسم المكتب وكلمة المرور)؛ مفتاح المورّد الخاص يبقى على جهازه.
+   التحديثات لا تقبل إلا مفتاح المورّد (license.pub) — هذا المفتاح للتراخيص فقط */
+function readActPub() {
+  if (process.env.MQ_ACTIVATION_PUB) return process.env.MQ_ACTIVATION_PUB;
+  try { return fs.readFileSync(path.join(__dirname, '..', 'activation.pub'), 'utf8') } catch (e) { return '' }
+}
+const ACTIVATION_PUB = readActPub();
+const pubList = pub => (Array.isArray(pub) ? pub : [pub]).filter(k => k && !String(k).startsWith('__'));
 
 const b64u = b => Buffer.from(b).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const unb64u = s => Buffer.from(String(s).replace(/-/g, '+').replace(/_/g, '/'), 'base64');
@@ -53,13 +61,14 @@ function sign(payload, privateKeyPem) {
   const sig = crypto.sign(null, Buffer.from('MQ1.' + body), crypto.createPrivateKey(privateKeyPem));
   return 'MQ1.' + body + '.' + b64u(sig);
 }
-function verify(code, { fp, now = new Date(), pub = PUBLIC_KEY_PEM } = {}) {
+function verify(code, { fp, now = new Date(), pub = [PUBLIC_KEY_PEM, ACTIVATION_PUB] } = {}) {
   const c = String(code || '').replace(/\s+/g, '').trim();
   const m = c.match(/^MQ1\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)$/);
   if (!m) return { ok: false, error: 'صيغة كود التفعيل غير صحيحة.' };
-  if (!pub || pub.startsWith('__')) return { ok: false, error: 'هذه النسخة لم تُجهَّز بمفتاح التحقق بعد.' };
+  const keys = pubList(pub);
+  if (!keys.length) return { ok: false, error: 'هذه النسخة لم تُجهَّز بمفتاح التحقق بعد.' };
   let good = false;
-  try { good = crypto.verify(null, Buffer.from('MQ1.' + m[1]), crypto.createPublicKey(pub), unb64u(m[2])) } catch (e) { good = false }
+  for (const k of keys) { try { if (crypto.verify(null, Buffer.from('MQ1.' + m[1]), crypto.createPublicKey(k), unb64u(m[2]))) { good = true; break } } catch (e) {} }
   if (!good) return { ok: false, error: 'كود التفعيل غير صالح.' };
   let p; try { p = JSON.parse(unb64u(m[1]).toString('utf8')) } catch (e) { return { ok: false, error: 'كود التفعيل تالف.' } }
   if (normFp(p.fp) !== normFp(fp)) return { ok: false, error: 'هذا الكود صادر لجهاز آخر. أرسل بصمة هذا الجهاز للحصول على كود جديد.', payload: p };
@@ -68,7 +77,7 @@ function verify(code, { fp, now = new Date(), pub = PUBLIC_KEY_PEM } = {}) {
 }
 
 /* حالة التفعيل على هذا الخادم: ملف license.key في مجلد البيانات */
-function createLicense({ dataDir, pub = PUBLIC_KEY_PEM, fp = null, now = () => new Date(), enforce = true } = {}) {
+function createLicense({ dataDir, pub = [PUBLIC_KEY_PEM, ACTIVATION_PUB], fp = null, now = () => new Date(), enforce = true } = {}) {
   const file = path.join(dataDir, 'license.key');
   const myFp = fp || fingerprint();
   let cache = null, at = 0;
@@ -85,9 +94,14 @@ function createLicense({ dataDir, pub = PUBLIC_KEY_PEM, fp = null, now = () => n
     if (!r.ok) return r;
     fs.mkdirSync(dataDir, { recursive: true });
     fs.writeFileSync(file, String(code).replace(/\s+/g, '').trim() + '\n', { mode: 0o600 });
+    try { fs.unlinkSync(path.join(dataDir, 'license.note')) } catch (e) {}
     cache = null; return { ...status(), activated: true };
   }
-  return { status, activate, fp: myFp, file };
+  /* إبطال من المورّد: يُنقل الملف جانباً فتعود شاشة التفعيل */
+  function revokeLocal(reason) { try { fs.renameSync(file, path.join(dataDir, 'license.revoked')) } catch (e) {} try { fs.writeFileSync(path.join(dataDir, 'license.note'), String(reason || '')) } catch (e) {} cache = null }
+  function code() { try { return fs.readFileSync(file, 'utf8').trim() } catch (e) { return '' } }
+  function note() { try { return fs.readFileSync(path.join(dataDir, 'license.note'), 'utf8') } catch (e) { return '' } }
+  return { status, activate, revokeLocal, code, note, fp: myFp, file, reset: () => { cache = null } };
 }
 
-module.exports = { fingerprint, macs, machineId, sign, verify, createLicense, normFp, PUBLIC_KEY_PEM };
+module.exports = { fingerprint, macs, machineId, sign, verify, createLicense, normFp, PUBLIC_KEY_PEM, ACTIVATION_PUB };

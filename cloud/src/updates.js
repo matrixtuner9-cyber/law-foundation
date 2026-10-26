@@ -19,7 +19,7 @@ export async function bucket(slug, version) {
 
 async function auth(req, env, now) {
   const tok = parseToken(req); if (!tok) return { err: fail(401, 'يلزم ترخيص المسبار') };
-  const lic = await verifyLicense(tok.code, tok.fp, env.LICENSE_PUB, now, { needAi: false });
+  const lic = await verifyLicense(tok.code, tok.fp, (env.LICENSE_PUB || '') + '\n' + (env.ACTIVATION_PUB || ''), now, { needAi: false });
   if (!lic.ok) return { err: fail(401, lic.error) };
   if (lic.payload.id && await env.DB.prepare('SELECT 1 FROM ai_revoked WHERE id = ?').bind(String(lic.payload.id)).first()) return { err: fail(401, 'أُبطل هذا الترخيص') };
   return { slug: lic.payload.slug, fp: normFp(tok.fp) };

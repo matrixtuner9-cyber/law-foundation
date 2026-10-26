@@ -19,24 +19,26 @@ const b64uBytes = s => { s = String(s).replace(/-/g, '+').replace(/_/g, '/'); s 
 const pemDer = pem => b64uBytes(String(pem).replace(/-----[A-Z ]+-----/g, '').replace(/\s+/g, ''));
 export const normFp = s => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 
-let keyCache = null;
+const keyCache = new Map();
 async function pubKey(pem) {
-  if (keyCache && keyCache.pem === pem) return keyCache.key;
+  if (keyCache.has(pem)) return keyCache.get(pem);
   const key = await crypto.subtle.importKey('spki', pemDer(pem), { name: 'Ed25519' }, false, ['verify']);
-  keyCache = { pem, key }; return key;
+  keyCache.set(pem, key); return key;
 }
+/* عدة مفاتيح عامة في نص واحد: مفتاح المورّد + مفتاح التفعيل عبر الإنترنت */
+export const pemList = (...xs) => xs.filter(Boolean).flatMap(x => String(x).match(/-----BEGIN PUBLIC KEY-----[\s\S]+?-----END PUBLIC KEY-----/g) || []);
 
 /* التحقق من كود الترخيص: MQ1.<payload>.<sig> — نفس صيغة office/lib/license.js */
-export async function verifyLicense(code, fp, pem, now = new Date(), { needAi = true } = {}) {
+export async function verifyLicense(code, fp, pem, now = new Date(), { needAi = true, ignoreExp = false } = {}) {
   const m = /^MQ1\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)$/.exec(String(code || '').trim());
   if (!m) return { ok: false, error: 'صيغة الترخيص غير صحيحة' };
   if (!pem) return { ok: false, error: 'الوسيط غير مجهّز بمفتاح التحقق' };
   let good = false;
-  try { good = await crypto.subtle.verify('Ed25519', await pubKey(pem), b64uBytes(m[2]), new TextEncoder().encode('MQ1.' + m[1])) } catch (e) { good = false }
+  for (const k of pemList(pem)) { try { if (await crypto.subtle.verify('Ed25519', await pubKey(k), b64uBytes(m[2]), new TextEncoder().encode('MQ1.' + m[1]))) { good = true; break } } catch (e) {} }
   if (!good) return { ok: false, error: 'الترخيص غير صالح' };
   let p; try { p = JSON.parse(new TextDecoder().decode(b64uBytes(m[1]))) } catch (e) { return { ok: false, error: 'الترخيص تالف' } }
   if (normFp(p.fp) !== normFp(fp)) return { ok: false, error: 'الترخيص صادر لجهاز آخر' };
-  if (p.exp && now.toISOString().slice(0, 10) > p.exp) return { ok: false, error: 'انتهت مدة الترخيص في ' + p.exp };
+  if (!ignoreExp && p.exp && now.toISOString().slice(0, 10) > p.exp) return { ok: false, error: 'انتهت مدة الترخيص في ' + p.exp };
   if (!SLUG_RE.test(String(p.slug || ''))) return { ok: false, error: 'الترخيص بلا معرّف مكتب' };
   if (needAi && !(Number(p.ai) > 0)) return { ok: false, error: 'هذا الترخيص لا يشمل عقل المسبار الواعي' };
   return { ok: true, payload: p };
@@ -57,7 +59,7 @@ export async function handle(req, env, path, { fetchImpl = fetch, now = new Date
   if (!prov) return fail(404, 'غير موجود');
   if (req.method !== 'POST') return fail(405, 'POST فقط');
   const tok = parseToken(req); if (!tok) return fail(401, 'يلزم ترخيص المسبار لاستعمال عقل المسبار الواعي');
-  const lic = await verifyLicense(tok.code, tok.fp, env.LICENSE_PUB, now);
+  const lic = await verifyLicense(tok.code, tok.fp, (env.LICENSE_PUB || '') + '\n' + (env.ACTIVATION_PUB || ''), now);
   if (!lic.ok) return fail(401, lic.error);
   const p = lic.payload, slug = p.slug;
   // إيقاف أو تعديل رصيد مكتب من لوحة المورّد، وإبطال ترخيص بعينه

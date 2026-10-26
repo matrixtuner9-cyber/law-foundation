@@ -142,7 +142,7 @@ function create(db) {
     if (!fs.existsSync(target)) throw new Error('المجلد غير موجود أو القرص غير موصول: ' + target);
     const dst = path.join(target, 'Misbar-Vendor-Backup', new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)); fs.mkdirSync(dst, { recursive: true });
     db.exec(`VACUUM INTO '${path.join(dst, 'vendor.db').replace(/'/g, "''")}'`);
-    const files = ['vendor.db']; for (const f of [PRIV, PUB, REG]) if (fs.existsSync(f)) { fs.copyFileSync(f, path.join(dst, path.basename(f))); files.push(path.basename(f)) }
+    const files = ['vendor.db']; for (const f of [PRIV, PUB, REG, path.join(DIR, 'activation-private.pem'), path.join(DIR, 'activation.pub')]) if (fs.existsSync(f)) { fs.copyFileSync(f, path.join(dst, path.basename(f))); files.push(path.basename(f)) }
     const sums = Object.fromEntries(files.map(f => [f, crypto.createHash('sha256').update(fs.readFileSync(path.join(dst, f))).digest('hex')]));
     fs.writeFileSync(path.join(dst, 'manifest.json'), JSON.stringify({ at: now(), files: sums }, null, 1));
     const v = { t: Date.now(), at: now(), dir: dst }; setMeta('last_backup', v); log('', 'vendor.backup', v); return { ok: true, ...v, files };
@@ -174,7 +174,22 @@ function create(db) {
     const r = await ops('POST', '/_ops/updates/release', body, fetchImpl); log('', 'release.set', body); return r;
   }
 
-  return { db, meta, setMeta, settings, ops, publish, releaseSet, saveOffice, office, offices, issue, revoke, renew, pay, unpay, summary, backup, log };
+  /* ── التفعيل عبر الإنترنت: حساب لكل مكتب (معرّفه + كلمة مرور التفعيل) في السحابة ── */
+  const PW_A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const genPw = () => { const b = crypto.randomBytes(12); let s = ''; for (const x of b) s += PW_A[x & 31]; return s.match(/.{4}/g).join('-') };
+  async function actGet(slug, fetchImpl) { return ops('GET', '/_ops/act/account?slug=' + encodeURIComponent(slug), null, fetchImpl) }
+  async function actSave(b, fetchImpl) {
+    const o = db.prepare('SELECT * FROM offices WHERE slug=?').get(String(b.slug || '')); if (!o) throw new Error('المكتب غير موجود');
+    const body = { slug: o.slug, name: o.name };
+    for (const k of ['seats', 'edition', 'users', 'exp', 'ai', 'status']) if (b[k] != null) body[k] = b[k];
+    const password = b.newPassword ? genPw() : null; if (password) body.password = password;
+    const r = await ops('POST', '/_ops/act/account', body, fetchImpl);
+    log(o.slug, password ? 'act.password' : 'act.update', { seats: r.seats, exp: r.exp, users: r.users, ai: r.ai, status: r.status });
+    return { ...r, password };
+  }
+  async function actDevice(b, fetchImpl) { const r = await ops('POST', '/_ops/act/device', { id: b.id, status: b.status }, fetchImpl); log(b.slug, 'act.device.' + b.status, { id: b.id }); return r }
+
+  return { db, meta, setMeta, settings, ops, publish, releaseSet, actGet, actSave, actDevice, saveOffice, office, offices, issue, revoke, renew, pay, unpay, summary, backup, log };
 }
 
 /* ── الخادم المحلي ── */
@@ -209,6 +224,9 @@ function serve(V, { port = PORT, fetchImpl } = {}) {
       if (p === '/api/cloud/create' && M === 'POST') { const b = await body(req); const o = V.office(b.slug); if (!o) throw new Error('المكتب غير موجود'); const r = await V.ops('POST', '/_ops/offices', { slug: o.slug, name: o.name }, fetchImpl); V.log(o.slug, 'cloud.create', {}); return send(res, 200, r) }
       if (p === '/api/cloud/setup-link' && M === 'POST') { const b = await body(req); const r = await V.ops('POST', `/_ops/offices/${encodeURIComponent(b.slug)}/setup-link`, {}, fetchImpl); V.log(b.slug, 'cloud.setup_link', {}); return send(res, 200, r) }
       if (p === '/api/cloud/status' && M === 'POST') { const b = await body(req); const r = await V.ops('POST', `/_ops/offices/${encodeURIComponent(b.slug)}/status`, { status: b.status }, fetchImpl); V.log(b.slug, 'cloud.status', { status: b.status }); return send(res, 200, r) }
+      if ((m = /^\/api\/act\/([a-z0-9-]+)$/.exec(p)) && M === 'GET') return send(res, 200, await V.actGet(m[1], fetchImpl));
+      if (p === '/api/act' && M === 'POST') return send(res, 200, await V.actSave(await body(req), fetchImpl));
+      if (p === '/api/act/device' && M === 'POST') return send(res, 200, await V.actDevice(await body(req), fetchImpl));
       if (p === '/api/releases' && M === 'GET') {
         const [rel, up] = await Promise.all([V.ops('GET', '/_ops/updates/releases', null, fetchImpl), V.ops('GET', '/_ops/updates/offices', null, fetchImpl)]);
         const names = Object.fromEntries(V.offices().map(o => [o.slug, o.name]));
