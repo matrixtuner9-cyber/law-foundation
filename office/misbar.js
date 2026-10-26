@@ -223,8 +223,7 @@ const nav0=A.nav;A.nav=v=>{if(v==='misbar'&&S.view!=='misbar')prevView=S.view||'
 A.mbClose=()=>{MB.doc=null;paintReader();A.nav(prevView&&prevView!=='misbar'?prevView:'dash')};
 document.addEventListener('keydown',ev=>{if(ev.key!=='Escape'||S.view!=='misbar')return;if(document.getElementById('modal')&&document.getElementById('modal').innerHTML.trim())return;if(MB.doc||MB.docBusy)A.mbReaderClose();else A.mbClose()});
 const dn0=window.drawNav;if(typeof dn0==='function')window.drawNav=function(){const r=dn0.apply(this,arguments);document.body.classList.toggle('mb-on',S.view==='misbar');if(S.view!=='misbar'){const ov=document.getElementById('mbReader');if(ov)ov.remove();document.body.classList.remove('mb-rd')}return r};
-/* الهيدر ثابت أعلى المسبار ويصغر مع التمرير */
-document.addEventListener('scroll',ev=>{const w=ev.target;if(!w||!w.classList||!w.classList.contains('mb-wrap'))return;w.classList.toggle('mb-compact',w.scrollTop>80)},true);
+
 A.mbFs=v=>{const n=Number(v);MB.fs=n===0?17:Math.max(14,Math.min(24,MB.fs+n*1.5));try{localStorage.setItem('mq_mb_fs',String(MB.fs))}catch(x){}const b=document.querySelector('.mb-body');if(b)b.style.fontSize=MB.fs+'px'};
 A.mbFind=v=>{const t=String(v||'').replace(/^المادة رقم\s*\d+\s*من\s*/,'');MB.q='"'+t.replace(/["()]/g,' ').replace(/\s+/g,' ').trim()+'"';MB.src='PS_LEGISLATION';MB.view='search';render();run(1)};
 const docText=d=>[d.title,[d.court,d.case_no&&('رقم '+d.case_no),d.date||d.year].filter(Boolean).join(' · '),'',d.body||'',d.url?'\nالمصدر: '+d.url:''].join('\n');
@@ -267,11 +266,9 @@ const css=document.createElement('style');css.textContent=`
 .mb-wrap{--mbN:#0E2236;--mbN2:#16314A;--mbG:#C9A24A;--mbG2:#F3D58A;margin:-6px 0 0}
 body.mb-on .mb-wrap{position:fixed;inset:0;z-index:200;overflow:auto;margin:0;padding:0 16px 24px;background:radial-gradient(circle at 50% 0,#FBF6EA,#F1E8D6 60%,#EADFC8);animation:mbIn .28s ease-out}
 body.mb-on{overflow:hidden}body.mb-on .app>.main>.top,body.mb-on .top{display:none!important}body.mb-on .modal-bg{z-index:220}body.mb-on .toast{z-index:240}
-@keyframes mbIn{from{opacity:0;transform:scale(.985)}to{opacity:1;transform:none}}
+@keyframes mbIn{from{opacity:0}to{opacity:1}}
 body.mb-on .mb-top{position:sticky;top:0;z-index:5;margin:0 -16px;border-radius:0 0 18px 18px;border-top:0}
 .mb-x{position:absolute;top:12px;left:14px;z-index:3;font:inherit;font-size:13px;font-weight:700;padding:7px 14px;border-radius:999px;border:1px solid rgb(243 213 138 / .7);background:rgb(11 27 43 / .72);color:#F3D58A;cursor:pointer;backdrop-filter:blur(4px)}.mb-x:hover{background:#C9A24A;color:#0B1B2B}
-.mb-hero{transition:height .25s ease,max-height .25s ease}
-.mb-compact .mb-hero{max-height:96px}.mb-compact .mb-sub{opacity:0}
 .mb-resw{margin-top:16px}
 body.mb-rd{overflow:hidden}
 .mb-rov{position:fixed;inset:0;z-index:210;background:rgb(6 14 24 / .72);backdrop-filter:blur(6px);display:grid;place-items:center;padding:2.5vh 2.5vw;animation:mbFade .2s ease-out}
@@ -372,7 +369,7 @@ function startFx(){const cv=document.querySelector('.mb-fx');if(!cv||cv._on)retu
  /* «ومضات تفكير»: نبضة تسري على وصلة بين عقدتين */
  const sparks=[];let t=0,raf=0;
  function frame(){if(!document.body.contains(cv)){cancelAnimationFrame(raf);return}
-  if(cv.getBoundingClientRect().width!==W)size();
+  if(t%30===0){const r=cv.getBoundingClientRect();if(Math.abs(r.width-W)>1||Math.abs(r.height-H)>1)size()}
   ctx.clearRect(0,0,W,H);t++;
   for(const n of nodes){n.x+=n.vx;n.y+=n.vy;n.p+=.04;if(n.x<0||n.x>W)n.vx*=-1;if(n.y<0||n.y>H)n.vy*=-1}
   const D=Math.min(150,W/7);
