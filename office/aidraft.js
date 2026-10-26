@@ -134,7 +134,7 @@ document.addEventListener('change',async ev=>{if(ev.target.id!=='aiOppFile')retu
 /* ── النتيجة ── */
 const ORIGIN={library:'مكتبة التشريعات',web:'مصادر التشريعات',rulings:'مكتبة الاجتهادات'};
 const originOf=x=>x.kind==='ruling'&&x.origin==='web'?'حكم منشور':(ORIGIN[x.origin]||'');
-const srcLine=x=>x.url?`<div class="as-src"><a href="${e(x.url)}" target="_blank" rel="noopener">فتح الحكم في المصدر ↗</a>${can2('write')&&x.kind==='ruling'?` <button type="button" class="btn sm" data-act="rImportUrl" data-v="${e(x.url)}">حفظ في مكتبة الاجتهادات</button>`:''}</div>`:'';
+const srcLine=x=>x.url?`<div class="as-src"><a href="${e(x.url)}" target="_blank" rel="noopener">فتح الحكم في المصدر ↗</a>${can2('write')&&x.kind==='ruling'?` <button type="button" class="btn sm" data-act="mbSaveUrl" data-v="${e(x.url)}">حفظ في مكتبة الاجتهادات</button>`:''}</div>`:'';
 function asText(r){return [r.title,r.court?('لدى '+r.court):'', ...r.sections.flatMap(s=>[s.heading,...s.paragraphs])].filter(Boolean).join('\n')}
 function refsText(r){return r.references.map(x=>`[${x.id}] ${x.title}${x.ref?' ('+x.ref+')':''}${x.arts.length?' — '+x.arts.join('، '):''}`).join('\n')}
 function result(){const r=D.res;const linkR=s=>e(s).replace(/\[(R\d+)\]/g,'<sup class="ai-r">[$1]</sup>').replace(/\[مرجع يحتاج تحقق[^\]]*\]/g,m=>`<mark class="ai-v">${m}</mark>`).replace(/\{[^{}]+\}/g,m=>`<span class="ai-f">${m}</span>`);

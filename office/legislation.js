@@ -40,12 +40,12 @@ const navCount0=window.navCount;window.navCount=v=>v==='laws'?(LG.facets&&LG.fac
 V.laws=()=>{
  /* أول عرض، أو العودة للشاشة بعد 20 ثانية (قد يكون زميل أضاف تشريعات) */
  if(!LG.loading&&!LG.err&&(!LG.res||Date.now()-(LG.at||0)>20e3)){LG.at=Date.now();setTimeout(load,0)}
- if(!online())return `<div class="head"><div><h1>التشريعات الفلسطينية</h1></div></div><section class="panel"><div class="bd lg-empty">مكتبة التشريعات محفوظة في خادم المكتب، وتعمل حين يكون ميثاق متصلاً بالخادم.</div></section>`;
+ if(!online())return `<div class="head"><div><h1>تشريعات المكتب</h1></div></div><section class="panel"><div class="bd lg-empty">مكتبة التشريعات محفوظة في خادم المكتب، وتعمل حين يكون ميثاق متصلاً بالخادم.</div></section>`;
  const m=M_(),web=webOk()&&LG.mode!=='lib';
- return `<div class="head"><div><h1>التشريعات الفلسطينية</h1><p class="sub">${web?'بحث مباشر في مصادر التشريعات الفلسطينية الرسمية على الإنترنت، وعرض النصوص الكاملة داخل ميثاق':'مكتبة المكتب من القوانين والقرارات بقانون والأنظمة والمراسيم: بحث في العناوين والملخصات والنصوص، مع فلاتر النوع والجهة والحالة والسنة'}</p></div>
-  <div class="toolbar">${!web&&canM()?`<button class="btn pri" data-act="lgNew">إضافة تشريع</button><button class="btn" data-act="lgImport">استيراد ملف</button><button class="btn" data-act="lgExport">تصدير JSON</button>`:''}</div></div>
+ return `<div class="head"><div><h1>تشريعات المكتب</h1><p class="sub">${web?'بحث مباشر في مصادر التشريعات الفلسطينية الرسمية على الإنترنت، وعرض النصوص الكاملة داخل ميثاق':'مكتبة المكتب من القوانين والقرارات بقانون والأنظمة والمراسيم: بحث في العناوين والملخصات والنصوص، مع فلاتر النوع والجهة والحالة والسنة'}</p></div>
+  <div class="toolbar"><button class="btn" data-act="nav" data-v="misbar">← المِسْبار</button>${!web&&canM()?`<button class="btn pri" data-act="lgNew">إضافة تشريع</button><button class="btn" data-act="lgImport">استيراد ملف</button><button class="btn" data-act="lgExport">تصدير JSON</button>`:''}</div></div>
  ${webOk()?`<div class="lg-tabs" role="tablist"><button role="tab" aria-selected="${web}" class="${web?'on':''}" data-act="lgMode" data-v="web">البحث في المصادر</button><button role="tab" aria-selected="${!web}" class="${web?'':'on'}" data-act="lgMode" data-v="lib">مكتبة المكتب${LG.facets&&LG.facets.total?' <small>'+LG.facets.total+'</small>':''}</button></div>`:''}
- ${web?webView():`<div class="lg-note">يُدخل المكتب هذه التشريعات بنفسه أو يحفظها من نتائج البحث في المصادر. طابِق النص مع المنشور في الجريدة الرسمية (الوقائع الفلسطينية) قبل الاستشهاد به، وتأكد من آخر تعديلاته.</div>
+ ${web?webView():`<div class="lg-note">يُدخل المكتب هذه التشريعات بنفسه (إضافة أو استيراد ملف)، أما البحث في التشريعات والقرارات المنشورة فمن «المِسْبار». طابِق النص مع المنشور في الجريدة الرسمية (الوقائع الفلسطينية) قبل الاستشهاد به، وتأكد من آخر تعديلاته.</div>
  <div id="lgStats">${stats()}</div>
  <section class="panel"><div class="bd lg-filters">
   <input class="field" id="lgq" type="search" placeholder="ابحث في العنوان أو الرقم أو الملخص أو نص التشريع…" value="${e(LG.q)}" autocomplete="off">
@@ -96,7 +96,8 @@ function pager(r){if(r.pages<=1)return '';const p=r.page,b=[];
  return `<nav class="lg-pager" aria-label="الصفحات">${b.join('')}</nav>`}
 
 /* ── البحث المباشر في المصادر على الإنترنت (اسم المصدر لا يظهر) ── */
-const webOk=()=>online()&&!document.body.classList.contains('mq-private');
+/* البحث المباشر على الإنترنت أُلغي: البحث في التشريعات والقرارات صار في «المِسْبار» من قاعدة محلية */
+const webOk=()=>false;
 const W={q:'',page:1,items:[],srcs:{},busy:0,err:'',sel:new Map(),done:false,q2:''};
 const SRCS=['s1','s2'];
 A.lgMode=v=>{LG.mode=v;render();if(v==='lib')load()};

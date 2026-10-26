@@ -8,17 +8,13 @@ import { createAuth } from './auth.js';
 import { courts, STEPS } from './seed.js';
 import { plan, rotate, lawformsGuard } from './merge.js';
 import * as HearingAlerts from './hearing-alerts.js';
-import { fetchJudgment } from './maqam.js';
-import { createService as maqamService } from './maqam-search.js';
-import { createService as muqtafiService, idFromUrl as muqtafiId } from './muqtafi.js';
-import { createService as sjcService } from './sjc.js';
 import * as Apns from './apns.js';
 import * as WebPush from './webpush.js';
 import * as Tts from './tts.js';
 import * as Legal from './legal-pages.js';
 import * as Av from './avatar.js';
 import { createLaws } from './laws.js';
-import { createLawSearch } from './law-sources.js';
+import { createMisbar, adapters as misbarAdapters } from './misbar.js';
 import { createDrafter, createExtractor, createTranscriber, createAssistant, createCalcExtractor, createRulingExtractor, usageSummary, PRICES as AI_PRICES, DOC_TYPES, MODEL as AI_MODEL } from './ai-draft.js';
 
 /* توقيع داخلي يثبت أن طلب /_ops وصل من الـ Worker بعد التحقق من رمز المشغّل (لا يمكن للزائر إرساله) */
@@ -50,7 +46,7 @@ const SEC = { 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'same-orig
 const json = (code, obj, extra = {}) => new Response(JSON.stringify(obj), { status: code, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...CORS, ...SEC, ...extra } });
 const MEDIA_TTL = 24 * 3600; // صلاحية رابط الملف الموقّع: يوم واحد، ويتجدد بتحميل المحادثة
 
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'maqamsearch.js', 'sources.js', 'guide.js', 'workflow.js', 'casework.js', 'stations.js', 'hearing-report.js', 'case-layout.js', 'case-steps.js', 'announce.js', 'reader.js', 'case-hub.js', 'case-wizard.js', 'consistency.js', 'searchsel.js', 'wa-chat.js', 'fulltext.js', 'ai-mark.js', 'night.css', 'qrcode.js', 'app-invite.js', 'avatar.js', 'wa-skin.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'settlements.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-shelf.js', 'print.js', 'intake.js', 'rulings.js', 'guide.js', 'workflow.js', 'casework.js', 'stations.js', 'hearing-report.js', 'case-layout.js', 'case-steps.js', 'announce.js', 'reader.js', 'case-hub.js', 'case-wizard.js', 'consistency.js', 'searchsel.js', 'wa-chat.js', 'fulltext.js', 'ai-mark.js', 'night.css', 'qrcode.js', 'app-invite.js', 'avatar.js', 'wa-skin.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'misbar.js', 'misbar-emblem.webp', 'misbar-hero.webp', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'settlements.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 const PUBLIC_FILES = new Set(['login.html', 'login.js', 'login.css', 'scales.js', 'prestige.css', 'edition.js']);
 
 /* توحيد الكتابة العربية للبحث في دليل المحامين */
@@ -81,7 +77,6 @@ export class Office extends DurableObject {
 
   /* ── أدوات ── */
   slug() { return this.store.kv.get('slug') }
-  mkMuqtafi() { return muqtafiService({ audit: e => this.audit(e), getCred: async () => this.store.kv.get('muqtafi_cred') || null, setCred: async c => this.store.kv.set('muqtafi_cred', c), can: (u, w) => this.auth.can(u, w) }) }
   audit(e) { try { this.store.audit({ at: stampS(), ...e }) } catch (err) { console.error('[audit]', err.message) } }
   settings() { const s = this.store.kv.get('settings', {}); const g = this.store.kv.get('support_grant'); const b = this.store.kv.get('backup_last'); return { edition: 'office', officeName: '', lawyerName: '', city: '', phone: '', hours: '', ...s, cloud: true, supportUntil: g && g.until > Date.now() ? g.until : null, backupLast: b || null } }
   /* إشعارات آيفون (APNs) لتطبيق الموكل */
@@ -497,26 +492,6 @@ export class Office extends DurableObject {
     }
     if (p === '/api/admin/voice' && M === 'POST') { if ((d = deny('write'))) return d; return this.voice(req, u, u.searchParams.get('client'), 'lawyer', who) }
     if (p === '/api/admin/file' && M === 'POST') { if ((d = deny('write'))) return d; return this.attach(req, u, u.searchParams.get('client'), 'lawyer', who) }
-    if (p === '/api/admin/ruling-import' && M === 'POST') {
-      if ((d = deny('write'))) return d;
-      const b = await jbody(4096), now = Date.now();
-      this.importLog = (this.importLog || []).filter(t => now - t < 3600e3);
-      if (this.importBusy || this.importLog.length >= 60) return json(429, { error: 'استيراد كثير خلال ساعة. حاول بعد قليل.' });
-      this.importBusy = true; this.importLog.push(now);
-      try {
-        const mid = muqtafiId(b.url);
-        const r = mid ? await (async () => { this.muqtafi ||= this.mkMuqtafi(); const x = await this.muqtafi('judgment', { id: mid }, me); if (x.status !== 200) return { ok: false, error: x.body.error, status: x.status }; const q = x.body.ruling; return { ok: true, ruling: { ...q, classifications: x.body.card.paths || [], cited: (q.laws || []).map(l => l.text) } } })() : await fetchJudgment(b.url, fetch);
-        this.audit({ ...who, action: r.ok ? 'ruling.import' : 'ruling.import_failed', entity: 'rulings', detail: { url: String(b.url || '').slice(0, 200), ...(r.ok ? { no: r.ruling.no } : { error: r.error }) } });
-        return r.ok ? json(200, r) : json(r.status || 400, { error: r.error });
-      } finally { this.importBusy = false }
-    }
-    if (p.startsWith('/api/admin/sjc/')) {
-      /* «مبادئ قضائية» – المكتب الفني في مجلس القضاء الأعلى: مصدر عام، بحث بطلب المحامي */
-      this.sjc ||= sjcService({ audit: e => this.audit(e) });
-      const a = p.slice(15), r = a === 'classes' && M === 'GET' ? await this.sjc('classes', {}, me) : a === 'search' && M === 'POST' ? await this.sjc('search', await jbody(), me) : a === 'pdf' && M === 'GET' ? await this.sjc('pdf', { id: u.searchParams.get('id') }, me) : { status: 404, body: { error: 'not found' } };
-      if (r.file) return new Response(r.file.body, { headers: { 'Content-Type': r.file.contentType, 'Content-Disposition': `inline; filename="${r.file.filename}"`, 'Cache-Control': 'no-store', ...CORS, ...SEC } });
-      return json(r.status, r.body, r.status === 429 && r.body.retry ? { 'Retry-After': String(r.body.retry) } : {});
-    }
     /* الصورة الشخصية، واختيارياً صورة محامي المكتب التي تظهر للموكلين في تطبيقهم */
     if (p === '/api/admin/me/avatar') {
       const canC = this.auth.can(me, 'manage') || me.role === 'lawyer', op = this.store.kv.get('office_photo');
@@ -566,33 +541,11 @@ export class Office extends DurableObject {
       this.store.kv.set('apns_cfg', r.cfg); this.audit({ ...who, action: 'apns.cfg_set', entity: 'settings', detail: { keyId: r.cfg.keyId, teamId: r.cfg.teamId, topic: r.cfg.topic } });
       return json(200, Apns.pubCfg(r.cfg));
     }
-    if (p.startsWith('/api/admin/muqtafi/')) {
-      /* «المقتفي» (بيرزيت): اشتراك المكتب في مخزن المكتب ولا يُعاد للمتصفح */
-      this.muqtafi ||= this.mkMuqtafi();
-      const a = p.slice(19);
-      if (a === 'status' && M === 'GET') { const r = await this.muqtafi('status', {}, me); return json(r.status, r.body) }
-      if (a === 'cred' && M === 'POST') { if ((d = deny('manage'))) return d; const r = await this.muqtafi('cred', await jbody(), me); return json(r.status, r.body) }
-      if (a === 'search' && M === 'POST') { const r = await this.muqtafi('search', await jbody(), me); return json(r.status, r.body, r.status === 429 && r.body.retry ? { 'Retry-After': String(r.body.retry) } : {}) }
-      if (a === 'judgment' && M === 'GET') { const r = await this.muqtafi('judgment', { id: u.searchParams.get('id') }, me); return json(r.status, r.body) }
-      return json(404, { error: 'not found' });
-    }
-    if (p.startsWith('/api/admin/maqam/') && M === 'GET') {
-      this.mqSearch ||= maqamService({ audit: e => this.audit(e) });
-      const r = await this.mqSearch(p.slice(17), u.searchParams, me);
-      if (r.file) return new Response(r.file.body, { headers: { 'Content-Type': r.file.contentType, 'Content-Disposition': `attachment; filename="${r.file.filename}"`, 'Cache-Control': 'no-store', ...CORS, ...SEC } });
-      return json(r.status, r.body, r.status === 429 && r.body.retry ? { 'Retry-After': String(r.body.retry) } : {});
-    }
     if (p.startsWith('/api/admin/ai/')) {
       /* صياغة اللوائح بالذكاء الاصطناعي: مفتاح المكتب (أو مفتاح المنصة) في الخادم فقط */
       const a = p.slice(14), aiKey = () => this.store.kv.get('ai_key') || this.env.ANTHROPIC_API_KEY || '';
-      /* أحكام النقض والاستئناف المنشورة للمساعد: بحث حي عبر خدمة «البحث في الأحكام» نفسها (حدودها وسجلها) ثم النص الكامل لأقرب الأحكام */
-      const liveRulings = async (q, user, max = 3) => {
-        this.mqSearch ||= maqamService({ audit: e => this.audit(e) });
-        const s = await this.mqSearch('search', new URLSearchParams({ q: String(q).slice(0, 120) }), user); if (s.status !== 200) return [];
-        const all = s.body.results || [], hi = all.filter(r => /النقض|استئناف|العليا/.test(r.court || '')), pick = (hi.length >= max ? hi : [...hi, ...all.filter(r => !hi.includes(r))]).slice(0, max), out = [];
-        for (const r of pick) { const j = await this.mqSearch('judgment', new URLSearchParams({ id: String(r.maqamId) }), user); if (j.status === 200 && j.body.judgment) { const x = j.body.judgment; out.push({ id: r.maqamId, title: `${x.court || r.court || ''} ${x.litigationType ? x.litigationType + ' ' : ''}${x.number || ''}${x.year ? '/' + x.year : ''}`.trim(), date: x.decisionDate || '', url: x.sourceUrl, text: x.bodyText }) } }
-        return out;
-      };
+      /* «مِسْبار»: الصياغة والمساعد يستشهدان من قاعدة التشريعات والقرارات في D1 (قراءة فقط) */
+      const { lawSearch, rulingSearch: liveRulings } = this.misbarAdapters();
       if (a === 'status' && M === 'GET') { const k = aiKey(); return json(200, { configured: !!k, last4: k ? k.slice(-4) : '', model: AI_MODEL, types: DOC_TYPES, canManage: this.auth.can(me, 'manage') }) }
       if (a === 'key' && M === 'POST') {
         if ((d = deny('manage'))) return d; const b = await jbody(); const k = String(b.key || '').trim();
@@ -612,8 +565,7 @@ export class Office extends DurableObject {
       };
       const mkAssistant = () => {
         this.laws ||= createLaws({ all: this.store.all, run: this.store.run, tx: this.store.tx }, { randomId: () => 'L' + crypto.randomBytes(6).toString('hex'), now: stampS });
-        this.lawSearch ||= createLawSearch({ audit: e => this.audit(e) });
-        return (this.assistant ||= createAssistant({ audit: e => this.audit(e), getKey: aiKey, laws: this.laws, lawSearch: this.lawSearch, rulingSearch: liveRulings, model: this.env.MQ_AI_MODEL }));
+        return (this.assistant ||= createAssistant({ audit: e => this.audit(e), getKey: aiKey, laws: this.laws, lawSearch, rulingSearch: liveRulings, model: this.env.MQ_AI_MODEL }));
       };
       if (a === 'extract' && M === 'POST') {
         if ((d = deny('write'))) return d;
@@ -657,24 +609,21 @@ export class Office extends DurableObject {
       if (a === 'assist' && M === 'POST') {
         if ((d = deny('write'))) return d;
         this.laws ||= createLaws({ all: this.store.all, run: this.store.run, tx: this.store.tx }, { randomId: () => 'L' + crypto.randomBytes(6).toString('hex'), now: stampS });
-        this.lawSearch ||= createLawSearch({ audit: e => this.audit(e) });
         const b = aiScoped(await jbody(16 * 1024 * 1024)); if (b.error) return json(b.status, { error: b.error });
         const r = await mkAssistant()(b.body, me, { rulings: (this.cur().rulings) || [] }); return json(r.status, r.body);
       }
       if (a === 'draft' && M === 'POST') {
         if ((d = deny('write'))) return d;
         this.laws ||= createLaws({ all: this.store.all, run: this.store.run, tx: this.store.tx }, { randomId: () => 'L' + crypto.randomBytes(6).toString('hex'), now: stampS });
-        this.lawSearch ||= createLawSearch({ audit: e => this.audit(e) });
-        this.drafter ||= createDrafter({ audit: e => this.audit(e), getKey: aiKey, laws: this.laws, lawSearch: this.lawSearch, rulingSearch: liveRulings, model: this.env.MQ_AI_MODEL });
+        this.drafter ||= createDrafter({ audit: e => this.audit(e), getKey: aiKey, laws: this.laws, lawSearch, rulingSearch: liveRulings, model: this.env.MQ_AI_MODEL });
         const b = aiScoped(await jbody(2 * 1024 * 1024)); if (b.error) return json(b.status, { error: b.error });
         const r = await this.drafter(b.body, me, { rulings: (this.cur().rulings) || [] }); return json(r.status, r.body);
       }
       return json(404, { error: 'غير موجود' });
     }
-    if (p.startsWith('/api/admin/lawsearch/') && M === 'GET') {
-      this.lawSearch ||= createLawSearch({ audit: e => this.audit(e) });
-      const r = await this.lawSearch(p.slice(21), Object.fromEntries(u.searchParams), me);
-      return json(r.status, r.body, r.status === 429 && r.body.retry ? { 'Retry-After': String(r.body.retry) } : {});
+    if (p.startsWith('/api/admin/misbar/') && M === 'GET') {
+      const r = await this.misbar().handle(p.slice(18), Object.fromEntries(u.searchParams), me);
+      return json(r.status, r.body);
     }
     if (p.startsWith('/api/admin/laws/')) {
       /* مكتبة التشريعات: جدول خاص في SQLite المكتب (لا تمر بالمزامنة لأن نصوصها كبيرة) */
@@ -783,6 +732,15 @@ export class Office extends DurableObject {
   }
 
   /* ── دليل المحامين (D1 مشتركة، للقراءة فقط من المكاتب) ── */
+  /* «مِسْبار»: قاعدة التشريعات والقرارات في D1 منفصلة (LAWINDEX) للقراءة فقط؛ تُستورد من misbar/mithaq-lawindex.sql */
+  misbar() {
+    if (!this._misbar) {
+      const db = this.env.LAWINDEX, all = async (q, ...a) => { if (!db) throw new Error('no such table: docs'); return (await db.prepare(q).bind(...a.map(v => v === undefined ? null : v)).all()).results };
+      this._misbar = createMisbar({ all }, { audit: e => this.audit(e) });
+    }
+    return this._misbar;
+  }
+  misbarAdapters() { return this._misbarAd ||= misbarAdapters(this.misbar()) }
   async barMeta() { const r = await this.env.DB.prepare("SELECT value FROM meta WHERE key = 'bar_meta'").first(); return r ? JSON.parse(r.value) : null }
   async barSearch(s) {
     const DB = this.env.DB, w = [], a = [];

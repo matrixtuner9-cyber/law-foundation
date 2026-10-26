@@ -88,7 +88,7 @@ const navCount0=window.navCount;window.navCount=v=>v==='rulings'?(rulings.length
 V.rulings=()=>{
  const rs=list(),q=RS.q.trim();
  return `<div class="head"><div><h1>الاجتهادات القضائية الفلسطينية</h1><p class="sub">مكتبة المكتب من المبادئ القضائية: ابحث بالموضوع أو المبدأ أو رقم الحكم، واربط ما يفيد منها بقضاياك</p></div>
-  <div class="toolbar">${can2('write')?'<button class="btn" data-act="rImport">استيراد حكم برابطه</button><button class="btn pri" data-act="rNew">إضافة حكم</button>':''}</div></div>
+  <div class="toolbar">${can2('write')?'<button class="btn" data-act="nav" data-v="misbar">بحث في المِسْبار</button><button class="btn pri" data-act="rNew">إضافة حكم</button>':''}</div></div>
  <section class="panel"><div class="bd rl-search">
   <input class="field" id="rq" value="${e(RS.q)}" placeholder="مثال: بطلان التبليغ، الدفع بالتقادم، إخلاء المأجور لعدم دفع الأجرة…" autocomplete="off">
   <select class="field" id="rCourt"><option value="">كل المحاكم</option>${COURTS.map(c=>`<option ${RS.court===c?'selected':''}>${c}</option>`).join('')}</select>
@@ -195,7 +195,7 @@ document.addEventListener('submit',async ev=>{const f=ev.target;if(f.id!=='fRuli
    cases:[...f.querySelectorAll('input[name=rfCase]:checked')].map(x=>x.value)});
   if(pendingFile){if(!(window.MQ&&MQ.online))throw new Error('رفع الملف يحتاج اتصالاً بالخادم');const up=await upload(pendingFile);r.file=up.file;r.fileName=up.name;r.fileSize=up.size}
   if(isNew)rulings.push(r);
-  const fromExternal=isNew&&(S.view==='sources'||S.view==='maqamsearch');
+  const fromExternal=isNew&&(S.view==='sources'||S.view==='maqamsearch'||S.view==='misbar');
   A.close();toast(isNew?'أُضيف الحكم إلى المكتبة':'حُفظ التعديل');
   // من شاشات البحث الخارجية يبقى المحامي مكانه ليكمل البحث، مع رسالة وزر «عرض في مكتبتي»
   if(!fromExternal&&S.view!=='rulings'&&!(S.view==='case'||(S.view==='client'&&S.bagTab==='case')))S.view='rulings';
@@ -207,28 +207,8 @@ document.addEventListener('submit',async ev=>{const f=ev.target;if(f.id!=='fRuli
 
 /* ── الأفعال ── */
 A.rNew=()=>{if(!ro())openForm(null)};
-/* استيراد حكم واحد برابطه من مقام: يقرأ الخادم الصفحة ويملأ نموذج الإضافة للمراجعة */
-A.rImport=()=>{if(ro())return;
- document.getElementById('modal').innerHTML=`<div class="modal-bg" data-act="close"><div class="modal rl-modal" role="dialog" aria-label="استيراد حكم"><div class="head"><h1 style="font-size:22px">استيراد حكم من مقام</h1><button class="btn sm" data-act="close">إغلاق</button></div>
- <form class="form" id="fRImport"><label class="wide"><span>رابط صفحة الحكم <small class="m">· افتح الحكم في موقع مقام وانسخ رابطه من شريط العنوان</small></span><input class="field" id="riUrl" dir="ltr" required placeholder="https://maqam.najah.edu/judgments/5158/"></label>
- <div class="wide toolbar"><button class="btn pri" id="riGo">استخراج بيانات الحكم</button><a class="btn" href="https://maqam.najah.edu/judgments/" target="_blank" rel="noopener">فتح مقام ↗</a></div>
- <p class="note wide">يُقرأ الحكم الذي تختاره فقط، ثم تراجع بياناته وتكتب المبدأ قبل حفظه في مكتبة المكتب، مع رابط مصدره.</p></form></div></div>`;
- document.getElementById('riUrl').focus()};
-/* يقرأ الخادم صفحة الحكم ويفتح نموذج الإضافة للمراجعة؛ يُستدعى من نافذة الرابط ومن شاشة «البحث في مقام» */
-async function importFrom(url,btn,label){
- const dup=rulings.find(r=>r.srcUrl&&r.srcUrl.replace(/\/?$/,'/')===url.replace(/\/?$/,'/'));if(dup){A.close();toast('هذا الحكم موجود في المكتبة');A.rOpen(dup.id);return}
- if(btn){btn.disabled=true;btn.textContent='جارٍ القراءة…'}
- try{const r=await fetch('/api/admin/ruling-import',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({url})});
-  if(r.status===401){location.replace('/login.html');return}
-  const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'تعذّر الاستيراد');
-  const x=j.ruling;openForm({court:x.court,no:x.no,date:x.date,field:x.field,keywords:x.keywords,text:x.text,src:x.src,srcUrl:x.srcUrl,fullText:x.fullText,principle:x.principle||'',summary:x.summary||'',outcome:x.outcome||'',
-   notes:[x.courtName&&x.court==='أخرى'?'المحكمة: '+x.courtName:'',(x.classifications||[]).length?'التصنيف: '+x.classifications.join('؛ '):'',(x.cited||[]).length?'النصوص المذكورة: '+x.cited.join('؛ '):''].filter(Boolean).join(' · ').slice(0,1500)});
-  toast(x.principle?'استُخرجت بيانات الحكم ومبادئه، راجعها قبل الحفظ':'استُخرجت بيانات الحكم، راجعها واكتب المبدأ');
- }catch(x){toast(x.message);if(btn){btn.disabled=false;btn.textContent=label||'استخراج بيانات الحكم'}}
-}
-document.addEventListener('submit',ev=>{const f=ev.target;if(f.id!=='fRImport')return;ev.preventDefault();ev.stopImmediatePropagation();
- importFrom(f.riUrl.value.trim(),document.getElementById('riGo'))},true);
-A.rImportUrl=v=>{if(ro())return;importFrom(String(v||''),null)};
+/* فتح نموذج الإضافة بسجل جاهز (من «المِسْبار»): يراجع المحامي البيانات ويكتب المبدأ قبل الحفظ */
+window.MQ_rulingForm=r=>{if(ro())return;const dup=r.srcUrl&&rulings.find(x=>x.srcUrl&&x.srcUrl.replace(/\/?$/,'/')===r.srcUrl.replace(/\/?$/,'/'));if(dup){toast('هذا الحكم موجود في المكتبة');return A.rOpen(dup.id)}openForm(r)};
 /* فتح نموذج الإضافة بسجل جاهز (من شاشة «مصادر الأحكام») مع ملف مرفق اختياري */
 /* استخراج المبدأ والملخص والكلمات المفتاحية من نص الحكم بالذكاء الاصطناعي (داخل نموذج الإضافة) */
 A.rAiExtract=async(v,el)=>{const f=document.getElementById('fRuling');if(!f)return;const text=f.rfT.value.trim();if(text.length<200){toast('نص الحكم قصير جداً');return}

@@ -36,16 +36,21 @@ function ftsQuery(q, mode = 'all') {
 const int = (v, a, b, d) => { const n = parseInt(v, 10); return Number.isFinite(n) ? Math.min(b, Math.max(a, n)) : d };
 const clip = (s, n) => String(s ?? '').trim().slice(0, n);
 
-/* مقتطف حول أول تطابق (القاعدة بلا محتوى مكرر داخل الفهرس، فالمقتطف يُحسب هنا) */
+/* مقتطف حول أول تطابق: يُطبَّع النص حرفاً حرفاً مع حفظ موضع كل حرف في الأصل، فيقع المقتطف على الكلمة نفسها */
+const CH = { 'أ': 'ا', 'إ': 'ا', 'آ': 'ا', 'ٱ': 'ا', 'ى': 'ي', 'ة': 'ه', 'ؤ': 'و', 'ئ': 'ي' };
 function snippet(body, q, len = 260) {
   const text = String(body || '').replace(/\s+/g, ' ').trim(); if (!text) return '';
-  const ws = norm(String(q || '').replace(/"/g, ' ')).split(' ').filter(w => w.length > 1 && !STOP.has(w));
-  const ntext = norm(text);
+  const ws = norm(String(q || '').replace(/"/g, ' ')).split(' ').filter(w => w.length > 1 && !STOP.has(w)).sort((a, b) => b.length - a.length);
+  let flat = '', map = [];
+  for (let i = 0; i < text.length && flat.length < 400000; i++) {
+    let c = text[i]; if (/[ً-ْٰـ]/.test(c)) continue;
+    c = CH[c] || c.toLowerCase(); if (c >= '٠' && c <= '٩') c = String(c.charCodeAt(0) - 0x660);
+    flat += c; map.push(i);
+  }
   let at = -1;
-  for (const w of ws) { const i = ntext.indexOf(w); if (i >= 0 && (at < 0 || i < at)) at = i }
+  for (const w of ws) { const i = flat.indexOf(w); if (i >= 0) { at = map[i]; break } }
   if (at < 0) return text.slice(0, len) + (text.length > len ? ' …' : '');
-  /* موضع تقريبي في النص الأصلي بنسبة الطول (التطبيع يقصّر النص قليلاً) */
-  const pos = Math.floor(at * text.length / Math.max(1, ntext.length)), s = Math.max(0, pos - Math.floor(len / 3));
+  let s = Math.max(0, at - Math.floor(len / 3)); if (s > 0) { const sp = text.indexOf(' ', s); if (sp > 0 && sp < at) s = sp + 1 }
   return (s > 0 ? '… ' : '') + text.slice(s, s + len) + (s + len < text.length ? ' …' : '');
 }
 
@@ -66,6 +71,7 @@ function where(f) {
   if (f.number && /^[0-9]{1,6}$/.test(String(f.number).trim())) { w.push('d.number=?'); a.push(String(f.number).trim()) }
   if (f.status && STATUS[f.status]) { if (f.status === 'in_force') { w.push("d.status_code IN ('in_force','partial')") } else { w.push('d.status_code=?'); a.push(f.status) } }
   if (f.has_text === '1') w.push('d.has_text=1');
+  if (f.url && /^https?:\/\//.test(String(f.url))) { w.push('d.url=?'); a.push(clip(f.url, 400)) }
   return { w, a };
 }
 
@@ -138,6 +144,27 @@ function createMisbar(db, { audit } = {}) {
   return { search, doc, stats, excerpts, verifyQuote, handle };
 }
 
+/* بدائل بنفس واجهة البحث القديم للصياغة والمساعد: lawSearch(action, params) و rulingSearch(q, user, max) */
+function adapters(m) {
+  const lawSearch = async (action, p = {}) => {
+    try {
+      if (action === 'search') {
+        const r = await m.search({ q: p.q, kind: 'law', has_text: '1', per: 6, facets: '0', mode: 'any' });
+        return { status: 200, body: { items: r.results.map(x => ({ id: x.id, title: x.title + (x.primary ? '' : ' (' + x.source + ' — للمقارنة)'), articles: 1 })) } };
+      }
+      if (action === 'item') { const d = await m.doc(p.id); return d ? { status: 200, body: { item: { title: d.title + (d.primary ? '' : ' (' + d.source + ' — للمقارنة والاستئناس)'), ref: d.status || '', content: d.body } } } : { status: 404, body: {} } }
+    } catch (e) { return { status: 503, body: { error: String(e.message || e) } } }
+    return { status: 404, body: {} };
+  };
+  const rulingSearch = async (q, user, max = 3) => {
+    let r; try { r = await m.search({ q, kind: 'ruling', has_text: '1', per: max * 2, facets: '0', mode: 'any' }) } catch (e) { return [] }
+    const ps = r.results.filter(x => x.primary), pick = (ps.length >= max ? ps : [...ps, ...r.results.filter(x => !x.primary)]).slice(0, max), out = [];
+    for (const x of pick) { const d = await m.doc(x.id); if (d && d.body) out.push({ id: 'M' + d.id, title: (d.court ? d.court + ' ' : '') + (d.case_no || d.title) + (d.primary ? '' : ' (' + d.source + ' — للاستئناس)'), date: d.date || String(d.year || ''), url: d.url, text: d.body }) }
+    return out;
+  };
+  return { lawSearch, rulingSearch };
+}
+
 /* محوّل خادم المكتب: يفتح ملف القاعدة للقراءة فقط عند أول استعمال */
 function openFile(file) {
   let d = null;
@@ -150,4 +177,4 @@ function openFile(file) {
   };
 }
 
-module.exports = { SOURCES, STATUS, norm, ftsQuery, snippet, createMisbar, openFile };
+module.exports = { SOURCES, STATUS, norm, ftsQuery, snippet, createMisbar, adapters, openFile };

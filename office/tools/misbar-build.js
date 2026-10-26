@@ -11,7 +11,8 @@ const P = (...a) => path.join(SRC, ...a);
 const exists = f => fs.existsSync(f) && fs.statSync(f).size > 0;
 const jsonl = f => exists(f) ? fs.readFileSync(f, 'utf8').split('\n').filter(l => l.trim()).map(l => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean) : [];
 const J = v => { if (Array.isArray(v) || (v && typeof v === 'object')) return v; try { return JSON.parse(v || 'null') } catch { return null } };
-const yr = v => { const m = String(v ?? '').match(/(1[89]\d\d|20\d\d)/); return m ? Number(m[1]) : null };
+const NOWY = new Date().getFullYear();
+const yr = v => { const m = String(v ?? '').match(/(1[89]\d\d|20\d\d)/); const n = m ? Number(m[1]) : null; return n && n <= NOWY ? n : null };
 const clean = s => String(s ?? '').replace(/\r/g, '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
 const log = (...a) => console.log(...a);
 
@@ -76,7 +77,7 @@ const cap = (arr) => LIMIT ? arr.slice(0, LIMIT) : arr;
     for (const r of d.prepare('SELECT id,url,title,source,topic,branch,case_refs,ref_year_max,content_text FROM judgments' + (LIMIT ? ' LIMIT ' + LIMIT : '')).all()) {
       if (seen.has(r.url)) continue; seen.add(r.url);
       const body = strip(r.content_text);
-      add({ src: 'JO_CASSATION', country: 'JO', kind: 'ruling', ext_id: String(r.id), title: titleOf(r.title, body), year: Number(r.ref_year_max) || null, number: '', court: 'محكمة التمييز الأردنية',
+      add({ src: 'JO_CASSATION', country: 'JO', kind: 'ruling', ext_id: String(r.id), title: titleOf(r.title, body), year: yr(r.ref_year_max), number: '', court: 'محكمة التمييز الأردنية',
         case_no: String(r.case_refs || '').split(/[,،]/)[0].trim(), date: '', ltype: r.branch || '', subject: r.topic || '', status: '', status_code: '', url: r.url, file_url: '', body,
         cites: [], meta: { origin: r.source, case_refs: r.case_refs } });
       n++;
@@ -99,7 +100,7 @@ const cap = (arr) => LIMIT ? arr.slice(0, LIMIT) : arr;
   const rows = cap(f ? jsonl(f) : []);
   for (const l of rows) {
     const st = l.status || '';
-    add({ src: 'EG_LEGISLATION', country: 'EG', kind: 'law', ext_id: l.id, title: String(l.title || '').replace(/\s*\|\s*منشورات قانونية\s*$/, ''), year: yr(l.year), number: String(l.number || ''), court: '', case_no: '', date: '',
+    add({ src: 'EG_LEGISLATION', country: 'EG', kind: 'law', ext_id: l.id, title: String(l.title || '').replace(/\s*\|\s*منشورات قانونية\s*$/, '').replace(/\s*-\s*Lawyer Egypt.*$/i, ''), year: yr(l.year), number: String(l.number || ''), court: '', case_no: '', date: '',
       ltype: l.category || '', subject: l.law_name || '', status: st, status_code: /ملغ|غير ساري/.test(st) ? 'repealed' : /ساري/.test(st) ? 'in_force' : '', url: l.source_url || l.text_url, file_url: '', body: l.text || '', cites: [],
       meta: { origin: l.source, last_amendment: l.last_amendment || '', note: 'مصدر غير رسمي — يُراجع النص في الجريدة الرسمية' } });
   }

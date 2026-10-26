@@ -3,10 +3,10 @@
    في «ميثاق خاص» يُخفي كل ما يحتاج الإنترنت: بوابة الموكل ورسائلها ورموزها، دعوات واتساب، الربط مع ميزان،
    البحث في الأحكام والاستيراد برابط، تحديث دليل المحامين، والروابط الخارجية. الخادم يرفض هذه الطلبات أيضاً. */
 (function(){
-const HIDE_NAV=['portal','mizan','maqamsearch'];
-const HIDE_ACT=['portalFor','togglePortal','waInvite','rotateWeak','rotateCode','rImport','rImportUrl','barRefresh','mzRun','mzEdit','mzForget'];
+const HIDE_NAV=['portal','mizan'];
+const HIDE_ACT=['portalFor','togglePortal','waInvite','rotateWeak','rotateCode','barRefresh','mzRun','mzEdit','mzForget'];
 const css=`body.mq-private ${HIDE_ACT.map(a=>`[data-act="${a}"]`).join(',body.mq-private ')},
-body.mq-private [data-act="nav"][data-v="portal"],body.mq-private [data-act="nav"][data-v="mizan"],body.mq-private [data-act="nav"][data-v="maqamsearch"],
+body.mq-private [data-act="nav"][data-v="portal"],body.mq-private [data-act="nav"][data-v="mizan"],
 body.mq-private .rl-src,body.mq-private a[href^="http://"]:not([href^="http://localhost"]):not([href^="http://127."]),body.mq-private a[href^="https://"]{display:none!important}
 .mq-ed{display:flex;align-items:center;gap:8px;margin:10px 12px 4px;padding:8px 10px;border-radius:10px;font-size:12px;line-height:1.5;border:1px solid rgba(212,175,55,.35);background:rgba(212,175,55,.08);color:#E6D5B8}
 .mq-ed b{color:#D4AF37;font-size:13px;display:block}.mq-ed svg{width:18px;height:18px;flex:none;stroke:#D4AF37;fill:none;stroke-width:1.8}

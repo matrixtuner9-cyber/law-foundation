@@ -63,7 +63,7 @@ test('الخادم في «ميثاق خاص»: الإصدار، رفض كل ما
     const ed = await (await S.req('/api/edition')).json(); assert.equal(ed.id, 'private'); assert.equal(ed.offline, true);
     assert.equal((await (await S.req('/api/auth/status')).json()).edition.name, 'ميثاق خاص');
     assert.equal((await (await S.req('/api/admin/bootstrap')).json()).edition.id, 'private');
-    for (const [p, m] of [['/api/portal/login', 'POST'], ['/api/portal/push-key', 'GET'], ['/api/admin/maqam/search?q=x', 'GET'], ['/api/admin/ruling-import', 'POST'], ['/api/mizan/run', 'POST'], ['/api/mizan/credentials', 'POST'], ['/api/bar/refresh', 'POST']]) {
+    for (const [p, m] of [['/api/portal/login', 'POST'], ['/api/portal/push-key', 'GET'], ['/api/mizan/run', 'POST'], ['/api/mizan/credentials', 'POST'], ['/api/bar/refresh', 'POST']]) {
       const r = await S.req(p, { method: m, body: m === 'POST' ? '{}' : undefined }); assert.equal(r.status, 403, p); assert.equal((await r.json()).offline, true, p);
     }
     assert.equal((await S.req('/api/mizan/status')).status, 200, 'حالة ميزان المحلية تبقى للقراءة');
@@ -85,7 +85,7 @@ test('الخادم في «ميثاق متصل»: لم يتغير شيء (الب�
     assert.equal((await (await S.req('/api/edition')).json()).id, 'connected');
     assert.equal((await S.req('/api/portal/push-key')).status, 200);
     assert.notEqual((await S.req('/api/portal/login', { method: 'POST', body: '{}' })).status, 403);
-    assert.equal((await S.req('/api/admin/maqam/judgment?id=abc')).status, 400);
+    assert.equal((await S.req('/api/admin/misbar/doc?id=abc')).status, 404, 'المسبار يرد بمستند غير موجود');
     const ip = lanIp();
     if (ip) await new Promise((res, rej) => { const c = net.connect(S.PORT, ip); c.on('connect', () => { c.destroy(); res() }); c.on('error', rej) });
   } finally { await S.stop() }

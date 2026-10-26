@@ -50,6 +50,6 @@ r = await req(H, 'POST', '/api/admin/state', { headers: C, body: { v: 2, changes
 ok(r.status === 200 && (await boot()).lawforms[0].status === 'internal', 'المدير يعتمد بالشروط الكاملة');
 for (const f of ['rulings.js', 'lawlib.js', 'lawlib-data.js']) { r = await req(H, 'GET', '/' + f, { headers: C }); ok(r.status === 200 && r.body.length > 1000, 'ملف الشاشة ' + f + ' يُخدَم للمكتب') }
 r = await req(H, 'POST', '/api/admin/ruling-import', { headers: C, body: { url: 'https://example.com/judgments/1/' } });
-ok(r.status === 400, 'استيراد حكم: رابط من خارج مقام يُرفض دون اتصال');
+ok(r.status === 404, 'استيراد الأحكام برابط خارجي أُلغي (الأحكام من «المِسْبار»)');
 console.log(`\n${passes} PASS · ${fails} FAIL`);
 process.exit(fails ? 1 : 0);
