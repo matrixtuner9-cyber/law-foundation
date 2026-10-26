@@ -626,10 +626,11 @@ export class Office extends DurableObject {
       const a = p.slice(18), aiKey = () => this.store.kv.get('ai_key') || this.env.ANTHROPIC_API_KEY || '', dsKey = () => this.store.kv.get('deepseek_key') || this.env.DEEPSEEK_API_KEY || '';
       if (a === 'analyze' && M === 'POST') {
         if ((d = deny('write'))) return d;
-        this._misbarAi ||= misbarAnalyzer({ misbar: this.misbar(), keys: { deepseek: dsKey, anthropic: aiKey }, audit: e => this.audit(e), models: { deepseek: this.env.MQ_DEEPSEEK_MODEL, anthropic: this.env.MQ_AI_MODEL } });
+        this._misbarAi ||= misbarAnalyzer({ misbar: this.misbar(), keys: { deepseek: dsKey, anthropic: aiKey, provider: () => this.store.kv.get('ai_provider') || '' }, audit: e => this.audit(e), models: { deepseek: this.env.MQ_DEEPSEEK_MODEL, anthropic: this.env.MQ_AI_MODEL } });
         const r = await this._misbarAi.analyze(await jbody(2 * 1024 * 1024), me); return json(r.status, r.body);
       }
-      if (a === 'ai' && M === 'GET') { const dk = dsKey(), c = aiKey(); return json(200, { deepseek: { configured: !!dk, last4: dk ? dk.slice(-4) : '' }, claude: { configured: !!c, last4: c ? c.slice(-4) : '' }, tasks: Object.fromEntries(Object.entries(MISBAR_TASKS).map(([k, v]) => [k, { label: v.label, doc: !!v.doc, refs: !!v.refs }])), canManage: this.auth.can(me, 'manage') }) }
+      if (a === 'ai' && M === 'GET') { const dk = dsKey(), c = aiKey(); return json(200, { deepseek: { configured: !!dk, last4: dk ? dk.slice(-4) : '' }, claude: { configured: !!c, last4: c ? c.slice(-4) : '' }, provider: this.store.kv.get('ai_provider') || '', tasks: Object.fromEntries(Object.entries(MISBAR_TASKS).map(([k, v]) => [k, { label: v.label, doc: !!v.doc, refs: !!v.refs }])), canManage: this.auth.can(me, 'manage') }) }
+      if (a === 'provider' && M === 'POST') { if ((d = deny('manage'))) return d; const b = await jbody(); const v = ['deepseek', 'claude'].includes(b.provider) ? b.provider : ''; this.store.kv.set('ai_provider', v || null); this.audit({ ...who, action: 'misbar.provider', entity: 'settings', detail: { provider: v || 'auto' } }); return json(200, { ok: true, provider: v }) }
       if (a === 'dskey' && M === 'POST') {
         if ((d = deny('manage'))) return d; const b = await jbody(); const k = String(b.key || '').trim();
         if (k && !/^sk-[\w-]{16,200}$/.test(k)) return json(400, { error: 'صيغة مفتاح DeepSeek غير صحيحة (يبدأ بـ sk-).' });

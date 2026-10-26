@@ -62,10 +62,9 @@ function body(){const st=D.status,k=K(D.k);
   ${D.err?`<div class="wide ai-err">${e(D.err)}</div>`:''}
   <div class="wide toolbar"><button class="btn pri" ${D.busy?'disabled':''}>${D.busy?'جارٍ الصياغة…':'صياغة المستند'}</button>${D.busy?'<span class="m" id="aiProg">يحلل الإملاء ويبحث عن المراجع ثم يصوغ؛ قد يستغرق دقيقة</span>':''}</div>
  </form>`}
-function keyBox(st){return st.canManage?`<form class="form" id="fAiKey"><div class="wide ai-note">لتفعيل الصياغة يلزم مفتاح API من Anthropic (console.anthropic.com). يُحفظ المفتاح في خادم المكتب فقط ولا يظهر بعد حفظه لأي مستخدم.</div>
- <label class="wide">مفتاح API<input class="field mono" id="aiKey" type="password" autocomplete="off" placeholder="sk-ant-…" required dir="ltr"></label>
- <div class="wide toolbar"><button class="btn pri">حفظ المفتاح</button></div>${D.err?`<div class="wide ai-err">${e(D.err)}</div>`:''}</form>`
- :`<div class="lg-empty">الصياغة غير مفعّلة بعد. يضيف مدير المكتب مفتاح الذكاء الاصطناعي من هذه الشاشة.</div>`}
+function keyBox(st){return st.canManage?`<div class="lg-empty">لم يُضبط مفتاح الذكاء الاصطناعي بعد. اضبطه من الإعدادات ← «مِسْبار: مفاتيح الذكاء الاصطناعي». <button class="btn pri sm" data-act="aiKeysGo">فتح الإعدادات</button></div>`
+ :`<div class="lg-empty">الصياغة غير مفعّلة بعد. يضبط مدير المكتب مفتاح الذكاء الاصطناعي من الإعدادات.</div>`}
+A.aiKeysGo=()=>{A.close&&A.close();A.nav('settings');setTimeout(()=>{const el=document.getElementById('aiKeys');if(el)el.scrollIntoView({block:'start',behavior:'smooth'})},200)};
 
 /* ── الإملاء ── */
 let rec=null;

@@ -42,7 +42,7 @@ const { lawSearch, rulingSearch: misbarRulings } = Misbar.adapters(misbar); /* �
 const aiKey = () => store.kv.get('ai_key') || process.env.ANTHROPIC_API_KEY || '';
 const dsKey = () => store.kv.get('deepseek_key') || process.env.DEEPSEEK_API_KEY || '';
 /* مختبر تحليل المسبار: DeepSeek أو Claude، مراجعه من القاعدة المحلية فقط */
-const misbarAi = MisbarAi.createAnalyzer({ misbar, keys: { deepseek: dsKey, anthropic: aiKey }, audit, models: { deepseek: process.env.MQ_DEEPSEEK_MODEL, anthropic: process.env.MQ_AI_MODEL } });
+const misbarAi = MisbarAi.createAnalyzer({ misbar, keys: { deepseek: dsKey, anthropic: aiKey, provider: () => store.kv.get('ai_provider') || '' }, audit, models: { deepseek: process.env.MQ_DEEPSEEK_MODEL, anthropic: process.env.MQ_AI_MODEL } });
 const drafter = AiDraft.createDrafter({ audit, getKey: aiKey, laws, lawSearch, rulingSearch: misbarRulings, model: process.env.MQ_AI_MODEL });
 const extractor = AiDraft.createExtractor({ audit, getKey: aiKey, model: process.env.MQ_AI_MODEL });
 const transcriber0 = AiDraft.createTranscriber({ audit, getKey: aiKey, model: process.env.MQ_AI_MODEL });
@@ -695,7 +695,8 @@ async function api(req, res, u) {
   if (p.startsWith('/api/admin/misbar/')) {
     const a = p.slice(18);
     if (a === 'analyze' && M === 'POST') { if (!need('write')) return; const r = await misbarAi.analyze(await jbody(req, 2 * 1024 * 1024), me); return json(res, r.status, r.body) }
-    if (a === 'ai' && M === 'GET') { const d = dsKey(), c = aiKey(); return json(res, 200, { deepseek: { configured: !!d, last4: d ? d.slice(-4) : '' }, claude: { configured: !!c, last4: c ? c.slice(-4) : '' }, tasks: Object.fromEntries(Object.entries(MisbarAi.TASKS).map(([k, v]) => [k, { label: v.label, doc: !!v.doc, refs: !!v.refs }])), canManage: auth.can(me, 'manage') }) }
+    if (a === 'ai' && M === 'GET') { const d = dsKey(), c = aiKey(); return json(res, 200, { deepseek: { configured: !!d, last4: d ? d.slice(-4) : '' }, claude: { configured: !!c, last4: c ? c.slice(-4) : '' }, provider: store.kv.get('ai_provider') || '', tasks: Object.fromEntries(Object.entries(MisbarAi.TASKS).map(([k, v]) => [k, { label: v.label, doc: !!v.doc, refs: !!v.refs }])), canManage: auth.can(me, 'manage') }) }
+    if (a === 'provider' && M === 'POST') { if (!need('manage')) return; const b = await jbody(req); const v = ['deepseek', 'claude'].includes(b.provider) ? b.provider : ''; store.kv.set('ai_provider', v || null); audit({ ...who, action: 'misbar.provider', entity: 'settings', detail: { provider: v || 'auto' } }); return json(res, 200, { ok: true, provider: v }) }
     if (a === 'dskey' && M === 'POST') {
       if (!need('manage')) return; const b = await jbody(req); const k = String(b.key || '').trim();
       if (k && !/^sk-[\w-]{16,200}$/.test(k)) return json(res, 400, { error: 'صيغة مفتاح DeepSeek غير صحيحة (يبدأ بـ sk-).' });

@@ -8,7 +8,7 @@
 if(typeof V==='undefined'||typeof NAV==='undefined')return;
 const e=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const can2=w=>!!(window.MQ&&MQ.user&&({admin:{write:1,manage:1},lawyer:{write:1}}[MQ.user.role]||{})[w]);
-const SRC=[['','كل المصادر'],['PS_JUDGMENT','فلسطين · أحكام'],['PS_LEGISLATION','فلسطين · تشريعات'],['JO_LEGISLATION','الأردن · تشريعات'],['JO_CASSATION','الأردن · تمييز'],['EG_LEGISLATION','مصر · تشريعات']];
+const SRC=[['','كل المصادر — كل الدول'],['PS_JUDGMENT','فلسطين · أحكام'],['PS_LEGISLATION','فلسطين · تشريعات'],['JO_LEGISLATION','الأردن · تشريعات'],['JO_CASSATION','الأردن · تمييز'],['EG_LEGISLATION','مصر · تشريعات']];
 const COURTS=['','محكمة النقض','محكمة استئناف رام الله','محكمة استئناف القدس','محكمة العدل العليا','المحكمة الدستورية العليا','محكمة جرائم الفساد','محكمة التمييز الأردنية'];
 const STATUS=[['','كل الحالات'],['in_force','ساري'],['partial','ساري في الضفة الغربية فقط'],['suspended','موقوف النفاذ'],['repealed','ملغى / غير ساري']];
 /* أدوات المحامي: كل أداة تفتح «مِسْبار» بالنمط المناسب، ومراجعه من قاعدة المسبار */
@@ -25,7 +25,7 @@ const TOOLS=[
  ['translate','⇄','الترجمة القانونية','ترجمة دقيقة تحفظ الترقيم والمصطلحات'],
  ['minutes','◉','محضر اجتماع','القرارات والمسؤوليات والمواعيد']];
 const LAB={task:'search',provider:'',q:'',facts:'',doc:'',docName:'',lang:'en',consent:false,busy:false,res:null,err:'',ai:null,src:''};
-/* مهام مختبر التحليل (DeepSeek أو Claude، والمراجع من القاعدة فقط) */
+/* مهام مختبر التحليل (المراجع من القاعدة فقط) */
 /* علامة الميزان المميزة: تُستعمل حيثما ذُكر مِسْبار */
 const MK='<img src="misbar-emblem.webp" alt="" class="mb-mk" width="20" height="19">';
 const LABT=[['search',MK,'عقل مِسْبار','اسأل بلغتك فيبحث بالمصطلحات القانونية ويجيب من القاعدة بالمراجع'],['legal_question','◇','السؤال القانوني','النصوص المنطبقة والمبادئ والثغرات وما يلزم إثباته'],['gaps','⌕','الثغرات والدفوع','استقصاء الثغرات والدفوع وخطة قابلة للتنفيذ'],['document','▤','تحليل المستند','الالتزامات والتناقضات والعيوب والنصوص ذات الصلة'],['appeal','⚖','أسباب الطعن','أسباب الطعن المحتملة في الحكم والمهل الواجب التحقق منها'],['contract','▣','مراجعة عقد','المخاطر والشروط المجحفة والغموض والتوصيات'],['hearing','◷','ملخص قبل الجلسة','الوقائع والطلبات والبينات والأسئلة المتوقعة'],['minutes','◉','محضر اجتماع','القرارات والمسؤوليات والمواعيد من التفريغ النصي'],['translate','⇄','الترجمة القانونية','ترجمة دقيقة تحفظ الترقيم والمصطلحات']];
@@ -66,6 +66,7 @@ const FLAG={
 const fmtN=n=>Number(n||0).toLocaleString('en-US');
 const badge=r=>`<span class="mb-src ${r.primary?'ps':'cmp'}">${e(r.source)}</span>`;
 function statusPill(r){if(!r.status_code&&!r.status)return '';const c=r.status_code==='in_force'||r.status_code==='partial'?'ok':r.status_code==='suspended'?'warn':r.status_code==='repealed'?'bad':'';return `<span class="mb-st ${c}">${e(r.status||'')}</span>`}
+const cleanT=t=>String(t||'').replace(/\s*[-–|]\s*(ويكي\s*مصدر|Lawyer Egypt.*|منشورات قانونية)\s*$/,'');
 const hl=(t,q)=>{let h=e(t);const ws=String(q||'').replace(/["()]/g,' ').split(/\s+/).filter(w=>w.length>2).slice(0,6);
  for(const w of ws){const core=w.replace(/^(?:وال|بال|كال|فال|لل|ال)/,'');if(core.length<2)continue;
   const rx=core.split('').map(c=>({'ا':'[اأإآ]','أ':'[اأإآ]','إ':'[اأإآ]','آ':'[اأإآ]','ي':'[يى]','ى':'[يى]','ه':'[هة]','ة':'[هة]'}[c]||c.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'))).join('[\\u064B-\\u0652\\u0640]*');
@@ -84,7 +85,7 @@ function side(){
   <div class="mb-note">المراجع الفلسطينية أساسية؛ الأردنية والمصرية للمقارنة والاستئناس. لا يُعتمد أي استنتاج قبل مراجعة المحامي.</div></aside>`}
 /* نوع المرجع يحدد الفلاتر: التشريع (رقمه، نوعه، حالة سريانه، سنته) والحكم (المحكمة، رقم القضية، نوع الدعوى، تاريخ القرار) */
 const kindOf=()=>MB.kind||(MB.src?(/JUDGMENT|CASSATION/.test(MB.src)?'ruling':'law'):'');
-function srcOpts(){const k=kindOf(),c=MB.country;return SRC.filter(([v])=>!v||((!c||v.startsWith(c+'_'))&&(!MB.kind||(MB.kind==='ruling')===/JUDGMENT|CASSATION/.test(v))))}
+function srcOpts(){return SRC.filter(([v])=>!v||((true)&&(!MB.kind||(MB.kind==='ruling')===/JUDGMENT|CASSATION/.test(v))))}
 function form(){
  const opt=(arr,v)=>arr.map(([k,t])=>`<option value="${k}" ${v===k?'selected':''}>${t}</option>`).join('');
  const st=MB.stats||{},k=kindOf(),c=MB.country;
@@ -121,7 +122,7 @@ function results(){
  return `<div class="mb-rh"><b>نتائج البحث</b><span class="m">النتائج: ${fmtN(d.total)} — صفحة ${d.page} من ${fmtN(d.pages)}</span></div>${f}
   <ol class="mb-list">${d.results.map(r=>`<li class="${MB.open===r.id?'on':''}"><button class="mb-it" data-act="mbOpen" data-v="${r.id}">
    <div class="mb-tags">${badge(r)}${statusPill(r)}${r.has_text?'':'<span class="mb-st">النص غير متوفر</span>'}</div>
-   <b class="mb-t">${hl(r.title,MB.q)}</b>
+   <b class="mb-t">${hl(cleanT(r.title),MB.q)}</b>
    <div class="mb-meta">${[r.court,r.case_no&&('رقم '+r.case_no),r.date||r.year,r.ltype].filter(Boolean).map(e).join(' · ')}</div>
    ${r.excerpt?`<p class="mb-x">${hl(r.excerpt,MB.q)}</p>`:''}</button></li>`).join('')}</ol>
   ${d.pages>1?`<div class="mb-pg">${d.page>1?`<button class="btn sm" data-act="mbPage" data-v="${d.page-1}">→ السابق</button>`:''}<span class="m">${d.page} / ${fmtN(d.pages)}</span>${d.page<d.pages?`<button class="btn sm" data-act="mbPage" data-v="${d.page+1}">التالي ←</button>`:''}</div>`:''}`}
@@ -133,9 +134,10 @@ function reader(){
  if(MB.docBusy)return `<div class="mb-empty">جارٍ فتح المستند…</div>`;
  if(!d)return `<div class="mb-empty"><b>قارئ المصادر داخل التطبيق</b><span>اختر مستنداً من نتائج البحث لعرضه هنا.</span></div>`;
  const m=d.meta||{};
- return `<div class="mb-doc-h"><div class="mb-tags">${badge(d)}${statusPill(d)}</div><h2>${e(d.title)}</h2>
+ return `<div class="mb-doc-h"><div class="mb-tags">${badge(d)}${statusPill(d)}</div><h2>${e(cleanT(d.title))}</h2>
   <div class="mb-meta">${[d.court,d.case_no&&('رقم '+d.case_no),d.date||d.year,d.ltype,d.subject].filter(Boolean).map(e).join(' · ')}</div>
   ${d.primary?'':`<div class="mb-cmp">مرجع ${d.country==='JO'?'أردني':'مصري'} للمقارنة والاستئناس، وليس ملزماً أمام المحاكم الفلسطينية.${m.note?' '+e(m.note):''}</div>`}
+  ${d.body?`<div class="mb-find" role="search"><span class="mb-find-i" aria-hidden="true">⌕</span><input id="mbFind" type="search" placeholder="ابحث في نص ${d.kind==='law'?'التشريع':'الحكم'}… (Enter للتالي)" aria-label="البحث في النص" autocomplete="off"><span class="mb-find-n" id="mbFindN"></span><button type="button" class="btn sm" data-act="mbFindStep" data-v="-1" aria-label="السابق">▲</button><button type="button" class="btn sm" data-act="mbFindStep" data-v="1" aria-label="التالي">▼</button></div>`:''}
   <div class="mb-tools"><button class="btn sm" data-act="mbFs" data-v="-1">A−</button><button class="btn sm" data-act="mbFs" data-v="0">افتراضي</button><button class="btn sm" data-act="mbFs" data-v="1">A+</button>
    <button class="btn sm" data-act="mbCopy">نسخ</button><button class="btn sm" data-act="mbPrint">طباعة A4</button>
    ${d.kind==='ruling'&&can2('write')?'<button class="btn sm" data-act="mbSaveRuling">حفظ في الاجتهادات</button>':''}
@@ -147,9 +149,6 @@ function reader(){
 async function loadAi(){if(LAB.ai)return;try{LAB.ai=await call('ai',{})}catch(x){LAB.ai={error:x.message}}if(S.view==='misbar'&&MB.view==='tools'){const el=document.getElementById('mbLab');if(el)el.innerHTML=labView()}}
 function labView(){
  const ai=LAB.ai,T=LABT.find(t=>t[0]===LAB.task)||LABT[0],needDoc=['document','appeal','contract','translate'].includes(LAB.task);
- const prov=ai&&!ai.error?[['deepseek','DeepSeek',ai.deepseek.configured],['claude','Claude',ai.claude.configured]]:[];
- const cur=LAB.provider||(prov.find(p=>p[2])||[''])[0];
- const keyBox=ai&&!ai.error&&ai.canManage?`<details class="mb-key"><summary>إعداد مفاتيح الذكاء الاصطناعي</summary><div class="mb-keyrow"><label>مفتاح DeepSeek ${ai.deepseek.configured?`<span class="mb-st ok">مضبوط ···${e(ai.deepseek.last4)}</span>`:'<span class="mb-st">غير مضبوط</span>'}</label><input class="field mono" id="mbDsKey" dir="ltr" placeholder="sk-…" autocomplete="off"><button type="button" class="btn sm" data-act="mbDsKey">حفظ</button>${ai.deepseek.configured?'<button type="button" class="btn sm" data-act="mbDsKeyDel">إزالة</button>':''}</div><p class="m">مفتاح Claude يُضبط من إعدادات الصياغة. المفاتيح تبقى في الخادم ولا تُعاد للمتصفح.</p></details>`:'';
  return `<div class="mb-h"><div><h1>مختبر التحليل القانوني واستخلاص النتائج</h1><p class="m">اختر المهمة، ثم أدخل السؤال أو الوقائع أو المستند. المحلل يسترجع مقتطفات موثّقة من قاعدة المسبار ويضع رقم المرجع [M…] بجانب كل ادعاء؛ ويجب تدقيق صلتها وحجيتها قبل الاعتماد.</p></div></div>
   <div class="mb-tabs">${LABT.map(([m,ic,t])=>`<button type="button" class="${LAB.task===m?'on':''}" data-act="mbLab" data-v="${m}"><i>${ic}</i> ${t}</button>`).join('')}</div>
   <p class="mb-tdesc">${e(T[3])}</p>
@@ -160,13 +159,11 @@ function labView(){
    ${needDoc||LAB.task==='gaps'||LAB.task==='legal_question'?`<label class="wide">${needDoc?'نص الحكم أو العقد أو المستند':'نص مستند (اختياري)'}<textarea class="field" id="mbLd" rows="8" placeholder="ألصق النص هنا أو استورد ملفاً نصياً…">${e(LAB.doc)}</textarea></label>
    <div class="mb-labrow"><label class="mb-file">استيراد مستند نصي (txt / docx)<input type="file" id="mbLfile" accept=".txt,.docx,.md"></label>${LAB.docName?`<span class="m">${e(LAB.docName)}</span>`:''}</div>`:''}`}
    <div class="mb-labrow">
-    ${prov.length?`<span class="mb-prov">المزوّد: ${prov.map(([v,t,ok])=>`<button type="button" class="mb-chip sm ${cur===v?'on':''} ${ok?'':'off'}" data-act="mbProv" data-v="${v}" ${ok?'':'disabled title="المفتاح غير مضبوط"'}>${t}</button>`).join('')}</span>`:''}
     <label class="mb-consent"><input type="checkbox" id="mbLc" ${LAB.consent?'checked':''}> أوافق على إرسال النص المدخل والمقتطفات المسترجعة إلى خدمة الذكاء الاصطناعي الخارجية، بعد حذف البيانات الشخصية والسرية.</label>
    </div>
    <div class="mb-labrow"><button class="btn mb-go" id="mbLgo" ${LAB.busy?'disabled':''}>${LAB.busy?'جارٍ التحليل…':MK+' '+(LAB.task==='search'?'عقل مِسْبار':'استخراج النتائج القانونية')}</button>${LAB.busy?'<span class="m">يبحث في القاعدة ثم يحلل…</span>':''}</div>
   </form>
-  ${keyBox}
-  ${ai&&ai.error?`<div class="mb-empty bad">${e(ai.error)}</div>`:ai&&!ai.deepseek.configured&&!ai.claude.configured?`<div class="mb-cmp">لم يُضبط مفتاح الذكاء الاصطناعي بعد (DeepSeek أو Claude). ${ai.canManage?'اضبطه من «إعداد مفاتيح الذكاء الاصطناعي» أعلاه.':'يضبطه مدير المكتب.'}</div>`:''}
+  ${ai&&ai.error?`<div class="mb-empty bad">${e(ai.error)}</div>`:ai&&!ai.deepseek.configured&&!ai.claude.configured?`<div class="mb-cmp">لم يُضبط مفتاح الذكاء الاصطناعي بعد. ${ai.canManage?'<button type="button" class="btn sm" data-act="aiKeysGo">ضبطه من الإعدادات</button>':'يضبطه مدير المكتب من الإعدادات.'}</div>`:''}
   ${LAB.err?`<div class="mb-empty bad">${e(LAB.err)}</div>`:''}
   ${LAB.res?labResult():''}`}
 /* تحويل نص التحليل إلى فقرات: العناوين (#، أرقام، **) ونقاط، ومراجع [M123] قابلة للفتح */
@@ -178,7 +175,7 @@ function labHtml(t){const ref=x=>x.replace(/\[M(\d+)\]/g,(m,id)=>`<button type="
   close();out+=`<p>${ref(e(l)).replace(/\*\*([^*]+)\*\*/g,'<b>$1</b>')}</p>`}
  close();return out}
 function labResult(){const r=LAB.res;
- return `<section class="mb-labres" id="mbLabRes"><div class="mb-rh"><b>حصيلة التحليل والمراجع</b><span class="m">${r.provider==='deepseek'?'DeepSeek':'Claude'}${r.model?' · '+e(r.model):''}${r.queries&&r.queries.length?' · استعلامات: '+r.queries.map(e).join('، '):''}</span></div>
+ return `<section class="mb-labres" id="mbLabRes"><div class="mb-rh"><b>حصيلة التحليل والمراجع</b><span class="m">${r.queries&&r.queries.length?'بحث في القاعدة عن: '+r.queries.map(e).join('، '):''}</span></div>
   <div class="mb-body mb-ana">${labHtml(r.analysis)}</div>
   ${r.refs&&r.refs.length?`<div class="mb-cites"><b>المراجع المسترجعة (${r.refs.length})${r.refs.some(x=>x.cited)?' — المستشهد بها معلّمة':''}</b><ul>${r.refs.map(x=>`<li class="${x.cited?'cited':''}"><button type="button" class="mb-ref" data-act="mbRefOpen" data-v="${x.id}">[${x.ref}]</button> ${e(x.title)} <small>${e(x.source)}${x.primary?'':' — للمقارنة والاستئناس'}${x.case_no?' · رقم '+e(x.case_no):''}${x.year?' · '+e(x.year):''}${x.status?' · '+e(x.status):''}</small></li>`).join('')}</ul></div>`:''}
   <div class="mb-cmp">تحليل آلي من المراجع المرفقة فقط؛ راجع كل مرجع بنصه الكامل قبل الاستشهاد به. لا يُعتمد قبل مراجعة المحامي.</div>
@@ -207,7 +204,7 @@ function readForm(){const g=id=>document.getElementById(id);if(!g('mbQ'))return;
 /* ── الأفعال ── */
 document.addEventListener('submit',ev=>{if(ev.target.id!=='mbForm')return;ev.preventDefault();ev.stopImmediatePropagation();run(1)},true);
 document.addEventListener('change',ev=>{if(S.view!=='misbar')return;
- if(ev.target.id==='mbSrcSel'){const was=kindOf();readForm();MB.kind='';if(kindOf()!==was){mbRender();if(hasQuery())run(1);return}}
+ if(ev.target.id==='mbSrcSel'){const was=kindOf();readForm();MB.kind='';MB.country=MB.src?MB.src.slice(0,2):'';document.querySelectorAll('.mb-flag').forEach(b=>b.classList.toggle('on',b.dataset.v===MB.country));if(!MB.src){mbRender();if(hasQuery())run(1);return}if(kindOf()!==was){mbRender();if(hasQuery())run(1);return}}
  if(['mbSrcSel','mbCourt','mbStatus','mbText','mbSort','mbLtype','mbD1','mbD2'].includes(ev.target.id)&&MB.data){run(1)}});
 A.mbView=v=>{readForm();MB.view=v==='tools'?'tools':'search';mbRender()};
 A.mbSrc=v=>{readForm();MB.src=MB.src===v?'':v;if(MB.view!=='search'){MB.view='search';mbRender()}const s=document.getElementById('mbSrcSel');if(s)s.value=MB.src;if(hasQuery())run(1);else{MB.data=null;paint()}document.querySelectorAll('.mb-chip').forEach(b=>b.classList.toggle('on',b.dataset.v===MB.src))};
@@ -222,6 +219,27 @@ A.mbOpen=async v=>{const id=Number(v);if(!id)return;MB.open=id;MB.docBusy=true;M
  paintReader();
  try{MB.doc=await call('doc',{id})}catch(x){toast(x.message);MB.doc=null}MB.docBusy=false;paintReader();
  const b=document.querySelector('#mbReader .mb-rbox');if(b)b.scrollTop=0};
+/* البحث داخل نص القارئ: يتجاهل التشكيل والهمزات والتاء المربوطة، مع عدّاد وتنقل */
+const FIND={i:0,n:0,t:0};
+const arRx=w=>w.split('').map(c=>({'ا':'[اأإآٱ]','أ':'[اأإآٱ]','إ':'[اأإآٱ]','آ':'[اأإآٱ]','ي':'[يى]','ى':'[يى]','ه':'[هة]','ة':'[هة]','و':'[وؤ]','ء':'[ءئؤ]'}[c]||c.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'))).join('[\\u064B-\\u0652\\u0670\\u0640]*');
+function findApply(q,keep){const box=document.querySelector('#mbReader .mb-body');if(!box||!MB.doc||!MB.doc.body)return;
+ /* النص من جديد بلا تظليل البحث العام حتى لا تنقسم العبارة بين عناصر */
+ box.innerHTML=bodyHtml(MB.doc.body,String(q||'').trim().length>=2?'':MB.q);
+ const term=String(q||'').replace(/[\u064B-\u0652\u0640]/g,'').trim();FIND.n=0;
+ if(term.length>=2){const rx=new RegExp(term.split(/\s+/).map(arRx).join('[\\u064B-\\u0652\\u0670\\u0640]*\\s+')+'[\\u064B-\\u0652\\u0670\\u0640]*','g');
+  const tw=document.createTreeWalker(box,NodeFilter.SHOW_TEXT),nodes=[];while(tw.nextNode())nodes.push(tw.currentNode);
+  for(const nd of nodes){const tx=nd.nodeValue;rx.lastIndex=0;if(!rx.test(tx))continue;rx.lastIndex=0;const fr=document.createDocumentFragment();let last=0,m;
+   while((m=rx.exec(tx))){if(!m[0])break;fr.appendChild(document.createTextNode(tx.slice(last,m.index)));const mk=document.createElement('mark');mk.className='mb-hit';mk.textContent=m[0];fr.appendChild(mk);last=m.index+m[0].length;FIND.n++}
+   fr.appendChild(document.createTextNode(tx.slice(last)));nd.replaceWith(fr)}}
+ FIND.i=keep?Math.min(FIND.i,Math.max(0,FIND.n-1)):0;findShow()}
+function findShow(){const hits=[...document.querySelectorAll('#mbReader mark.mb-hit')];hits.forEach((h,k)=>h.classList.toggle('cur',k===FIND.i));
+ const n=document.getElementById('mbFindN'),q=(document.getElementById('mbFind')||{}).value||'';if(n)n.textContent=q.trim().length<2?'':FIND.n?`${FIND.i+1} / ${FIND.n}`:'لا نتائج';
+ const c=hits[FIND.i];if(c){const box=document.querySelector('#mbReader .mb-rbox'),hd=box.querySelector('.mb-doc-h');const top=c.getBoundingClientRect().top-box.getBoundingClientRect().top+box.scrollTop-(hd?hd.offsetHeight:0)-90;box.scrollTo({top,behavior:'smooth'})}}
+A.mbFindStep=v=>{if(!FIND.n)return;FIND.i=(FIND.i+Number(v)+FIND.n)%FIND.n;findShow()};
+document.addEventListener('input',ev=>{if(ev.target.id!=='mbFind')return;clearTimeout(FIND.t);FIND.t=setTimeout(()=>findApply(ev.target.value),180)});
+document.addEventListener('keydown',ev=>{if(ev.target.id!=='mbFind')return;if(ev.key==='Enter'){ev.preventDefault();A.mbFindStep(ev.shiftKey?-1:1)}else if(ev.key==='Escape'){ev.stopPropagation();ev.target.value='';findApply('')}},true);
+/* Ctrl+F داخل القارئ يفتح البحث في النص */
+document.addEventListener('keydown',ev=>{if(!(ev.ctrlKey||ev.metaKey)||ev.key.toLowerCase()!=='f')return;const f=document.getElementById('mbFind');if(!f)return;ev.preventDefault();f.focus();f.select()});
 A.mbReaderClose=()=>{MB.doc=null;MB.docBusy=false;paintReader()};
 /* المسبار شاشة كاملة فوق المِسْبار: زر العودة وEsc يعيدان إلى الشاشة السابقة */
 let prevView='dash';
@@ -263,8 +281,6 @@ document.addEventListener('change',async ev=>{if(ev.target.id!=='mbLfile')return
 A.mbRefOpen=v=>A.mbOpen(v);
 A.mbLabCopy=()=>{const r=LAB.res;if(!r)return;navigator.clipboard.writeText(r.analysis+'\n\nالمراجع:\n'+(r.refs||[]).map(x=>`[${x.ref}] ${x.title} — ${x.source}${x.url?' — '+x.url:''}`).join('\n')).then(()=>toast('نُسخ التحليل'),()=>toast('تعذّر النسخ'))};
 A.mbLabPrint=()=>{const r=LAB.res;if(!r||!window.MQP||!MQP.B)return;const B=MQP.B;MQP.open({label:'تحليل المسبار',build(){return {title:'مِسْبار — '+((LABT.find(t=>t[0]===r.task)||[])[2]||'تحليل'),sub:(LAB.q||LAB.facts||'').slice(0,120),file:'misbar-analysis',blocks:[{html:`<div class="mb-print">${labHtml(r.analysis)}</div>`},...(r.refs&&r.refs.length?[B.h('المراجع'),...r.refs.map(x=>B.p(e(`[${x.ref}] ${x.title} — ${x.source}${x.primary?'':' (للمقارنة والاستئناس)'}${x.case_no?' · رقم '+x.case_no:''}${x.year?' · '+x.year:''}`)))]:[]),B.box('تحليل آلي من مراجع قاعدة المسبار فقط؛ لا يُعتمد قبل مراجعة المحامي.')]}}})};
-A.mbDsKey=async()=>{const i=document.getElementById('mbDsKey');if(!i)return;const key=i.value.trim();if(!key)return toast('الصق المفتاح أولاً');try{const r=await fetch('/api/admin/misbar/dskey',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key})});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'تعذّر الحفظ');LAB.ai=null;toast('حُفظ مفتاح DeepSeek');await loadAi()}catch(x){toast(x.message)}};
-A.mbDsKeyDel=async()=>{if(!confirm('إزالة مفتاح DeepSeek؟'))return;try{await fetch('/api/admin/misbar/dskey',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key:''})});LAB.ai=null;await loadAi()}catch(x){toast(x.message)}};
 A.mbTool=v=>{v=String(v||'question');if(v==='draft'){if(!can2('write'))return toast('الصياغة متاحة للمحامين ومدير المكتب');const k=S.view==='case'?S.caseId:(S.bagCase||'');return typeof A.aiOpen==='function'?A.aiOpen(k):toast('الصياغة غير متاحة')}openTool(v)};
 A.mbAnalyze=()=>{const d=MB.doc;if(!d)return;openTool(d.kind==='ruling'?'appeal':'gaps',docText(d))};
 
@@ -291,6 +307,11 @@ body.mb-rd{overflow:hidden}
 .mb-rbox .mb-body h4{text-align:center;color:#8A6A25;border-top:1px solid #eadcb8;padding-top:14px;margin-top:20px}
 .mb-rbox .mb-cites{max-width:860px;margin:12px auto 30px}
 .mb-rbox .mb-empty{padding:120px 20px}
+.mb-find{display:flex;align-items:center;gap:6px;margin:12px 0 2px;padding:5px 6px 5px 10px;border-radius:12px;background:rgb(255 255 255 / .07);border:1px solid rgb(201 162 74 / .55);max-width:640px}
+.mb-find-i{color:#F3D58A;font-size:16px}.mb-find input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:#fff;font:inherit;font-size:14.5px;padding:6px 2px}.mb-find input::placeholder{color:#9fb0bf}
+.mb-find-n{color:#F3D58A;font-size:12.5px;white-space:nowrap;min-width:52px;text-align:center}
+.mb-find .btn{padding:4px 10px!important;min-width:0}
+mark.mb-hit{background:#FFE58A;color:inherit;border-radius:3px;padding:0 1px;box-shadow:0 0 0 1px #E2C25C}mark.mb-hit.cur{background:#F2A93B;box-shadow:0 0 0 2px #C77A10,0 0 12px rgb(242 169 59 / .7)}
 .mb-top{border-radius:16px;overflow:hidden;background:#0B1B2B;border:1px solid rgb(201 162 74 / .55);box-shadow:0 8px 24px rgb(11 27 43 / .22)}
 .mb-hero{position:relative;overflow:hidden;aspect-ratio:1436/250;width:100%;background:#0B1B2B url(misbar-hero.webp) center/cover no-repeat}
 .mb-sub{position:absolute;z-index:2;left:73.9%;top:85%;transform:translate(-50%,-50%);color:#F3D58A;font-size:clamp(11px,1.45vw,17px);font-weight:700;letter-spacing:.02em;white-space:nowrap;text-shadow:0 0 6px rgb(243 213 138 / .6),0 1px 2px #000}
@@ -324,6 +345,8 @@ body.mb-rd{overflow:hidden}
 .mb-go{background:linear-gradient(180deg,#D9B45C,#B38B49)!important;color:#0B1B2B!important;border:0!important;font-weight:800;padding:0 22px}
 .mb-mk{width:20px;height:auto;vertical-align:-4px;border-radius:50%;box-shadow:0 0 0 1px rgb(233 196 106 / .8),0 0 6px rgb(243 213 138 / .6)}
 .mb-side .mb-mk,.mb-tabs .mb-mk{width:18px}
+.mb-krow{display:grid;grid-template-columns:minmax(180px,240px) 1fr auto auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line,#eee4cf)}.mb-kname{display:flex;flex-direction:column;gap:2px}.mb-kname small{color:#8a7a5a;font-size:11.5px}.mb-kprov{display:flex;flex-direction:column;gap:4px;margin-top:12px;max-width:320px;font-size:12.5px;color:#7a6a4c}
+@media(max-width:700px){.mb-krow{grid-template-columns:1fr}}
 svg.mb-navmk{border-radius:50%;filter:drop-shadow(0 0 3px rgb(243 213 138 / .7))}
 .mb-kind{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.mb-kind button{display:flex;align-items:center;gap:8px;font:inherit;font-size:14px;font-weight:700;padding:9px 16px;border-radius:12px;border:1px solid #e4d3a6;background:#FBF6EA;color:#5a4a26;cursor:pointer;transition:all .2s}
 .mb-kind button i{font-style:normal;color:#B38B49;font-size:16px}.mb-kind button.on{background:linear-gradient(160deg,#16314A,#0B1B2B);color:#F3D58A;border-color:#C9A24A;box-shadow:0 4px 14px rgb(11 27 43 / .25)}.mb-kind button.on i{color:#F3D58A}
@@ -394,5 +417,20 @@ function startFx(){const cv=document.querySelector('.mb-fx');if(!cv||cv._on)retu
   if(!reduce)raf=requestAnimationFrame(frame)}
  frame()}
 const vm0=V.misbar;V.misbar=function(){const h=vm0.apply(this,arguments);setTimeout(startFx,30);return h};
+/* الإعدادات: مفاتيح الذكاء الاصطناعي ومزوّده (المكان الوحيد الذي تُذكر فيه أسماء المزوّدين) */
+if(typeof V.settings==='function'){const vs0=V.settings;V.settings=function(){const h=vs0.apply(this,arguments);if(!can2('manage'))return h;setTimeout(keysLoad,0);
+ return h+`<section class="panel" id="aiKeys" style="margin-top:16px"><header><h2>${MK} مِسْبار: مفاتيح الذكاء الاصطناعي</h2></header><div class="bd" id="aiKeysBd">جارٍ التحميل…</div></section>`}}
+async function keysLoad(){const bd=document.getElementById('aiKeysBd');if(!bd)return;let ai;try{ai=await call('ai',{})}catch(x){bd.textContent=x.message;return}LAB.ai=ai;
+ const row=(id,name,st,ph,hint)=>`<div class="mb-krow"><div class="mb-kname"><b>${name}</b><span class="mb-st ${st.configured?'ok':''}">${st.configured?'مضبوط ···'+e(st.last4):'غير مضبوط'}</span><small>${hint}</small></div>
+  <input class="field mono" id="k_${id}" type="password" dir="ltr" autocomplete="off" placeholder="${ph}"><button type="button" class="btn sm pri" data-act="aiKeySave" data-v="${id}">حفظ</button>${st.configured?`<button type="button" class="btn sm" data-act="aiKeyDel" data-v="${id}">إزالة</button>`:'<span></span>'}</div>`;
+ bd.innerHTML=`<p class="m">مِسْبار يستعمل خدمة ذكاء اصطناعي خارجية للتحليل والصياغة فقط؛ البحث في التشريعات والقرارات محلي ولا يحتاجها. المفاتيح تُحفظ في الخادم ولا تُعرض بعد حفظها.</p>
+  ${row('deepseek','DeepSeek',ai.deepseek,'sk-…','platform.deepseek.com')}${row('claude','Claude (Anthropic)',ai.claude,'sk-ant-…','console.anthropic.com')}
+  <label class="mb-kprov">المزوّد المفضّل للتحليل<select class="field" id="k_provider"><option value="">تلقائي (المتاح أولاً)</option><option value="deepseek" ${ai.provider==='deepseek'?'selected':''}>DeepSeek</option><option value="claude" ${ai.provider==='claude'?'selected':''}>Claude</option></select></label>
+  <p class="m">صياغة اللوائح والمساعد في القضايا يستعملان مفتاح Claude.</p>`}
+A.aiKeySave=async v=>{const i=document.getElementById('k_'+v);const key=(i&&i.value||'').trim();if(!key)return toast('الصق المفتاح أولاً');
+ try{const r=await fetch(v==='claude'?'/api/admin/ai/key':'/api/admin/misbar/dskey',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key})});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'تعذّر الحفظ');toast('حُفظ المفتاح');keysLoad()}catch(x){toast(x.message)}};
+A.aiKeyDel=async v=>{if(!confirm('إزالة المفتاح؟'))return;try{await fetch(v==='claude'?'/api/admin/ai/key':'/api/admin/misbar/dskey',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({key:''})});keysLoad()}catch(x){toast(x.message)}};
+document.addEventListener('change',async ev=>{if(ev.target.id!=='k_provider')return;try{const r=await fetch('/api/admin/misbar/provider',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({provider:ev.target.value})});if(!r.ok)throw new Error('تعذّر الحفظ');toast('حُفظ المزوّد المفضّل')}catch(x){toast(x.message)}});
+if(typeof A.aiKeysGo!=='function')A.aiKeysGo=()=>A.nav('settings');
 window.MQ_misbar=MB;
 })();
