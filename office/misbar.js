@@ -185,10 +185,16 @@ function labResult(){const r=LAB.res;
   <div class="mb-tools"><button class="btn sm" data-act="mbLabCopy">نسخ التحليل</button><button class="btn sm" data-act="mbLabPrint">طباعة تقرير A4</button>${(S.view==='case'||S.bagCase)&&typeof A.asSave==='function'?'':''}</div></section>`}
 function toolsView(){setTimeout(loadAi,0);return `<section class="mb-card" id="mbLab">${labView()}</section>`}
 V.misbar=()=>{setTimeout(loadStats,0);
- return `<div class="mb-wrap">${head()}<div class="mb-grid">${side()}<main class="mb-main">${MB.view==='tools'?toolsView():`
+ const enter=!!MB._enter;MB._enter=false;
+ return `<div class="mb-wrap${enter?' mb-enter':''}">${head()}<div class="mb-grid">${side()}<main class="mb-main">${MB.view==='tools'?toolsView():`
   <section class="mb-card"><div class="mb-h"><div><h1>البحث القانوني المتقدم</h1><p class="m">استقصاء التشريعات والقرارات المحلية والمقارنة</p></div></div>${form()}</section>
   <section class="mb-card mb-resw" id="mbRes">${results()}</section>`}</main></div></div>`};
 
+/* إعادة رسم داخل المسبار دون إعادة بناء الصفحة كلها (يمنع الرمش واختفاء الهيدر) */
+function mbRender(){const w=document.querySelector('.mb-wrap');if(S.view!=='misbar'||!w)return render();
+ const t=document.createElement('div');t.innerHTML=V.misbar();const nw=t.querySelector('.mb-wrap');if(!nw)return render();
+ const os=w.querySelector('.mb-side'),ns=nw.querySelector('.mb-side'),om=w.querySelector('.mb-main'),nm=nw.querySelector('.mb-main');
+ if(os&&ns)os.replaceWith(ns);if(om&&nm)om.replaceWith(nm);paintHead()}
 function paint(){if(S.view!=='misbar')return;const r=document.getElementById('mbRes');if(r)r.innerHTML=results();const g=document.getElementById('mbGo');if(g)g.disabled=MB.busy;paintReader()}
 /* القارئ: نافذة منبثقة تملأ الشاشة */
 function paintReader(){let ov=document.getElementById('mbReader');if(!MB.doc&&!MB.docBusy){if(ov)ov.remove();document.body.classList.remove('mb-rd');return}
@@ -201,16 +207,16 @@ function readForm(){const g=id=>document.getElementById(id);if(!g('mbQ'))return;
 /* ── الأفعال ── */
 document.addEventListener('submit',ev=>{if(ev.target.id!=='mbForm')return;ev.preventDefault();ev.stopImmediatePropagation();run(1)},true);
 document.addEventListener('change',ev=>{if(S.view!=='misbar')return;
- if(ev.target.id==='mbSrcSel'){const was=kindOf();readForm();MB.kind='';if(kindOf()!==was){render();if(hasQuery())run(1);return}}
+ if(ev.target.id==='mbSrcSel'){const was=kindOf();readForm();MB.kind='';if(kindOf()!==was){mbRender();if(hasQuery())run(1);return}}
  if(['mbSrcSel','mbCourt','mbStatus','mbText','mbSort','mbLtype','mbD1','mbD2'].includes(ev.target.id)&&MB.data){run(1)}});
-A.mbView=v=>{readForm();MB.view=v==='tools'?'tools':'search';render()};
-A.mbSrc=v=>{readForm();MB.src=MB.src===v?'':v;if(MB.view!=='search'){MB.view='search';render()}const s=document.getElementById('mbSrcSel');if(s)s.value=MB.src;if(hasQuery())run(1);else{MB.data=null;paint()}document.querySelectorAll('.mb-chip').forEach(b=>b.classList.toggle('on',b.dataset.v===MB.src))};
+A.mbView=v=>{readForm();MB.view=v==='tools'?'tools':'search';mbRender()};
+A.mbSrc=v=>{readForm();MB.src=MB.src===v?'':v;if(MB.view!=='search'){MB.view='search';mbRender()}const s=document.getElementById('mbSrcSel');if(s)s.value=MB.src;if(hasQuery())run(1);else{MB.data=null;paint()}document.querySelectorAll('.mb-chip').forEach(b=>b.classList.toggle('on',b.dataset.v===MB.src))};
 A.mbPage=v=>run(Number(v)||1);
 /* تبديل نوع المرجع: تتغير الفلاتر، وتُفرَّغ الخاصة بالنوع الآخر */
 A.mbKind=v=>{readForm();const was=kindOf();MB.kind=v==='law'||v==='ruling'?v:'';if(MB.src&&MB.kind&&(MB.kind==='ruling')!==/JUDGMENT|CASSATION/.test(MB.src))MB.src='';
- if(kindOf()!==was)Object.assign(MB,{number:'',ltype:'',status:'',court:'',case_no:'',date_from:'',date_to:''});MB.view='search';render();if(hasQuery())run(1)};
-A.mbCountry=v=>{readForm();MB.country=MB.country===v?'':v;if(MB.country&&MB.src&&!MB.src.startsWith(MB.country+'_'))MB.src='';MB.view='search';render();document.querySelectorAll('.mb-flag').forEach(b=>b.classList.toggle('on',b.dataset.v===MB.country));if(hasQuery())run(1);else{MB.data=null;paint()}};
-A.mbClear=()=>{Object.assign(MB,{q:'',kind:'',number:'',ltype:'',date_from:'',date_to:'',country:'',src:'',year_from:'',year_to:'',court:'',case_no:'',status:'',has_text:'',sort:'relevance',data:null,err:'',open:null,doc:null});render()};
+ if(kindOf()!==was)Object.assign(MB,{number:'',ltype:'',status:'',court:'',case_no:'',date_from:'',date_to:''});MB.view='search';mbRender();if(hasQuery())run(1)};
+A.mbCountry=v=>{readForm();MB.country=MB.country===v?'':v;if(MB.country&&MB.src&&!MB.src.startsWith(MB.country+'_'))MB.src='';MB.view='search';mbRender();document.querySelectorAll('.mb-flag').forEach(b=>b.classList.toggle('on',b.dataset.v===MB.country));if(hasQuery())run(1);else{MB.data=null;paint()}};
+A.mbClear=()=>{Object.assign(MB,{q:'',kind:'',number:'',ltype:'',date_from:'',date_to:'',country:'',src:'',year_from:'',year_to:'',court:'',case_no:'',status:'',has_text:'',sort:'relevance',data:null,err:'',open:null,doc:null});mbRender()};
 A.mbOpen=async v=>{const id=Number(v);if(!id)return;MB.open=id;MB.docBusy=true;MB.doc=null;
  document.querySelectorAll('.mb-list li').forEach(li=>li.classList.toggle('on',li.querySelector('[data-v="'+id+'"]')!=null));
  paintReader();
@@ -219,13 +225,13 @@ A.mbOpen=async v=>{const id=Number(v);if(!id)return;MB.open=id;MB.docBusy=true;M
 A.mbReaderClose=()=>{MB.doc=null;MB.docBusy=false;paintReader()};
 /* المسبار شاشة كاملة فوق المِسْبار: زر العودة وEsc يعيدان إلى الشاشة السابقة */
 let prevView='dash';
-const nav0=A.nav;A.nav=v=>{if(v==='misbar'&&S.view!=='misbar')prevView=S.view||'dash';if(v!=='misbar'){MB.doc=null;paintReader()}return nav0(v)};
+const nav0=A.nav;A.nav=v=>{if(v==='misbar'&&S.view!=='misbar'){prevView=S.view||'dash';MB._enter=true}if(v!=='misbar'){MB.doc=null;paintReader()}return nav0(v)};
 A.mbClose=()=>{MB.doc=null;paintReader();A.nav(prevView&&prevView!=='misbar'?prevView:'dash')};
 document.addEventListener('keydown',ev=>{if(ev.key!=='Escape'||S.view!=='misbar')return;if(document.getElementById('modal')&&document.getElementById('modal').innerHTML.trim())return;if(MB.doc||MB.docBusy)A.mbReaderClose();else A.mbClose()});
 const dn0=window.drawNav;if(typeof dn0==='function')window.drawNav=function(){const r=dn0.apply(this,arguments);document.body.classList.toggle('mb-on',S.view==='misbar');if(S.view!=='misbar'){const ov=document.getElementById('mbReader');if(ov)ov.remove();document.body.classList.remove('mb-rd')}return r};
 
 A.mbFs=v=>{const n=Number(v);MB.fs=n===0?17:Math.max(14,Math.min(24,MB.fs+n*1.5));try{localStorage.setItem('mq_mb_fs',String(MB.fs))}catch(x){}const b=document.querySelector('.mb-body');if(b)b.style.fontSize=MB.fs+'px'};
-A.mbFind=v=>{const t=String(v||'').replace(/^المادة رقم\s*\d+\s*من\s*/,'');MB.q='"'+t.replace(/["()]/g,' ').replace(/\s+/g,' ').trim()+'"';MB.src='PS_LEGISLATION';MB.view='search';render();run(1)};
+A.mbFind=v=>{const t=String(v||'').replace(/^المادة رقم\s*\d+\s*من\s*/,'');MB.q='"'+t.replace(/["()]/g,' ').replace(/\s+/g,' ').trim()+'"';MB.src='PS_LEGISLATION';MB.view='search';mbRender();run(1)};
 const docText=d=>[d.title,[d.court,d.case_no&&('رقم '+d.case_no),d.date||d.year].filter(Boolean).join(' · '),'',d.body||''].join('\n');
 A.mbCopy=()=>{const d=MB.doc;if(!d)return;navigator.clipboard.writeText(docText(d)).then(()=>toast('نُسخ النص'),()=>toast('تعذّر النسخ في هذا المتصفح'))};
 A.mbPrint=()=>{const d=MB.doc;if(!d)return;
@@ -243,8 +249,8 @@ function openTool(mode,text){if(!can2('write'))return toast('أدوات التح
  if(typeof A.asOpen!=='function')return toast('مِسْبار غير متاح');
  const k=S.view==='case'?S.caseId:(S.bagCase||'');A.asOpen(k,{dataset:{mode}});
  if(text){let n=0;const t=setInterval(()=>{const q=document.getElementById('asQ');if(q||++n>40){clearInterval(t);if(q){q.value=String(text).slice(0,100000);q.dispatchEvent(new Event('input',{bubbles:true}))}}},100)}}
-A.mbSmart=()=>{readForm();LAB.task='search';if(MB.q.trim())LAB.q=MB.q.trim();LAB.res=null;LAB.err='';MB.view='tools';render()};
-A.mbLab=v=>{labKeep();LAB.task=LABT.some(t=>t[0]===v)?v:'search';LAB.res=null;LAB.err='';MB.view='tools';render()};
+A.mbSmart=()=>{readForm();LAB.task='search';if(MB.q.trim())LAB.q=MB.q.trim();LAB.res=null;LAB.err='';MB.view='tools';mbRender()};
+A.mbLab=v=>{labKeep();LAB.task=LABT.some(t=>t[0]===v)?v:'search';LAB.res=null;LAB.err='';MB.view='tools';mbRender()};
 A.mbProv=v=>{labKeep();LAB.provider=v;const el=document.getElementById('mbLab');if(el)el.innerHTML=labView()};
 function labKeep(){const g=id=>document.getElementById(id);if(g('mbLq'))LAB.q=g('mbLq').value;if(g('mbLf'))LAB.facts=g('mbLf').value;if(g('mbLd'))LAB.doc=g('mbLd').value;if(g('mbLlang'))LAB.lang=g('mbLlang').value;if(g('mbLc'))LAB.consent=g('mbLc').checked}
 document.addEventListener('submit',async ev=>{if(ev.target.id!=='mbLabForm')return;ev.preventDefault();ev.stopImmediatePropagation();if(LAB.busy)return;labKeep();
@@ -264,7 +270,8 @@ A.mbAnalyze=()=>{const d=MB.doc;if(!d)return;openTool(d.kind==='ruling'?'appeal'
 
 const css=document.createElement('style');css.textContent=`
 .mb-wrap{--mbN:#0E2236;--mbN2:#16314A;--mbG:#C9A24A;--mbG2:#F3D58A;margin:-6px 0 0}
-body.mb-on .mb-wrap{position:fixed;inset:0;z-index:200;overflow:auto;margin:0;padding:0 16px 24px;background:radial-gradient(circle at 50% 0,#FBF6EA,#F1E8D6 60%,#EADFC8);animation:mbIn .28s ease-out}
+body.mb-on .mb-wrap{position:fixed;inset:0;z-index:200;overflow:auto;margin:0;padding:0 16px 24px;background:radial-gradient(circle at 50% 0,#FBF6EA,#F1E8D6 60%,#EADFC8)}
+body.mb-on .mb-wrap.mb-enter{animation:mbIn .28s ease-out}
 body.mb-on{overflow:hidden}body.mb-on .app>.main>.top,body.mb-on .top{display:none!important}body.mb-on .modal-bg{z-index:220}body.mb-on .toast{z-index:240}
 @keyframes mbIn{from{opacity:0}to{opacity:1}}
 body.mb-on .mb-top{position:sticky;top:0;z-index:5;margin:0 -16px;border-radius:0 0 18px 18px;border-top:0}
