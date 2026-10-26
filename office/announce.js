@@ -51,7 +51,7 @@ async function cloudSpeak(text,c){
   if(!r.ok){const j=await r.json().catch(()=>({}));if(j.error)toast('النطق السحابي: '+j.error);return false}
   const url=URL.createObjectURL(await r.blob());if(player){try{player.pause()}catch(x){}}
   player=new Audio(url);player.volume=Math.min(1,c.vol);player.playbackRate=c.rate;player.onended=()=>URL.revokeObjectURL(url);
-  await player.play();return true}catch(x){if(x&&x.name==='NotAllowedError')toast('اضغط في أي مكان في ميثاق مرة واحدة ليُسمح بتشغيل التنبيه الصوتي.');return false}}
+  await player.play();return true}catch(x){if(x&&x.name==='NotAllowedError')toast('اضغط في أي مكان في المِسْبار مرة واحدة ليُسمح بتشغيل التنبيه الصوتي.');return false}}
 function browserSpeak(text,c){if(!hasTTS())return false;const vs=speechSynthesis.getVoices()||[],v=arVoice();
  if(!v&&vs.length)return false; // أصوات بلا عربية: لا نقرأ العربية بصوت أجنبي
  try{speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text);if(v){u.voice=v;u.lang=v.lang}else u.lang='ar-SA';u.rate=c.rate;u.volume=c.vol;speechSynthesis.speak(u);try{speechSynthesis.resume()}catch(x){}return true}catch(x){return false}}
@@ -61,7 +61,7 @@ async function speak(text,c){
  if(st.configured&&st.always&&await cloudSpeak(text,c))return true;
  if(browserSpeak(text,c))return true;
  if(st.configured&&!st.always&&await cloudSpeak(text,c))return true;
- if(!warned){warned=true;toast(st.configured?'تعذّر النطق؛ تحقّق من إعداد ElevenLabs في الإعدادات.':'لا يوجد صوت عربي في هذا المتصفح. افتح ميثاق في Edge، أو يضبط المدير النطق السحابي (ElevenLabs) من الإعدادات.')}
+ if(!warned){warned=true;toast(st.configured?'تعذّر النطق؛ تحقّق من إعداد ElevenLabs في الإعدادات.':'لا يوجد صوت عربي في هذا المتصفح. افتح المِسْبار في Edge، أو يضبط المدير النطق السحابي (ElevenLabs) من الإعدادات.')}
  return false}
 
 /* لا يُعاد التنبيه في أكثر من نافذة مفتوحة لنفس الرسالة */

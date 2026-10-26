@@ -1,4 +1,4 @@
-// «ميثاق خاص»: قاطع الاتصال الخارجي، اكتشاف النسخة، والخادم في الوضع الخاص (لا بوابة ولا بحث خارجي ولا استماع إلا للجهاز نفسه)
+// «المِسْبار الخاص»: قاطع الاتصال الخارجي، اكتشاف النسخة، والخادم في الوضع الخاص (لا بوابة ولا بحث خارجي ولا استماع إلا للجهاز نفسه)
 'use strict';
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
@@ -14,7 +14,7 @@ test('النسخة: متصلة افتراضياً، وخاصة بـ MQ_EDITION �
   fs.writeFileSync(path.join(dir, 'edition.json'), '{"edition":"private"}');
   assert.equal(Edition.detect({}, dir), 'private');
   assert.equal(Edition.detect({ MQ_EDITION: 'connected' }, dir), 'connected', 'الفرض بالمتغير يغلب الملف');
-  const p = Edition.load({}, dir); assert.equal(p.name, 'ميثاق خاص'); assert.equal(p.offline, true);
+  const p = Edition.load({}, dir); assert.equal(p.name, 'المِسْبار الخاص'); assert.equal(p.offline, true);
   assert.ok(Object.values(p.features).every(v => v === false));
   assert.ok(Object.values(Edition.load({}, os.tmpdir()).features).every(v => v === true));
   fs.rmSync(dir, { recursive: true, force: true });
@@ -57,11 +57,11 @@ async function boot(env) {
 }
 const lanIp = () => Object.values(os.networkInterfaces()).flat().find(i => i && i.family === 'IPv4' && !i.internal)?.address;
 
-test('الخادم في «ميثاق خاص»: الإصدار، رفض كل ما يحتاج الإنترنت، الخطوط محلية، ولا استماع إلا لـ 127.0.0.1', async () => {
+test('الخادم في «المِسْبار الخاص»: الإصدار، رفض كل ما يحتاج الإنترنت، الخطوط محلية، ولا استماع إلا لـ 127.0.0.1', async () => {
   const S = await boot({ MQ_EDITION: 'private' });
   try {
     const ed = await (await S.req('/api/edition')).json(); assert.equal(ed.id, 'private'); assert.equal(ed.offline, true);
-    assert.equal((await (await S.req('/api/auth/status')).json()).edition.name, 'ميثاق خاص');
+    assert.equal((await (await S.req('/api/auth/status')).json()).edition.name, 'المِسْبار الخاص');
     assert.equal((await (await S.req('/api/admin/bootstrap')).json()).edition.id, 'private');
     for (const [p, m] of [['/api/portal/login', 'POST'], ['/api/portal/push-key', 'GET'], ['/api/mizan/run', 'POST'], ['/api/mizan/credentials', 'POST'], ['/api/bar/refresh', 'POST']]) {
       const r = await S.req(p, { method: m, body: m === 'POST' ? '{}' : undefined }); assert.equal(r.status, 403, p); assert.equal((await r.json()).offline, true, p);
@@ -75,11 +75,11 @@ test('الخادم في «ميثاق خاص»: الإصدار، رفض كل ما
     assert.equal((await fetch(S.B + '/edition.js')).status, 200, 'edition.js عام لصفحة الدخول');
     const ip = lanIp();
     if (ip) await new Promise((res, rej) => { const c = net.connect(S.PORT, ip); c.on('connect', () => { c.destroy(); rej(new Error('الخادم الخاص يقبل اتصالاً من الشبكة: ' + ip)) }); c.on('error', () => res()) });
-    assert.match(S.out(), /ميثاق خاص/);
+    assert.match(S.out(), /المِسْبار الخاص/);
   } finally { await S.stop() }
 });
 
-test('الخادم في «ميثاق متصل»: لم يتغير شيء (البوابة والإشعارات تعمل)', async () => {
+test('الخادم في «المِسْبار المتصل»: لم يتغير شيء (البوابة والإشعارات تعمل)', async () => {
   const S = await boot({ MQ_EDITION: 'connected' });
   try {
     assert.equal((await (await S.req('/api/edition')).json()).id, 'connected');
@@ -96,7 +96,7 @@ test('مجلد البيانات مربوط بنسخته: الخاصة لا تف�
     let err = ''; p.stderr.on('data', d => err += d); const t = setTimeout(() => { p.kill(); res({ code: 'running', err }) }, 2500); p.on('exit', c => { clearTimeout(t); res({ code: c, err }) }) });
   // مكتب متصل فيه مستخدمون (بلا علامة نسخة، مثل البيانات القديمة)
   const A = await boot({ MQ_EDITION: 'connected' }); const dirA = A.dataDir; await A.stopKeep();
-  const r1 = await run(dirA, 'private'); assert.equal(r1.code, 3, 'الخاصة رفضت بيانات المتصلة'); assert.match(r1.err, /ميثاق خاص/);
+  const r1 = await run(dirA, 'private'); assert.equal(r1.code, 3, 'الخاصة رفضت بيانات المتصلة'); assert.match(r1.err, /المِسْبار الخاص/);
   // مكتب خاص
   const P = await boot({ MQ_EDITION: 'private' }); const dirP = P.dataDir; await P.stopKeep();
   const r2 = await run(dirP, 'connected'); assert.equal(r2.code, 3, 'المتصلة رفضت بيانات الخاصة');

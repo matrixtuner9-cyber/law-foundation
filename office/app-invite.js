@@ -6,7 +6,7 @@ const e=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;
 function qrSvg(text,cell){if(typeof qrcode!=='function')return '';const q=qrcode(0,'M');q.addData(text);q.make();return q.createSvgTag({cellSize:cell||6,margin:2,scalable:true})}
 function card(c,link){const o=(typeof OFFICE!=='undefined'?OFFICE:{});
  return `<div class="ai-skip inv-card"><div class="inv-qr">${qrSvg(link,7)}</div><div class="inv-t"><b>${e(c.name)}</b><span>${e(o.name||'')}</span>
- <ol><li>ثبّت تطبيق «ميثاق» من الرابط الذي يرسله لك المكتب.</li><li>افتح كاميرا الهاتف ووجّهها إلى الرمز، ثم اضغط الرابط الظاهر.</li><li>يُفتح التطبيق ويُسجَّل دخولك تلقائياً.</li></ol>
+ <ol><li>ثبّت تطبيق «المِسْبار» من الرابط الذي يرسله لك المكتب.</li><li>افتح كاميرا الهاتف ووجّهها إلى الرمز، ثم اضغط الرابط الظاهر.</li><li>يُفتح التطبيق ويُسجَّل دخولك تلقائياً.</li></ol>
  <small dir="ltr">${e(link)}</small><small>رمز الدخول: <b dir="ltr">${e(c.code)}</b> — لا تشاركه مع أحد.</small></div></div>`}
 A.appQr=id=>{const c=C(id);if(!c)return;if(!c.portal)return toast('فعّل بوابة الموكل لهذا الموكل أولاً');if(!window.MQ_loginLink)return;const link=MQ_loginLink(c);
  document.getElementById('modal').innerHTML=`<div class="modal-bg" data-act="close"><div class="modal" role="dialog" aria-label="رمز الدخول للتطبيق" style="max-width:640px"><div class="head"><h1 style="font-size:22px">رمز QR لتطبيق الموكل</h1><button class="btn sm" data-act="close">إغلاق</button></div>

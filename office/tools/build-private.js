@@ -1,5 +1,5 @@
-// بناء «ميثاق خاص» (بلا إنترنت) لويندوز: node tools/build-private.js
-// - يكتب edition.json = private (يقرؤه الخادم وElectron)، ويحذفه بعد البناء فيبقى مجلد التطوير «ميثاق متصل»
+// بناء «المِسْبار الخاص» (بلا إنترنت) لويندوز: node tools/build-private.js
+// - يكتب edition.json = private (يقرؤه الخادم وElectron)، ويحذفه بعد البناء فيبقى مجلد التطوير «المِسْبار المتصل»
 // - اسم ومعرّف مختلفان (Mithaq Private / ps.mithaq.private) فيمكن تثبيت النسختين على جهاز واحد ببيانات منفصلة
 // - مثبّت NSIS فقط (لا نسخة محمولة) لأنه يضيف قاعدة جدار الحماية، ويُثبَّت لكل المستخدمين (يطلب صلاحية المدير)
 // - لا يضم بوابة الموكل ولا متصفح الأتمتة (playwright-core) الذي يستخدمه ميزان ودليل النقابة
@@ -11,7 +11,7 @@ const cfg = JSON.parse(JSON.stringify(pkg.build));
 Object.assign(cfg, { appId: 'ps.mithaq.private', productName: 'Mithaq Private', directories: { output: 'dist-private' } });
 cfg.files = [...cfg.files, '!portal/**', '!node_modules/playwright-core/**', '!bar/**', '!mizan/connector.js'];
 cfg.win = { ...cfg.win, target: ['nsis'] };
-cfg.nsis = { ...cfg.nsis, perMachine: true, shortcutName: 'ميثاق خاص', include: 'electron/private.nsh', artifactName: `Mithaq-Private-${V}-Setup.\${ext}` };
+cfg.nsis = { ...cfg.nsis, perMachine: true, shortcutName: 'المِسْبار الخاص', include: 'electron/private.nsh', artifactName: `Mithaq-Private-${V}-Setup.\${ext}` };
 delete cfg.portable;
 const CF = path.join(ROOT, 'electron', 'builder-private.json');
 fs.writeFileSync(EDF, JSON.stringify({ edition: 'private', builtAt: new Date().toISOString() }, null, 1));

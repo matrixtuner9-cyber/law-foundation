@@ -62,8 +62,16 @@ input::placeholder{color:#9AA0AE}
 @media (prefers-reduced-motion:reduce){.nf,.nf:focus-within,.mark,.go::after{animation:none}}
 @media (max-width:820px){.neon-card{padding:22px 16px;box-shadow:0 0 0 1px rgb(201 162 75 / .3),0 0 18px rgb(201 162 75 / .12)}}
 
-/* شعار «المِسْبار — عقل القانون» مكان اسم النظام */
-.scene-banner{display:block;width:min(620px,82%);height:auto;margin:0 auto 10px;filter:drop-shadow(0 10px 24px rgb(0 0 0 / .6)) drop-shadow(0 0 20px rgb(201 162 74 / .28));animation:mbFloat 6s ease-in-out infinite}
+/* شعار «المِسْبار — عقل القانون» مكان اسم النظام، ببريق حي: لمعة تعبر الشعار نفسه (مقنّعة بشكله) ووهج ذهبي ينبض */
+.mb-shine{position:relative;display:block;width:min(620px,82%);margin:0 auto 10px;animation:mbFloat 6s ease-in-out infinite}
+.mb-shine .scene-banner{display:block;width:100%;height:auto;margin:0;animation:mbGlow 3.2s ease-in-out infinite}
+.mb-shine::after{content:"";position:absolute;inset:0;pointer-events:none;
+ background:linear-gradient(110deg,transparent 35%,rgb(255 248 220 / 0) 44%,rgb(255 244 205 / .38) 48.5%,rgb(255 238 180 / .55) 50%,rgb(255 244 205 / .38) 51.5%,transparent 56%);background-size:260% 100%;
+ -webkit-mask:url(misbar-banner.webp) center/100% 100% no-repeat;mask:url(misbar-banner.webp) center/100% 100% no-repeat;mix-blend-mode:screen;animation:mbSweep 4.2s cubic-bezier(.45,.05,.3,1) infinite}
+.mb-shine::before{content:"";position:absolute;left:50%;top:50%;width:6px;height:6px;border-radius:50%;background:#fff6d6;box-shadow:0 0 12px 4px #F3D58A,0 0 30px 10px rgb(243 213 138 / .6);transform:translate(-50%,-50%) scale(0);animation:mbSpark 4.2s ease-out infinite;z-index:2;pointer-events:none}
+@keyframes mbSweep{0%{background-position:130% 0}55%,100%{background-position:-30% 0}}
+@keyframes mbGlow{0%,100%{filter:drop-shadow(0 10px 22px rgb(0 0 0 / .6)) drop-shadow(0 0 10px rgb(201 162 74 / .25))}50%{filter:drop-shadow(0 10px 22px rgb(0 0 0 / .6)) drop-shadow(0 0 26px rgb(243 213 138 / .7))}}
+@keyframes mbSpark{0%,50%{transform:translate(-50%,-50%) scale(0);opacity:0}58%{transform:translate(-50%,-50%) scale(1.6);opacity:1}75%,100%{transform:translate(-50%,-50%) scale(0);opacity:0}}
 @keyframes mbFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
-@media (max-width:820px){.scene-banner{width:min(400px,92%)}}
-@media (prefers-reduced-motion:reduce){.scene-banner{animation:none}}
+@media (max-width:820px){.mb-shine{width:min(400px,92%)}}
+@media (prefers-reduced-motion:reduce){.mb-shine,.mb-shine .scene-banner,.mb-shine::after,.mb-shine::before{animation:none}}

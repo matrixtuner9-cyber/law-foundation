@@ -1,4 +1,4 @@
-/* ── الشاشة الرئيسية ── تُحمَّل بعد app.js وتستبدل لوحة المكتب بتصميم «ميثاق» الجديد */
+/* ── الشاشة الرئيسية ── تُحمَّل بعد app.js وتستبدل لوحة المكتب بتصميم «المِسْبار» الجديد */
 (function(){
 const pad=n=>String(n).padStart(2,'0');
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -108,7 +108,7 @@ window.drawNav=function(){baseNav();
  const bell=document.getElementById('tbBell');if(bell){const n=unreadN();bell.textContent=n||'';bell.hidden=!n}
 };
 function brand(){const b=document.querySelector('.brand');if(!b)return;const nm=b.querySelector('b'),sm=b.querySelector('small');if(nm)nm.textContent=OFFICE.name.replace(/\s+للمحاماة.*$/,' للمحاماة');if(sm)sm.textContent=(MQ.settings&&MQ.settings.tagline)||'محامون ومستشارون قانونيون'}
-A.help=()=>toast('للدعم الفني: تواصل مع مزوّد نظام ميثاق');
+A.help=()=>toast('للدعم الفني: تواصل مع مزوّد نظام المِسْبار');
 
 /* ── الشاشة الرئيسية ── */
 const TAB={work:'قيد العمل',soon:'جلسات قادمة',wait:'بانتظار إجراء',closed:'مغلقة'};

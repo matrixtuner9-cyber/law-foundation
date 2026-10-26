@@ -1,12 +1,12 @@
-// نسختا ميثاق من الكود نفسه:
-//   «ميثاق خاص»  (private)   — بيانات المكتب لا تغادر الجهاز: لا إنترنت ولا بوابة موكلين ولا إشعارات ولا ميزان ولا بحث خارجي.
-//   «ميثاق متصل» (connected) — النسخة الكاملة: بوابة الموكلين وتطبيقهم والإشعارات وميزان والبحث في الأحكام والسحابة.
+// نسختا المِسْبار من الكود نفسه:
+//   «المِسْبار الخاص»  (private)   — بيانات المكتب لا تغادر الجهاز: لا إنترنت ولا بوابة موكلين ولا إشعارات ولا ميزان ولا بحث خارجي.
+//   «المِسْبار المتصل» (connected) — النسخة الكاملة: بوابة الموكلين وتطبيقهم والإشعارات وميزان والبحث في الأحكام والسحابة.
 // تُحدَّد النسخة عند البناء بملف edition.json بجانب server.js (يكتبه أمر بناء النسخة الخاصة)، ويمكن فرضها بـ MQ_EDITION أو MQ_OFFLINE=1.
 'use strict';
 const fs = require('fs'), path = require('path');
 const EDITIONS = {
-  private: { id: 'private', name: 'ميثاق خاص', tagline: 'بياناتك لا تغادر مكتبك', offline: true },
-  connected: { id: 'connected', name: 'ميثاق متصل', tagline: 'مكتبك وموكّلوك على اتصال دائم', offline: false },
+  private: { id: 'private', name: 'المِسْبار الخاص', tagline: 'بياناتك لا تغادر مكتبك', offline: true },
+  connected: { id: 'connected', name: 'المِسْبار المتصل', tagline: 'مكتبك وموكّلوك على اتصال دائم', offline: false },
 };
 /* الميزات التي تحتاج الإنترنت، وتُخفى وتُغلق في النسخة الخاصة */
 const ONLINE_FEATURES = ['portal', 'push', 'mizan', 'judgmentSearch', 'rulingImport', 'barRefresh', 'externalLinks'];

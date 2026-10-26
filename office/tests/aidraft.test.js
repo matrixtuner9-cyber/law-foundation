@@ -304,6 +304,6 @@ test('دليل التطبيق (howto): يجيب من الدليل المرسل،
   const guide = '## الأتعاب والدفعات\n' + 'اختر طريقة الدفع شيك واملأ رقم الشيك والبنك وتاريخ الاستحقاق. '.repeat(6);
   const r = await as({ mode: 'howto', question: 'كيف أسجّل دفعة بشيك؟', text: guide, web: false }, { id: 1 });
   assert.equal(r.status, 200, JSON.stringify(r.body)); assert.equal(sent.length, 1, 'طلب واحد بلا بحث');
-  assert.deepEqual(sent[0].messages[0].content[0].cache_control, { type: 'ephemeral' }); assert.match(textOf(sent[0].messages[0].content), /دليل استخدام تطبيق ميثاق/);
+  assert.deepEqual(sent[0].messages[0].content[0].cache_control, { type: 'ephemeral' }); assert.match(textOf(sent[0].messages[0].content), /دليل استخدام تطبيق المِسْبار/);
   assert.equal((await as({ mode: 'howto', question: 'كيف', text: guide }, { id: 1 })).status, 400);
 });

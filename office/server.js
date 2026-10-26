@@ -1,11 +1,11 @@
-// خادم ميثاق: يقدّم شاشة المكتب (بعد تسجيل الدخول) وبوابة الموكل (Flutter) وواجهة برمجية للرسائل والملفات
+// خادم المِسْبار: يقدّم شاشة المكتب (بعد تسجيل الدخول) وبوابة الموكل (Flutter) وواجهة برمجية للرسائل والملفات
 // التخزين في قاعدة SQLite مدمجة داخل مجلد data، مع مستخدمين وأدوار وسجل تدقيق متسلسل.
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
-/* النسخة: «ميثاق خاص» (بلا إنترنت) أو «ميثاق متصل». في الخاصة يُركَّب قاطع الاتصال الخارجي قبل تحميل أي مكتبة شبكية */
+/* النسخة: «المِسْبار الخاص» (بلا إنترنت) أو «المِسْبار المتصل». في الخاصة يُركَّب قاطع الاتصال الخارجي قبل تحميل أي مكتبة شبكية */
 const ED = require('./lib/edition').load();
 const egressLog = [];
 if (ED.offline) require('./lib/egress').install({ onBlock: x => { egressLog.push(x); try { audit({ action: 'egress.blocked', detail: x }) } catch (e) {} } });
-const OFFLINE_ERR = { error: 'هذه الميزة غير متاحة في «ميثاق خاص» لأنها تحتاج الإنترنت. بيانات مكتبك تبقى على هذا الجهاز فقط.', offline: true };
+const OFFLINE_ERR = { error: 'هذه الميزة غير متاحة في «المِسْبار الخاص» لأنها تحتاج الإنترنت. بيانات مكتبك تبقى على هذا الجهاز فقط.', offline: true };
 const PORT = process.env.PORT || 8080, ROOT = __dirname;
 const DATA = process.env.MQ_DATA || path.join(ROOT, 'data'), MEDIA = path.join(DATA, 'media'), PORTAL = path.join(ROOT, 'portal');
 fs.mkdirSync(MEDIA, { recursive: true });
@@ -26,10 +26,10 @@ const stampS = (d = new Date()) => stamp(d) + ':' + pad(d.getSeconds());
 
 /* ── قاعدة البيانات + نقل البيانات القديمة (JSON) مرة واحدة ── */
 const store = Store.open(DATA), auth = Auth.create(store);
-/* قاعدة البيانات مربوطة بنسختها: «ميثاق خاص» لا يفتح بيانات مكتب متصل (ولا العكس) — يمنع أي خلط بين النسختين */
+/* قاعدة البيانات مربوطة بنسختها: «المِسْبار الخاص» لا يفتح بيانات مكتب متصل (ولا العكس) — يمنع أي خلط بين النسختين */
 { const owner = store.kv.get('edition'), stop = m => { if (process.versions.electron) throw new Error(m); console.error(m); process.exit(3) };
-  if (owner && owner !== ED.id) stop(`مجلد البيانات ${DATA} يخص «${owner === 'private' ? 'ميثاق خاص' : 'ميثاق متصل'}» ولا يُفتح من «${ED.name}».`);
-  if (!owner && ED.offline && auth.hasUsers()) stop(`مجلد البيانات ${DATA} لمكتب يعمل بـ«ميثاق متصل»؛ «ميثاق خاص» يبدأ بمجلد بيانات جديد خاص به.`);
+  if (owner && owner !== ED.id) stop(`مجلد البيانات ${DATA} يخص «${owner === 'private' ? 'المِسْبار الخاص' : 'المِسْبار المتصل'}» ولا يُفتح من «${ED.name}».`);
+  if (!owner && ED.offline && auth.hasUsers()) stop(`مجلد البيانات ${DATA} لمكتب يعمل بـ«المِسْبار المتصل»؛ «المِسْبار الخاص» يبدأ بمجلد بيانات جديد خاص به.`);
   if (!owner) store.kv.set('edition', ED.id) }
 const audit = (e) => { try { store.audit({ at: stampS(), ...e }) } catch (err) { console.error('[audit]', err.message) } };
 /* مكتبة التشريعات: جدول خاص في قاعدة المكتب (لا تمر بالمزامنة لأن نصوصها كبيرة) */
@@ -779,8 +779,12 @@ body{margin:0;min-height:100vh;display:grid;place-items:center;background:radial
 main{width:min(620px,92vw);background:#10263a;border:1px solid #C9A24A;border-radius:18px;padding:28px;box-shadow:0 0 40px rgb(201 162 74 / .25)}
 h1{margin:0 0 6px;color:#F3D58A}p{line-height:1.8;color:#C9D4DB}.fp{direction:ltr;text-align:center;font:700 24px/1.4 monospace;letter-spacing:2px;color:#F3D58A;background:#0B1B2B;border:1px dashed #C9A24A;border-radius:12px;padding:14px;margin:10px 0;user-select:all}
 textarea{width:100%;box-sizing:border-box;min-height:110px;direction:ltr;font-family:monospace;background:#0B1B2B;color:#fff;border:1px solid #C9A24A;border-radius:10px;padding:10px}
-button{margin-top:12px;padding:12px 22px;border:0;border-radius:10px;background:linear-gradient(180deg,#F3D58A,#C9A24A);color:#0B1B2B;font-weight:700;font-size:15px;cursor:pointer}.err{color:#ff9b9b}.ok{color:#9be3b5}.cp{background:transparent;border:1px solid #C9A24A;color:#F3D58A;margin-inline-start:8px}</style></head>
-<body><main><img src="/misbar-banner.webp" alt="المِسْبار — عقل القانون" style="display:block;width:100%;height:auto;margin:-6px 0 14px;filter:drop-shadow(0 8px 18px rgb(0 0 0 / .5))"><h1>تفعيل المِسْبار</h1><p id="why"></p><p>أرسل <b>بصمة هذا الجهاز</b> إلى الدعم الفني للحصول على كود التفعيل، ثم الصقه أدناه.</p>
+button{margin-top:12px;padding:12px 22px;border:0;border-radius:10px;background:linear-gradient(180deg,#F3D58A,#C9A24A);color:#0B1B2B;font-weight:700;font-size:15px;cursor:pointer}.err{color:#ff9b9b}.ok{color:#9be3b5}.cp{background:transparent;border:1px solid #C9A24A;color:#F3D58A;margin-inline-start:8px}
+.shine{position:relative;display:block;margin:-6px 0 14px}.shine img{display:block;width:100%;height:auto;animation:gl 3.2s ease-in-out infinite}
+.shine::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(110deg,transparent 44%,rgb(255 244 205 / .38) 48.5%,rgb(255 238 180 / .55) 50%,rgb(255 244 205 / .38) 51.5%,transparent 56%);background-size:260% 100%;-webkit-mask:url(/misbar-banner.webp) center/100% 100% no-repeat;mask:url(/misbar-banner.webp) center/100% 100% no-repeat;mix-blend-mode:screen;animation:sw 4.2s cubic-bezier(.45,.05,.3,1) infinite}
+@keyframes sw{0%{background-position:130% 0}55%,100%{background-position:-30% 0}}@keyframes gl{0%,100%{filter:drop-shadow(0 8px 18px rgb(0 0 0 / .5)) drop-shadow(0 0 8px rgb(201 162 74 / .25))}50%{filter:drop-shadow(0 8px 18px rgb(0 0 0 / .5)) drop-shadow(0 0 24px rgb(243 213 138 / .7))}}
+@media (prefers-reduced-motion:reduce){.shine img,.shine::after{animation:none}}</style></head>
+<body><main><span class="shine"><img src="/misbar-banner.webp" alt="المِسْبار — عقل القانون"></span><h1>تفعيل المِسْبار</h1><p id="why"></p><p>أرسل <b>بصمة هذا الجهاز</b> إلى الدعم الفني للحصول على كود التفعيل، ثم الصقه أدناه.</p>
 <div class="fp" id="fp">…</div><button class="cp" id="cp" type="button">نسخ البصمة</button>
 <p style="margin-top:18px">كود التفعيل</p><textarea id="code" placeholder="MQ1.…"></textarea><button id="go">تفعيل</button><p id="msg"></p></main>
 <script>const $=i=>document.getElementById(i);fetch('/api/license/status').then(r=>r.json()).then(j=>{$('fp').textContent=j.fp;$('why').textContent=j.error||'';if(j.ok)location.replace('/')});
@@ -821,7 +825,7 @@ http.createServer((req, res) => {
   }
   if (u.pathname.startsWith('/api/')) return api(req, res, u).catch(e => { console.error(e); json(res, 500, { error: 'خطأ في الخادم' }) });
   let p; try { p = decodeURIComponent(u.pathname) } catch (e) { res.writeHead(400); return res.end() }
-  if (ED.offline && (p === '/portal' || p.startsWith('/portal/') || p.startsWith('/p/'))) { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); return res.end('بوابة الموكل غير متاحة في «ميثاق خاص».') }
+  if (ED.offline && (p === '/portal' || p.startsWith('/portal/') || p.startsWith('/p/'))) { res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' }); return res.end('بوابة الموكل غير متاحة في «المِسْبار الخاص».') }
   /* صفحات عامة لتطبيق الموكل في متجر Apple: الخصوصية والدعم وملف ربط الروابط */
   if (p === '/privacy' || p === '/support') { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=600', ...SEC }); return res.end((p === '/privacy' ? Legal.privacyPage : Legal.supportPage)(officeInfo())) }
   if (p === '/.well-known/apple-app-site-association' || p === '/apple-app-site-association') { res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' }); return res.end(Legal.aasa(Legal.appIdsFrom(apnsCfg(), process.env.MQ_APPLE_APPID))) }

@@ -40,9 +40,9 @@ const navCount0=window.navCount;window.navCount=v=>v==='laws'?(LG.facets&&LG.fac
 V.laws=()=>{
  /* أول عرض، أو العودة للشاشة بعد 20 ثانية (قد يكون زميل أضاف تشريعات) */
  if(!LG.loading&&!LG.err&&(!LG.res||Date.now()-(LG.at||0)>20e3)){LG.at=Date.now();setTimeout(load,0)}
- if(!online())return `<div class="head"><div><h1>تشريعات المكتب</h1></div></div><section class="panel"><div class="bd lg-empty">مكتبة التشريعات محفوظة في خادم المكتب، وتعمل حين يكون ميثاق متصلاً بالخادم.</div></section>`;
+ if(!online())return `<div class="head"><div><h1>تشريعات المكتب</h1></div></div><section class="panel"><div class="bd lg-empty">مكتبة التشريعات محفوظة في خادم المكتب، وتعمل حين يكون المِسْبار المتصلاً بالخادم.</div></section>`;
  const m=M_(),web=webOk()&&LG.mode!=='lib';
- return `<div class="head"><div><h1>تشريعات المكتب</h1><p class="sub">${web?'بحث مباشر في مصادر التشريعات الفلسطينية الرسمية على الإنترنت، وعرض النصوص الكاملة داخل ميثاق':'مكتبة المكتب من القوانين والقرارات بقانون والأنظمة والمراسيم: بحث في العناوين والملخصات والنصوص، مع فلاتر النوع والجهة والحالة والسنة'}</p></div>
+ return `<div class="head"><div><h1>تشريعات المكتب</h1><p class="sub">${web?'بحث مباشر في مصادر التشريعات الفلسطينية الرسمية على الإنترنت، وعرض النصوص الكاملة داخل المِسْبار':'مكتبة المكتب من القوانين والقرارات بقانون والأنظمة والمراسيم: بحث في العناوين والملخصات والنصوص، مع فلاتر النوع والجهة والحالة والسنة'}</p></div>
   <div class="toolbar"><button class="btn" data-act="nav" data-v="misbar">← المِسْبار</button>${!web&&canM()?`<button class="btn pri" data-act="lgNew">إضافة تشريع</button><button class="btn" data-act="lgImport">استيراد ملف</button><button class="btn" data-act="lgExport">تصدير JSON</button>`:''}</div></div>
  ${webOk()?`<div class="lg-tabs" role="tablist"><button role="tab" aria-selected="${web}" class="${web?'on':''}" data-act="lgMode" data-v="web">البحث في المصادر</button><button role="tab" aria-selected="${!web}" class="${web?'':'on'}" data-act="lgMode" data-v="lib">مكتبة المكتب${LG.facets&&LG.facets.total?' <small>'+LG.facets.total+'</small>':''}</button></div>`:''}
  ${web?webView():`<div class="lg-note">يُدخل المكتب هذه التشريعات بنفسه (إضافة أو استيراد ملف)، أما البحث في التشريعات والقرارات المنشورة فمن «المِسْبار». طابِق النص مع المنشور في الجريدة الرسمية (الوقائع الفلسطينية) قبل الاستشهاد به، وتأكد من آخر تعديلاته.</div>
@@ -260,11 +260,11 @@ table{border-collapse:collapse;width:100%;font-size:10.5pt;margin:6px 0}th,td{bo
 footer{margin-top:22px;border-top:1px solid #E6D5B8;padding-top:6px;font-size:9.5pt;color:#8B6F47}
 .pbar{position:sticky;top:0;background:#0B182B;color:#F1E3C6;padding:8px 14px;display:flex;gap:10px;align-items:center;justify-content:center;font-size:12pt}.pbar button{font:inherit;background:#D4AF37;color:#1A1209;border:0;border-radius:8px;padding:5px 14px;cursor:pointer}
 @media print{body{background:#fff}.page{padding:0;max-width:none}.pbar,.top{display:none}article.pb{break-before:page}nav{break-after:page}tr,.sum{break-inside:avoid}h2,h3{break-after:avoid}}
-</style></head><body>${file&&!word?'<div class="pbar"><span>صفحة مستقلة من ميثاق</span><button onclick="print()">طباعة / حفظ PDF</button></div>':''}<div class="page">
+</style></head><body>${file&&!word?'<div class="pbar"><span>صفحة مستقلة من المِسْبار</span><button onclick="print()">طباعة / حفظ PDF</button></div>':''}<div class="page">
 <header><div><b>${e(o.officeName||OFFICE.name||'')}</b><div>${e(o.lawyerName||OFFICE.lawyer||'')}${o.city?' · '+e(o.city):''}</div></div><div>تاريخ الاستخراج: ${dmy(iso(TODAY))}</div></header>
 <h1>${e(EX.note||'تشريعات مختارة')}</h1><p class="crit">${nLaws(rs.length)}${EX.crit?' · '+e(EX.crit):''}</p>
 ${toc}${body}
-<footer>${EX.web?'مستخرج عبر نظام ميثاق من مصادر التشريعات المنشورة على الإنترنت':'مستخرج من مكتبة تشريعات المكتب في نظام ميثاق'}. يُرجع إلى النص المنشور في الجريدة الرسمية (الوقائع الفلسطينية) للتحقق من النص وآخر تعديلاته قبل الاستشهاد.</footer></div></body></html>`}
+<footer>${EX.web?'مستخرج عبر نظام المِسْبار من مصادر التشريعات المنشورة على الإنترنت':'مستخرج من مكتبة تشريعات المكتب في نظام المِسْبار'}. يُرجع إلى النص المنشور في الجريدة الرسمية (الوقائع الفلسطينية) للتحقق من النص وآخر تعديلاته قبل الاستشهاد.</footer></div></body></html>`}
 A.lgCite=()=>{const x=LG.cur;if(!x)return;const t=cite(x)+(x.issueDate?' الصادر بتاريخ '+dmy(x.issueDate):x.year?' لسنة '+x.year:'');
  (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>toast('نُسخت الإشارة: '+t)).catch(()=>toast(t))};
 

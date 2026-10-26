@@ -1,4 +1,4 @@
-/* ميثاق: بطاقة مراجعة أسانيد المسودات، يختار المحامي المصدر ويتحقق منه يدوياً. */
+/* المِسْبار: بطاقة مراجعة أسانيد المسودات، يختار المحامي المصدر ويتحقق منه يدوياً. */
 (function(root){
 'use strict';
 if(!root?.document||!root.MQ_refCheck||!root.legalQaTab)return;
@@ -22,7 +22,7 @@ function panel(d){
     '<div class="rv-actions">'+(url&&!/muqtafi\.birzeit\.edu/i.test(url)?'<a class="btn sm" href="'+esc(url)+'" target="_blank" rel="noopener noreferrer">فتح رابط المصدر ↗</a>':url?'<span class="rv-muted">المصدر محفوظ في مكتبة المكتب</span>':'<span class="rv-muted">لا يوجد رابط مصدر أصلي مثبت</span>')+
     (write()?'<button class="btn sm" data-act="rvOpen" data-v="'+esc(r.id)+'">تسجيل مراجعة المصدر</button>':'')+'</div></article>';
  }).join('');
- return '<section class="panel rv-panel"><header><h3>مراجعة مصادر الاستشهادات</h3><span class="pill">'+a.reviewed+' / '+a.total+' راجعها المحامي</span></header><div class="rv-body"><p class="rv-muted">لا يؤكد ميثاق تلقائياً صحة الحكم أو نفاذ النص القانوني. انتقل إلى المصدر الأصلي وراجع رقمه ونصه وتاريخه واختصاصه، ثم سجل نتيجة مراجعتك. حتى «راجعه المحامي» ليست شهادة تحقق رسمية.</p>'+
+ return '<section class="panel rv-panel"><header><h3>مراجعة مصادر الاستشهادات</h3><span class="pill">'+a.reviewed+' / '+a.total+' راجعها المحامي</span></header><div class="rv-body"><p class="rv-muted">لا يؤكد المِسْبار تلقائياً صحة الحكم أو نفاذ النص القانوني. انتقل إلى المصدر الأصلي وراجع رقمه ونصه وتاريخه واختصاصه، ثم سجل نتيجة مراجعتك. حتى «راجعه المحامي» ليست شهادة تحقق رسمية.</p>'+
  (rows||'<p class="rv-muted">لا توجد مراجع منظمة محفوظة مع هذا المستند. راجع الإحالات الواردة في المتن يدوياً، وأعد حفظ المراجع مع المسودة عند الحاجة.</p>')+ '</div></section>';
 }
 const base=root.legalQaTab;

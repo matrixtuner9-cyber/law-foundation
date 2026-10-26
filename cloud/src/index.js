@@ -115,7 +115,7 @@ export default {
     if (!h.base) return page('غير موجود', 'هذا العنوان غير مرتبط بأي مكتب.');
     if (h.root) {
       const r = await env.ASSETS.fetch(new Request(new URL('/site/index.html', u)));
-      return secure(r.ok ? r : page('ميثاق', 'نظام إدارة مكاتب المحاماة', 200));
+      return secure(r.ok ? r : page('المِسْبار', 'نظام إدارة مكاتب المحاماة', 200));
     }
     const slug = h.sub;
     if (!SLUG_RE.test(slug) || RESERVED.has(slug)) return page('غير موجود', 'هذا العنوان غير مرتبط بأي مكتب.');

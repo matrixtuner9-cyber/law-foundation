@@ -239,8 +239,8 @@ export class Office extends DurableObject {
     const jbody = async (limit = 4 * 1024 * 1024) => { try { const t = await req.text(); return t.length > limit ? {} : JSON.parse(t || '{}') } catch (e) { return {} } };
     if (M === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
     if (p === '/api/health') return json(200, { ok: true, at: stamp() });
-    /* السحابة دائماً «ميثاق متصل» */
-    if (p === '/api/edition') return json(200, { id: 'connected', name: 'ميثاق متصل', tagline: 'مكتبك وموكّلوك على اتصال دائم', offline: false, features: { portal: true, push: true, mizan: true, judgmentSearch: true, rulingImport: true, barRefresh: true, externalLinks: true } });
+    /* السحابة دائماً «المِسْبار المتصل» */
+    if (p === '/api/edition') return json(200, { id: 'connected', name: 'المِسْبار المتصل', tagline: 'مكتبك وموكّلوك على اتصال دائم', offline: false, features: { portal: true, push: true, mizan: true, judgmentSearch: true, rulingImport: true, barRefresh: true, externalLinks: true } });
     /* تعريف المكتب لتطبيق الآيفون قبل الدخول (اسمه فقط، دون بيانات موكلين) */
     if (p === '/api/portal/office' && M === 'GET') { const o = this.officeInfo(); return json(200, { app: 'mithaq', name: o.name || '', city: o.city || '' }) }
     if (p === '/api/portal/push-key') return json(200, { enabled: true, key: (await this.vapid()).publicKey });

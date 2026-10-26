@@ -1,4 +1,4 @@
-/* ── الشاشة الرئيسية بتصميم «ميثاق»: كحلي ملكي، ذهبي، وأرضية عاجية ── */
+/* ── الشاشة الرئيسية بتصميم «المِسْبار»: كحلي ملكي، ذهبي، وأرضية عاجية ── */
 .page{max-width:1400px}
 .reveal{animation:rv .5s cubic-bezier(.2,.7,.2,1) both}
 @keyframes rv{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}

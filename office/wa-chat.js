@@ -58,7 +58,7 @@ function headHtml(c){const ks=cases.filter(k=>k.client===c.id);
  </header>${W.searchOn?`<div class="wa-insr"><input type="search" id="waIn" placeholder="ابحث داخل المحادثة…" value="${e(W.search)}" autocomplete="off"><small id="waInN"></small></div>`:''}`}
 
 function chatHtml(){const c=S.chatOpen&&C(S.clientId);
- if(!c)return `<div class="wa-intro"><div class="wa-intro-ic">${ICO.chats}</div><h2>مراسلات ميثاق</h2><p>اختر محادثة من القائمة لعرض رسائل الموكل وتسجيلاته الصوتية ومرفقاته والرد عليه.<br>يصل الرد إلى تطبيق الموكل فوراً، وتُحفظ المراسلات في ملف قضيته.</p><small>🔒 المراسلات محفوظة على خادم المكتب ولا تمر عبر واتساب.</small></div>`;
+ if(!c)return `<div class="wa-intro"><div class="wa-intro-ic">${ICO.chats}</div><h2>مراسلات المِسْبار</h2><p>اختر محادثة من القائمة لعرض رسائل الموكل وتسجيلاته الصوتية ومرفقاته والرد عليه.<br>يصل الرد إلى تطبيق الموكل فوراً، وتُحفظ المراسلات في ملف قضيته.</p><small>🔒 المراسلات محفوظة على خادم المكتب ولا تمر عبر واتساب.</small></div>`;
  const body=(B().bagBody?B().bagBody(c,'msgs'):'');
  return headHtml(c)+body}
 

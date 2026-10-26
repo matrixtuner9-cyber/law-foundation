@@ -104,7 +104,7 @@ function notify(m){
  if(window.MQ_announce)try{MQ_announce(m)}catch(x){}
  if(window.MQ_pushFeed)MQ_pushFeed({at:m.at,kind:m.type==='text'?'msg':m.type,c:m.client,t:label(m)});
  /* إشعار النظام حين تكون النافذة في الخلفية (تطبيق سطح المكتب أو متصفح سُمح له) */
- if((document.hidden||!document.hasFocus())&&'Notification' in window&&Notification.permission==='granted'){try{const n=new Notification('ميثاق · '+(d?d.title:who),{body:d?d.body:label(m),tag:'mq-'+m.id,lang:'ar',dir:'rtl'});n.onclick=()=>{window.focus();A.bag(m.client)}}catch(e){}}
+ if((document.hidden||!document.hasFocus())&&'Notification' in window&&Notification.permission==='granted'){try{const n=new Notification('المِسْبار · '+(d?d.title:who),{body:d?d.body:label(m),tag:'mq-'+m.id,lang:'ar',dir:'rtl'});n.onclick=()=>{window.focus();A.bag(m.client)}}catch(e){}}
 }
 function connect(){
  const es=new EventSource('/api/stream');

@@ -345,7 +345,7 @@ h1{font-size:17pt;text-align:center;color:#0B182B}h2{font-size:14pt;color:#8B6F4
 .nt{color:#3E2F21;font-size:12pt}footer{margin-top:24px;border-top:1px solid #E6D5B8;padding-top:8px;font-size:10pt;color:#8B6F47}hr{border:0;border-top:1px dashed #C9A87A;margin:22px 0}</style></head>
 <body><header><b>${e(o.officeName||'')}</b><div>${e(o.lawyerName||'')}${o.city?' · '+e(o.city):''}</div></header>
 <h1>الاجتهادات القضائية — ${items.length} ${items.length<=10?'أحكام':'حكماً'}</h1><p style="text-align:center;color:#8B6F47">تاريخ الاستخراج: ${dmy(today)}${RS.q.trim()?' · البحث: «'+e(RS.q.trim())+'»':''}</p>
-${rows}<footer>مستخرج من مكتبة الاجتهادات في نظام ميثاق. يرجى مطابقة النصوص مع الأحكام الأصلية قبل الاستشهاد بها.</footer></body></html>`;
+${rows}<footer>مستخرج من مكتبة الاجتهادات في نظام المِسْبار. يرجى مطابقة النصوص مع الأحكام الأصلية قبل الاستشهاد بها.</footer></body></html>`;
 }
 A.rExport=v=>{const it=chosen(),m=document.getElementById('rExpM');if(m)m.hidden=true;if(!it.length){toast('لا أحكام لاستخراجها');return}
  const d=iso(TODAY),base='mithaq-rulings-'+d; /* اسم لاتيني: بعض المتصفحات تُسقط الأسماء العربية للملفات المنزّلة */

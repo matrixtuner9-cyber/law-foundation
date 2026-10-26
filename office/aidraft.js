@@ -57,7 +57,7 @@ function body(){const st=D.status,k=K(D.k);
    <textarea class="field ai-text" id="aiText" rows="7" placeholder="مثال: موكلنا المدعى عليه استلم البضاعة ودفع ثمنها نقداً بموجب إيصال… نطلب رد الدعوى لأن…">${e(D.text)}</textarea>
    <div class="ai-interim" id="aiInterim">${e(D.interim)}</div></div>
   <label class="wide rl-ck"><input type="checkbox" id="aiWeb" ${D.web?'checked':''}> البحث عن المراجع في المصادر الخارجية أيضاً (اختياري)</label>
-  <div class="wide ai-note">يحاول ميثاق إخفاء بعض الأسماء وبيانات الاتصال في النصوص، لكن الإخفاء غير مضمون وقد تبقى أرقام القضايا وتفاصيل تعرّف الأطراف. لا ترفع ملفات موكلين حساسة دون تصريح مناسب. المراجع غير المثبتة تُعلَّم «يحتاج تحقق».${SR&&!isElectron?' قد يعالج المتصفح الإملاء الصوتي بخدمة خارجية.':''}</div>
+  <div class="wide ai-note">يحاول المِسْبار إخفاء بعض الأسماء وبيانات الاتصال في النصوص، لكن الإخفاء غير مضمون وقد تبقى أرقام القضايا وتفاصيل تعرّف الأطراف. لا ترفع ملفات موكلين حساسة دون تصريح مناسب. المراجع غير المثبتة تُعلَّم «يحتاج تحقق».${SR&&!isElectron?' قد يعالج المتصفح الإملاء الصوتي بخدمة خارجية.':''}</div>
   <label class="wide rl-ck"><input type="checkbox" id="aiConsent" ${D.consent?'checked':''}> أؤكد صلاحية استخدام بيانات هذه القضية وإرسال النص المطلوب إلى مزود الذكاء الاصطناعي لإعداد مسودة للمراجعة.</label>
   ${D.err?`<div class="wide ai-err">${e(D.err)}</div>`:''}
   <div class="wide toolbar"><button class="btn pri" ${D.busy?'disabled':''}>${D.busy?'جارٍ الصياغة…':'صياغة المستند'}</button>${D.busy?'<span class="m" id="aiProg">يحلل الإملاء ويبحث عن المراجع ثم يصوغ؛ قد يستغرق دقيقة</span>':''}</div>

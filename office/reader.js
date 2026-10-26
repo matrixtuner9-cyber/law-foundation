@@ -93,8 +93,8 @@ A.rdAi=async()=>{const x=R.cur;if(!x)return;if(!document.getElementById('rdConse
  R.busy=false;modal()};
 A.rdPlay=async()=>{const x=R.cur,t=x&&R.cache[x.m.id];if(!t||!t.text||!window.MQ_readAloud)return;
  const mode=await MQ_readMode({preferFree:true});
- if(!mode)return toast('لا يوجد صوت عربي مجاني في هذا المتصفح. افتح ميثاق في Edge أو على الهاتف للاستماع، أو انسخ النص.');
- if(mode==='cloud'&&!confirm('لا يوجد صوت عربي مجاني في هذا المتصفح، فسيُقرأ النص ('+t.text.length.toLocaleString('en-US')+' حرفاً) عبر ElevenLabs ويُحسب من رصيد حسابك. للقراءة المجانية افتح ميثاق في Edge أو على الهاتف. متابعة؟'))return;
+ if(!mode)return toast('لا يوجد صوت عربي مجاني في هذا المتصفح. افتح المِسْبار في Edge أو على الهاتف للاستماع، أو انسخ النص.');
+ if(mode==='cloud'&&!confirm('لا يوجد صوت عربي مجاني في هذا المتصفح، فسيُقرأ النص ('+t.text.length.toLocaleString('en-US')+' حرفاً) عبر ElevenLabs ويُحسب من رصيد حسابك. للقراءة المجانية افتح المِسْبار في Edge أو على الهاتف. متابعة؟'))return;
  R.playing=true;R.prog='';modal();
  MQ_readAloud(t.text,{preferFree:true,onProgress:(i,n)=>{R.prog=n>1?'المقطع '+(i+1)+' من '+n:'';const el=document.getElementById('rdProg');if(el)el.textContent=R.prog},onEnd:()=>{R.playing=false;R.prog='';if(R.cur&&document.querySelector('.rd-modal'))modal()}})};
 A.rdStop=()=>{if(window.MQ_readStop)MQ_readStop();R.playing=false;R.prog='';modal()};

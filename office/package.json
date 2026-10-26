@@ -2,7 +2,7 @@
   "name": "mithaq",
   "version": "2.0.0",
   "private": true,
-  "description": "ميثاق - نظام إدارة مكتب المحاماة",
+  "description": "المِسْبار - نظام إدارة مكتب المحاماة وعقل القانون",
   "main": "electron/main.js",
   "scripts": {
     "start": "node server.js",

@@ -1,5 +1,5 @@
 /* ── مِسْبار | Misbar AI: عقل التحليل والاستنباط القانوني ──
-   صفحة مستقلة داخل ميثاق: البحث في التشريعات والقرارات (فلسطين أساس، الأردن ومصر للمقارنة والاستئناس)، قارئ المصادر،
+   صفحة مستقلة داخل المِسْبار: البحث في التشريعات والقرارات (فلسطين أساس، الأردن ومصر للمقارنة والاستئناس)، قارئ المصادر،
    وأدوات التحليل واستقصاء الثغرات وإعداد الخطط عبر «مِسْبار» الذي يستشهد من القاعدة نفسها.
    القاعدة محلية للقراءة فقط (/api/admin/misbar/*) وتعمل دون إنترنت. لا يُعتمد أي استنتاج قبل مراجعة المحامي.
    تحل محل: «التشريعات الفلسطينية» و«البحث في الأحكام» و«مصادر الأحكام» (تشريعات المكتب المدخلة يدوياً تبقى من داخل المسبار). */
@@ -34,7 +34,7 @@ try{const f=Number(localStorage.getItem('mq_mb_fs'));if(f>=14&&f<=24)MB.fs=f}cat
 
 /* ── القائمة: المسبار بدل الشاشات القديمة ── */
 for(const v of ['laws','maqamsearch','sources']){const i=NAV.findIndex(n=>n[0]===v);if(i>=0)NAV.splice(i,1)}
-{const i=NAV.findIndex(n=>n[0]==='dash');NAV.splice(i+1,0,['misbar','المِسْبار'])}
+{const i=NAV.findIndex(n=>n[0]==='dash');NAV.splice(i+1,0,['misbar','عقل القانون'])}
 window.MQ_misbarMark=MK;
 if(window.NAV_ICON)NAV_ICON.misbar='<svg viewBox="0 0 24 24" class="mb-navmk"><image href="misbar-emblem.webp" x="0" y="0" width="24" height="24" preserveAspectRatio="xMidYMid meet"/></svg>';
 const nc0=window.navCount;if(typeof nc0==='function')window.navCount=v=>v==='misbar'?'':nc0(v);
@@ -72,7 +72,7 @@ const hl=(t,q)=>{let h=e(t);const ws=String(q||'').replace(/["()]/g,' ').split(/
   try{h=h.replace(new RegExp('('+rx+')','g'),'<mark>$1</mark>')}catch(x){}}return h};
 function head(){
  const st=MB.stats;
- return `<header class="mb-top"><div class="mb-hero" role="img" aria-label="مِسْبار | Misbar AI: عقل التحليل والاستنباط القانوني"><button type="button" class="mb-x" data-act="mbClose" aria-label="العودة إلى ميثاق">✕ العودة إلى ميثاق</button><canvas class="mb-fx" aria-hidden="true"></canvas><b class="mb-sub">مِسْبارُ القانونِ التحليليّ</b></div>
+ return `<header class="mb-top"><div class="mb-hero" role="img" aria-label="مِسْبار | Misbar AI: عقل التحليل والاستنباط القانوني"><button type="button" class="mb-x" data-act="mbClose" aria-label="العودة إلى الرئيسية">✕ العودة إلى الرئيسية</button><canvas class="mb-fx" aria-hidden="true"></canvas><b class="mb-sub">مِسْبارُ القانونِ التحليليّ</b></div>
   <div class="mb-stats" id="mbStats">${st?[['PS','فلسطين','مرجع أساسي'],['JO','الأردن','للمقارنة والاستئناس'],['EG','مصر','للمقارنة والاستئناس']].map(([c,n,t])=>{const ss=st.sources.filter(x=>x.src.startsWith(c+'_'));return `<button class="mb-flag ${MB.country===c?'on':''}" data-act="mbCountry" data-v="${c}" title="${n} — ${t}: ${ss.map(x=>x.label.split(' · ')[1]+' '+fmtN(x.n)).join('، ')}">${FLAG[c]}<span>${n}</span></button>`}).join(''):MB.statsErr?`<span class="mb-warn">${e(MB.statsErr)}</span>`:'<span class="m">…</span>'}</div></header>`}
 function side(){
  const it=(v,ic,t,act='mbView')=>`<button class="${MB.view===v?'on':''}" data-act="${act}" data-v="${v}"><i>${ic}</i>${t}</button>`;
@@ -217,7 +217,7 @@ A.mbOpen=async v=>{const id=Number(v);if(!id)return;MB.open=id;MB.docBusy=true;M
  try{MB.doc=await call('doc',{id})}catch(x){toast(x.message);MB.doc=null}MB.docBusy=false;paintReader();
  const b=document.querySelector('#mbReader .mb-rbox');if(b)b.scrollTop=0};
 A.mbReaderClose=()=>{MB.doc=null;MB.docBusy=false;paintReader()};
-/* المسبار شاشة كاملة فوق ميثاق: زر العودة وEsc يعيدان إلى الشاشة السابقة */
+/* المسبار شاشة كاملة فوق المِسْبار: زر العودة وEsc يعيدان إلى الشاشة السابقة */
 let prevView='dash';
 const nav0=A.nav;A.nav=v=>{if(v==='misbar'&&S.view!=='misbar')prevView=S.view||'dash';if(v!=='misbar'){MB.doc=null;paintReader()}return nav0(v)};
 A.mbClose=()=>{MB.doc=null;paintReader();A.nav(prevView&&prevView!=='misbar'?prevView:'dash')};
