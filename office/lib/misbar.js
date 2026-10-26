@@ -75,6 +75,9 @@ function where(f) {
   if (f.number && /^[0-9]{1,6}$/.test(String(f.number).trim())) { w.push('d.number=?'); a.push(String(f.number).trim()) }
   if (f.status && STATUS[f.status]) { if (f.status === 'in_force') { w.push("d.status_code IN ('in_force','partial')") } else { w.push('d.status_code=?'); a.push(f.status) } }
   if (f.has_text === '1') w.push('d.has_text=1');
+  /* تاريخ القرار (للأحكام): من / إلى بصيغة YYYY-MM-DD */
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(f.date_from || ''))) { w.push("d.date>=?"); a.push(f.date_from) }
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(f.date_to || ''))) { w.push("d.date<>'' AND d.date<=?"); a.push(f.date_to) }
   if (f.url && /^https?:\/\//.test(String(f.url))) { w.push('d.url=?'); a.push(clip(f.url, 400)) }
   return { w, a };
 }
@@ -126,7 +129,11 @@ function createMisbar(db, { audit } = {}) {
   async function stats() {
     const rows = await all('SELECT src, COUNT(*) n, SUM(has_text) t, MIN(year) y1, MAX(year) y2 FROM docs GROUP BY src');
     const meta = Object.fromEntries((await all('SELECT k, v FROM meta').catch(() => [])).map(r => [r.k, r.v]));
-    return { sources: rows.map(r => ({ src: r.src, label: SOURCES[r.src]?.label || r.src, n: Number(r.n), texts: Number(r.t), from: r.y1, to: r.y2 })), version: meta.version || '', built: meta.built || '' };
+    /* قيم الفلاتر الفعلية: أنواع التشريعات وأنواع الدعاوى والمحاكم بحسب الدولة */
+    const lt = await all("SELECT country, kind, ltype v, COUNT(*) n FROM docs WHERE ltype<>'' GROUP BY country, kind, ltype HAVING n>=3 ORDER BY n DESC");
+    const ct = await all("SELECT country, court v, COUNT(*) n FROM docs WHERE kind='ruling' AND court<>'' GROUP BY country, court ORDER BY n DESC");
+    const pick = (arr, c, k) => arr.filter(r => (!c || r.country === c) && (!k || r.kind === k)).map(r => ({ v: r.v, n: Number(r.n), country: r.country }));
+    return { sources: rows.map(r => ({ src: r.src, label: SOURCES[r.src]?.label || r.src, n: Number(r.n), texts: Number(r.t), from: r.y1, to: r.y2 })), lawTypes: pick(lt, '', 'law'), caseTypes: pick(lt, '', 'ruling'), courts: pick(ct, '', ''), version: meta.version || '', built: meta.built || '' };
   }
   /* مقتطفات موثّقة للتحليل: أفضل النتائج ذات النص، مع نص كافٍ للاستشهاد */
   async function excerpts(q, { n = 8, src, chars = 2400 } = {}) {
