@@ -60,6 +60,13 @@ const GO={
  close:k=>{if(A.stClose)A.stClose(k.id)}};
 A.csGo=v=>{const [kid,id]=String(v).split('|'),k=K(kid);if(!k)return;KID=k.id;if(!can()&&!['intake','evidence','analysis'].includes(id))return toast('صلاحيتك للاطلاع فقط');(GO[id]||(()=>{}))(k)};
 A.csTpl=v=>{const [kid,t]=v.split('|');A.close();S.tplCase=kid;if(t)S.tpl=t;S.tplVals={};S.view='tpls';render();window.scrollTo(0,0)};
+/* طباعة الوكالة ومعها اتفاقية الأتعاب كمستند مستقل (مستندان في معاينة واحدة، يُطبع كلٌّ منهما وحده) */
+A.csPrintPoa=v=>{const k=K(v);if(!k||!window.MQP||!MQP.D||!MQP.D.tpl)return toast('الطباعة غير متاحة');
+ const fv=(document.getElementById('saF')||{}).value,pv=(document.getElementById('saP')||{}).value,acc=k.accepted||{},g=k.gate||{};
+ const fee=Number(fv||acc.fee||g.fee||k.fee||0),plan=pv||acc.pay||g.pay||'';
+ const doc=(tid,label,vals)=>({label,build(){const o=[S.tpl,S.tplCase,S.tplVals];S.tpl=tid;S.tplCase=k.id;S.tplVals=vals||{};try{const r=MQP.D.tpl().build();r.title=label;return r}finally{[S.tpl,S.tplCase,S.tplVals]=o}}});
+ MQP.open([doc('t1','وكالة خاصة'),doc('t6','اتفاقية أتعاب محاماة',{...(fee?{fee:fee.toLocaleString('en-US')}:{}),...(plan?{plan}:{})})],0);
+ toast('المعاينة فيها مستندان: الوكالة واتفاقية الأتعاب — بدّل بينهما من «المستند» واطبع كلاً منهما')};
 A.csAi=v=>{A.close();A.aiOpen&&A.aiOpen(v)};
 document.addEventListener('submit',e=>{const f=e.target;if(!['fCsConf','fCsFile'].includes(f.id))return;e.preventDefault();e.stopImmediatePropagation();if(!can())return toast('صلاحيتك للاطلاع فقط');const k=K(KID);if(!k)return;const g=id=>(document.getElementById(id)||{}).value||'';
  if(f.id==='fCsConf'){const ok=document.getElementById('ccOk').checked;k.gate={...(k.gate||{}),other:g('ccQ').trim(),conflictOk:ok,conflictAt:iso(TODAY),conflictBy:me()};A.close();save();render();toast(ok?'سُجّل فحص التعارض: لا تعارض':'حُفظ الفحص؛ لم يُؤكَّد خلوّه من التعارض')}

@@ -27,7 +27,8 @@ V.case=function(){const html=v0.apply(this,arguments);const k=K(S.caseId);if(!k)
   const pb=document.createElement('button');pb.type='button';pb.className='btn sm';pb.dataset.act='printCase';pb.dataset.v=k.id;pb.textContent='طباعة';
   const doc=document.createElement('button');doc.type='button';doc.className='btn sm';doc.dataset.act='tplFor';doc.dataset.v=k.id;doc.textContent='مستند من نموذج';
   const seen=new Set();const uniq=a=>a.filter(b=>{const key=b.textContent.replace(/[^\p{L}\s]/gu,'').trim();if(seen.has(key))return false;seen.add(key);return true});
-  const tl=uniq([...tools,doc]);if(!tl.some(b=>/طباعة/.test(b.textContent)))tl.push(pb);
+  const poa=document.createElement('button');poa.type='button';poa.className='btn sm';poa.dataset.act='csPrintPoa';poa.dataset.v=k.id;poa.textContent='طباعة الوكالة والأتعاب';
+  const tl=uniq([...tools,poa,doc]);if(!tl.some(b=>/طباعة/.test(b.textContent)))tl.push(pb);
   tl.forEach(b=>b.classList.remove('gold'));
   acts.innerHTML='';acts.classList.add('cl-acts');
   const grp=(lb,bs)=>{const g=document.createElement('div');g.className='cl-grp';g.innerHTML=`<span class="cl-lb">${lb}</span>`;bs.forEach(b=>g.appendChild(b));return g};
