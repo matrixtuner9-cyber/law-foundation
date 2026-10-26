@@ -13,6 +13,7 @@ const COURTS=['','محكمة النقض','محكمة استئناف رام ال�
 const STATUS=[['','كل الحالات'],['in_force','ساري'],['partial','ساري في الضفة الغربية فقط'],['suspended','موقوف النفاذ'],['repealed','ملغى / غير ساري']];
 /* أدوات المحامي: كل أداة تفتح «مساعد المحامي الذكي» بالنمط المناسب، ومراجعه من قاعدة المسبار */
 const TOOLS=[
+ ['draft','🎙','صياغة اللوائح بالصوت','أملِ الوقائع والطلبات فيصوغ اللائحة مستشهداً من القاعدة'],
  ['question','◇','السؤال القانوني','جواب موثّق بالمراجع، أو «لم أجد» صراحة'],
  ['gaps','⌕','تحليل المستند واستقصاء الثغرات','الثغرات والدفوع والبينات الناقصة وخطة الاستقصاء'],
  ['appeal','⚖','أسباب الطعن','أسباب الطعن المحتملة والمهل الواجب التحقق منها'],
@@ -161,7 +162,7 @@ function openTool(mode,text){if(!can2('write'))return toast('أدوات التح
  if(typeof A.asOpen!=='function')return toast('مساعد المحامي غير متاح');
  const k=S.view==='case'?S.caseId:(S.bagCase||'');A.asOpen(k,{dataset:{mode}});
  if(text){let n=0;const t=setInterval(()=>{const q=document.getElementById('asQ');if(q||++n>40){clearInterval(t);if(q){q.value=String(text).slice(0,100000);q.dispatchEvent(new Event('input',{bubbles:true}))}}},100)}}
-A.mbTool=v=>openTool(String(v||'question'));
+A.mbTool=v=>{v=String(v||'question');if(v==='draft'){if(!can2('write'))return toast('الصياغة متاحة للمحامين ومدير المكتب');const k=S.view==='case'?S.caseId:(S.bagCase||'');return typeof A.aiOpen==='function'?A.aiOpen(k):toast('الصياغة غير متاحة')}openTool(v)};
 A.mbAnalyze=()=>{const d=MB.doc;if(!d)return;openTool(d.kind==='ruling'?'appeal':'gaps',docText(d))};
 
 const css=document.createElement('style');css.textContent=`

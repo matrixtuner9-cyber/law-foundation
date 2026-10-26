@@ -17,13 +17,7 @@ async function api(path,body){const r=await fetch('/api/admin/ai/'+path,body?{me
 const vcase=V.case;V.case=()=>{const h=vcase();if(!online())return h;
  return h.replace(/(<button class="btn" data-act="tplFor" data-v="([^"]+)">إنشاء مستند<\/button>)/,(m,b,id)=>b+`<button class="btn pri" data-act="aiOpen" data-v="${id}" title="أملِ الوقائع بصوتك فتُصاغ لائحة رسمية بمراجعها">🎙 صياغة بالصوت</button><button class="btn" data-act="asOpen" data-v="${id}" title="ملخص قبل الجلسة، الدفوع الشكلية والمهل، سؤال قانوني">⚖ مساعد القضية</button>`)};
 
-/* اختصار في الشاشة الرئيسية: مساعد المحامي الذكي */
-const vdash=V.dash;V.dash=()=>{const h=vdash();if(!online()||!can2('write'))return h;
- const Q=[['brief','📋','ملخص قبل الجلسة'],['question','❓','سؤال قانوني'],['defences','🛡','الدفوع والمهل'],['contract','📑','مراجعة عقد'],['opponent','🔍','تحليل مستند للخصم'],['gaps','🧩','ثغرات مستند'],['appeal','⚖️','أسباب الطعن'],['minutes','📝','محضر اجتماع'],['client_msg','💬','رسالة للموكل'],['translate','🌐','ترجمة'],['calc','🧮','الحاسبات القانونية']];
- const card=`<section class="card reveal as-home" aria-label="مساعد المحامي الذكي"><div class="as-home-h"><div><h2>مساعد المحامي الذكي</h2><p>صياغة اللوائح بالصوت، وتحليل القضايا والمستندات، والإجابة من نصوص التشريعات</p></div>
-  <button class="btn pri" data-act="aiOpen" data-v="${e(homeCase())}">🎙 صياغة بالصوت</button></div>
-  <div class="as-home-q">${Q.map(([m,i,t])=>m==='calc'?`<button class="as-q" data-act="nav" data-v="calc"><span aria-hidden="true">${i}</span>${t}</button>`:`<button class="as-q" data-act="asOpen" data-v="${e(homeCase())}" data-mode="${m}"><span aria-hidden="true">${i}</span>${t}</button>`).join('')}</div></section>`;
- return h.replace('<div class="dgrid">',card+'<div class="dgrid">')};
+/* بطاقة «مساعد المحامي الذكي» أُزيلت من الرئيسية: أدوات التحليل كلها في «المِسْبار»، والصياغة بالصوت في الخطوة 08 من حقيبة الموكل وفي المسبار */
 /* القضية الافتراضية: صاحبة أقرب جلسة قادمة */
 function homeCase(){const n=hearings.filter(x=>diff(x.date)>=0).sort((a,b)=>a.date.localeCompare(b.date))[0];return n?n.k:((cases.find(k=>k.status!=='منتهية')||cases[0]||{}).id||'')}
 const LIB=()=>((window.MQ_LAWLIB||{}).items||[]);
