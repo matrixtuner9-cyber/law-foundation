@@ -106,16 +106,45 @@ function items(){const T=iso(TODAY),tm=(()=>{const d=new Date(T+'T00:00:00');d.s
   if((st==='study'||st==='pending')&&window.MQ_steps){const c=MQ_steps.current(k);out.push({p:3,ic:'📂',cls:'',t:`${esc(k.subject||'قضية جديدة')} · الخطوة ${String(c.n).padStart(2,'0')}`,s:`${esc(nm(k))} · ${esc(c.t)}`,b:['متابعة','csGo',k.id+'|'+c.id]})}});
  (typeof clients!=='undefined'?clients:[]).forEach(c=>{const u=window.MQ_bag&&MQ_bag.unreadOf?MQ_bag.unreadOf(c.id):0;if(u)out.push({p:2,ic:'💬',cls:'',t:`${u} ${u===1?'رسالة':'رسائل'} من ${esc(c.name)}`,s:'لم تُقرأ بعد',b:['قراءة والرد','bag',c.id]})});
  return out.sort((a,b)=>a.p-b.p)}
-const d0=V.dash;V.dash=function(){const html=d0.apply(this,arguments),it=items();
- const box=`<section class="now-box" aria-label="ما يحتاج انتباهك الآن"><header><b>ما يحتاج انتباهك الآن</b><span>${it.length?it.length+' بند، الأهم أولاً':'لا شيء عاجل اليوم 👌'}</span></header>${it.length?`<ol>${it.slice(0,12).map(x=>`<li class="${x.cls}"><span class="ic" aria-hidden="true">${x.ic}</span><div><b>${x.t}</b><small>${x.s}</small></div><button class="btn sm ${x.cls==='hot'?'pri':''}" data-act="${x.b[1]}" data-v="${esc(x.b[2])}">${x.b[0]} ←</button></li>`).join('')}</ol>${it.length>12?`<p class="more">و${it.length-12} بنود أخرى في «الاستعلامات والتقارير»</p>`:''}`:''}</section>`;
- const t=document.createElement('template');t.innerHTML=html;t.content.querySelectorAll('.hb48,.hr-due').forEach(x=>x.remove());const o=document.createElement('div');o.appendChild(t.content.cloneNode(true));
- return box+o.innerHTML};
-const css=document.createElement('style');css.textContent=`.now-box{margin:0 0 16px;border:1px solid var(--line,#E5E0D6);border-radius:16px;background:var(--panel,#fff);overflow:hidden}
-.now-box header{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line,#E5E0D6);background:linear-gradient(180deg,rgb(185 150 90 / .12),transparent)}
-.now-box header b{font-size:17px}.now-box header span{color:var(--muted);font-size:13px}
-.now-box ol{list-style:none;margin:0;padding:6px 10px 10px;display:grid;gap:6px}
-.now-box li{display:flex;gap:12px;align-items:center;padding:8px 10px;border-radius:12px;border:1px solid var(--line,#E5E0D6)}
-.now-box li.hot{border-color:#E8A3A3;background:#FFF5F5}.now-box li.warn{border-color:#F1DDB0;background:#FFFBF0}
-.now-box li .ic{font-size:18px}.now-box li div{flex:1;min-width:0}.now-box li b{display:block;font-size:14px}.now-box li small{color:var(--muted);font-size:12.5px}
-.now-box .more{margin:0 14px 10px;color:var(--muted);font-size:12.5px}`;document.head.appendChild(css);
+const d0=V.dash;V.dash=function(){const html=d0.apply(this,arguments);
+ const t=document.createElement('template');t.innerHTML=html;t.content.querySelectorAll('.hb48,.hr-due').forEach(x=>x.remove());const o=document.createElement('div');o.appendChild(t.content.cloneNode(true));return o.innerHTML};
+/* لوحة «ما يحتاج انتباهك» منزلقة من جانب الشاشة، تُفتح من جرس الشريط العلوي (عليه عدد البنود نابضاً) */
+const G=[[0,'متأخر الآن','late'],[1,'اليوم وغداً','today'],[2,'بانتظارك','wait'],[3,'متابعة','follow']];
+function drawer(){const it=items();const by=p=>it.filter(x=>x.p===p);
+ return `<div class="att-bg" data-act="attClose"></div><aside class="att" role="dialog" aria-label="ما يحتاج انتباهك الآن"><header><div><small>${new Date().toLocaleDateString('ar',{weekday:'long',day:'numeric',month:'long'})}</small><b>ما يحتاج انتباهك</b></div><button class="att-x" data-act="attClose" aria-label="إغلاق">✕</button></header>
+ <div class="att-sum">${G.map(([p,lb,c])=>`<span class="att-chip ${c}"><b>${by(p).length}</b>${lb}</span>`).join('')}</div>
+ <div class="att-body">${it.length?G.map(([p,lb,c])=>by(p).length?`<h4 class="${c}">${lb}</h4>${by(p).map(x=>`<button class="att-card ${c}" data-act="attGo" data-v="${esc(x.b[1]+'¦'+x.b[2])}"><span class="ic" aria-hidden="true">${x.ic}</span><span class="tx"><b>${x.t}</b><small>${x.s}</small></span><em>${x.b[0]} ←</em></button>`).join('')}`:'').join(''):'<div class="att-empty"><span>✨</span><b>لا شيء عاجل</b><small>كل الجلسات مسجّلة والمهل تحت السيطرة.</small></div>'}</div></aside>`}
+let host=null;
+A.attOpen=()=>{host=host||Object.assign(document.createElement('div'),{id:'attHost'});document.body.appendChild(host);host.innerHTML=drawer();requestAnimationFrame(()=>host.classList.add('on'))};
+A.attClose=()=>{if(!host)return;host.classList.remove('on');setTimeout(()=>{if(host&&!host.classList.contains('on'))host.innerHTML=''},260)};
+A.attGo=v=>{const [act,arg]=String(v).split('¦');A.attClose();if(A[act])A[act](arg)};
+addEventListener('keydown',e=>{if(e.key==='Escape')A.attClose()});
+function bell(){const b=document.querySelector('#tbBell');if(!b)return;const btn=b.closest('button');if(btn&&btn.dataset.act!=='attOpen'){btn.dataset.act='attOpen';delete btn.dataset.v;btn.title='ما يحتاج انتباهك'}
+ const n=items().filter(x=>x.p<=2).length;b.hidden=true;let c=btn&&btn.querySelector('.att-n');if(btn&&!c){c=document.createElement('span');c.className='att-n';btn.appendChild(c)}if(c){c.textContent=n>99?'99+':String(n);c.hidden=!n}if(btn)btn.classList.toggle('att-pulse',n>0)}
+const dn2=window.drawNav;if(typeof dn2==='function')window.drawNav=function(){dn2.apply(this,arguments);try{bell()}catch(x){}};
+setTimeout(()=>{try{const k='mq_att_'+iso(TODAY);if(localStorage.getItem(k))return;if(items().some(x=>x.p<=1)){localStorage.setItem(k,'1');A.attOpen()}}catch(x){}},1800);
+const css=document.createElement('style');css.textContent=`
+#attHost .att-bg{position:fixed;inset:0;background:rgb(11 27 43 / 0);z-index:90;transition:background .25s}
+#attHost.on .att-bg{background:rgb(11 27 43 / .38);backdrop-filter:blur(3px)}
+#attHost .att{position:fixed;top:0;bottom:0;left:0;width:min(440px,100vw);z-index:91;display:flex;flex-direction:column;background:linear-gradient(180deg,#0E2230,#122B3A 40%,#132F3F);color:#F4EFE6;box-shadow:20px 0 60px rgb(0 0 0 / .35);transform:translateX(-104%);transition:transform .28s cubic-bezier(.2,.8,.2,1);padding-top:env(safe-area-inset-top,0px)}
+#attHost.on .att{transform:none}
+.att header{display:flex;justify-content:space-between;align-items:flex-start;padding:18px 18px 10px}
+.att header small{color:#B9C6CF;font-size:12.5px}.att header b{display:block;font-size:22px;color:#E9C46A;margin-top:2px}
+.att-x{all:unset;cursor:pointer;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;background:rgb(255 255 255 / .08)}.att-x:hover{background:rgb(255 255 255 / .16)}
+.att-sum{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;padding:0 14px 12px}
+.att-chip{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 4px;border-radius:12px;background:rgb(255 255 255 / .06);font-size:11.5px;color:#C9D4DB}
+.att-chip b{font-size:20px;color:#fff}.att-chip.late b{color:#FF8A80}.att-chip.today b{color:#FFD166}.att-chip.wait b{color:#9AD1FF}.att-chip.follow b{color:#A8E6CF}
+.att-body{flex:1;overflow:auto;padding:4px 12px 20px}
+.att-body h4{margin:14px 6px 6px;font-size:12.5px;color:#B9C6CF}.att-body h4.late{color:#FF8A80}.att-body h4.today{color:#FFD166}
+.att-card{all:unset;cursor:pointer;box-sizing:border-box;width:100%;display:flex;gap:10px;align-items:center;padding:10px 12px;margin:0 0 6px;border-radius:14px;background:rgb(255 255 255 / .06);border:1px solid rgb(255 255 255 / .08);transition:background .15s,transform .15s}
+.att-card:hover{background:rgb(255 255 255 / .12);transform:translateX(-2px)}
+.att-card.late{border-color:rgb(255 138 128 / .5)}.att-card.today{border-color:rgb(255 209 102 / .5)}
+.att-card .ic{font-size:20px}.att-card .tx{flex:1;min-width:0}.att-card b{display:block;font-size:14px;color:#fff}.att-card small{display:block;color:#B9C6CF;font-size:12px;line-height:1.5}
+.att-card em{font-style:normal;font-size:12px;color:#E9C46A;white-space:nowrap}
+.att-empty{display:grid;place-items:center;text-align:center;gap:6px;padding:60px 20px}.att-empty span{font-size:36px}.att-empty b{font-size:18px}.att-empty small{color:#B9C6CF}
+.att-n{position:absolute;top:-4px;left:-4px;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:#E25555;color:#fff;font-size:11.5px;font-weight:800;display:grid;place-items:center;box-shadow:0 0 0 2px #fff}
+.att-pulse{position:relative}.att-pulse::after{content:"";position:absolute;inset:-3px;border-radius:50%;border:2px solid #E25555;animation:attP 1.8s ease-out infinite;pointer-events:none}
+@keyframes attP{0%{transform:scale(.8);opacity:.9}100%{transform:scale(1.5);opacity:0}}
+@media (prefers-reduced-motion:reduce){#attHost .att,.att-card{transition:none}.att-pulse::after{animation:none}}`;document.head.appendChild(css);
+
 })();
