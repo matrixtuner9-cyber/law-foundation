@@ -88,3 +88,24 @@ test('case brain: read-only user cannot change anything', async () => {
   const r = await t.brain.handle('enable', 'POST', {}, async () => ({ k: 'k1', on: true }), { id: 'u2', username: 'v', cases: ['k1'] }, () => false, { username: 'v' });
   assert.equal(r.status, 403);
 });
+
+test('case brain: fact map sorts by date, demotes unproven "proven" facts, keeps contradictions', async () => {
+  const reply = JSON.stringify({ facts: [
+    { date: '2025-12-01', fact: 'المطالبة بالسداد', party: 'الموكل', status: 'proven', evidence: ['D1.1'], importance: 'high' },
+    { date: '2025-11-03', fact: 'توقيع العقد', party: 'الموكل', status: 'proven', evidence: ['D1.1'] },
+    { date: '', fact: 'تسليم البضاعة كاملة', party: 'الموكل', status: 'proven', evidence: ['D5.1'], need: 'سندات الاستلام' },
+    { date: '2025-11-20', fact: 'الخصم يدعي نقص الكمية', party: 'الخصم', status: 'disputed', evidence: [] }],
+    contradictions: [{ title: 'تاريخ الاستحقاق', a: 'المطالبة 1/12', b: 'الفاتورة 15/12', evidence: ['D1.1'], risk: 'عدم حلول الأجل', reply: 'كشف الحساب' }] });
+  const t = setup({ reply });
+  await t.call('doctext', 'POST', { k: 'k1', doc: 'd1', text: 'عقد توريد موقّع في 3/11/2025 والمطالبة في 1/12/2025.' });
+  await t.call('enable', 'POST', { k: 'k1', on: true });
+  const r = await t.call('run', 'POST', { k: 'k1', task: 'facts' });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const m = r.body.findings[0];
+  assert.equal(m.kind, 'factmap');
+  assert.deepEqual(m.facts.map(f => f.date), ['2025-11-03', '2025-11-20', '2025-12-01', '']);
+  const undated = m.facts[3];
+  assert.equal(undated.status, 'claimed', 'proven without real evidence is demoted'); assert.equal(undated.downgraded, true); assert.equal(undated.need, 'سندات الاستلام');
+  assert.equal(m.contradictions.length, 1); assert.equal(m.contradictions[0].evidence[0].doc, 'd1');
+  assert.match(m.title, /4 واقعة — 2 مثبتة · 1 بلا دليل · 1 متنازع عليها · 1 تعارض/);
+});

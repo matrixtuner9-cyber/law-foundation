@@ -9,15 +9,17 @@
 if(typeof V==='undefined')return;
 const e=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const MK='<img src="misbar-emblem.webp" alt="" class="mbc-mk">';
-const SUBS=[['next','الخطوة التالية'],['brain','الثغرات والتعارضات'],['mizan','ميزان الحجج'],['hearing','تحضير الجلسة'],['docs','المستندات المقروءة'],['log','سجل الإرسال']];
-const HINT={next:'يفحص: هل يوجد إجراء عاجل؟ ما آخر إجراء مثبت؟ ماذا طلبت المحكمة؟ هل الملف جاهز؟ ثم يقترح الإجراء وسببه والمسؤول.',
+const SUBS=[['next','الخطوة التالية'],['facts','خريطة الوقائع'],['brain','الثغرات والتعارضات'],['mizan','ميزان الحجج'],['hearing','تحضير الجلسة'],['docs','المستندات المقروءة'],['log','سجل الإرسال']];
+const HINT={facts:'يرتّب وقائع القضية زمنياً، ويبيّن لكل واقعة: مثبتة بمستند، أم ادعاء بلا دليل، أم متنازع عليها، ويكشف التناقضات وما يلزم جمعه.',
+ next:'يفحص: هل يوجد إجراء عاجل؟ ما آخر إجراء مثبت؟ ماذا طلبت المحكمة؟ هل الملف جاهز؟ ثم يقترح الإجراء وسببه والمسؤول.',
  brain:'الاختصاص والصفة والمصلحة والتمثيل والتبليغات والمدد وشروط القبول، والتعارض بين الأقوال والمستندات، والبينات الناقصة.',
  mizan:'ثلاث قراءات مستقلة لكل مسألة: ما يؤيد الموكل، وما قد يدفع به الخصم مع الرد، والفجوات المحايدة.',
  hearing:'ورقة جاهزة: ما جرى سابقاً، المطلوب، المستندات، الردود الممكنة، أسئلة الشهود، نقاط المرافعة.'};
 const URG={high:['عاجل','u-h'],medium:['متوسط','u-m'],low:['عادي','u-l']};
 const STAT={proposed:['مقترح — بانتظار المراجعة','s-p'],approved:['معتمد','s-a'],rejected:['مرفوض','s-r']};
 const VIA={pdf:'نص PDF',ocr:'تعرّف على النص',docx:'Word',txt:'نص',local:'محلي',manual:'يدوي',draft:'مسودة في التطبيق'};
-const ST={k:null,data:null,err:'',busy:'',sub:'next',rd:{},note:{}};
+const ST={k:null,data:null,err:'',busy:'',sub:'next',rd:{},note:{},ff:'',added:{},stage:''};
+const THINK=['يقرأ ملف القضية…','يستخرج الوقائع والتواريخ…','يطابق كل واقعة ببينتها…','يبحث في التشريعات والأحكام…','يختبر حجج الخصم…','يكشف التناقضات والثغرات…','يصوغ النتيجة بسندها…'];let thinkT=null;
 const extOf=f=>{const x=String(f||'').split('?')[0].split('.').pop().toLowerCase();return x==='jpeg'?'jpg':x};
 const READABLE=['pdf','png','jpg','webp','gif','txt','docx'];
 
@@ -56,14 +58,15 @@ function now(d){const f=d.findings.filter(x=>x.kind==='next_step'&&x.status!=='r
   ${f.status==='proposed'?`<button type="button" class="btn sm gold" data-act="mbcSub" data-v="next">مراجعة</button>`:''}</section>`}
 
 function runBox(d,t){
- const used=d.docs.filter(x=>x.hasText).length;
- if(!d.enabled)return `<div class="mbc-run off"><p>${e(HINT[t])}</p><p class="mbc-warn">التحليل غير مفعّل لهذه القضية. فعّله من المفتاح أعلاه ليُرسل المسبار المقاطع اللازمة بعد إخفاء البيانات الحساسة.</p></div>`;
+ const used=d.docs.filter(x=>x.hasText).length,unread=d.docs.filter(x=>!x.hasText&&x.file&&READABLE.includes(extOf(x.file))).length;
+ if(ST.busy===t)return `<div class="mbc-think" role="status" aria-live="polite"><div class="mbc-orb">${MK}<i></i><i></i><i></i></div><div><b>عقل المسبار يعمل</b><span id="mbcStage">${e(ST.stage||THINK[0])}</span></div></div>`;
  return `<div class="mbc-run"><p>${e(HINT[t])}</p>
-  <textarea class="field" id="mbcNote" rows="2" maxlength="600" placeholder="توجيه اختياري للمسبار (مثلاً: ركّز على التبليغات أو على شهادة الشاهد الثاني)">${e(ST.note[t]||'')}</textarea>
-  <div class="mbc-rowb"><small>يُرسل: ملف القضية (البيانات والجلسات والمهل والملاحظات) ومقاطع مختارة من ${used} مستند مقروء${d.docs.length>used?` — ${d.docs.length-used} لم يُقرأ بعد`:''}، مع مراجع من قاعدة المسبار.</small>
-  <button type="button" class="btn pri" data-act="mbcRun" data-v="${t}" ${ST.busy||!d.canWrite?'disabled':''}>${ST.busy===t?'جارٍ التحليل…':'تشغيل «'+e(d.tasks[t])+'»'}</button></div></div>`}
+  <details class="mbc-opt"${ST.note[t]?' open':''}><summary>توجيه للمسبار (اختياري)</summary><textarea class="field" id="mbcNote" rows="2" maxlength="600" placeholder="مثلاً: ركّز على التبليغات، أو على شهادة الشاهد الثاني">${e(ST.note[t]||'')}</textarea></details>
+  <div class="mbc-rowb"><small>${d.enabled?'':'سيُطلب منك تفعيل التحليل لهذه القضية أولاً. '}${unread?`سيقرأ أولاً ${unread} مستنداً لم يُقرأ بعد (على هذا الجهاز)، ثم `:''}يرسل ملف القضية ومقاطع من ${used+unread} مستند بعد إخفاء الأرقام الحساسة.</small>
+  <button type="button" class="btn pri mbc-go" data-act="mbcRun" data-v="${t}" ${ST.busy||!d.canWrite?'disabled':''}>${MK}<span>${e(d.tasks[t]||'تشغيل')}</span></button></div></div>`}
 
 function taskView(d,t){const fs=d.findings.filter(f=>f.task===t);
+ if(t==='facts')return runBox(d,t)+(fs.length?fs.map(mapView).join(''):'<p class="m mbc-empty">لم تُبنَ خريطة الوقائع بعد. اضغط الزر أعلاه، وسيقرأ المسبار المستندات ويرتّب الوقائع.</p>');
  let list='';
  if(!fs.length)list=`<p class="m mbc-empty">لا نتائج بعد.</p>`;
  else if(t==='mizan'){const col=(k,lb,cls)=>`<div class="mbc-col ${cls}"><h4>${lb}</h4>${fs.filter(f=>f.kind===k).map(card).join('')||'<p class="m">—</p>'}</div>`;
@@ -97,6 +100,26 @@ function card(f){const u=URG[f.urgency]||URG.medium,s=STAT[f.status]||STAT.propo
  </div>${f.unverified?'<p class="mbc-warn sm">بعض ما ورد هنا بلا سند مسترجع من القاعدة؛ تحقّق منه قبل الاعتماد.</p>':''}
  <footer><small>${e(String(f.at).slice(0,16).replace('T',' '))} · طلبه ${e(f.byName||f.by)}</small>${dec}</footer></article>`}
 
+const FST={proven:['مثبتة بمستند','ok'],claimed:['ادعاء بلا دليل','warn'],disputed:['متنازع عليها','bad']};
+const fmtD=f=>f.date?new Date(f.date+'T12:00:00').toLocaleDateString('ar-EG-u-nu-latn',{day:'numeric',month:'long',year:'numeric'}):(f.date_text||'بلا تاريخ');
+function mapView(f){const s=STAT[f.status]||STAT.proposed,fs=f.facts||[],c=f.contradictions||[];
+ const n=st=>fs.filter(x=>x.status===st).length,pv=n('proven'),pct=fs.length?Math.round(pv/fs.length*100):0;
+ const show=fs.filter(x=>!ST.ff||x.status===ST.ff);
+ const chip=(v,lb,cnt,cls)=>`<button type="button" class="mbc-fc ${cls} ${ST.ff===v?'on':''}" data-act="mbcFF" data-v="${v}"><b>${cnt}</b>${lb}</button>`;
+ const dec=f.status==='proposed'&&ST.data.canWrite?`<div class="mbc-dec"><button type="button" class="btn sm pri" data-act="mbcDecide" data-v="${e(f.id)}|approved">اعتماد الخريطة</button><button type="button" class="btn sm" data-act="mbcDecide" data-v="${e(f.id)}|rejected">رفض</button></div>`
+  :f.status!=='proposed'?`<div class="mbc-who">${s[0]} بواسطة ${e(f.decidedName||f.decidedBy)} · ${e(String(f.decidedAt||'').slice(0,16).replace('T',' '))}${ST.data.canWrite?` <button type="button" class="link" data-act="mbcDecide" data-v="${e(f.id)}|proposed">تراجع</button>`:''}</div>`:'';
+ return `<article class="mbc-map is-${e(f.status)}">
+ <header class="mbc-mhead"><div class="mbc-ring" style="--p:${pct}"><b>${pct}٪</b><small>تغطية الإثبات</small></div>
+  <div class="mbc-msum"><b>خريطة وقائع القضية</b><small>${fs.length} واقعة مرتبة زمنياً · ${e(String(f.at).slice(0,16).replace('T',' '))} · <span class="mbc-s ${s[1]}">${s[0]}</span></small>
+  <div class="mbc-fcs">${chip('','الكل',fs.length,'all')}${chip('proven','مثبتة بمستند',pv,'ok')}${chip('claimed','بلا دليل',n('claimed'),'warn')}${chip('disputed','متنازع عليها',n('disputed'),'bad')}${c.length?`<a class="mbc-fc bolt" href="#mbcCx"><b>${c.length}</b>تعارض</a>`:''}</div></div></header>
+ <ol class="mbc-tl">${show.map(x=>{const st=FST[x.status]||FST.claimed,i=fs.indexOf(x),key=f.id+':'+i;return `<li class="${st[1]} imp-${e(x.importance)}"><span class="mbc-dot"></span>
+  <div class="mbc-date">${e(fmtD(x))}</div>
+  <div class="mbc-fx"><p>${e(x.fact)}</p><div class="mbc-meta"><span class="mbc-st ${st[1]}">${st[0]}</span>${x.party?`<span class="mbc-pt">${e(x.party)}</span>`:''}${x.source?`<span class="m">${e(x.source)}</span>`:''}${(x.evidence||[]).map(docChip).join('')}</div>
+  ${x.downgraded?'<p class="mbc-warn sm">قدّمها التحليل كمثبتة دون مقطع مستند يثبتها، فاعتبرها المسبار ادعاءً حتى يُرفق دليلها.</p>':''}
+  ${x.status!=='proven'&&x.need?`<div class="mbc-need"><span>🔎 ما يلزم: ${e(x.need)}</span>${ST.data.canWrite?(ST.added[key]?'<b class="mbc-ok">✓ أُضيف لقائمة الجمع</b>':`<button type="button" class="btn sm" data-act="mbcNeed" data-v="${e(key)}">+ إلى قائمة البينات المطلوبة</button>`):''}</div>`:''}</div></li>`}).join('')||'<li class="m">لا وقائع بهذا التصنيف.</li>'}</ol>
+ ${c.length?`<section class="mbc-cx" id="mbcCx"><h4>⚡ تعارضات كشفها المسبار</h4>${c.map(x=>`<div class="mbc-cxi"><b>${e(x.title)}</b><div class="mbc-vs"><div>${e(x.a)}</div><span>⚡</span><div>${e(x.b)}</div></div>${(x.evidence||[]).length?`<div class="mbc-meta">${x.evidence.map(docChip).join('')}</div>`:''}${x.risk?`<p><span class="mbc-l">الأثر:</span> ${e(x.risk)}</p>`:''}${x.reply?`<p><span class="mbc-l">المعالجة:</span> ${e(x.reply)}</p>`:''}</div>`).join('')}</section>`:''}
+ <footer><small>لا تُعدّ واقعة «مثبتة» إلا بمقطع من مستندات القضية. راجع الخريطة قبل اعتمادها.</small>${dec}</footer></article>`}
+
 function docsView(d){
  if(!d.docs.length)return '<p class="m mbc-empty">لا مستندات في هذه القضية بعد. أضف المستندات من «سجل القضية».</p>';
  const can=d.canWrite&&typeof window.MQ_extract==='function';
@@ -105,32 +128,46 @@ function docsView(d){
  ${can&&pend.length?`<div class="mbc-rowb"><small>${pend.length} مستند قابل للقراءة لم يُقرأ بعد.</small><button type="button" class="btn pri" data-act="mbcReadAll" ${ST.busy?'disabled':''}>قراءة كل المستندات غير المقروءة</button></div>`:''}</div>
  <table class="mbc-tbl"><thead><tr><th>المستند</th><th>النوع</th><th>التاريخ</th><th>النص</th><th></th></tr></thead><tbody>
  ${d.docs.map(x=>{const ext=extOf(x.file),st=ST.rd[x.id];return `<tr><td><b>${e(x.title)}</b></td><td>${e(x.kind)}</td><td>${e(x.date)}</td>
-  <td>${st?`<span class="mbc-prog">${e(st)}</span>`:x.hasText?`<span class="mbc-ok">✓ ${Number(x.chars).toLocaleString('ar-EG')} حرف · ${e(VIA[x.via]||x.via)}</span>`:x.file?(READABLE.includes(ext)?'<span class="m">لم يُقرأ</span>':'<span class="m">نوع لا يُقرأ آلياً</span>'):'<span class="m">لا ملف مرفق</span>'}</td>
+  <td>${st?`<span class="mbc-prog">${e(st)}</span>`:x.hasText?`<span class="mbc-ok">✓ ${Number(x.chars).toLocaleString('en')} حرف · ${e(VIA[x.via]||x.via)}</span>`:x.file?(READABLE.includes(ext)?'<span class="m">لم يُقرأ</span>':'<span class="m">نوع لا يُقرأ آلياً</span>'):'<span class="m">لا ملف مرفق</span>'}</td>
   <td>${can&&x.file&&READABLE.includes(ext)&&!st?`<button type="button" class="btn sm" data-act="mbcRead" data-v="${e(x.id)}">${x.hasText?'إعادة القراءة':'قراءة'}</button>`:''}</td></tr>`}).join('')}</tbody></table>`}
 
 function logView(d){
  if(!d.sends.length)return '<p class="m mbc-empty">لم يُرسل شيء من هذه القضية للتحليل.</p>';
  const hid=h=>Object.entries(h||{}).map(([k,n])=>k+' '+n).join('، ')||'لا شيء';
  return `<p class="m">كل إرسال لخدمة الذكاء الاصطناعي من هذه القضية مسجّل هنا وفي سجل التدقيق.</p><table class="mbc-tbl"><thead><tr><th>الوقت</th><th>المستخدم</th><th>المهمة</th><th>حجم المرسل</th><th>مستندات</th><th>مراجع</th><th>بيانات أُخفيت</th></tr></thead><tbody>
- ${d.sends.map(s=>`<tr><td>${e(String(s.at).slice(0,16).replace('T',' '))}</td><td>${e(s.by)}</td><td>${e(d.tasks[s.task]||s.task)}</td><td>${Number(s.chars).toLocaleString('ar-EG')} حرف</td><td>${s.docs}</td><td>${s.refs}</td><td>${e(hid(s.hidden))}</td></tr>`).join('')}</tbody></table>`}
+ ${d.sends.map(s=>`<tr><td>${e(String(s.at).slice(0,16).replace('T',' '))}</td><td>${e(s.by)}</td><td>${e(d.tasks[s.task]||s.task)}</td><td>${Number(s.chars).toLocaleString('en')} حرف</td><td>${s.docs}</td><td>${s.refs}</td><td>${e(hid(s.hidden))}</td></tr>`).join('')}</tbody></table>`}
 
 /* ── الأوامر ── */
 A.mbcReload=()=>load(ST.k);
 A.mbcSub=v=>{ST.sub=v;paint();const b=document.getElementById('mbcBox');if(b)b.scrollIntoView({block:'nearest',behavior:'smooth'})};
+const ENABLE_MSG='تفعيل التحليل لهذه القضية:\n\n• يُرسل المسبار ملف القضية ومقاطع مختارة من مستنداتها إلى خدمة الذكاء الاصطناعي عند طلب التحليل فقط.\n• تُخفى أرقام الهويات والحسابات والهواتف والبريد قبل الإرسال.\n• يُسجَّل كل إرسال في سجل القضية وسجل التدقيق.\n\nهل تريد التفعيل؟';
 A.mbcEnable=async(v,el)=>{const on=!!(el&&el.checked);
- if(on&&!confirm('تفعيل التحليل لهذه القضية:\n\n• يُرسل المسبار ملف القضية ومقاطع مختارة من مستنداتها إلى خدمة الذكاء الاصطناعي عند طلب التحليل فقط.\n• تُخفى أرقام الهويات والحسابات والهواتف والبريد قبل الإرسال.\n• يُسجَّل كل إرسال في سجل القضية وسجل التدقيق.\n\nهل تريد التفعيل؟')){if(el)el.checked=false;return}
+ if(on&&!confirm(ENABLE_MSG)){if(el)el.checked=false;return}
  try{ST.data=await api('enable',{on});toast(on?'فُعّل التحليل لهذه القضية':'أُوقف التحليل لهذه القضية')}catch(x){toast(x.message)}paint()};
-A.mbcRun=async t=>{const n=document.getElementById('mbcNote');ST.note[t]=n?n.value:'';ST.busy=t;paint();
- try{const r=await api('run',{task:t,note:ST.note[t]});ST.data=r;toast('أضاف المسبار '+r.added+(r.added===1?' نتيجة':' نتائج')+' للمراجعة')}catch(x){toast(x.message);if(x.j&&x.j.needEnable)load(ST.k)}
- ST.busy='';paint()};
+A.mbcRun=async t=>{const n=document.getElementById('mbcNote');ST.note[t]=n?n.value:'';
+ if(!ST.data.enabled){if(!confirm(ENABLE_MSG))return;try{ST.data=await api('enable',{on:true})}catch(x){return toast(x.message)}}
+ ST.busy=t;ST.stage=THINK[0];paint();let i=0;clearInterval(thinkT);thinkT=setInterval(()=>{i=(i+1)%THINK.length;ST.stage=THINK[i];const el=document.getElementById('mbcStage');if(el){el.classList.remove('in');void el.offsetWidth;el.textContent=ST.stage;el.classList.add('in')}},2200);
+ try{
+  /* قراءة المستندات غير المقروءة أولاً، على هذا الجهاز */
+  const ids=typeof window.MQ_extract==='function'?ST.data.docs.filter(x=>!x.hasText&&x.file&&READABLE.includes(extOf(x.file))).map(x=>x.id):[];
+  for(const id of ids)await readOne(id,true);
+  const r=await api('run',{task:t,note:ST.note[t]});ST.data=r;ST.ff='';
+  toast(t==='facts'?'بُنيت خريطة الوقائع':'أضاف المسبار '+r.added+(r.added===1?' نتيجة':' نتائج')+' للمراجعة')}
+ catch(x){toast(x.message);if(x.j&&x.j.needEnable)load(ST.k)}
+ clearInterval(thinkT);ST.busy='';paint()};
+A.mbcFF=v=>{ST.ff=v||'';paint()};
+A.mbcNeed=key=>{const [fid,i]=String(key).split(':'),f=ST.data.findings.find(x=>x.id===fid),x=f&&f.facts[+i];const k=typeof K==='function'?K(ST.k):null;if(!x||!k)return;
+ k.gather=k.gather||{};const need=k.gather.need||[];if(need.some(n=>n.t===x.need))return toast('موجود في قائمة البينات المطلوبة');
+ k.gather.need=[...need,{id:'n'+Date.now().toString(36),t:x.need,st:'client',src:'المسبار',note:x.fact}];if(window.MQ&&MQ.saveState)MQ.saveState();
+ ST.added[key]=1;paint();toast('أُضيف إلى البينات المطلوبة في «الدراسة والقرار»')};
 A.mbcDecide=async v=>{const [id,status]=String(v).split('|');let note='';
  if(status==='rejected'){note=prompt('سبب الرفض (اختياري):','');if(note===null)return}
  try{ST.data=await api('decide',{id,status,note});toast(status==='approved'?'اعتُمدت النتيجة':status==='rejected'?'رُفضت النتيجة':'أعيدت للمراجعة')}catch(x){toast(x.message)}paint()};
-async function readOne(id){const x=ST.data.docs.find(d=>String(d.id)===String(id));if(!x||!x.file)return false;
- ST.rd[id]='جارٍ التحضير…';paint();window.MQ_extractStage=t=>{ST.rd[id]=t;paint()};
+async function readOne(id,quiet){const x=ST.data.docs.find(d=>String(d.id)===String(id));if(!x||!x.file)return false;
+ ST.rd[id]='جارٍ التحضير…';if(!quiet)paint();window.MQ_extractStage=t=>{ST.rd[id]=t;if(quiet){const el=document.getElementById('mbcStage');if(el)el.textContent='يقرأ «'+x.title+'»: '+t}else paint()};
  try{const r=await MQ_extract(x.file,extOf(x.file));if(!r||String(r.text||'').trim().length<20)throw new Error('لم يُستخرج نص كافٍ من «'+x.title+'».');
-  ST.data=await api('doctext',{doc:id,text:r.text,via:r.via,conf:r.conf});delete ST.rd[id];paint();return true}
- catch(er){delete ST.rd[id];toast(er.message);paint();return false}finally{window.MQ_extractStage=null}}
+  ST.data=await api('doctext',{doc:id,text:r.text,via:r.via,conf:r.conf});delete ST.rd[id];if(!quiet)paint();return true}
+ catch(er){delete ST.rd[id];if(!quiet)toast(er.message);paint();return false}finally{window.MQ_extractStage=null}}
 A.mbcRead=async id=>{if(await readOne(id))toast('قُرئ المستند وحُفظ نصه في القضية')};
 A.mbcReadAll=async()=>{ST.busy='read';const ids=ST.data.docs.filter(x=>!x.hasText&&x.file&&READABLE.includes(extOf(x.file))).map(x=>x.id);let ok=0;
  for(const id of ids)if(await readOne(id))ok++;ST.busy='';paint();toast('قُرئ '+ok+' من '+ids.length+' مستند')};
@@ -179,6 +216,40 @@ const css=document.createElement('style');css.textContent=`
 @media (max-width:640px){.mbc-ch{grid-template-columns:1fr}.mbc-ch>span{padding:4px 10px}}
 .mbc-tbl{width:100%;border-collapse:collapse;background:#fff;border-radius:12px;overflow:hidden;font-size:13.5px}.mbc-tbl th,.mbc-tbl td{padding:8px 10px;border-bottom:1px solid #efe6d0;text-align:start;vertical-align:top}.mbc-tbl th{background:#FBF6EA;color:#8A6A25}
 .mbc-ok{color:#2F5D3A}.mbc-prog{color:#8A4B00}
+.mbc-opt summary{cursor:pointer;color:#8A6A25;font-size:13px;margin-bottom:6px}
+.mbc-go{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;font-size:15px;background:linear-gradient(135deg,#0B1B2B,#1B3654)!important;color:#F3D58A!important;border:1px solid #C9A24A!important;box-shadow:0 0 0 0 rgb(201 162 74 / .5);animation:mbcPulse 2.4s ease-in-out infinite}
+.mbc-go .mbc-mk{width:22px;height:22px}.mbc-go:disabled{animation:none;opacity:.6}
+@keyframes mbcPulse{0%,100%{box-shadow:0 0 0 0 rgb(201 162 74 / .45)}50%{box-shadow:0 0 0 8px rgb(201 162 74 / 0)}}
+.mbc-think{display:flex;gap:18px;align-items:center;padding:18px 20px;border-radius:16px;background:radial-gradient(circle at 85% 50%,#1B3654,#0B1B2B 70%);border:1px solid #C9A24A;color:#F2E6C4;min-height:86px}
+.mbc-think b{display:block;color:#F3D58A;font-size:16px;margin-bottom:4px}.mbc-think span{display:block;font-size:14px}.mbc-think span.in{animation:mbcIn .5s ease}
+@keyframes mbcIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.mbc-orb{position:relative;width:64px;height:64px;flex:none;display:grid;place-items:center}.mbc-orb .mbc-mk{width:40px;height:40px;animation:mbcGlow 1.6s ease-in-out infinite}
+.mbc-orb i{position:absolute;inset:0;border-radius:50%;border:2px solid transparent;border-top-color:#F3D58A;animation:mbcSpin 1.4s linear infinite}
+.mbc-orb i:nth-child(3){inset:6px;border-top-color:transparent;border-left-color:#C9A24A;animation-duration:2.1s;animation-direction:reverse}.mbc-orb i:nth-child(4){inset:-6px;border-top-color:rgb(243 213 138 / .35);animation-duration:3.2s}
+@keyframes mbcSpin{to{transform:rotate(360deg)}}@keyframes mbcGlow{50%{filter:drop-shadow(0 0 14px rgb(243 213 138 / .9))}}
+.mbc-map{background:#fff;border:1px solid var(--brass,#C9A24A);border-radius:16px;padding:14px 16px;display:grid;gap:12px}
+.mbc-mhead{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.mbc-ring{--p:0;width:92px;height:92px;border-radius:50%;flex:none;display:grid;place-content:center;text-align:center;background:radial-gradient(closest-side,#fff 78%,transparent 79%),conic-gradient(#2F7D4F calc(var(--p)*1%),#F1E8D2 0)}
+.mbc-ring b{font-size:22px;color:#0B1B2B;line-height:1}.mbc-ring small{font-size:10.5px;color:#8A6A25}
+.mbc-msum{flex:1;min-width:240px}.mbc-msum>b{font-size:17px;display:block}.mbc-msum>small{color:var(--muted,#6b7280)}
+.mbc-fcs{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.mbc-fc{display:inline-flex;gap:6px;align-items:center;border:1px solid var(--line,#e5dccb);background:#FBF6EA;border-radius:999px;padding:4px 12px;font:inherit;font-size:13px;cursor:pointer;color:inherit;text-decoration:none}
+.mbc-fc b{font-size:15px}.mbc-fc.on{outline:2px solid #C9A24A}.mbc-fc.ok b{color:#2F7D4F}.mbc-fc.warn b{color:#B45309}.mbc-fc.bad b{color:#9B1C1C}.mbc-fc.bolt{background:#FDE2E2}
+.mbc-tl{list-style:none;margin:0;padding:0 0 0 0;position:relative}.mbc-tl::before{content:"";position:absolute;inset-inline-start:118px;top:6px;bottom:6px;width:2px;background:linear-gradient(#C9A24A,#efe6d0)}
+.mbc-tl>li{display:grid;grid-template-columns:104px 28px 1fr;align-items:start;padding:8px 0;animation:mbcIn .4s ease both}
+.mbc-tl>li:nth-child(n+2){animation-delay:.04s}.mbc-date{grid-column:1;text-align:end;font-size:12.5px;color:#8A6A25;font-weight:700;padding-top:3px}
+.mbc-dot{grid-column:2;justify-self:center;width:14px;height:14px;border-radius:50%;margin-top:4px;border:3px solid #fff;box-shadow:0 0 0 2px #C9A24A;background:#C9A24A;position:relative;z-index:1}
+.mbc-tl li.ok .mbc-dot{background:#2F7D4F;box-shadow:0 0 0 2px #2F7D4F}.mbc-tl li.warn .mbc-dot{background:#F59E0B;box-shadow:0 0 0 2px #F59E0B}.mbc-tl li.bad .mbc-dot{background:#B91C1C;box-shadow:0 0 0 2px #B91C1C}
+.mbc-tl li.imp-high .mbc-fx p:first-child{font-weight:700}
+.mbc-fx{grid-column:3;background:#FCFAF4;border:1px solid #efe6d0;border-radius:12px;padding:8px 12px}.mbc-fx p{margin:0 0 6px;line-height:1.75}
+.mbc-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12px}.mbc-st{border-radius:999px;padding:1px 8px;font-weight:700}.mbc-st.ok{background:#E5F4E4;color:#2F5D3A}.mbc-st.warn{background:#FEF3C7;color:#92400E}.mbc-st.bad{background:#FDE2E2;color:#9B1C1C}
+.mbc-pt{background:#EEF2F7;border-radius:999px;padding:1px 8px}
+.mbc-need{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin-top:8px;padding:6px 10px;border-radius:10px;background:#FFF8EB;border:1px dashed #F0D49A;font-size:13px}
+.mbc-cx{border-top:1px solid #efe6d0;padding-top:10px}.mbc-cx h4{margin:0 0 8px;color:#9B1C1C}.mbc-cxi{border:1px solid #F5C2C2;background:#FFF7F7;border-radius:12px;padding:10px 12px;margin-bottom:8px}
+.mbc-vs{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin:6px 0}.mbc-vs>div{background:#fff;border:1px solid #f1d5d5;border-radius:10px;padding:6px 10px;font-size:13.5px}.mbc-vs>span{font-size:20px}
+.mbc-l{font-weight:700;color:#8A6A25}.mbc-map footer{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}.mbc-map footer small{color:var(--muted,#6b7280)}
+@media (max-width:640px){.mbc-tl::before{inset-inline-start:13px}.mbc-tl>li{grid-template-columns:28px 1fr}.mbc-date{grid-column:2;text-align:start}.mbc-dot{grid-column:1;grid-row:1}.mbc-fx{grid-column:2}.mbc-vs{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){.mbc-go,.mbc-orb i,.mbc-orb .mbc-mk,.mbc-tl>li{animation:none}}
+html.night .mbc-map,html.night .mbc-fx{background:#14213a;color:#e5e7eb}
 html.night .mbc-f,html.night .mbc-tbl{background:#14213a;color:#e5e7eb}html.night .mbc-ch>span,html.night .mbc-tbl th{background:#1b2a47;color:#F3D58A}`;
 document.head.appendChild(css);
 })();
