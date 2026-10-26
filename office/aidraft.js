@@ -58,12 +58,12 @@ function body(){const st=D.status,k=K(D.k);
    <div class="ai-interim" id="aiInterim">${e(D.interim)}</div></div>
   <label class="wide rl-ck"><input type="checkbox" id="aiWeb" ${D.web?'checked':''}> البحث عن المراجع في المصادر الخارجية أيضاً (اختياري)</label>
   <div class="wide ai-note">يحاول المِسْبار إخفاء بعض الأسماء وبيانات الاتصال في النصوص، لكن الإخفاء غير مضمون وقد تبقى أرقام القضايا وتفاصيل تعرّف الأطراف. لا ترفع ملفات موكلين حساسة دون تصريح مناسب. المراجع غير المثبتة تُعلَّم «يحتاج تحقق».${SR&&!isElectron?' قد يعالج المتصفح الإملاء الصوتي بخدمة خارجية.':''}</div>
-  <label class="wide rl-ck"><input type="checkbox" id="aiConsent" ${D.consent?'checked':''}> أؤكد صلاحية استخدام بيانات هذه القضية وإرسال النص المطلوب إلى مزود الذكاء الاصطناعي لإعداد مسودة للمراجعة.</label>
+  <label class="wide rl-ck"><input type="checkbox" id="aiConsent" ${D.consent?'checked':''}> أؤكد صلاحية استخدام بيانات هذه القضية وإرسال النص المطلوب إلى عقل المسبار الواعي لإعداد مسودة للمراجعة.</label>
   ${D.err?`<div class="wide ai-err">${e(D.err)}</div>`:''}
   <div class="wide toolbar"><button class="btn pri" ${D.busy?'disabled':''}>${D.busy?'جارٍ الصياغة…':'صياغة المستند'}</button>${D.busy?'<span class="m" id="aiProg">يحلل الإملاء ويبحث عن المراجع ثم يصوغ؛ قد يستغرق دقيقة</span>':''}</div>
  </form>`}
-function keyBox(st){return st.canManage?`<div class="lg-empty">لم يُضبط مفتاح الذكاء الاصطناعي بعد. اضبطه من الإعدادات ← «مِسْبار: مفاتيح الذكاء الاصطناعي». <button class="btn pri sm" data-act="aiKeysGo">فتح الإعدادات</button></div>`
- :`<div class="lg-empty">الصياغة غير مفعّلة بعد. يضبط مدير المكتب مفتاح الذكاء الاصطناعي من الإعدادات.</div>`}
+function keyBox(st){return st.canManage?`<div class="lg-empty">لم يُضبط مفتاح عقل المسبار الواعي بعد. اضبطه من الإعدادات ← «مِسْبار: مفاتيح عقل المسبار الواعي». <button class="btn pri sm" data-act="aiKeysGo">فتح الإعدادات</button></div>`
+ :`<div class="lg-empty">الصياغة غير مفعّلة بعد. يضبط مدير المكتب مفتاح عقل المسبار الواعي من الإعدادات.</div>`}
 A.aiKeysGo=()=>{A.close&&A.close();A.nav('settings');setTimeout(()=>{const el=document.getElementById('aiKeys');if(el)el.scrollIntoView({block:'start',behavior:'smooth'})},200)};
 
 /* ── الإملاء ── */
@@ -85,7 +85,7 @@ function bind(){const t=document.getElementById('aiText');if(t)t.oninput=()=>{D.
 document.addEventListener('submit',async ev=>{const f=ev.target;if(f.id!=='fAi'&&f.id!=='fAiKey')return;ev.preventDefault();ev.stopImmediatePropagation();
  if(f.id==='fAiKey'){try{D.status={...D.status,...await api('key',{key:document.getElementById('aiKey').value.trim()})};D.err='';toast('حُفظ المفتاح')}catch(er){D.err=er.message}draw();return}
  if(D.busy||ro())return;stopMic();keep();const k=K(D.k);if(!k){D.err='اختر القضية';return draw()}
- if(!D.consent){D.err='يجب تأكيد السماح باستخدام البيانات مع مزود الذكاء الاصطناعي قبل الصياغة.';return draw()}
+ if(!D.consent){D.err='يجب تأكيد السماح باستخدام البيانات مع عقل المسبار الواعي قبل الصياغة.';return draw()}
  if(D.claims.length&&/جوابي|جوابية|رد على لائحة/.test(D.type)){const bad=D.claims.findIndex(c=>!['admit','deny','partial'].includes(c.stance)||(c.stance==='partial'&&(c.response||'').trim().length<5));if(bad!==-1){D.err='راجع موقف المحامي من الادعاء رقم '+(bad+1)+' قبل صياغة اللائحة.';return draw()}}
  const tplId=D.tpl&&tplTitle(D.tpl)===D.type?D.tpl:(LIB().find(x=>x.title===D.type)||{}).id||'';const tx=tplId?LIB().find(x=>x.id===tplId):null;
  D.busy=true;D.err='';draw();
@@ -181,7 +181,7 @@ function asBody(){const k=K(AS.k),st=D.status;
  const head=`<div class="head"><div><h1 class="as-brand"><img src="misbar-emblem.webp" alt="" width="40" height="38"><span>مِسْبار <small>عقل التحليل والاستنباط القانوني</small></span></h1><p class="sub">${k?`${e(k.no)} · ${e(k.subject||'')}`:'دون قضية محددة'}</p></div><button class="btn sm" data-act="aiClose">إغلاق</button></div>
   <label class="as-case">القضية <select class="field" id="asK"><option value="">— دون قضية محددة —</option>${cases.map(c=>`<option value="${c.id}" ${c.id===AS.k?'selected':''}>${e(c.no)} · ${e((C(c.client)||{}).name||'')} · ${e(c.subject||'')}</option>`).join('')}</select></label>`;
  if(!st)return head+`<div class="lg-empty">${AS.err?e(AS.err):'جارٍ التحضير…'}</div>`;
- if(!st.configured)return head+`<div class="lg-empty">المساعد يحتاج مفتاح الذكاء الاصطناعي. ${st.canManage?'<button class="btn pri sm" data-act="aiOpen" data-v="'+e(AS.k)+'">ضبط المفتاح</button>':'يضيفه مدير المكتب.'}</div>`;
+ if(!st.configured)return head+`<div class="lg-empty">المساعد يحتاج مفتاح عقل المسبار الواعي. ${st.canManage?'<button class="btn pri sm" data-act="aiOpen" data-v="'+e(AS.k)+'">ضبط المفتاح</button>':'يضيفه مدير المكتب.'}</div>`;
  const tabs=`<div class="as-modes">${Object.entries(MODES).map(([id,[t,d]])=>`<button type="button" class="as-mode ${AS.mode===id?'on':''}" data-act="asMode" data-v="${id}"><i class="as-ic">${ASICON[id]||''}</i><span class="as-tx"><b>${t}</b><span>${d}</span></span></button>`).join('')}</div>`;
  const tr=AS.mode==='translate';
  const q=QPH[AS.mode]&&!(tr&&AS.doc)?`<div class="ai-dict" style="margin-top:10px">${tr?`<label class="as-lang">الترجمة إلى <select class="field" id="asLang">${Object.entries(LANGS).map(([v,t])=>`<option value="${v}" ${AS.lang===v?'selected':''}>${t}</option>`).join('')}</select></label>`:''}<div class="ai-resp"><textarea class="field ai-text" id="asQ" rows="${AS.mode==='minutes'||tr?6:3}" placeholder="${QPH[AS.mode]}">${e(AS.q)}</textarea><button type="button" class="ai-mic sm ${D.listening&&D.target==='asQ'?'on':''}" data-act="asMic" aria-label="إملاء السؤال">${D.listening&&D.target==='asQ'?'■':'🎙'}</button></div><div class="ai-interim" id="aiInterim"></div></div>`:'';

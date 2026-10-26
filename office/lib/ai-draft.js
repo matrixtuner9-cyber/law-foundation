@@ -90,10 +90,10 @@ async function callRaw(key, body, fetchImpl, meter) {
   catch (e) { throw Object.assign(new Error('تعذّر الاتصال بخدمة الصياغة. تحقق من الإنترنت.'), { status: 502 }) }
   const j = await r.json().catch(() => ({}));
   if (meter && j.usage) { meter.calls++; meter.in += j.usage.input_tokens || 0; meter.out += j.usage.output_tokens || 0; meter.cw += j.usage.cache_creation_input_tokens || 0; meter.cr += j.usage.cache_read_input_tokens || 0 }
-  if (r.status === 401 || r.status === 403) throw Object.assign(new Error('مفتاح الذكاء الاصطناعي غير صالح أو موقوف. حدّثه من إعدادات الصياغة.'), { status: 400 });
-  if (r.status === 429) throw Object.assign(new Error('تجاوزت حد الاستخدام لدى مزوّد الذكاء الاصطناعي. حاول بعد قليل.'), { status: 429 });
+  if (r.status === 401 || r.status === 403) throw Object.assign(new Error('مفتاح عقل المسبار الواعي غير صالح أو موقوف. حدّثه من إعدادات الصياغة.'), { status: 400 });
+  if (r.status === 429) throw Object.assign(new Error('تجاوزت حد الاستخدام لدى عقل المسبار الواعي. حاول بعد قليل.'), { status: 429 });
   const em = String((j.error && j.error.message) || '').slice(0, 200);
-  if (/credit balance|billing/i.test(em)) throw Object.assign(new Error('رصيد حساب مزوّد الذكاء الاصطناعي غير كافٍ. أعد تعبئة الرصيد من لوحة Anthropic ثم أعد المحاولة.'), { status: 402 });
+  if (/credit balance|billing/i.test(em)) throw Object.assign(new Error('رصيد حساب عقل المسبار الواعي غير كافٍ. أعد تعبئة الرصيد من لوحة Anthropic ثم أعد المحاولة.'), { status: 402 });
   if (!r.ok) throw Object.assign(new Error('خدمة الصياغة لا تستجيب الآن (' + r.status + (em ? ': ' + em : '') + ').'), { status: 502 });
   return j;
 }
@@ -190,7 +190,7 @@ function createDrafter({ audit, getKey, laws, lawSearch, rulingSearch, fetchImpl
 
   const fn = async function draft(input, user, ctxExtra = {}) {
     const who = { user_id: user && user.id, username: user && user.username };
-    const key = await getKey(); if (!key) return { status: 400, body: { error: 'لم يُضبط مفتاح الذكاء الاصطناعي بعد. يضيفه مدير المكتب من إعدادات الصياغة.', needKey: true } };
+    const key = await getKey(); if (!key) return { status: 400, body: { error: 'لم يُضبط مفتاح عقل المسبار الواعي بعد. يضيفه مدير المكتب من إعدادات الصياغة.', needKey: true } };
     const wait = limited(String(user && (user.id || user.username))); if (wait) return { status: 429, body: { error: `طلبات صياغة كثيرة. حاول بعد ${wait} ثانية.` } };
     const docType = String(input.docType || '').slice(0, 120).trim(), dict = String(input.dictation || '').slice(0, MAX_DICT).trim();
     if (!docType) return { status: 400, body: { error: 'اختر نوع المستند.' } };
@@ -254,7 +254,7 @@ function createExtractor({ audit, getKey, fetchImpl = fetch, model } = {}) {
   const hits = new Map();
   return async function extract(input, user) {
     const who = { user_id: user && user.id, username: user && user.username };
-    const key = await getKey(); if (!key) return { status: 400, body: { error: 'لم يُضبط مفتاح الذكاء الاصطناعي بعد.', needKey: true } };
+    const key = await getKey(); if (!key) return { status: 400, body: { error: 'لم يُضبط مفتاح عقل المسبار الواعي بعد.', needKey: true } };
     const now = Date.now(), k = String(user && (user.id || user.username)), a = (hits.get(k) || []).filter(t => now - t < 600e3);
     if (a.length >= 10) return { status: 429, body: { error: 'طلبات قراءة كثيرة. حاول بعد قليل.' } }; a.push(now); hits.set(k, a);
     const content = [];
@@ -288,7 +288,7 @@ function createTranscriber({ audit, getKey, fetchImpl = fetch, model } = {}) {
   const hits = new Map();
   return async function transcribe(input, user) {
     const who = { user_id: user && user.id, username: user && user.username };
-    const key = await getKey(); if (!key) return { status: 400, body: { error: 'لم يُضبط مفتاح الذكاء الاصطناعي بعد.', needKey: true } };
+    const key = await getKey(); if (!key) return { status: 400, body: { error: 'لم يُضبط مفتاح عقل المسبار الواعي بعد.', needKey: true } };
     const f = input.file || {}, kind = MEDIA[f.type];
     if (!kind || !f.data) return { status: 400, body: { error: 'تُقرأ الصور وملفات PDF فقط بهذه الطريقة.' } };
     if (String(f.data).length > 14e6) return { status: 413, body: { error: 'الملف أكبر من 10 ميغابايت.' } };
@@ -334,7 +334,7 @@ const CALC_TOOL = { name: 'extract_calc', description: 'استخراج معطي�
 } } };
 function createCalcExtractor({ audit, getKey, fetchImpl = fetch, model } = {}) {
   return async function extractCalc(input, user) {
-    const key = await getKey(); if (!key) return { status: 400, body: { error: 'لم يُضبط مفتاح الذكاء الاصطناعي بعد.', needKey: true } };
+    const key = await getKey(); if (!key) return { status: 400, body: { error: 'لم يُضبط مفتاح عقل المسبار الواعي بعد.', needKey: true } };
     const kind = input.kind === 'labour' ? 'labour' : 'insurance', t = String(input.text || '').slice(0, 20000).trim();
     if (t.length < 20) return { status: 400, body: { error: 'اسرد الوقائع أولاً.' } };
     const an = anonymizer(input.case || {}), meter = meterNew(model || MODEL);
@@ -359,7 +359,7 @@ const RULING_TOOL = { name: 'extract_ruling', description: 'تسليم المب�
 function createRulingExtractor({ audit, getKey, fetchImpl = fetch, model } = {}) {
   const hits = new Map();
   return async function extractRuling(input, user) {
-    const key = await getKey(); if (!key) return { status: 400, body: { error: 'لم يُضبط مفتاح الذكاء الاصطناعي بعد.', needKey: true } };
+    const key = await getKey(); if (!key) return { status: 400, body: { error: 'لم يُضبط مفتاح عقل المسبار الواعي بعد.', needKey: true } };
     const t = String(input.text || '').slice(0, 60000).trim(); if (t.length < 200) return { status: 400, body: { error: 'نص الحكم قصير جداً لاستخراج المبدأ.' } };
     const now = Date.now(), k = String(user && (user.id || user.username)), a = (hits.get(k) || []).filter(x => now - x < 600e3);
     if (a.length >= 20) { hits.set(k, a); return { status: 429, body: { error: 'طلبات كثيرة. حاول بعد قليل.' } } } a.push(now); hits.set(k, a);
@@ -385,7 +385,7 @@ function createAssistant({ audit, getKey, laws, lawSearch, rulingSearch, fetchIm
     if (mode === 'question' && q.length < 8) return { status: 400, body: { error: 'اكتب السؤال بوضوح.' } };
     if (MODES[mode].need && q.length < (mode === 'howto' ? 5 : 20)) return { status: 400, body: { error: MODES[mode].need } };
     if (mode === 'similar' && !(extra.rulings || []).length && !(rulingSearch && input.web !== false)) return { status: 400, body: { error: 'مكتبة الاجتهادات فارغة والبحث في الأحكام المنشورة غير مفعّل. أضف أحكاماً من «البحث في الأحكام» أو فعّل البحث على الإنترنت.' } };
-    const key = await getKey(); if (!key) return { status: 400, body: { error: 'لم يُضبط مفتاح الذكاء الاصطناعي بعد. يضيفه مدير المكتب من إعدادات الصياغة.', needKey: true } };
+    const key = await getKey(); if (!key) return { status: 400, body: { error: 'لم يُضبط مفتاح عقل المسبار الواعي بعد. يضيفه مدير المكتب من إعدادات الصياغة.', needKey: true } };
     const now = Date.now(), k = String(user && (user.id || user.username)), a = (hits.get(k) || []).filter(t => now - t < 600e3);
     if (a.length >= 15) { hits.set(k, a); return { status: 429, body: { error: 'طلبات كثيرة. حاول بعد قليل.' } } } a.push(now); hits.set(k, a);
     const c = input.case || {}, an = anonymizer(c);

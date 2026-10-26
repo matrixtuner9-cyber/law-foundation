@@ -686,7 +686,7 @@ async function api(req, res, u) {
     return json(res, 200, Apns.pubCfg(r.cfg));
   }
   if (p.startsWith('/api/admin/ai/')) {
-    /* صياغة اللوائح بالذكاء الاصطناعي: المفتاح يُحفظ في الخادم ولا يُعاد للمتصفح أبداً */
+    /* صياغة اللوائح بعقل المسبار الواعي: المفتاح يُحفظ في الخادم ولا يُعاد للمتصفح أبداً */
     const a = p.slice(14);
     if (a === 'status' && M === 'GET') { const k = aiKey(); return json(res, 200, { configured: !!k, last4: k ? k.slice(-4) : '', model: AiDraft.MODEL, types: AiDraft.DOC_TYPES, canManage: auth.can(me, 'manage') }) }
     if (a === 'key' && M === 'POST') {
@@ -711,10 +711,10 @@ async function api(req, res, u) {
     if (a === 'ruling' && M === 'POST') { if (!need('write')) return; const r = await rulingExtract(await jbody(req), me); return json(res, r.status, r.body) }
     if (a === 'transcribe' && M === 'POST') { if (!need('write')) return; const r = await transcriber0(await jbody(req, 16 * 1024 * 1024), me); return json(res, r.status, r.body) }
     if (a === 'legal-review' && M === 'POST') {
-      /* تدقيق مسودة محفوظة بالذكاء الاصطناعي: موافقة صريحة، والنص يُقرأ من المسودة المحفوظة في القضية نفسها */
+      /* تدقيق مسودة محفوظة بعقل المسبار الواعي: موافقة صريحة، والنص يُقرأ من المسودة المحفوظة في القضية نفسها */
       if (!need('write')) return;
       const input = await jbody(req, 32 * 1024);
-      if (input.consent !== true) return json(res, 422, { error: 'يلزم التصريح الصريح بإرسال نص المسودة إلى مزود الذكاء الاصطناعي.' });
+      if (input.consent !== true) return json(res, 422, { error: 'يلزم التصريح الصريح بإرسال نص المسودة إلى عقل المسبار الواعي.' });
       if (!input.caseId || !input.docId) return json(res, 400, { error: 'يجب تحديد القضية والمسودة.' });
       const sc = aiScoped({ caseId: input.caseId }); if (sc.error) return json(res, sc.status, { error: sc.error });
       const doc = (cur().docs || []).find(d => String(d.id) === String(input.docId) && String(d.k) === String(input.caseId));

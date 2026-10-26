@@ -159,11 +159,11 @@ function labView(){
    ${needDoc||LAB.task==='gaps'||LAB.task==='legal_question'?`<label class="wide">${needDoc?'نص الحكم أو العقد أو المستند':'نص مستند (اختياري)'}<textarea class="field" id="mbLd" rows="8" placeholder="ألصق النص هنا أو استورد ملفاً نصياً…">${e(LAB.doc)}</textarea></label>
    <div class="mb-labrow"><label class="mb-file">استيراد مستند نصي (txt / docx)<input type="file" id="mbLfile" accept=".txt,.docx,.md"></label>${LAB.docName?`<span class="m">${e(LAB.docName)}</span>`:''}</div>`:''}`}
    <div class="mb-labrow">
-    <label class="mb-consent"><input type="checkbox" id="mbLc" ${LAB.consent?'checked':''}> أوافق على إرسال النص المدخل والمقتطفات المسترجعة إلى خدمة الذكاء الاصطناعي الخارجية، بعد حذف البيانات الشخصية والسرية.</label>
+    <label class="mb-consent"><input type="checkbox" id="mbLc" ${LAB.consent?'checked':''}> أوافق على إرسال النص المدخل والمقتطفات المسترجعة إلى عقل المسبار الواعي، بعد حذف البيانات الشخصية والسرية.</label>
    </div>
    <div class="mb-labrow"><button class="btn mb-go" id="mbLgo" ${LAB.busy?'disabled':''}>${LAB.busy?'جارٍ التحليل…':MK+' '+(LAB.task==='search'?'عقل مِسْبار':'استخراج النتائج القانونية')}</button>${LAB.busy?'<span class="m">يبحث في القاعدة ثم يحلل…</span>':''}</div>
   </form>
-  ${ai&&ai.error?`<div class="mb-empty bad">${e(ai.error)}</div>`:ai&&!ai.deepseek.configured&&!ai.claude.configured?`<div class="mb-cmp">لم يُضبط مفتاح الذكاء الاصطناعي بعد. ${ai.canManage?'<button type="button" class="btn sm" data-act="aiKeysGo">ضبطه من الإعدادات</button>':'يضبطه مدير المكتب من الإعدادات.'}</div>`:''}
+  ${ai&&ai.error?`<div class="mb-empty bad">${e(ai.error)}</div>`:ai&&!ai.deepseek.configured&&!ai.claude.configured?`<div class="mb-cmp">لم يُضبط مفتاح عقل المسبار الواعي بعد. ${ai.canManage?'<button type="button" class="btn sm" data-act="aiKeysGo">ضبطه من الإعدادات</button>':'يضبطه مدير المكتب من الإعدادات.'}</div>`:''}
   ${LAB.err?`<div class="mb-empty bad">${e(LAB.err)}</div>`:''}
   ${LAB.res?labResult():''}`}
 /* تحويل نص التحليل إلى فقرات: العناوين (#، أرقام، **) ونقاط، ومراجع [M123] قابلة للفتح */
@@ -417,9 +417,9 @@ function startFx(){const cv=document.querySelector('.mb-fx');if(!cv||cv._on)retu
   if(!reduce)raf=requestAnimationFrame(frame)}
  frame()}
 const vm0=V.misbar;V.misbar=function(){const h=vm0.apply(this,arguments);setTimeout(startFx,30);return h};
-/* الإعدادات: مفاتيح الذكاء الاصطناعي ومزوّده (المكان الوحيد الذي تُذكر فيه أسماء المزوّدين) */
+/* الإعدادات: مفاتيح عقل المسبار الواعي ومزوّده (المكان الوحيد الذي تُذكر فيه أسماء المزوّدين) */
 if(typeof V.settings==='function'){const vs0=V.settings;V.settings=function(){const h=vs0.apply(this,arguments);if(!can2('manage'))return h;setTimeout(keysLoad,0);
- return h+`<section class="panel" id="aiKeys" style="margin-top:16px"><header><h2>${MK} مِسْبار: مفاتيح الذكاء الاصطناعي</h2></header><div class="bd" id="aiKeysBd">جارٍ التحميل…</div></section>`}}
+ return h+`<section class="panel" id="aiKeys" style="margin-top:16px"><header><h2>${MK} مِسْبار: مفاتيح عقل المسبار الواعي</h2></header><div class="bd" id="aiKeysBd">جارٍ التحميل…</div></section>`}}
 async function keysLoad(){const bd=document.getElementById('aiKeysBd');if(!bd)return;let ai;try{ai=await call('ai',{})}catch(x){bd.textContent=x.message;return}LAB.ai=ai;
  const row=(id,name,st,ph,hint)=>`<div class="mb-krow"><div class="mb-kname"><b>${name}</b><span class="mb-st ${st.configured?'ok':''}">${st.configured?'مضبوط ···'+e(st.last4):'غير مضبوط'}</span><small>${hint}</small></div>
   <input class="field mono" id="k_${id}" type="password" dir="ltr" autocomplete="off" placeholder="${ph}"><button type="button" class="btn sm pri" data-act="aiKeySave" data-v="${id}">حفظ</button>${st.configured?`<button type="button" class="btn sm" data-act="aiKeyDel" data-v="${id}">إزالة</button>`:'<span></span>'}</div>`;

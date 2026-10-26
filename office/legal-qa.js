@@ -61,7 +61,7 @@ function drawAI(ai){
  if(!ai)return '';
  const sections=(ai.sections||[]).map(s=>'<section class="qa-ai-section"><h4>'+e(s.heading||'مراجعة')+'</h4><ul>'+ (s.items||[]).map(x=>'<li>'+e(x)+'</li>').join('')+'</ul></section>').join('');
  const refs=(ai.references||[]).map(x=>{const url=String(x.url||'').trim(),safe=/^https?:\/\/[^\s<>"']+$/i.test(url)&&!/muqtafi\.birzeit\.edu/i.test(url);return '<li>'+e(x.title||'مرجع')+(safe?' — <a href="'+e(url)+'" target="_blank" rel="noopener noreferrer">المصدر ↗</a>':'')+'</li>'}).join('');
- return '<section class="qa-ai-output"><h3>تحليل إضافي بالذكاء الاصطناعي — للمراجعة</h3><p class="c360-muted">لا تعتمد اقتراحات النموذج دون قراءة المستند الأصلي ومصادر القانون. قد يخطئ أو يسقط وقائع مهمة.</p>'+sections+(refs?'<h4>مراجع أوردها النموذج (بحاجة تحقق يدوي)</h4><ul>'+refs+'</ul>':'')+(ai.unverified?.length?'<h4>تحتاج تحققاً</h4><ul>'+ai.unverified.map(x=>'<li>'+e(x)+'</li>').join('')+'</ul>':'')+'</section>';
+ return '<section class="qa-ai-output"><h3>تحليل إضافي بعقل المسبار الواعي — للمراجعة</h3><p class="c360-muted">لا تعتمد اقتراحات النموذج دون قراءة المستند الأصلي ومصادر القانون. قد يخطئ أو يسقط وقائع مهمة.</p>'+sections+(refs?'<h4>مراجع أوردها النموذج (بحاجة تحقق يدوي)</h4><ul>'+refs+'</ul>':'')+(ai.unverified?.length?'<h4>تحتاج تحققاً</h4><ul>'+ai.unverified.map(x=>'<li>'+e(x)+'</li>').join('')+'</ul>':'')+'</section>';
 }
 function view(k){
  const ds=caseDocs(k);
@@ -82,9 +82,9 @@ function view(k){
   '<div class="qa-actions"><button class="btn pri" data-act="qaRun">فحص محلي الآن</button><button class="btn sm" data-act="c360Jump" data-v="docs">مستندات القضية</button></div>'+
   (state.err?'<p class="ai-err">'+e(state.err)+'</p>':'')+
   '<div class="qa-report">'+reportHtml+reportActions+'</div>'+
-  '<div class="qa-ai-panel"><h3>تحليل إضافي باستخدام Claude — اختياري</h3><p class="c360-muted">للمراجعة المتقدمة، يرسل نص هذا المستند إلى مزوّد الذكاء الاصطناعي (وقد يحتوي بيانات شخصية أو سرية). تختلف تكلفة الطلب حسب الاستخدام. لا يحدث الإرسال عند الفحص المحلي.</p>'+
+  '<div class="qa-ai-panel"><h3>تحليل إضافي باستخدام Claude — اختياري</h3><p class="c360-muted">للمراجعة المتقدمة، يرسل نص هذا المستند إلى عقل المسبار الواعي (وقد يحتوي بيانات شخصية أو سرية). تختلف تكلفة الطلب حسب الاستخدام. لا يحدث الإرسال عند الفحص المحلي.</p>'+
   '<label class="qa-consent"><input id="qaConsent" type="checkbox"> أؤكد وجود تصريح وصلاحية لمعالجة هذا النص لدى مزوّد خارجي وأوافق على إرساله لهذا التحليل.</label>'+
-  '<button class="btn sm" data-act="qaAI" '+(state.busy?'disabled':'')+'>'+(state.busy?'جارٍ التحليل…':'تحليل المسودة بالذكاء الاصطناعي')+'</button>'+
+  '<button class="btn sm" data-act="qaAI" '+(state.busy?'disabled':'')+'>'+(state.busy?'جارٍ التحليل…':'تحليل المسودة بعقل المسبار الواعي')+'</button>'+
   drawAI(ai)+'</div></div></section>';
 }
 root.legalQaTab=view;

@@ -1,5 +1,5 @@
 /* ── الحاسبات القانونية: تعويض حوادث الطرق، الحقوق العمالية، رسوم المحاكم والفائدة ──
-   الحساب حتمي (calc-engine.js) وكل سطر بمادته. الذكاء الاصطناعي يُستعمل اختيارياً لاستخراج المعطيات من سرد المحامي فقط.
+   الحساب حتمي (calc-engine.js) وكل سطر بمادته. عقل المسبار الواعي يُستعمل اختيارياً لاستخراج المعطيات من سرد المحامي فقط.
    الناتج يُحفظ في مستندات القضية أو يُطبع أو يُرسل إلى الصياغة بالصوت ليُبنى عليه لائحة. */
 (function(){
 const e=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -92,7 +92,7 @@ A.clFeeCfg=()=>{read();const c={...E.FEES_DEFAULT,...CS.feeCfg},m=document.getEl
 A.clFeeReset=()=>{CS.feeCfg={};SV('mq_feecfg',{});A.close();toast('أُعيد الجدول إلى الافتراضي');render()};
 document.addEventListener('submit',ev=>{if(ev.target.id!=='fFeeCfg')return;ev.preventDefault();ev.stopImmediatePropagation();const o={};ev.target.querySelectorAll('[id^="c_"]').forEach(x=>{o[x.id.slice(2)]=x.id==='c_source'?x.value:parseFloat(x.value)});CS.feeCfg=o;SV('mq_feecfg',o);A.close();toast('حُفظت الإعدادات');CS.res=null;render()},true);
 
-/* الاستخراج بالذكاء الاصطناعي والإملاء */
+/* الاستخراج بعقل المسبار الواعي والإملاء */
 A.clMic=()=>{if(A.aiMic)A.aiMic('clText')};
 A.clExtract=async()=>{read();if(CS.busy)return;if(!CS.text.trim())return toast('اسرد الوقائع أولاً');CS.busy=true;CS.err='';render();
  try{const k=K(CS.k);const r=await fetch('/api/admin/ai/calc',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({kind:CS.tab,text:CS.text,case:k?{client:(C(k.client)||{}).name,opponents:(k.opps||[]).map(o=>(O(o)||{}).name)}:{}})});const j=await r.json().catch(()=>({}));

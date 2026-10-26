@@ -35,13 +35,13 @@ const jparse = s => { try { const m = String(s).match(/\{[\s\S]*\}/); return m ?
 async function callDeepSeek(key, { system, user, maxTokens = 3200, json = false }, fetchImpl, model = DS_MODEL) {
   const body = { model, messages: [{ role: 'system', content: system }, { role: 'user', content: user }], max_tokens: maxTokens, temperature: 0.2, stream: false, ...(json ? { response_format: { type: 'json_object' } } : {}) };
   const r = await fetchImpl(DS_API, { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + key }, body: JSON.stringify(body) });
-  if (!r.ok) { const e = new Error(r.status === 401 ? 'مفتاح خدمة الذكاء الاصطناعي غير صالح؛ راجع الإعدادات.' : r.status === 402 ? 'رصيد خدمة الذكاء الاصطناعي غير كافٍ.' : r.status === 429 ? 'خدمة الذكاء الاصطناعي مشغولة؛ حاول بعد قليل.' : 'تعذّر الاتصال بخدمة الذكاء الاصطناعي (' + r.status + ').'); e.status = 502; throw e }
+  if (!r.ok) { const e = new Error(r.status === 401 ? 'مفتاح عقل المسبار الواعي غير صالح؛ راجع الإعدادات.' : r.status === 402 ? 'رصيد عقل المسبار الواعي غير كافٍ.' : r.status === 429 ? 'عقل المسبار الواعي مشغولة؛ حاول بعد قليل.' : 'تعذّر الاتصال بعقل المسبار الواعي (' + r.status + ').'); e.status = 502; throw e }
   const j = await r.json(); const text = j.choices && j.choices[0] && j.choices[0].message ? String(j.choices[0].message.content || '') : '';
   return { text, usage: { in: j.usage && j.usage.prompt_tokens || 0, out: j.usage && j.usage.completion_tokens || 0 }, model };
 }
 async function callClaude(key, { system, user, maxTokens = 3200 }, fetchImpl, model = AN_MODEL) {
   const r = await fetchImpl(AN_API, { method: 'POST', headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' }, body: JSON.stringify({ model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] }) });
-  if (!r.ok) { const e = new Error(r.status === 401 ? 'مفتاح خدمة الذكاء الاصطناعي غير صالح؛ راجع الإعدادات.' : r.status === 429 ? 'خدمة الذكاء الاصطناعي مشغولة؛ حاول بعد قليل.' : 'تعذّر الاتصال بخدمة الذكاء الاصطناعي (' + r.status + ').'); e.status = 502; throw e }
+  if (!r.ok) { const e = new Error(r.status === 401 ? 'مفتاح عقل المسبار الواعي غير صالح؛ راجع الإعدادات.' : r.status === 429 ? 'عقل المسبار الواعي مشغولة؛ حاول بعد قليل.' : 'تعذّر الاتصال بعقل المسبار الواعي (' + r.status + ').'); e.status = 502; throw e }
   const j = await r.json(); const text = (j.content || []).filter(x => x.type === 'text').map(x => x.text).join('\n');
   return { text, usage: { in: j.usage && j.usage.input_tokens || 0, out: j.usage && j.usage.output_tokens || 0 }, model };
 }
@@ -74,10 +74,10 @@ function createAnalyzer({ misbar, keys = {}, audit, fetchImpl = fetch, models = 
     if (task === 'search' && question.length < 4) return { status: 400, body: { error: 'اكتب سؤال البحث.' } };
     if (T.doc && !doc && facts.length < 30) return { status: 400, body: { error: 'الصق نص المستند أو أملِ الوقائع (30 حرفاً على الأقل).' } };
     if (!T.doc && task !== 'search' && text.length < 30) return { status: 400, body: { error: 'أدخل وقائع القضية أو السؤال بالتفصيل (30 حرفاً على الأقل).' } };
-    if (!input.consent) return { status: 400, body: { error: 'يلزم تأكيد الموافقة على إرسال النص والمقتطفات إلى خدمة الذكاء الاصطناعي بعد حذف البيانات الشخصية.' } };
+    if (!input.consent) return { status: 400, body: { error: 'يلزم تأكيد الموافقة على إرسال النص والمقتطفات إلى عقل المسبار الواعي بعد حذف البيانات الشخصية.' } };
     const av = await providers(), pref = String((keys.provider && await keys.provider()) || ''); const want = input.provider === 'claude' || input.provider === 'deepseek' ? input.provider : pref === 'claude' || pref === 'deepseek' ? pref : (av.deepseek ? 'deepseek' : 'claude');
     const provider = av[want] ? want : (av.deepseek ? 'deepseek' : av.claude ? 'claude' : '');
-    if (!provider) return { status: 503, body: { error: 'لم يُضبط مفتاح الذكاء الاصطناعي بعد. يضبطه مدير المكتب من الإعدادات.', needKey: true } };
+    if (!provider) return { status: 503, body: { error: 'لم يُضبط مفتاح عقل المسبار الواعي بعد. يضبطه مدير المكتب من الإعدادات.', needKey: true } };
     const wait = limited(String(user && (user.id || user.username))); if (wait) return { status: 429, body: { error: `طلبات كثيرة. حاول بعد ${wait} ثانية.` } };
     const key = provider === 'deepseek' ? await keys.deepseek() : await keys.anthropic();
     const call = (args) => provider === 'deepseek' ? callDeepSeek(key, args, fetchImpl, models.deepseek) : callClaude(key, args, fetchImpl, models.anthropic);
@@ -112,7 +112,7 @@ function createAnalyzer({ misbar, keys = {}, audit, fetchImpl = fetch, models = 
     const av = await providers(), pref = String((keys.provider && await keys.provider()) || '');
     const want = pref === 'claude' || pref === 'deepseek' ? pref : (av.deepseek ? 'deepseek' : 'claude');
     const provider = av[want] ? want : (av.deepseek ? 'deepseek' : av.claude ? 'claude' : '');
-    if (!provider) return { error: { status: 503, body: { error: 'لم يُضبط مفتاح الذكاء الاصطناعي بعد. يضبطه مدير المكتب من الإعدادات.', needKey: true } } };
+    if (!provider) return { error: { status: 503, body: { error: 'لم يُضبط مفتاح عقل المسبار الواعي بعد. يضبطه مدير المكتب من الإعدادات.', needKey: true } } };
     const wait = limited(String(user && (user.id || user.username))); if (wait) return { error: { status: 429, body: { error: `طلبات كثيرة. حاول بعد ${wait} ثانية.` } } };
     const key = provider === 'deepseek' ? await keys.deepseek() : await keys.anthropic();
     const usage = { in: 0, out: 0 };

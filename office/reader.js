@@ -4,7 +4,7 @@
    - TXT وWord: قراءة مباشرة
    - PDF: استخراج النص المضمّن بـ PDF.js، وإن كان ممسوحاً ضوئياً يُتعرّف على صوره بـ Tesseract
    - الصور: التعرّف على النص العربي بـ Tesseract
-   ثم، عند الحاجة فقط وبموافقة صريحة: «قراءة أدق بالذكاء الاصطناعي» (Claude) للصور الرديئة وخط اليد
+   ثم، عند الحاجة فقط وبموافقة صريحة: «قراءة أدق بعقل المسبار الواعي» (Claude) للصور الرديئة وخط اليد
    - النص المستخرج يُحفظ مؤقتاً في هذه الجلسة فقط، ويمكن حفظه في مستندات القضية */
 (function(){
 'use strict';
@@ -21,15 +21,15 @@ function modal(){const x=R.cur;if(!x)return;const {m,c}=x,cl=(typeof C==='functi
  const ks=(typeof cases!=='undefined'?cases:[]).filter(k=>k.client===c);
  const body=R.busy?`<div class="rd-busy"><div class="src-busy" role="progressbar" aria-label="استخراج النص"><i></i></div><p class="m" id="rdStage">${e(R.stage||'جارٍ استخراج النص…')}</p></div>`
   :R.err&&!t?`<p class="note" style="color:var(--danger)">${e(R.err)}</p>${aiPanel(x)}`
-  :t?`${t.unclear&&t.unclear.length?`<p class="note">مواضع غير واضحة في الأصل: ${e(t.unclear.join('، '))}</p>`:''}${t.kind==='no_text'||!t.text?'<p class="note">لم يُعثر على نص مقروء في هذا المرفق.</p>':`<div class="rd-text" dir="auto">${e(t.text)}</div>`}<p class="m">${t.text?t.text.length.toLocaleString('en-US')+' حرفاً':''}${t.via==='ai'?' · نُسخ بالذكاء الاصطناعي: راجع الأصل قبل الاعتماد عليه':t.via==='ocr'?' · تعرّف آلي مجاني على النص'+(t.conf!=null?' (ثقة '+Math.round(t.conf)+'٪)':'')+': راجع الأصل':t.via==='pdf'?' · نص مضمّن في ملف PDF':''}</p>${t.via==='ocr'&&(t.conf<65||t.text.length<20)?'<p class="note">القراءة المجانية ضعيفة لهذا المرفق (صورة غير واضحة أو خط يد). جرّب القراءة الأدق بالذكاء الاصطناعي.</p>':''}${t.via!=='ai'?aiPanel(x):''}`
+  :t?`${t.unclear&&t.unclear.length?`<p class="note">مواضع غير واضحة في الأصل: ${e(t.unclear.join('، '))}</p>`:''}${t.kind==='no_text'||!t.text?'<p class="note">لم يُعثر على نص مقروء في هذا المرفق.</p>':`<div class="rd-text" dir="auto">${e(t.text)}</div>`}<p class="m">${t.text?t.text.length.toLocaleString('en-US')+' حرفاً':''}${t.via==='ai'?' · نُسخ بعقل المسبار الواعي: راجع الأصل قبل الاعتماد عليه':t.via==='ocr'?' · تعرّف آلي مجاني على النص'+(t.conf!=null?' (ثقة '+Math.round(t.conf)+'٪)':'')+': راجع الأصل':t.via==='pdf'?' · نص مضمّن في ملف PDF':''}</p>${t.via==='ocr'&&(t.conf<65||t.text.length<20)?'<p class="note">القراءة المجانية ضعيفة لهذا المرفق (صورة غير واضحة أو خط يد). جرّب القراءة الأدق بعقل المسبار الواعي.</p>':''}${t.via!=='ai'?aiPanel(x):''}`
   :'';
  const acts=t&&t.text?`<div class="toolbar rd-acts"><button class="btn pri" data-act="${R.playing?'rdStop':'rdPlay'}">${R.playing?'⏸ إيقاف القراءة':'🔊 استماع'}</button><span class="m" id="rdProg">${e(R.prog)}</span><button class="btn" data-act="rdCopy">نسخ النص</button>${ks.length&&can()?`<select class="field" id="rdCase" style="max-width:220px">${ks.map(k=>`<option value="${e(k.id)}">${e(k.no)} · ${e(k.subject||'')}</option>`).join('')}</select><button class="btn" data-act="rdSave">حفظ النص في مستندات القضية</button>`:''}</div>`:'';
  document.getElementById('modal').innerHTML=`<div class="modal-bg" data-act="close"><div class="modal rd-modal" role="dialog" aria-label="نص المرفق"><div class="head"><div><h1>${e(m.name||(m.type==='image'?'صورة':'مستند'))}</h1><p class="sub">من الموكل ${e(cl.name||'')} · ${e(String(m.at||'').replace('T',' ').slice(0,16))}</p></div><button class="btn sm" data-act="rdClose">إغلاق</button></div>${acts}${body}</div></div>`;
 }
 /* القراءة الأدق (مدفوعة): للصور وPDF فقط، وتحتاج موافقة صريحة */
 function aiPanel(x){if(!AI_TYPES[x.ext]||!can())return '';
- if(!x.aiOpen)return '<div class="toolbar rd-ai"><button class="btn sm" data-act="rdAiOpen">قراءة أدق بالذكاء الاصطناعي (مدفوعة)</button></div>';
- return `<div class="rd-ai note"><p>تتم القراءة الأدق بإرسال المرفق إلى مزوّد الذكاء الاصطناعي (Claude)، وتُحسب كلفتها من استهلاك المكتب. قد يحتوي المرفق بيانات شخصية أو سرية للموكل.</p><label class="rl-ck"><input type="checkbox" id="rdConsent"> أؤكد أن لدي صلاحية معالجة هذا المستند لدى مزوّد خارجي.</label><div class="toolbar" style="margin-top:8px"><button class="btn pri" data-act="rdAi">قراءة أدق</button></div></div>`}
+ if(!x.aiOpen)return '<div class="toolbar rd-ai"><button class="btn sm" data-act="rdAiOpen">قراءة أدق بعقل المسبار الواعي (مدفوعة)</button></div>';
+ return `<div class="rd-ai note"><p>تتم القراءة الأدق بإرسال المرفق إلى عقل المسبار الواعي، وتُحسب كلفتها من استهلاك المكتب. قد يحتوي المرفق بيانات شخصية أو سرية للموكل.</p><label class="rl-ck"><input type="checkbox" id="rdConsent"> أؤكد أن لدي صلاحية معالجة هذا المستند لدى مزوّد خارجي.</label><div class="toolbar" style="margin-top:8px"><button class="btn pri" data-act="rdAi">قراءة أدق</button></div></div>`}
 const can=()=>!!(window.MQ&&MQ.user&&['admin','lawyer'].includes(MQ.user.role)&&!MQ.readOnly);
 
 /* ── المحركات المجانية: مضمّنة في التطبيق نفسه (vendor/) فتعمل دون إنترنت؛ tesseract.js 5.1.1 وpdf.js 4.10.38 ── */

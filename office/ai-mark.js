@@ -1,12 +1,12 @@
-/* ── تمييز كل ما يعمل بالذكاء الاصطناعي: لون مذهّب يبرق (من هوية التصميم)، ولمعة ونبض حيّ خفيف ──
-   يُطبَّق تلقائياً على أي زر أو رابط يُشغّل الذكاء الاصطناعي، في كل الشاشات والنوافذ، دون تعديل كل وحدة على حدة.
+/* ── تمييز كل ما يعمل بعقل المسبار الواعي: لون مذهّب يبرق (من هوية التصميم)، ولمعة ونبض حيّ خفيف ──
+   يُطبَّق تلقائياً على أي زر أو رابط يُشغّل عقل المسبار الواعي، في كل الشاشات والنوافذ، دون تعديل كل وحدة على حدة.
    يحترم «تقليل الحركة» في النظام، ولا ينبض الزر المعطّل. */
 (function(){
 'use strict';
-/* أوامر تُشغّل الذكاء الاصطناعي مباشرة */
+/* أوامر تُشغّل عقل المسبار الواعي مباشرة */
 const ACTS=new Set(['aiOpen','aiOpenWith','asOpen','asRun','asAgain','asToDraft','hpOpen','hpAssist','qaAI','qaRun','rdAi','rdAiOpen','rAiExtract','srcAi','hubDraft','hubPrep','hubAssist','gdStartAnswer','clDraft','dashAi','aiAnswer']);
 /* أو نص الزر يدل على ذلك */
-const RX=/الذكاء الاصطناعي|بالذكاء|الذكي|صياغة بالصوت|صياغة لائحة|الصياغة بالصوت|مساعد القضية|مساعد المحامي|مساعد الصياغة|مساعد التحضير|تحضير جلسة|تدقيق قانوني|التحليل الذكي|\bAI\b/;
+const RX=/عقل المسبار الواعي|بالذكاء|الذكي|صياغة بالصوت|صياغة لائحة|الصياغة بالصوت|مساعد القضية|مساعد المحامي|مساعد الصياغة|مساعد التحضير|تحضير جلسة|تدقيق قانوني|التحليل الذكي|\bAI\b/;
 const NOT=/^(إلغاء|إغلاق|حذف|المساعدة)$/;
 
 function isAi(el){const a=el.getAttribute('data-act');if(a&&ACTS.has(a))return true;
@@ -15,7 +15,7 @@ function isAi(el){const a=el.getAttribute('data-act');if(a&&ACTS.has(a))return t
 function mark(root){(root||document).querySelectorAll('button,a.btn,[data-act]:not(input):not(select):not(textarea):not(label):not(form)').forEach(el=>{
  if(el.dataset.aiChecked)return;el.dataset.aiChecked='1';if(!isAi(el))return;
  const link=el.classList.contains('link')||el.tagName==='A'&&!el.classList.contains('btn');
- el.classList.add(link?'ai-link':'ai-btn');if(!el.title)el.title='يعمل بالذكاء الاصطناعي — راجع الناتج قبل اعتماده'})}
+ el.classList.add(link?'ai-link':'ai-btn');if(!el.title)el.title='يعمل بعقل المسبار الواعي — راجع الناتج قبل اعتماده'})}
 let raf=0;const later=()=>{if(raf)return;raf=requestAnimationFrame(()=>{raf=0;mark()})};
 new MutationObserver(later).observe(document.documentElement,{childList:true,subtree:true,characterData:false});
 later();

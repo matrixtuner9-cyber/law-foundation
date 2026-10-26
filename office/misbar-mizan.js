@@ -32,7 +32,7 @@ function panel(){
 
 /* ── المعالجة ── */
 const setStage=t=>{X.stage=t;const el=document.getElementById('mzxStage');if(el)el.textContent=t};
-const CONSENT='يُرسل المسبار النص المقروء إلى خدمة الذكاء الاصطناعي لاستخراج القضايا، بعد إخفاء أرقام الهويات والهواتف والحسابات (تُعاد محلياً للمطابقة).\n\nمتابعة؟';
+const CONSENT='يحلّل عقل المسبار الواعي النص المقروء لاستخراج القضايا، بعد إخفاء أرقام الهويات والهواتف والحسابات (تُعاد محلياً للمطابقة).\n\nمتابعة؟';
 async function extract(text,source){
  if(text.replace(/\s/g,'').length<40)throw new Error('لم يُقرأ نص كافٍ.');
  if(!confirm(CONSENT))return null;

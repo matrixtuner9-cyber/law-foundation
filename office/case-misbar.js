@@ -189,13 +189,13 @@ function docsView(d){
 function logView(d){
  if(!d.sends.length)return '<p class="m mbc-empty">لم يُرسل شيء من هذه القضية للتحليل.</p>';
  const hid=h=>Object.entries(h||{}).map(([k,n])=>k+' '+n).join('، ')||'لا شيء';
- return `<p class="m">كل إرسال لخدمة الذكاء الاصطناعي من هذه القضية مسجّل هنا وفي سجل التدقيق.</p><table class="mbc-tbl"><thead><tr><th>الوقت</th><th>المستخدم</th><th>المهمة</th><th>حجم المرسل</th><th>مستندات</th><th>مراجع</th><th>بيانات أُخفيت</th></tr></thead><tbody>
+ return `<p class="m">كل إرسال لعقل المسبار الواعي من هذه القضية مسجّل هنا وفي سجل التدقيق.</p><table class="mbc-tbl"><thead><tr><th>الوقت</th><th>المستخدم</th><th>المهمة</th><th>حجم المرسل</th><th>مستندات</th><th>مراجع</th><th>بيانات أُخفيت</th></tr></thead><tbody>
  ${d.sends.map(s=>`<tr><td>${e(String(s.at).slice(0,16).replace('T',' '))}</td><td>${e(s.by)}</td><td>${e(d.tasks[s.task]||s.task)}</td><td>${Number(s.chars).toLocaleString('en')} حرف</td><td>${s.docs}</td><td>${s.refs}</td><td>${e(hid(s.hidden))}</td></tr>`).join('')}</tbody></table>`}
 
 /* ── الأوامر ── */
 A.mbcReload=()=>load(ST.k);
 A.mbcSub=v=>{ST.sub=v;paint();const b=document.getElementById('mbcBox');if(b)b.scrollIntoView({block:'nearest',behavior:'smooth'})};
-const ENABLE_MSG='تفعيل التحليل لهذه القضية:\n\n• يُرسل المسبار ملف القضية ومقاطع مختارة من مستنداتها إلى خدمة الذكاء الاصطناعي عند طلب التحليل فقط.\n• تُخفى أرقام الهويات والحسابات والهواتف والبريد قبل الإرسال.\n• يُسجَّل كل إرسال في سجل القضية وسجل التدقيق.\n\nهل تريد التفعيل؟';
+const ENABLE_MSG='تفعيل التحليل لهذه القضية:\n\n• يقرأ عقل المسبار الواعي ملف القضية ومقاطع مختارة من مستنداتها عند طلب التحليل فقط.\n• تُخفى أرقام الهويات والحسابات والهواتف والبريد قبل الإرسال.\n• يُسجَّل كل إرسال في سجل القضية وسجل التدقيق.\n\nهل تريد التفعيل؟';
 A.mbcEnable=async(v,el)=>{const on=!!(el&&el.checked);
  if(on&&!confirm(ENABLE_MSG)){if(el)el.checked=false;return}
  try{ST.data=await api('enable',{on});toast(on?'فُعّل التحليل لهذه القضية':'أُوقف التحليل لهذه القضية')}catch(x){toast(x.message)}paint()};
