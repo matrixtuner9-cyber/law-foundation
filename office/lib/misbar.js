@@ -12,7 +12,7 @@ const SOURCES = {
   EG_LEGISLATION: { label: 'مصر · تشريعات', country: 'EG', kind: 'law' },
 };
 const STATUS = { in_force: 'ساري', partial: 'ساري في الضفة الغربية', suspended: 'موقوف النفاذ', repealed: 'ملغى / غير ساري' };
-const SORTS = ['relevance', 'year_desc', 'year_asc'];
+const SORTS = ['relevance', 'year_desc', 'year_asc', 'date_desc'];
 /* النصوص الطويلة تُقسَّم في السحابة (حدّ D1 لطول العبارة): الجزء الأول في docs.body والباقي في body_parts،
    وفهرس FTS يحمل صفاً لكل جزء بمعرّف rowid = id + k*CHUNK_BASE؛ قاعدة المكتب لا تحتاج التقسيم لكنها تقبل الصيغة نفسها */
 const CHUNK = 30000, CHUNK_BASE = 100000000;
@@ -101,7 +101,7 @@ function createMisbar(db, { audit } = {}) {
     const cond = w, args = (fq ? [fq] : []).concat(a);
     const W = cond.length ? ' WHERE ' + cond.join(' AND ') : '';
     /* الترتيب بالصلة: bm25 مع وزن أكبر للعنوان، ثم الفلسطيني أولاً */
-    const order = sort === 'relevance' && fq ? 'f.rk + (CASE d.country WHEN \'PS\' THEN -2.0 ELSE 0 END)' : sort === 'year_asc' ? 'd.year ASC, d.id' : 'd.year DESC, d.id DESC';
+    const order = sort === 'relevance' && fq ? 'f.rk + (CASE d.country WHEN \'PS\' THEN -2.0 ELSE 0 END)' : sort === 'year_asc' ? 'd.year ASC, d.id' : sort === 'date_desc' ? "COALESCE(NULLIF(d.date,''), d.year || '-00-00') DESC, d.id DESC" : 'd.year DESC, d.id DESC';
     const [cnt] = await all(`SELECT COUNT(DISTINCT d.id) n FROM ${from}${W}`, ...args);
     const total = Number(cnt?.n || 0);
     const rows = total ? await all(`SELECT ${COLS}, substr(d.body,1,20000) body FROM ${sort === 'relevance' && fq ? fromRank : from}${W} ORDER BY ${order} LIMIT ? OFFSET ?`, ...args, per, (page - 1) * per) : [];
@@ -109,13 +109,21 @@ function createMisbar(db, { audit } = {}) {
     if (total && f.facets !== '0') {
       for (const r of await all(`SELECT d.src k, COUNT(DISTINCT d.id) n FROM ${from}${W} GROUP BY d.src`, ...args)) (facets.src ||= {})[r.k] = Number(r.n);
     }
-    const results = [];
-    for (const r of rows) {
-      const { body, ...x } = cleanRow(r); let sn = snippetAt(scrub(body), q);
-      /* المطابقة قد تكون في جزء لاحق من نص طويل: نجلب بقية الأجزاء لهذه النتيجة فقط */
-      if (!sn.hit && fq && body && body.length >= 20000) { const [fb] = await all('SELECT body FROM docs WHERE id=?', r.id); sn = snippetAt(scrub(await fullBody(r.id, fb && fb.body)), q) }
-      results.push({ ...x, source: SOURCES[r.src]?.label || r.src, primary: !!SOURCES[r.src]?.primary, excerpt: sn.text });
+    const pre = rows.map(r => { const { body, ...x } = cleanRow(r); return { r, x, body: body || '', sn: snippetAt(scrub(body), q) } });
+    /* المطابقة قد تكون في جزء لاحق من نص طويل: نجلب بقية النصوص لهذه النتائج كلها باستعلامين فقط
+       (لا استعلامين لكل نتيجة: في السحابة لكل طلب حدّ لعدد الاستعلامات، وكان البحث في القوانين الطويلة يتجاوزه) */
+    const miss = fq ? pre.filter(p => !p.sn.hit && p.body.length >= 20000) : [];
+    if (miss.length) {
+      const ids = miss.map(p => p.r.id), ph = ids.map(() => '?').join(',');
+      let rest = [], parts = [];
+      try { rest = await all(`SELECT id, substr(body, 20001) rest FROM docs WHERE id IN (${ph})`, ...ids) } catch { rest = [] }
+      try { parts = await all(`SELECT id, txt FROM body_parts WHERE id IN (${ph}) ORDER BY id, n`, ...ids) } catch { parts = [] }
+      for (const p of miss) {
+        const id = Number(p.r.id), more = String((rest.find(x => Number(x.id) === id) || {}).rest || ''), tail = parts.filter(x => Number(x.id) === id).map(x => x.txt).join('');
+        p.sn = snippetAt(scrub(p.body + more + tail), q);
+      }
     }
+    const results = pre.map(p => ({ ...p.x, source: SOURCES[p.r.src]?.label || p.r.src, primary: !!SOURCES[p.r.src]?.primary, excerpt: p.sn.text }));
     return { results, total, page, pages: Math.ceil(total / per), per, sort, query: fq, facets };
   }
   async function fullBody(id, first) {
