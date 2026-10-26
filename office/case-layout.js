@@ -68,21 +68,26 @@ const css=document.createElement('style');css.textContent=`
 .cl-steps li.cur{background:var(--brass,#B9965A);color:#fff;font-weight:700}
 .cl-now{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between}.cl-now small{display:block;color:var(--muted);font-size:12px}.cl-now b{font-size:15.5px}`;document.head.appendChild(css);
 })();
-/* دمج القوائم: «الموكلون» باب العمل الوحيد، وقائمة القضايا الشاملة صارت «استعلام القضايا» داخل «الاستعلامات والتقارير» */
+/* «الاستعلامات والتقارير»: باب واحد يضم الموكلين والقضايا والجلسات والمستندات والمراسلات والتقارير بدل تناثرها في القائمة الجانبية */
 (function(){
 if(typeof NAV==='undefined'||typeof V==='undefined')return;
-const set=()=>{const i=NAV.findIndex(n=>n[0]==='cases');if(i>=0)NAV.splice(i,1);
- const c=NAV.find(n=>n[0]==='clients');if(c)c[1]='الموكلون';const r=NAV.find(n=>n[0]==='reports');if(r)r[1]='الاستعلامات والتقارير'};
-set();
-const vc=V.cases,vr=V.reports;
-if(typeof vc==='function'&&typeof vr==='function'){
- V.reports=function(){const t=S.repTab||'cases';
-  const tabs=`<div class="tabs rq-tabs"><button class="${t==='cases'?'on':''}" data-act="repTab" data-v="cases">استعلام القضايا</button><button class="${t==='reports'?'on':''}" data-act="repTab" data-v="reports">التقارير</button></div>`;
-  const body=t==='cases'?vc.apply(this,arguments).replace('<h1>القضايا</h1>','<h1>استعلام القضايا</h1>'):vr.apply(this,arguments);
-  return tabs+body};
- V.cases=function(){S.view='reports';S.repTab='cases';return V.reports()}}
-A.repTab=v=>{S.repTab=v;render()};
-const n0=A.nav;A.nav=v=>{if(v==='cases'){S.repTab='cases';return n0('reports')}return n0(v)};
-/* إبراز «الموكلون» عند فتح حقيبة موكل، و«الاستعلامات» عند استعلام القضايا */
-const css=document.createElement('style');css.textContent='.rq-tabs{margin:0 0 12px!important}';document.head.appendChild(css);
+const Q=[['clients','الموكلون'],['cases','القضايا'],['agenda','الجلسات والمواعيد'],['docs','المستندات'],['chats','المراسلات'],['reports','التقارير']];
+const IDS=Q.map(q=>q[0]);
+const tidy=()=>{for(let i=NAV.length-1;i>=0;i--)if(IDS.includes(NAV[i][0])&&NAV[i][0]!=='reports')NAV.splice(i,1);
+ const r=NAV.findIndex(n=>n[0]==='reports');if(r>=0){const [x]=NAV.splice(r,1);x[1]='الاستعلامات والتقارير';const d=NAV.findIndex(n=>n[0]==='dash');NAV.splice(d+1,0,x)}};
+tidy();
+const strip=cur=>`<div class="tabs rq-tabs" role="tablist" aria-label="الاستعلامات">${Q.map(([id,lb])=>`<button class="${cur===id?'on':''}" data-act="nav" data-v="${id}">${lb}</button>`).join('')}</div>`;
+IDS.forEach(id=>{const f=V[id];if(typeof f!=='function')return;V[id]=function(){const h=f.apply(this,arguments);return strip(id)+(id==='cases'?h.replace('<h1>القضايا</h1>','<h1>استعلام القضايا</h1>'):h)}});
+/* إبراز «الاستعلامات والتقارير» في القائمة عند أي من هذه الشاشات */
+const dn=window.drawNav;if(typeof dn==='function')window.drawNav=function(){dn.apply(this,arguments);if(IDS.includes(S.view)||S.view==='client'||S.view==='case'){const b=document.querySelector('#nav button[data-v="reports"]');if(b){document.querySelectorAll('#nav button.on').forEach(x=>x.classList.remove('on'));b.classList.add('on')}}};
+const css=document.createElement('style');css.textContent='.rq-tabs{margin:0 0 14px!important}';document.head.appendChild(css);
+})();
+/* «المكتبة القانونية» تضم العقود والنماذج */
+(function(){
+if(typeof NAV==='undefined'||typeof V==='undefined')return;
+const Q=[['lawlib','المكتبة القانونية'],['tpls','العقود والنماذج']],IDS=Q.map(q=>q[0]);
+const t=NAV.findIndex(n=>n[0]==='tpls');if(t>=0)NAV.splice(t,1);
+const strip=cur=>`<div class="tabs rq-tabs" role="tablist" aria-label="المكتبة القانونية">${Q.map(([id,lb])=>`<button class="${cur===id?'on':''}" data-act="nav" data-v="${id}">${lb}</button>`).join('')}</div>`;
+IDS.forEach(id=>{const f=V[id];if(typeof f==='function')V[id]=function(){return strip(id)+f.apply(this,arguments)}});
+const dn=window.drawNav;if(typeof dn==='function')window.drawNav=function(){dn.apply(this,arguments);if(S.view==='tpls'){const b=document.querySelector('#nav button[data-v="lawlib"]');if(b){document.querySelectorAll('#nav button.on').forEach(x=>x.classList.remove('on'));b.classList.add('on')}}};
 })();
