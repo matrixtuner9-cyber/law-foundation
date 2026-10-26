@@ -27,13 +27,13 @@ test('الرمز المميز والاستشهاد', () => {
 });
 
 test('الربط بعدة قضايا: رقم تسلسلي لكل قضية، ولا تكرار، ومن ربط ومتى', () => {
-  const cases = [{ id: 'k1', refs: [] }, { id: 'k2' }, { id: 'k3', refs: [{ n: 4, kind: 'law', src: 'misbar', docId: 9, text: 'x' }] }];
+  const cases = [{ id: 'k1', lawRefs: [] }, { id: 'k2' }, { id: 'k3', lawRefs: [{ n: 4, kind: 'law', src: 'misbar', docId: 9, text: 'x' }] }];
   const art = R.fromDoc(LAW, { art: R.splitArticles(LAW.body)[2] });
   let r = R.linkRef(cases, ['k1', 'k2', 'k3', 'nope'], { ...art, issue: 'التقادم', note: 'سقوط الحق' }, { by: 'imad', at: '2026-10-27 01:30' });
   assert.deepEqual(r.added, ['k1', 'k2', 'k3']);
-  assert.equal(cases[0].refs[0].n, 1); assert.equal(cases[2].refs[1].n, 5, 'يكمل ترقيم القضية');
-  assert.equal(cases[0].refs[0].code, 'م 32 مكرر · ق 36/1944'); assert.equal(cases[0].refs[0].by, 'imad'); assert.equal(cases[0].refs[0].issue, 'التقادم');
+  assert.equal(cases[0].lawRefs[0].n, 1); assert.equal(cases[2].lawRefs[1].n, 5, 'يكمل ترقيم القضية');
+  assert.equal(cases[0].lawRefs[0].code, 'م 32 مكرر · ق 36/1944'); assert.equal(cases[0].lawRefs[0].by, 'imad'); assert.equal(cases[0].lawRefs[0].issue, 'التقادم');
   r = R.linkRef(cases, ['k1'], art); assert.deepEqual(r.skipped, ['k1'], 'المادة نفسها لا تتكرر');
   r = R.linkRef(cases, ['k1'], R.fromDoc(LAW, { art: R.splitArticles(LAW.body)[3] })); assert.deepEqual(r.added, ['k1'], 'مادة أخرى من التشريع نفسه تُربط');
-  assert.equal(cases[0].refs[1].n, 2);
+  assert.equal(cases[0].lawRefs[1].n, 2);
 });

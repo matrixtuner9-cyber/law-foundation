@@ -130,7 +130,7 @@ function results(){
 function bodyHtml(t,q){const parts=String(t||'').split(/\n+/).map(s=>s.trim()).filter(Boolean);
  /* زر «🔗 ربط» بجانب كل مادة: يربطها بقضية أو أكثر (case-refs.js) */
  const R=window.MQREFS,d=MB.doc,can=R&&d&&d.kind==='law'&&(typeof window.MQ_can!=='function'||window.MQ_can('cases'));
- const linked=n=>{try{return (typeof cases!=='undefined'?cases:[]).filter(k=>(k.refs||[]).some(r=>String(r.docId)===String(d.id)&&r.art===n)).length}catch(_){return 0}};
+ const linked=n=>{try{return (typeof cases!=='undefined'?cases:[]).filter(k=>(Array.isArray(k.lawRefs)?k.lawRefs:[]).some(r=>String(r.docId)===String(d.id)&&r.art===n)).length}catch(_){return 0}};
  return parts.map(p=>{if(/^(?:المادة|مادة|الماده)\s*[(\d٠-٩]/.test(p)&&p.length<90){let extra='';if(can){const a=R.splitArticles(p)[0];if(a){const n=linked(a.n);extra=`<button type="button" class="cr-art" data-act="crLinkArt" data-v="${d.id}|${e(a.n)}" title="ربط ${e(a.label)} بقضية">🔗 ربط</button>${n?`<span class="cr-on">✓ مربوطة بـ ${n}</span>`:''}`}}return `<h4>${hl(p,q)}${extra}</h4>`}return `<p>${hl(p,q)}</p>`}).join('')}
 function reader(){
  const d=MB.doc;

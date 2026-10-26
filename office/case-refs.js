@@ -42,10 +42,10 @@ const keyOf=r=>[r.kind,r.src,r.docId||'',r.rulingId||'',r.shelfId||'',r.art||'',
 /* ربط مرجع بعدة قضايا (لا يتكرر في القضية الواحدة)؛ يعيد {added, skipped} */
 function linkRef(list,caseIds,ref,{by='',at=''}={}){
  const out={added:[],skipped:[]};const key=keyOf(ref);
- for(const id of caseIds){const k=list.find(x=>x.id===id);if(!k)continue;k.refs=k.refs||[];
-  if(k.refs.some(x=>keyOf(x)===key)){out.skipped.push(id);continue}
-  k.refSeq=Math.max(Number(k.refSeq)||0,...k.refs.map(x=>Number(x.n)||0))+1;
-  k.refs.push({...ref,id:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),n:k.refSeq,code:refCode(ref),by,at});
+ for(const id of caseIds){const k=list.find(x=>x.id===id);if(!k)continue;k.lawRefs=k.lawRefs||[];
+  if(k.lawRefs.some(x=>keyOf(x)===key)){out.skipped.push(id);continue}
+  k.refSeq=Math.max(Number(k.refSeq)||0,...k.lawRefs.map(x=>Number(x.n)||0))+1;
+  k.lawRefs.push({...ref,id:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),n:k.refSeq,code:refCode(ref),by,at});
   out.added.push(id)}
  return out}
 /* مرجع من مستند المسبار (تشريع كامل، أو مادة، أو مقطع، أو حكم) */
@@ -71,7 +71,7 @@ const clientName=id=>{try{return (C(id)||{}).name||''}catch(_){return ''}};
 const KIND={article:['مادة','#8A6A12','§'],law:['تشريع','#1D3557','📘'],excerpt:['مقطع','#6B4FA0','❝'],ruling:['حكم','#7A2E2E','⚖']};
 const docCache=new Map();
 async function getDoc(id){if(docCache.has(id))return docCache.get(id);const r=await fetch('/api/admin/misbar/doc?id='+encodeURIComponent(id));const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'تعذّر فتح المرجع');docCache.set(id,j);return j}
-const linkedCount=pred=>allCases().filter(k=>(k.refs||[]).some(pred));
+const linkedCount=pred=>allCases().filter(k=>(Array.isArray(k.lawRefs)?k.lawRefs:[]).some(pred));
 
 const css=`
 .cr-badge{display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -102,7 +102,7 @@ function openLink(ref,pre){if(!canLink())return toast('لا تملك صلاحي�
  const cur=pre||(S.caseId&&(S.view==='client'||S.view==='case')?S.caseId:'')||root.MQ_refTarget||'';
  const ks=allCases().slice().sort((a,b)=>(a.id===cur?-1:b.id===cur?1:0)||((a.status==='منتهية')-(b.status==='منتهية')));
  const already=new Set(linkedCount(x=>keyOf(x)===keyOf(ref)).map(k=>k.id));
- const issues=[...new Set(allCases().flatMap(k=>(k.refs||[]).map(r=>r.issue)).filter(Boolean))].slice(0,60);
+ const issues=[...new Set(allCases().flatMap(k=>(Array.isArray(k.lawRefs)?k.lawRefs:[]).map(r=>r.issue)).filter(Boolean))].slice(0,60);
  const kd=KIND[ref.kind]||KIND.law;
  doc.getElementById('modal').innerHTML=`<div class="modal-bg" data-act="close"><div class="modal wide cr-modal" role="dialog" aria-label="ربط مرجع بقضية"><div class="head"><h1 style="font-size:21px">ربط مرجع قانوني بقضية</h1><button class="btn sm" data-act="close">إغلاق</button></div>
   <div class="cr-badge" style="--crc:${kd[1]}"><span class="cr-code">${kd[2]} ${E(refCode(ref))}</span>${ref.date||ref.year?`<span class="cr-date">${E(dmy(ref.date)||ref.year)}</span>`:''}<span class="pill">${kd[0]}</span>${ref.status?`<span class="pill">${E(ref.status)}</span>`:''}</div>
@@ -146,14 +146,14 @@ A.crLinkShelf=v=>{const r=(typeof legalRefs!=='undefined'?legalRefs:[]).find(x=>
 
 /* ── تبويب «المراجع القانونية» في القضية ── */
 const CR={open:new Set(),issue:''};
-function card(k,r){const kd=KIND[r.kind]||KIND.law,open=CR.open.has(r.id),others=allCases().filter(x=>x.id!==k.id&&(x.refs||[]).some(y=>keyOf(y)===keyOf(r)));
+function card(k,r){const kd=KIND[r.kind]||KIND.law,open=CR.open.has(r.id),others=allCases().filter(x=>x.id!==k.id&&(x.lawRefs||[]).some(y=>keyOf(y)===keyOf(r)));
  return `<div class="cr-card" id="cr_${r.id}"><div class="cr-badge" style="--crc:${kd[1]}"><span class="cr-n" title="رقم المرجع في هذه القضية">${r.n||'•'}</span><span class="cr-code">${kd[2]} ${E(r.code||refCode(r))}</span>${dmy(r.date)||r.year?`<span class="cr-date">${E(dmy(r.date)||r.year)}</span>`:''}<span class="pill">${kd[0]}</span>${r.status?`<span class="pill ${/ملغ/.test(r.status)?'bad':''}">${E(r.status)}</span>`:''}${r.primary===false?'<span class="pill">للاستئناس</span>':''}</div>
   <h4>${E(citation(r))}</h4>
   ${r.note?`<div class="cr-note"><b>وجه الاستشهاد:</b> ${E(r.note)}</div>`:''}
   ${open?`<div class="cr-text">${E(r.text||'')}</div>`:`<div class="m" style="margin-top:4px">${E(String(r.text||'').replace(/\s+/g,' ').slice(0,220))}${String(r.text||'').length>220?'…':''}</div>`}
   <div class="m" style="margin-top:6px">رُبط ${E(r.at||'')}${r.by?' · '+E(r.by):''}${others.length?' · مربوط أيضاً بـ: '+others.map(o=>`<button class="link mono" data-act="openCase" data-v="${o.id}">${E(o.no)}</button>`).join('، '):''}</div>
   <div class="cr-acts"><button class="btn sm" data-act="crToggle" data-v="${r.id}">${open?'إخفاء النص':'النص الكامل'}</button><button class="btn sm" data-act="crCopy" data-v="${k.id}|${r.id}">نسخ الاستشهاد</button>${r.docId?`<button class="btn sm" data-act="mbOpen" data-v="${r.docId}">فتح المصدر</button>`:''}${canLink()?`<button class="btn sm" data-act="crMore" data-v="${k.id}|${r.id}">ربط بقضايا أخرى</button><button class="btn sm" data-act="crEdit" data-v="${k.id}|${r.id}">تعديل</button><button class="btn sm d" data-act="crDel" data-v="${k.id}|${r.id}">إزالة</button>`:''}</div></div>`}
-function tab(k){const rs=(k.refs||[]).slice().sort((a,b)=>(a.n||0)-(b.n||0));
+function tab(k){const rs=(Array.isArray(k.lawRefs)?k.lawRefs:[]).slice().sort((a,b)=>(a.n||0)-(b.n||0));
  const groups={};for(const r of rs){(groups[r.issue||'']=groups[r.issue||'']||[]).push(r)}
  const order=Object.keys(groups).sort((a,b)=>!a?1:!b?-1:a.localeCompare(b,'ar'));
  return `<section class="panel"><header><h2>المراجع القانونية للقضية</h2><span class="m">المواد والتشريعات والأحكام التي يعتمد عليها ملف القضية، بنصوصها الحرفية</span></header><div class="bd">
@@ -164,10 +164,10 @@ function tab(k){const rs=(k.refs||[]).slice().sort((a,b)=>(a.n||0)-(b.n||0));
 const caseTab0=root.caseTab;root.caseTab=function(k){if(S.caseTab==='refs')return tab(k);return caseTab0(k)};
 
 A.crToggle=v=>{CR.open.has(v)?CR.open.delete(v):CR.open.add(v);render()};
-const find=v=>{const [kid,rid]=String(v).split('|');const k=allCases().find(x=>x.id===kid);return {k,r:k&&(k.refs||[]).find(x=>x.id===rid)}};
+const find=v=>{const [kid,rid]=String(v).split('|');const k=allCases().find(x=>x.id===kid);return {k,r:k&&(Array.isArray(k.lawRefs)?k.lawRefs:[]).find(x=>x.id===rid)}};
 A.crCopy=v=>{const {r}=find(v);if(!r)return;const t=citation(r)+(r.text?'\n«'+r.text+'»':'');navigator.clipboard.writeText(t).then(()=>toast('نُسخ الاستشهاد مع النص'))};
-A.crCopyAll=v=>{const k=allCases().find(x=>x.id===v);if(!k)return;const t=(k.refs||[]).slice().sort((a,b)=>a.n-b.n).map(r=>`(${r.n}) ${citation(r)}`).join('\n');navigator.clipboard.writeText(t).then(()=>toast('نُسخت قائمة المراجع'))};
-A.crDel=v=>{const {k,r}=find(v);if(!r||!confirm('إزالة «'+(r.code||'')+'» من مراجع هذه القضية؟'))return;k.refs=k.refs.filter(x=>x.id!==r.id);save();render()};
+A.crCopyAll=v=>{const k=allCases().find(x=>x.id===v);if(!k)return;const t=(Array.isArray(k.lawRefs)?k.lawRefs:[]).slice().sort((a,b)=>a.n-b.n).map(r=>`(${r.n}) ${citation(r)}`).join('\n');navigator.clipboard.writeText(t).then(()=>toast('نُسخت قائمة المراجع'))};
+A.crDel=v=>{const {k,r}=find(v);if(!r||!confirm('إزالة «'+(r.code||'')+'» من مراجع هذه القضية؟'))return;k.lawRefs=k.lawRefs.filter(x=>x.id!==r.id);save();render()};
 A.crMore=v=>{const {k,r}=find(v);if(!r)return;const {id,n,code,by,at,...ref}=r;openLink(ref,'')};
 A.crEdit=v=>{const {k,r}=find(v);if(!r)return;
  doc.getElementById('modal').innerHTML=`<div class="modal-bg" data-act="close"><div class="modal" role="dialog"><div class="head"><h1 style="font-size:20px">تعديل المرجع (${r.n}) ${E(r.code||'')}</h1><button class="btn sm" data-act="close">إغلاق</button></div>
@@ -182,7 +182,7 @@ A.crPick=v=>{const [kid,what]=String(v).split('|');const list=what==='rulings'?(
   <input class="field" id="crPq" placeholder="بحث…" style="width:100%;margin-bottom:8px"><div class="cr-cases" id="crPl" style="max-height:420px">${list.map(r=>`<label data-s="${E(JSON.stringify([r.title,r.no,r.court,r.principle,r.lawName,r.articleNumber]).toLowerCase())}"><button type="button" class="btn sm" data-act="${what==='rulings'?'crLinkRuling':'crLinkShelf'}" data-v="${r.id}">اختيار</button> ${E(what==='rulings'?[r.court,r.no,dmy(r.date)].filter(Boolean).join(' · ')+' — '+(r.principle||r.title||'').slice(0,120):[r.lawName||r.title,r.articleNumber?'م '+r.articleNumber:''].filter(Boolean).join(' · '))}</label>`).join('')}</div></div></div>`;
  const q=doc.getElementById('crPq');q.oninput=()=>{const t=q.value.trim().toLowerCase();doc.querySelectorAll('#crPl label').forEach(l=>{l.hidden=!!t&&!l.dataset.s.includes(t)})};q.focus()};
 A.crPrint=v=>{const k=allCases().find(x=>x.id===v);if(!k||!root.MQP||!MQP.open)return toast('الطباعة غير متاحة');const B=MQP.B,e2=E;
- MQP.open({label:'مذكرة المراجع',build(){const rs=(k.refs||[]).slice().sort((a,b)=>a.n-b.n),blocks=[];let g=null;
+ MQP.open({label:'مذكرة المراجع',build(){const rs=(Array.isArray(k.lawRefs)?k.lawRefs:[]).slice().sort((a,b)=>a.n-b.n),blocks=[];let g=null;
   for(const r of rs.slice().sort((a,b)=>String(a.issue||'￿').localeCompare(String(b.issue||'￿'),'ar')||a.n-b.n)){if((r.issue||'')!==g){g=r.issue||'';blocks.push(B.h(g||'مراجع أخرى'))}
    blocks.push(B.p(`<b>(${r.n}) ${e2(citation(r))}</b> <small>[${e2(r.code||'')}]</small>`));if(r.note)blocks.push(B.box('<b>وجه الاستشهاد:</b> '+e2(r.note)));
    String(r.text||'').split(/\n+/).filter(Boolean).forEach(p=>blocks.push(B.p(e2(p),'q')))}
@@ -191,10 +191,10 @@ A.crPrint=v=>{const k=allCases().find(x=>x.id===v);if(!k||!root.MQP||!MQP.open)r
 
 /* ── إدماج في شاشة القضية: تبويب وعدّاد ── */
 const vcase=V.case;V.case=function(){let html=vcase.apply(this,arguments);const k=typeof K==='function'?K(S.caseId):null;if(!k)return html;
- const n=(k.refs||[]).length;const btn=`<button class="${S.caseTab==='refs'?'on':''}" data-act="caseTab" data-v="refs">⚖ المراجع القانونية${n?` <span class="cnt">${n}</span>`:''}</button>`;
+ const n=(Array.isArray(k.lawRefs)?k.lawRefs:[]).length;const btn=`<button class="${S.caseTab==='refs'?'on':''}" data-act="caseTab" data-v="refs">⚖ المراجع القانونية${n?` <span class="cnt">${n}</span>`:''}</button>`;
  if(html.includes('data-act="caseTab" data-v="refs"'))return html;
  const t=doc.createElement('template');t.innerHTML=html;const tabs=t.content.querySelector('.tabs');if(!tabs)return html;
  const x=doc.createElement('template');x.innerHTML=btn;const after=tabs.querySelector('[data-v="misbar"]');if(after)after.after(x.content);else tabs.appendChild(x.content);
  const w=doc.createElement('div');w.appendChild(t.content.cloneNode(true));return w.innerHTML};
-root.MQ_refsCount=k=>(k&&k.refs||[]).length;
+root.MQ_refsCount=k=>(k&&k.lawRefs||[]).length;
 })(typeof window!=='undefined'?window:globalThis);
