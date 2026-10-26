@@ -48,7 +48,7 @@ A.genieOpen=()=>{const x=G.cur;hide();if(!x)return;if(A.nav)A.nav('misbar');setT
 window.MQ_genie={show,hide};
 
 const css=document.createElement('style');css.textContent=`
-#mqGenie{position:fixed;left:18px;bottom:22px;z-index:180;display:flex;align-items:flex-end;gap:10px;direction:rtl;pointer-events:none;opacity:0;transform:translateX(-30px) scale(.92);transition:opacity .45s ease,transform .45s cubic-bezier(.2,.9,.3,1.3)}
+#mqGenie{position:fixed;left:18px;bottom:82px;z-index:180;display:flex;align-items:flex-end;gap:10px;direction:rtl;pointer-events:none;opacity:0;transform:translateX(-30px) scale(.92);transition:opacity .45s ease,transform .45s cubic-bezier(.2,.9,.3,1.3)}
 #mqGenie.on{opacity:1;transform:none;pointer-events:auto}
 .mqg-head{position:relative;width:104px;height:104px;flex:none;order:2;animation:mqgBob 3.2s ease-in-out infinite;filter:drop-shadow(0 6px 14px rgb(0 0 0 / .35))}
 .mqg-head img{width:104px;height:104px;display:block;border-radius:50%;border:2px solid #C9A24A;box-shadow:0 0 0 3px rgb(11 27 43 / .55),0 0 14px rgb(64 200 210 / .35);transition:box-shadow .3s ease;user-select:none}

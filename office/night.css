@@ -125,7 +125,7 @@ html.night body:has(#nav) .hub-acts{background:var(--n-surface)!important;border
 html.night body:has(#nav) .hub-ev{background:var(--n-card)!important;border-color:var(--n-line)!important}
 html.night body:has(#nav) .hub-ev .hub-top b{color:var(--n-ink)!important}html.night body:has(#nav) .hub-ev time,html.night body:has(#nav) .hub-ev .hub-txt{color:var(--n-sub)!important}
 html.night body:has(#nav) .hub-ev.unread{border-inline-start:3px solid var(--n-gold)!important}
-html.night body:has(#nav) .hub-ic{background:var(--n-raise)!important;color:var(--n-gold2)!important}
+html.night body:has(#nav) .hub-ic{background:var(--n-raise)!important;color:color-mix(in srgb,var(--ic,#C9A24A) 55%,#fff)!important}
 html.night body:has(#nav) .hub-cases{background:var(--n-card)!important;border-color:var(--n-line)!important}
 html.night body:has(#nav) .hub-cases header b{color:var(--n-ink)!important}html.night body:has(#nav) .hub-cases .m{color:var(--n-sub)!important}
 html.night body:has(#nav) .hub-case{background:var(--n-surface)!important;border-color:var(--n-line)!important;color:var(--n-ink)!important}
