@@ -12,7 +12,9 @@ const ED = require(path.join(ROOT, 'lib', 'edition.js')).load();
 /* نسخة «production» بمجلد بيانات بجانبها: منفذها من data-here.txt (سطر port=8090)، فلا تلتصق بخادم مكتب آخر يعمل على 8080 فتعرض بياناته */
 function homeFile() { const here = process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(process.execPath); for (const d of [here, path.join(here, '..')]) { const f = path.join(d, 'data-here.txt'); if (fs.existsSync(f)) return f } return null }
 const HOME_PORT = (() => { const f = homeFile(); if (!f) return 0; const m = /port\s*=\s*(\d{2,5})/i.exec(fs.readFileSync(f, 'utf8')); return m ? +m[1] : 8090 })();
-const PORT = +process.env.MQ_DESKTOP_PORT || HOME_PORT || (ED.offline ? 8181 : 8080), BASE = ED.offline ? `http://127.0.0.1:${PORT}` : `http://localhost:${PORT}`;
+let PORT = +process.env.MQ_DESKTOP_PORT || HOME_PORT || (ED.offline ? 8181 : 8080), BASE = ED.offline ? `http://127.0.0.1:${PORT}` : `http://localhost:${PORT}`;
+const setPort = p => { PORT = p; BASE = ED.offline ? `http://127.0.0.1:${p}` : `http://localhost:${p}` };
+const dataIdOf = dir => require('crypto').createHash('sha256').update(path.resolve(dir).toLowerCase()).digest('hex').slice(0, 16);
 // صفحات التطبيق نفسه فقط (نفس الأصل)، والروابط الخارجية تُفتح في المتصفح إن كانت http/https فقط
 const isAppUrl = u => { try { return new URL(u).origin === new URL(BASE).origin } catch (e) { return false } };
 const isWebUrl = u => { try { return ['http:', 'https:'].includes(new URL(u).protocol) } catch (e) { return false } };
@@ -56,15 +58,19 @@ function ping() {
 
 function editionOf() {
   return new Promise(res => {
-    const q = http.get(BASE + '/api/edition', r => { let d = ''; r.on('data', c => d += c); r.on('end', () => { try { res(JSON.parse(d).id || 'connected') } catch (e) { res('connected') } }) });
+    const q = http.get(BASE + '/api/edition', r => { let d = ''; r.on('data', c => d += c); r.on('end', () => { try { const j = JSON.parse(d); res({ id: j.id || 'connected', dataId: j.dataId || '' }) } catch (e) { res({ id: 'connected', dataId: '' }) } }) });
     q.on('error', () => res(null)); q.setTimeout(1500, () => { q.destroy(); res(null) });
   });
 }
 async function startServer() {
-  if (await ping()) { // يعمل خادم ميثاق مسبقاً (مثلاً عبر start.bat): نتأكد أنه من النسخة نفسها
+  if (await ping()) { // يعمل خادم على المنفذ مسبقاً: نلتصق به فقط إن كان النسخة نفسها وعلى مجلد البيانات نفسه
     const other = await editionOf();
-    if (other && other !== ED.id) throw new Error(`المنفذ ${PORT} مستخدم من نسخة أخرى من المِسْبار. أغلقها ثم أعد تشغيل ${ED.name}.`);
-    return 'external';
+    if (other && other.id === ED.id && other.dataId && other.dataId === dataIdOf(cfg.dataDir)) return 'external';
+    // خادم آخر (نسخة قديمة أو مجلد بيانات مختلف): لا نعرض بياناته؛ نشغّل خادمنا على أول منفذ متاح
+    const base = PORT; let free = 0;
+    for (let p = base + 1; p <= base + 20 && !free; p++) { setPort(p); if (!(await ping())) free = p }
+    if (!free) throw new Error(`المنافذ ${base}–${base + 20} مشغولة. أغلق البرامج الأخرى ثم أعد تشغيل ${ED.name}.`);
+    console.log(`[misbar] المنفذ ${base} يستعمله خادم آخر؛ يعمل المسبار على ${free}`);
   }
   fs.mkdirSync(cfg.dataDir, { recursive: true });
   process.env.MQ_DATA = cfg.dataDir; process.env.PORT = String(PORT);

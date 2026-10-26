@@ -25,6 +25,7 @@ const stamp = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-$
 const stampS = (d = new Date()) => stamp(d) + ':' + pad(d.getSeconds());
 
 /* ── قاعدة البيانات + نقل البيانات القديمة (JSON) مرة واحدة ── */
+const DATA_ID = crypto.createHash('sha256').update(path.resolve(DATA).toLowerCase()).digest('hex').slice(0, 16);
 const restored = require('./lib/backup').applyPending(DATA);
 const store = Store.open(DATA), auth = Auth.create(store);
 /* قاعدة البيانات مربوطة بنسختها: «المِسْبار الخاص» لا يفتح بيانات مكتب متصل (ولا العكس) — يمنع أي خلط بين النسختين */
@@ -320,7 +321,7 @@ async function api(req, res, u) {
   const p = u.pathname, M = req.method, ip = ipOf(req);
   if (M === 'OPTIONS') { res.writeHead(204, CORS); return res.end() }
   if (ED.offline && (p.startsWith('/api/portal/') || p.startsWith('/api/admin/ai/') || p === '/api/admin/misbar/analyze' || (p.startsWith('/api/mizan/') && p !== '/api/mizan/status') || p === '/api/bar/refresh')) return json(res, 403, OFFLINE_ERR);
-  if (p === '/api/edition') return json(res, 200, ED.pub());
+  if (p === '/api/edition') return json(res, 200, { ...ED.pub(), dataId: DATA_ID }); // dataId: تطبيق سطح المكتب لا يلتصق بخادم يعمل على مجلد بيانات آخر
   if (p === '/api/health') return json(res, 200, { ok: true, at: stamp() });
   /* تعريف المكتب لتطبيق الآيفون قبل الدخول (اسمه فقط، دون بيانات موكلين) */
   if (p === '/api/portal/office' && M === 'GET') { const o = officeInfo(); return json(res, 200, { app: 'mithaq', name: o.name || '', city: o.city || '' }) }
