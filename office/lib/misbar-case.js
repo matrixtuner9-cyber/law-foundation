@@ -7,8 +7,20 @@
 'use strict';
 
 const LIM = { docText: 400000, chunk: 1400, chunks: 14000, findings: 400, sends: 200, note: 600, perTask: 14 };
-const KINDS = { factmap: 'خريطة الوقائع', gap: 'ثغرة', contradiction: 'تعارض', missing_evidence: 'بينة ناقصة', deadline: 'مهلة', procedure: 'إجراء', next_step: 'الخطوة التالية', pro: 'يؤيد الموكل', con: 'دفع الخصم المحتمل', neutral: 'فجوة محايدة', report: 'ورقة' };
+const KINDS = { draft: 'مسودة', factmap: 'خريطة الوقائع', gap: 'ثغرة', contradiction: 'تعارض', missing_evidence: 'بينة ناقصة', deadline: 'مهلة', procedure: 'إجراء', next_step: 'الخطوة التالية', pro: 'يؤيد الموكل', con: 'دفع الخصم المحتمل', neutral: 'فجوة محايدة', report: 'ورقة' };
+const DRAFT_COMMON = 'اكتب الورقة كاملة جاهزة للمراجعة بالصيغة المتعارف عليها أمام المحاكم النظامية الفلسطينية، بالعربية الفصحى القانونية، بفقرات مرقمة. '
+  + 'ابنِها على «خلاصة عقل القضية» ووقائع الملف ومقاطع المستندات. ضع بين معقوفين [..] كل معلومة غير متوفرة في الملف (رقم الدعوى، العنوان، اسم الشاهد، التاريخ…) ولا تخترعها. '
+  + 'استشهد بالنصوص بأرقام المراجع [M..] فقط وبالمستندات [D..]، ولا تذكر رقم مادة أو حكماً غير وارد في المراجع. '
+  + 'بعد نهاية الورقة اكتب سطراً مستقلاً: === ملاحظات للمراجعة === ثم نقاطاً بما يجب على المحامي التحقق منه أو استكماله (المهل وبدء احتسابها، الرسوم، المرفقات، المعلومات الناقصة، ما يحتاج تحقق).';
+const DRAFTS = {
+  claim: { label: 'لائحة دعوى', ask: 'اكتب لائحة دعوى: «لدى محكمة [..] الموقرة»، المدعي ووكيله، المدعى عليه، موضوع الدعوى وقيمتها، الوقائع مرقمة ومسندة كل منها ببينتها، الأسانيد القانونية، الإشارة إلى قائمة البينات المرفقة، الطلبات (ومنها الرسوم والمصاريف وأتعاب المحاماة)، ثم الختام وتوقيع الوكيل.' },
+  answer: { label: 'لائحة جوابية', ask: 'اكتب لائحة جوابية على لائحة الدعوى: الديباجة ورقم الدعوى والأطراف، ثم الدفوع الشكلية أولاً إن وُجد لها أساس (الاختصاص، الصفة والخصومة، التقادم، شروط القبول)، ثم الرد الموضوعي على وقائع اللائحة بنداً بنداً (مسلَّم به، أو منكَر، أو غير مسلَّم به إلا بما يثبت بالبينة القانونية)، ثم الوقائع والدفوع التي يتمسك بها الموكل، والأسانيد، والإشارة إلى قائمة البينات، والطلبات (رد الدعوى مع الرسوم والمصاريف وأتعاب المحاماة).' },
+  evidence_list: { label: 'قائمة البينات (حصر البينات)', ask: 'اكتب قائمة بينات الموكل بحسب صفته في الدعوى: أولاً البينات الخطية مرقمة (وصف المستند، تاريخه، أصل أم صورة، والواقعة التي يثبتها)، ثانياً البينات الشخصية: الشهود ([اسم الشاهد] إن لم يرد في الملف، [العنوان]، والوقائع التي سيشهد عليها كل منهم)، ثالثاً الخبرة أو الكشف والمعاينة إن لزم وسببها، رابعاً البينات التي بيد الخصم أو الغير مع طلب إلزامه بإبرازها؛ ثم الاحتفاظ بالحق في تقديم بينات إضافية وبينات دفاعية. اربط كل بينة بالواقعة التي تثبتها من خريطة الوقائع، ونبّه على الوقائع التي بقيت بلا بينة.' },
+  evidence_request: { label: 'طلب حصر البينة', ask: 'اكتب طلباً يُقدَّم في الدعوى بخصوص حصر البينات بحسب توجيه المحامي (حصر بينات الموكل وبيان ما قُدّم وما تبقى منها وسبب لزومه، أو إلزام الخصم بحصر بيناته، أو الإمهال لإحضار شاهد أو مستند): الديباجة (المستدعي، المستدعى ضده، رقم الدعوى)، أسباب الطلب مرقمة ومسندة بمحاضر الجلسات والمستندات، ثم الطلبات.' },
+  reply: { label: 'مذكرة رد على دفوع الخصم', ask: 'اكتب مذكرة رد على دفوع الخصم: لكل دفع من دفوع الخصم المعروفة في ملف القضية أو في ميزان الحجج: نص الدفع باختصار، ثم الرد المسند بالوقائع والبينات والنصوص، ثم الطلبات.' },
+};
 const TASKS = {
+  draft: { label: 'الصياغة', report: true, draft: true, ask: '' },
   facts: { label: 'خريطة الوقائع', map: true,
     ask: 'ابنِ خريطة وقائع القضية: استخرج كل واقعة جوهرية من ملف القضية ومقاطع المستندات، بتاريخها إن وُجد، ومن يدّعيها، وصنّفها: proven (مثبتة بمستند من مقاطع القضية وتذكر رقم المقطع)، claimed (ادعاء بلا مستند)، disputed (ينازع فيها الطرف الآخر أو تتعارض مع مستند). ثم استخرج التعارضات بين الأقوال والمستندات أو بين المستندات نفسها، ولكل واقعة غير مثبتة اذكر ما يلزم جمعه لإثباتها.' },
   brain: { label: 'فحص القضية', kinds: ['gap', 'contradiction', 'missing_evidence', 'deadline', 'procedure'],
@@ -118,13 +130,25 @@ function createCaseBrain({ kv, state, courts = () => [], analyzer, system = '', 
     const docs = docsOf(S, k).map(d => { const t = kv.get(TKEY(d.id), null); const own = typeof d.text === 'string' && d.text.trim().length > 30; return { id: d.id, title: d.title || '', kind: d.kind || '', date: d.date || '', file: d.file || '', hasText: !!(t && t.text) || own, chars: t ? (t.text || '').length : own ? d.text.length : 0, via: t ? t.via : own ? 'draft' : '', at: t ? t.at : '' } });
     return { case: { id: k.id, no: k.no, subject: k.subject }, enabled: v.enabled, enabledBy: v.enabledBy, enabledAt: v.enabledAt,
       findings: v.findings.filter(f => f.status !== 'superseded').sort((a, b) => String(b.at).localeCompare(String(a.at))), superseded: v.findings.filter(f => f.status === 'superseded').length,
-      sends: v.sends.slice(-20).reverse(), docs, tasks: Object.fromEntries(Object.entries(TASKS).map(([id, t]) => [id, t.label])), kinds: KINDS, canWrite: can('write') };
+      sends: v.sends.slice(-20).reverse(), docs, tasks: Object.fromEntries(Object.entries(TASKS).map(([id, t]) => [id, t.label])), kinds: KINDS, drafts: Object.fromEntries(Object.entries(DRAFTS).map(([id, t]) => [id, t.label])), role: k.role || '', canWrite: can('write') };
   }
 
-  async function run(S, k, task, me, who, extra) {
+  /* خلاصة ما استخرجه المسبار سابقاً لهذه القضية (المعتمد أولاً): للصياغة من عقل القضية نفسه */
+  function brainSummary(fs) {
+    const live = fs.filter(f => f.status === 'approved' || f.status === 'proposed').sort((a, b) => (a.status === 'approved' ? -1 : 1) - (b.status === 'approved' ? -1 : 1) || String(b.at).localeCompare(String(a.at)));
+    const out = [], tag = f => f.status === 'approved' ? '[معتمد] ' : '';
+    const map = live.find(f => f.kind === 'factmap');
+    if (map) { out.push('الوقائع:' + (map.status === 'approved' ? ' [معتمدة]' : '')); for (const x of map.facts || []) out.push(`- ${x.date || x.date_text || 'بلا تاريخ'}: ${x.fact} — ${{ proven: 'مثبتة', claimed: 'بلا دليل', disputed: 'متنازع عليها' }[x.status] || ''}${(x.evidence || []).length ? ' (' + x.evidence.map(e => e.tag).join('، ') + ')' : ''}${x.need ? ' — يلزم: ' + x.need : ''}`); for (const c of map.contradictions || []) out.push(`- تعارض: ${c.title}: ${c.a} ↔ ${c.b}${c.reply ? ' — المعالجة: ' + c.reply : ''}`) }
+    const sect = (kinds, head) => { const xs = live.filter(f => kinds.includes(f.kind)).slice(0, 12); if (xs.length) { out.push(head); for (const f of xs) out.push(`- ${tag(f)}${f.title}${f.fact ? ' — ' + f.fact : ''}${f.reply ? ' — الرد/الإجراء: ' + f.reply : ''}${(f.law || []).length ? ' (' + f.law.map(l => l.ref + ' ' + l.title).join('؛ ') + ')' : ''}`) } };
+    sect(['pro'], 'ما يؤيد الموكل:'); sect(['con'], 'دفوع الخصم المحتملة والرد عليها:'); sect(['gap', 'contradiction', 'missing_evidence', 'procedure', 'deadline', 'neutral'], 'الثغرات والنواقص:');
+    return clip(out.join('\n'), 9000);
+  }
+
+  async function run(S, k, task, me, who, extra, dtype) {
     const v = load(k.id);
     if (!v.enabled) return { status: 409, body: { error: 'إرسال مقاطع هذه القضية للتحليل غير مفعّل. فعّله أولاً من تبويب المسبار.', needEnable: true } };
     const T = TASKS[task]; if (!T) return { status: 400, body: { error: 'مهمة غير معروفة.' } };
+    const DR = T.draft ? DRAFTS[dtype] : null; if (T.draft && !DR) return { status: 400, body: { error: 'اختر نوع الورقة.' } };
     const conn = await analyzer.connect(me); if (conn.error) return conn.error;
     const R = redactor();
     const file = R.redact(caseFile(S, k));
@@ -135,10 +159,11 @@ function createCaseBrain({ kv, state, courts = () => [], analyzer, system = '', 
     try {
       const { queries, refs } = await conn.research(R.redact([k.type, k.subject, q].filter(Boolean).join(' — ')), [clip(k.subject, 80)]);
       const refTxt = refs.map(r => `[M${r.id}] ${r.source}${r.primary ? '' : ' (للمقارنة والاستئناس)'} — ${r.title}${r.case_no ? ' — رقم ' + r.case_no : ''}${r.year ? ' — ' + r.year : ''}${r.status ? ' — ' + r.status : ''}\n${r.excerpt}`).join('\n\n');
-      const user = [`المهمة: ${T.ask}`, q && `توجيه المحامي: ${R.redact(q)}`, T.report ? 'اكتب الورقة بعناوين ونقاط موجزة.' : T.map ? MAP_SCHEMA : SCHEMA.replace('{KINDS}', T.kinds.join('|')).replace('{N}', LIM.perTask),
-        `ملف القضية:\n${file}`, `مستندات القضية:\n${docList || 'لا مستندات.'}`, ex ? `مقاطع من المستندات:\n${ex}` : 'لا توجد نصوص مستخرجة من المستندات بعد.',
+      const brainCtx = T.draft ? R.redact(brainSummary(v.findings)) : '';
+      const user = [`المهمة: ${DR ? DR.ask + '\n' + DRAFT_COMMON : T.ask}`, q && `توجيه المحامي: ${R.redact(q)}`, DR ? '' : T.report ? 'اكتب الورقة بعناوين ونقاط موجزة.' : T.map ? MAP_SCHEMA : SCHEMA.replace('{KINDS}', T.kinds.join('|')).replace('{N}', LIM.perTask),
+        brainCtx && `خلاصة عقل القضية (ما سبق أن استخرجه المسبار؛ المعتمد منه مقدَّم):\n${brainCtx}`, `ملف القضية:\n${file}`, `مستندات القضية:\n${docList || 'لا مستندات.'}`, ex ? `مقاطع من المستندات:\n${ex}` : 'لا توجد نصوص مستخرجة من المستندات بعد.',
         refs.length ? `المراجع القانونية (الاستشهاد بأرقامها فقط):\n${refTxt}` : 'لا مراجع مسترجعة؛ علّم كل حكم قانوني بـ«(يحتاج تحقق)».'].filter(Boolean).join('\n\n');
-      const r = await conn.call({ system: system + CASE_RULES, user, maxTokens: T.map ? 7000 : 4000, json: !T.report });
+      const r = await conn.call({ system: system + CASE_RULES, user, maxTokens: T.map ? 7000 : T.draft ? 8000 : 4000, json: !T.report });
       const refIds = new Set(refs.map(x => x.id)), tags = new Set(picked.map(x => x.tag).concat(labels.map(l => 'D' + l.n)));
       const docOfTag = t => { const m = /^D(\d+)/.exec(t); const l = m && labels[Number(m[1]) - 1]; return l ? { tag: t, doc: l.id, title: l.title } : null };
       const refOf = t => { const n = Number(String(t).replace(/^\[?M/, '').replace(/\]$/, '')); const x = refs.find(y => y.id === n); return x ? { ref: 'M' + x.id, id: x.id, title: x.title, source: x.source, primary: x.primary, year: x.year, case_no: x.case_no, status: x.status } : null };
@@ -148,7 +173,9 @@ function createCaseBrain({ kv, state, courts = () => [], analyzer, system = '', 
         const text = R.restore(String(r.text || '').trim()); if (!text) return { status: 502, body: { error: 'لم يُرجع التحليل نتيجة.' } };
         const cited = [...new Set((text.match(/\[M\d+\]/g) || []).map(x => x.slice(1, -1)))].map(refOf).filter(Boolean);
         const ev = [...new Set((text.match(/\[D\d+(?:\.\d+)?\]/g) || []).map(x => x.slice(1, -1)))].filter(t => tags.has(t)).map(docOfTag).filter(Boolean);
-        items = [{ id: rid('f'), ...base, kind: 'report', title: T.label + ' — ' + at.slice(0, 10), text, law: cited, evidence: ev }];
+        if (DR) { const [body, notes = ''] = text.split(/\n?=+\s*ملاحظات للمراجعة\s*=+\n?/);
+          items = [{ id: rid('f'), ...base, kind: 'draft', dtype, title: DR.label + ' — ' + at.slice(0, 10), text: body.trim(), notes: notes.trim(), law: cited, evidence: ev }] }
+        else items = [{ id: rid('f'), ...base, kind: 'report', title: T.label + ' — ' + at.slice(0, 10), text, law: cited, evidence: ev }];
       } else if (T.map) {
         const j = jparse(r.text) || {}; const S2 = (s, n = 900) => R.restore(clip(s, n));
         const ev = a => [...new Set((Array.isArray(a) ? a : []).map(t => String(t).replace(/[[\]]/g, '')).filter(t => tags.has(t)))].map(docOfTag).filter(Boolean);
@@ -176,7 +203,7 @@ function createCaseBrain({ kv, state, courts = () => [], analyzer, system = '', 
       }
       /* إعادة التقييم: النتائج المقترحة السابقة لنفس المهمة تُستبدل، والمعتمدة والمرفوضة تبقى في السجل */
       const v2 = load(k.id);
-      v2.findings.forEach(f => { if (f.task === task && f.status === 'proposed') { f.status = 'superseded'; f.supersededAt = at } });
+      v2.findings.forEach(f => { if (f.task === task && f.status === 'proposed' && (!DR || f.dtype === dtype)) { f.status = 'superseded'; f.supersededAt = at } });
       v2.findings.push(...items);
       const send = { at, by: who.username || '', task, provider: conn.provider, chars: user.length, hidden: R.counts(), docs: [...new Set(picked.map(x => x.doc))].length, refs: refs.length, queries };
       v2.sends.push(send); save(k.id, v2);
@@ -209,7 +236,7 @@ function createCaseBrain({ kv, state, courts = () => [], analyzer, system = '', 
       audit && audit({ ...who, action: 'misbar.doc_read', entity: 'docs', entity_id: d.id, detail: { case: k.id, chars: text.length, via: b.via } });
       return { status: 200, body: view(S, k, me, can) };
     }
-    if (a === 'run') return run(S, k, String(b.task || ''), me, who, b.note);
+    if (a === 'run') return run(S, k, String(b.task || ''), me, who, b.note, String(b.dtype || ''));
     if (a === 'decide') {
       const v = load(k.id), f = v.findings.find(x => x.id === b.id); if (!f) return { status: 404, body: { error: 'النتيجة غير موجودة.' } };
       if (!['approved', 'rejected', 'proposed'].includes(b.status)) return { status: 400, body: { error: 'قرار غير صالح.' } };
@@ -223,4 +250,4 @@ function createCaseBrain({ kv, state, courts = () => [], analyzer, system = '', 
   return { handle, caseFile, pickChunks };
 }
 
-module.exports = { TASKS, KINDS, LIM, redactor, chunks, createCaseBrain };
+module.exports = { TASKS, KINDS, DRAFTS, LIM, redactor, chunks, createCaseBrain };

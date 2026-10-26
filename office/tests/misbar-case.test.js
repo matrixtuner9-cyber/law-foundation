@@ -109,3 +109,22 @@ test('case brain: fact map sorts by date, demotes unproven "proven" facts, keeps
   assert.equal(m.contradictions.length, 1); assert.equal(m.contradictions[0].evidence[0].doc, 'd1');
   assert.match(m.title, /4 واقعة — 2 مثبتة · 1 بلا دليل · 1 متنازع عليها · 1 تعارض/);
 });
+
+test('case brain: drafting uses the case brain, splits review notes, and supersedes only same draft type', async () => {
+  const t = setup({ reply: 'لدى محكمة بداية نابلس الموقرة\nالمدعي: [هوية-1]\n1. وقّع الطرفان العقد [D1.1] وفق [M77].\n=== ملاحظات للمراجعة ===\n- تحقق من مهلة تقديم اللائحة' });
+  await t.call('doctext', 'POST', { k: 'k1', doc: 'd1', text: 'هوية المدعي 401234567 وعقد التوريد موقّع.' });
+  await t.call('enable', 'POST', { k: 'k1', on: true });
+  assert.equal((await t.call('run', 'POST', { k: 'k1', task: 'draft' })).status, 400, 'type required');
+  const v = t.kv.get('mbc:k1'); v.findings = [{ id: 'g1', task: 'brain', kind: 'missing_evidence', status: 'approved', title: 'لا سند استلام', reply: 'طلب السندات', at: '2026-10-01' }]; t.kv.set('mbc:k1', v);
+  const r = await t.call('run', 'POST', { k: 'k1', task: 'draft', dtype: 'claim' });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const d = r.body.findings.find(f => f.kind === 'draft');
+  assert.equal(d.dtype, 'claim'); assert.match(d.text, /401234567/); assert.ok(!d.text.includes('ملاحظات'));
+  assert.match(d.notes, /مهلة/); assert.deepEqual(d.law.map(x => x.id), [77]);
+  assert.match(t.sent.at(-1).user, /خلاصة عقل القضية/); assert.match(t.sent.at(-1).user, /لا سند استلام/);
+  await t.call('run', 'POST', { k: 'k1', task: 'draft', dtype: 'answer' });
+  const r3 = await t.call('run', 'POST', { k: 'k1', task: 'draft', dtype: 'claim' });
+  const ds = r3.body.findings.filter(f => f.kind === 'draft');
+  assert.deepEqual(ds.map(x => x.dtype).sort(), ['answer', 'claim']);
+  assert.ok(r3.body.drafts.evidence_list);
+});

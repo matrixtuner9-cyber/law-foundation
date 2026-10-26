@@ -35,5 +35,5 @@ fs.writeFileSync('src/seed.js', '// مولّد تلقائياً من data.js —
   let ai = fs.readFileSync(path.join(SRC, 'lib', 'misbar-ai.js'), 'utf8').replace("'use strict';", '').replace(/module\.exports\s*=\s*\{[^}]*\};?\s*$/, '');
   fs.writeFileSync('src/misbar-ai.js', '// مولّد تلقائياً من office/lib/misbar-ai.js — لا تعدّله يدوياً\n' + ai + '\nexport { TASKS, LANGS, DS_MODEL, AN_MODEL, SYSTEM, createAnalyzer, callDeepSeek, callClaude, citedRefs, jparse };\n');
   let mc = fs.readFileSync(path.join(SRC, 'lib', 'misbar-case.js'), 'utf8').replace("'use strict';", '').replace(/module\.exports\s*=\s*\{[^}]*\};?\s*$/, '');
-  fs.writeFileSync('src/misbar-case.js', '// مولّد تلقائياً من office/lib/misbar-case.js — لا تعدّله يدوياً\n' + mc + '\nexport { TASKS, KINDS, LIM, redactor, chunks, createCaseBrain };\n'); }
+  fs.writeFileSync('src/misbar-case.js', '// مولّد تلقائياً من office/lib/misbar-case.js — لا تعدّله يدوياً\n' + mc + '\nexport { TASKS, KINDS, DRAFTS, LIM, redactor, chunks, createCaseBrain };\n'); }
 console.log('built', UI.length, 'files, portal:', fs.existsSync(portal));
