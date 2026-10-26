@@ -153,6 +153,21 @@ A.aiPrint=()=>{if(!window.MQP||!D.res)return;const r=D.res,k=K(D.k),B=MQP.B,E=MQ
 
 /* ── مساعد القضية: ملخص قبل الجلسة، الدفوع الشكلية والمهل، سؤال قانوني بمراجعه ── */
 const AS={k:'',mode:'brief',q:'',busy:false,res:null,err:'',doc:null,lang:'en'};
+/* أيقونات دلالية لأدوات مِسْبار (خطوط ذهبية) */
+const ASI=(d)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const ASICON={
+ brief:ASI('<rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 3v3h6V3M8.5 11h7M8.5 14.5h7M8.5 18h4"/>'),
+ defences:ASI('<path d="M12 3l7 3v5c0 4.6-3 8.3-7 10-4-1.7-7-5.4-7-10V6z"/><path d="M9 12l2 2 4-4"/>'),
+ question:ASI('<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5V14"/><path d="M12 17.2h.01"/>'),
+ contract:ASI('<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 16.5h3"/><path d="M5 18c1.5-1.5 2.5-1.5 3 0s1.5 1.5 3 0"/>'),
+ opponent:ASI('<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5M8 10.5h5M10.5 8v5"/>'),
+ gaps:ASI('<path d="M9 3h6v4a2 2 0 1 0 0 4v4h-4a2 2 0 1 1-4 0H3V9h4a2 2 0 1 0 0-4V3z"/><path d="M15 11h3a2 2 0 1 1 0 4h-3"/>'),
+ appeal:ASI('<path d="M12 3v18M5 7h14M7 7l-3 7a3 3 0 0 0 6 0zM17 7l-3 7a3 3 0 0 0 6 0z"/><path d="M8 21h8"/>'),
+ similar:ASI('<rect x="3" y="4" width="11" height="14" rx="1.5"/><rect x="10" y="7" width="11" height="14" rx="1.5"/><path d="M13 11h5M13 14.5h5"/>'),
+ client_msg:ASI('<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9.5h8M8 12.5h5"/>'),
+ minutes:ASI('<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M9 21h6"/>'),
+ translate:ASI('<path d="M4 6h9M8.5 4v2M6 6c.5 3 2.5 5.5 5 7M11 6c-.6 3.2-2.8 6-6 8"/><path d="M13 20l4-9 4 9M14.5 17h5"/>'),
+ howto:ASI('<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/>')};
 const MODES={brief:['ملخص قبل الجلسة','أين وصلت الدعوى، والمطلوب في الجلسة القادمة، والنواقص والمهل'],defences:['الدفوع الشكلية والمهل','الدفوع الإجرائية الممكنة لموكلك والمهل الواجب مراقبتها، بمراجعها'],question:['سؤال قانوني','اسأل عن أي مسألة، فيُجاب من نصوص التشريعات والأحكام فقط'],contract:['مراجعة عقد','البنود الضارة بموكلك والناقصة والغامضة، مع صياغة مقترحة'],opponent:['تحليل مستند للخصم','ما يثبته وما لا يثبته، ومواطن ضعفه وأوجه الطعن فيه'],gaps:['ثغرات مستند قانوني','ارفع أي مستند في القضية أو أملِ وقائعه، فتُحلَّل ثغراته الشكلية والموضوعية والمخاطر والخطوات'],appeal:['أسباب الطعن في حكم','ارفع الحكم فيُحدَّد طريق الطعن ومهلته وأسبابه بسندها، ثم صِغ لائحة الطعن'],similar:['أحكام مشابهة','الأقرب لقضيتك من مكتبة الاجتهادات، وكيف يُستفاد منها'],client_msg:['رسالة للموكل','تحديث مبسّط عن قضيته، تراجعه ثم ترسله من المحادثة'],minutes:['محضر اجتماع بالصوت','أملِ ما دار في الاجتماع فيُنظَّم محضراً بالمهام والمواعيد'],translate:['ترجمة قانونية','إلى الإنجليزية أو العبرية أو العربية']};
 const QPH={gaps:'تعليمات أو وقائع إضافية (اختياري)، أو أملِ الوقائع هنا بدل رفع مستند…',appeal:'ملاحظات اختيارية: مثلاً «موكلنا هو المدعى عليه، والتبليغ بالحكم كان بتاريخ…»',question:'مثال: ما مدة تقادم المطالبة بالأجور المتأخرة؟ وهل يقطعها الإنذار العدلي؟',client_msg:'ملاحظة اختيارية: مثلاً «طمئنه أن التأجيل إجرائي، واطلب منه إحضار كشوف الرواتب»',minutes:'أملِ ما دار: من حضر، وما بُحث، وما اتُّفق عليه، والمهام ومواعيدها…',translate:'الصق النص المراد ترجمته، أو ارفع ملفاً'};
 const LANGS={en:'الإنجليزية',he:'العبرية',ar:'العربية'};
@@ -160,15 +175,15 @@ function history(k){const hs=hearings.filter(h=>h.k===k.id).sort((a,b)=>a.date.l
  return [`اليوم: ${iso(TODAY)}`,hs.length&&'الجلسات:\n'+hs.map(h=>`- ${h.date} ${h.time||''}: ${h.purpose||''}${h.result?' — القرار: '+h.result:''}`).join('\n'),
   ds.length&&'المهل:\n'+ds.map(d=>`- ${d.due}: ${d.title} (${d.kind||''})`).join('\n'),dc.length&&'المستندات:\n'+dc.map(d=>`- ${d.date||''}: ${d.title} (${d.kind||''})`).join('\n'),
   ml.length&&'أحداث ميزان:\n'+ml.slice(-15).map(l=>`- ${l.at}: ${l.t}`).join('\n')].filter(Boolean).join('\n\n')}
-A.asOpen=async(v,t)=>{if(ro())return;if(!can2('write'))return toast('المساعد متاح للمحامين ومدير المكتب');AS.k=v!=null&&v!==''?v:(AS.k||homeCase());if(t&&t.dataset.mode&&MODES[t.dataset.mode]&&t.dataset.mode!==AS.mode){AS.mode=t.dataset.mode;AS.doc=null}AS.res=null;AS.err='';asDraw();
+A.asOpen=async(v,t)=>{if(ro())return;if(!can2('write'))return toast('مِسْبار متاح للمحامين ومدير المكتب');AS.k=v!=null&&v!==''?v:(AS.k||homeCase());if(t&&t.dataset.mode&&MODES[t.dataset.mode]&&t.dataset.mode!==AS.mode){AS.mode=t.dataset.mode;AS.doc=null}AS.res=null;AS.err='';asDraw();
  if(!D.status)try{D.status=await api('status')}catch(er){AS.err=er.message}asDraw()};
-function asDraw(){const m=document.getElementById('modal');m.innerHTML=`<div class="modal-bg" data-act="close"><div class="modal ai-modal" role="dialog" aria-label="مساعد القضية">${asBody()}</div></div>`}
+function asDraw(){const m=document.getElementById('modal');m.innerHTML=`<div class="modal-bg" data-act="close"><div class="modal ai-modal" role="dialog" aria-label="مِسْبار — عقل التحليل والاستنباط القانوني">${asBody()}</div></div>`}
 function asBody(){const k=K(AS.k),st=D.status;
- const head=`<div class="head"><div><h1 style="font-size:23px">مساعد المحامي الذكي</h1><p class="sub">${k?`${e(k.no)} · ${e(k.subject||'')}`:'دون قضية محددة'}</p></div><button class="btn sm" data-act="aiClose">إغلاق</button></div>
+ const head=`<div class="head"><div><h1 class="as-brand"><img src="misbar-emblem.webp" alt="" width="40" height="38"><span>مِسْبار <small>عقل التحليل والاستنباط القانوني</small></span></h1><p class="sub">${k?`${e(k.no)} · ${e(k.subject||'')}`:'دون قضية محددة'}</p></div><button class="btn sm" data-act="aiClose">إغلاق</button></div>
   <label class="as-case">القضية <select class="field" id="asK"><option value="">— دون قضية محددة —</option>${cases.map(c=>`<option value="${c.id}" ${c.id===AS.k?'selected':''}>${e(c.no)} · ${e((C(c.client)||{}).name||'')} · ${e(c.subject||'')}</option>`).join('')}</select></label>`;
  if(!st)return head+`<div class="lg-empty">${AS.err?e(AS.err):'جارٍ التحضير…'}</div>`;
  if(!st.configured)return head+`<div class="lg-empty">المساعد يحتاج مفتاح الذكاء الاصطناعي. ${st.canManage?'<button class="btn pri sm" data-act="aiOpen" data-v="'+e(AS.k)+'">ضبط المفتاح</button>':'يضيفه مدير المكتب.'}</div>`;
- const tabs=`<div class="as-modes">${Object.entries(MODES).map(([id,[t,d]])=>`<button type="button" class="as-mode ${AS.mode===id?'on':''}" data-act="asMode" data-v="${id}"><b>${t}</b><span>${d}</span></button>`).join('')}</div>`;
+ const tabs=`<div class="as-modes">${Object.entries(MODES).map(([id,[t,d]])=>`<button type="button" class="as-mode ${AS.mode===id?'on':''}" data-act="asMode" data-v="${id}"><i class="as-ic">${ASICON[id]||''}</i><span class="as-tx"><b>${t}</b><span>${d}</span></span></button>`).join('')}</div>`;
  const tr=AS.mode==='translate';
  const q=QPH[AS.mode]&&!(tr&&AS.doc)?`<div class="ai-dict" style="margin-top:10px">${tr?`<label class="as-lang">الترجمة إلى <select class="field" id="asLang">${Object.entries(LANGS).map(([v,t])=>`<option value="${v}" ${AS.lang===v?'selected':''}>${t}</option>`).join('')}</select></label>`:''}<div class="ai-resp"><textarea class="field ai-text" id="asQ" rows="${AS.mode==='minutes'||tr?6:3}" placeholder="${QPH[AS.mode]}">${e(AS.q)}</textarea><button type="button" class="ai-mic sm ${D.listening&&D.target==='asQ'?'on':''}" data-act="asMic" aria-label="إملاء السؤال">${D.listening&&D.target==='asQ'?'■':'🎙'}</button></div><div class="ai-interim" id="aiInterim"></div></div>`:'';
  const dk=AS.mode==='contract'||AS.mode==='opponent'||AS.mode==='gaps'||AS.mode==='appeal'||tr;
@@ -238,7 +253,11 @@ const css=document.createElement('style');css.textContent=`
 .ai-doc:focus{border-color:var(--brass)}.ai-doc h2{text-align:center;font-size:20px;margin:4px 0}.ai-doc h3{font-size:16.5px;margin:14px 0 4px;color:var(--brass,#8B6F47)}.ai-doc p{margin:0 0 8px;text-align:justify}.ai-court{text-align:center;font-weight:700}
 .ai-r{color:#1D4ED8;font-weight:700}.ai-v{background:#FDE68A}.ai-f{background:#E0EAFD;border-radius:4px;padding:0 3px}
 .ai-h{font-size:15.5px;margin:14px 0 6px}.ai-refs{margin:0;padding-inline-start:22px;line-height:1.9;font-size:14px}.ai-refs .m{font-size:12.5px}.ai-unv{line-height:1.9;font-size:14px;color:#78350F}
-.ai-modal>*{flex-shrink:0}.as-modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}@media(max-width:700px){.as-modes{grid-template-columns:repeat(2,minmax(0,1fr))}.as-mode span{display:none}}.as-mode{all:unset;cursor:pointer;border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:3px;background:var(--surface);line-height:1.6}
+.ai-modal>*{flex-shrink:0}
+.as-brand{display:flex;align-items:center;gap:10px;font-size:23px;margin:0}.as-brand img{width:40px;height:auto;border-radius:50%;box-shadow:0 0 0 1.5px #E9C46A,0 0 12px rgb(243 213 138 / .7)}.as-brand small{display:block;font-size:12.5px;font-weight:600;color:#8A6A25}
+.as-mode{display:flex!important;flex-direction:row!important;align-items:flex-start;gap:12px;text-align:start}.as-mode .as-tx{display:flex;flex-direction:column;gap:2px;min-width:0}
+.as-ic{flex:0 0 38px;width:38px;height:38px;border-radius:11px;display:grid;place-items:center;font-style:normal;color:#F3D58A;background:linear-gradient(160deg,#16314A,#0B1B2B);box-shadow:inset 0 0 0 1px rgb(201 162 74 / .55),0 3px 8px rgb(11 27 43 / .18)}
+.as-ic svg{width:22px;height:22px}.as-mode.on .as-ic{color:#0B1B2B;background:linear-gradient(180deg,#F3D58A,#C9A24A)}.as-modes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}@media(max-width:700px){.as-modes{grid-template-columns:repeat(2,minmax(0,1fr))}.as-mode span{display:none}}.as-mode{all:unset;cursor:pointer;border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:3px;background:var(--surface);line-height:1.6}
 .as-mode span{font-size:12.5px;color:var(--muted)}.as-mode.on{border-color:var(--brass);box-shadow:0 0 0 2px rgba(184,134,61,.25);background:var(--sunk)}.as-mode:focus-visible{outline:3px solid var(--brass)}
 .as-home{margin:0 0 16px;padding:16px 18px}.as-home-h{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:12px}.as-home-h h2{margin:0;font-size:18px}.as-home-h p{margin:2px 0 0;color:var(--muted);font-size:13.5px}
 .as-home-q{display:flex;flex-wrap:nowrap;gap:6px;overflow-x:auto;scrollbar-width:thin;padding-bottom:2px}.as-q{all:unset;cursor:pointer;flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;text-align:center;padding:7px 3px;border:1px solid var(--line);border-radius:10px;background:var(--surface);font-size:11.5px;font-weight:600;line-height:1.35;box-sizing:border-box}

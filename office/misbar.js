@@ -1,6 +1,6 @@
 /* ── مِسْبار | Misbar AI: عقل التحليل والاستنباط القانوني ──
    صفحة مستقلة داخل ميثاق: البحث في التشريعات والقرارات (فلسطين أساس، الأردن ومصر للمقارنة والاستئناس)، قارئ المصادر،
-   وأدوات التحليل واستقصاء الثغرات وإعداد الخطط عبر «مساعد المحامي الذكي» الذي يستشهد من القاعدة نفسها.
+   وأدوات التحليل واستقصاء الثغرات وإعداد الخطط عبر «مِسْبار» الذي يستشهد من القاعدة نفسها.
    القاعدة محلية للقراءة فقط (/api/admin/misbar/*) وتعمل دون إنترنت. لا يُعتمد أي استنتاج قبل مراجعة المحامي.
    تحل محل: «التشريعات الفلسطينية» و«البحث في الأحكام» و«مصادر الأحكام» (تشريعات المكتب المدخلة يدوياً تبقى من داخل المسبار). */
 (function(){
@@ -11,7 +11,7 @@ const can2=w=>!!(window.MQ&&MQ.user&&({admin:{write:1,manage:1},lawyer:{write:1}
 const SRC=[['','كل المصادر'],['PS_JUDGMENT','فلسطين · أحكام'],['PS_LEGISLATION','فلسطين · تشريعات'],['JO_LEGISLATION','الأردن · تشريعات'],['JO_CASSATION','الأردن · تمييز'],['EG_LEGISLATION','مصر · تشريعات']];
 const COURTS=['','محكمة النقض','محكمة استئناف رام الله','محكمة استئناف القدس','محكمة العدل العليا','المحكمة الدستورية العليا','محكمة جرائم الفساد','محكمة التمييز الأردنية'];
 const STATUS=[['','كل الحالات'],['in_force','ساري'],['partial','ساري في الضفة الغربية فقط'],['suspended','موقوف النفاذ'],['repealed','ملغى / غير ساري']];
-/* أدوات المحامي: كل أداة تفتح «مساعد المحامي الذكي» بالنمط المناسب، ومراجعه من قاعدة المسبار */
+/* أدوات المحامي: كل أداة تفتح «مِسْبار» بالنمط المناسب، ومراجعه من قاعدة المسبار */
 const TOOLS=[
  ['draft','🎙','صياغة اللوائح بالصوت','أملِ الوقائع والطلبات فيصوغ اللائحة مستشهداً من القاعدة'],
  ['question','◇','السؤال القانوني','جواب موثّق بالمراجع، أو «لم أجد» صراحة'],
@@ -229,7 +229,7 @@ A.mbCopy=()=>{const d=MB.doc;if(!d)return;navigator.clipboard.writeText(docText(
 A.mbPrint=()=>{const d=MB.doc;if(!d)return;
  if(window.MQP&&MQP.open&&MQP.B){const B=MQP.B;MQP.open({label:d.title,build(){return {title:d.title,sub:[d.source,d.court,d.case_no&&('رقم '+d.case_no),d.date||d.year,d.status].filter(Boolean).join(' · '),file:'مسبار - '+String(d.title).slice(0,60),blocks:[...(d.primary?[]:[B.box('مرجع للمقارنة والاستئناس، وليس ملزماً أمام المحاكم الفلسطينية.')]),...String(d.body||'').split(/\n+/).filter(Boolean).map(t=>B.p(e(t))),B.box('وثيقة عمل من «مِسْبار» تتطلب التحقق من النص الأصلي والحجية والنفاذ قبل الاستناد إليها.'+(d.url?' المصدر: '+e(d.url):''))]}}});return}
  const w=window.open('','_blank');if(!w)return;w.document.write(`<!doctype html><html dir="rtl" lang="ar"><meta charset="utf-8"><title>${e(d.title)}</title><body style="font-family:serif;line-height:2;padding:20mm">${'<h2>'+e(d.title)+'</h2>'+String(d.body||'').split(/\n+/).map(p=>'<p>'+e(p)+'</p>').join('')}</body></html>`);w.document.close();w.print()};
-/* حفظ حكم في مكتبة الاجتهادات برابطه (من مراجع المساعد الذكي) */
+/* حفظ حكم في مكتبة الاجتهادات برابطه (من مراجع مِسْبار) */
 A.mbSaveUrl=async v=>{try{const r=await call('search',{url:String(v||''),per:'5',facets:'0'});const x=(r.results||[])[0];if(!x)return toast('المرجع غير موجود في قاعدة المسبار');MB.doc=await call('doc',{id:x.id});A.mbSaveRuling()}catch(x){toast(x.message)}};
 A.mbSaveRuling=()=>{const d=MB.doc;if(!d||!window.MQ_rulingForm)return;
  const court=/النقض/.test(d.court)?'محكمة النقض':/الدستورية/.test(d.court)?'المحكمة الدستورية العليا':/العدل العليا/.test(d.court)?'المحكمة العليا':/استئناف/.test(d.court)?'محكمة الاستئناف':'أخرى';
@@ -238,7 +238,7 @@ A.mbSaveRuling=()=>{const d=MB.doc;if(!d||!window.MQ_rulingForm)return;
   notes:[d.court&&court==='أخرى'?'المحكمة: '+d.court:'',(d.meta&&d.meta.classifications||[]).length?'التصنيف: '+d.meta.classifications.join('؛ '):'',(d.cites||[]).length?'النصوص المذكورة: '+d.cites.map(c=>c.title).join('؛ '):''].filter(Boolean).join(' · ').slice(0,1500)})};
 /* فتح المساعد بنمط محدد، مع تعبئة النص المختار من القارئ عند الحاجة */
 function openTool(mode,text){if(!can2('write'))return toast('أدوات التحليل متاحة للمحامين ومدير المكتب');
- if(typeof A.asOpen!=='function')return toast('مساعد المحامي غير متاح');
+ if(typeof A.asOpen!=='function')return toast('مِسْبار غير متاح');
  const k=S.view==='case'?S.caseId:(S.bagCase||'');A.asOpen(k,{dataset:{mode}});
  if(text){let n=0;const t=setInterval(()=>{const q=document.getElementById('asQ');if(q||++n>40){clearInterval(t);if(q){q.value=String(text).slice(0,100000);q.dispatchEvent(new Event('input',{bubbles:true}))}}},100)}}
 A.mbSmart=()=>{readForm();LAB.task='search';if(MB.q.trim())LAB.q=MB.q.trim();LAB.res=null;LAB.err='';MB.view='tools';render()};
