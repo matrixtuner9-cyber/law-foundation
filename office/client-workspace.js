@@ -30,6 +30,11 @@ V.client=function(){
  /* 2) قضايا الموكل */
  const list=`<section class="cw-box"><h3>القضايا <small>${ks.length}</small></h3>${ks.map(k=>{const h=nextH(k);const on=tab==='case'&&S.caseId===k.id;return `<button type="button" class="cw-k ${on?'on':''} ${k.status==='منتهية'?'done':''}" data-act="openCase" data-v="${E(k.id)}"><b class="mono">${E(k.no||'جديدة')}</b><span>${E(String(k.subject||'').slice(0,60))}</span><small>${E(ctName(k))}${h?' · جلسة '+E(dm(h.date)):''}${k.status==='منتهية'?' · منتهية':''}</small></button>`}).join('')||'<div class="m">لا قضايا بعد.</div>'}
   ${hubCases&&hubCases.querySelector('[data-act="caseFor"]')?`<button type="button" class="btn sm cw-new" data-act="caseFor" data-v="${E(c.id)}">+ قضية جديدة</button>`:''}</section>`;
+ /* 2ب) أوراق قبول القضية: الوكالة + اتفاقية الأتعاب، في مكان ثابت وواضح */
+ const kc=tab==='case'&&typeof K==='function'?K(S.caseId):null;
+ const papers=kc?`<section class="cw-box cw-papers"><h3>أوراق التوكيل <small>${E(kc.no||'')}</small></h3>
+  <button type="button" class="btn sm pri cw-print" data-act="csPrintPoa" data-v="${E(kc.id)}">🖨 طباعة الوكالة + اتفاقية الأتعاب</button>
+  <div class="cw-pst ${kc.feeTerms&&kc.feeTerms.printedAt?'ok':''}">${kc.feeTerms&&kc.feeTerms.printedAt?`✓ طُبعت ${E(dm(kc.feeTerms.printedAt))}/${E(String(kc.feeTerms.printedAt).slice(0,4))}${kc.feeTerms.fee?' · الأتعاب '+Number(kc.feeTerms.fee).toLocaleString('en-US')+' ₪':''}<br><small>${E(window.MQ_feeTermsLabel?MQ_feeTermsLabel(kc):'')}</small>`:'لم تُطبع بعد · تُطبع عند قبول القضية والاتفاق على الأتعاب'}</div></section>`:'';
  /* 3) سير القضية (من لوحة الخطوات نفسها، بشكل مختصر) */
  const steps=body.querySelector('.cs-panel');let stepsBox='';
  if(steps&&tab==='case'){const lis=[...steps.querySelectorAll('.cs-list > li')],done=lis.filter(l=>l.classList.contains('cs-done')).length,cur=lis.findIndex(l=>l.classList.contains('cs-cur'));
@@ -49,7 +54,7 @@ V.client=function(){
  const cardT=doc.createElement('template');cardT.innerHTML=card;const pp=cardT.content.querySelector('.cw-pop');if(pp)pp.appendChild(pop);
  const w=doc.createElement('div');w.className='cw';
  const side=doc.createElement('aside');side.className='cw-side';if(back){const bk=back.cloneNode(true);side.appendChild(bk)}side.appendChild(cardT.content);
- const rest=doc.createElement('template');rest.innerHTML=list+stepsBox+menu;side.appendChild(rest.content);
+ const rest=doc.createElement('template');rest.innerHTML=list+papers+stepsBox+menu;side.appendChild(rest.content);
  const main=doc.createElement('div');main.className='cw-main';main.appendChild(body);
  w.append(side,main);
  const out=doc.createElement('div');out.appendChild(w);return out.innerHTML};
@@ -74,6 +79,7 @@ const css=doc.createElement('style');css.textContent=`
 .cw-k b{font-size:14px}.cw-k span{color:var(--ink,#1F2A36)}.cw-k small{font-size:11.5px;color:var(--muted,#7A8592)}
 .cw-k:hover{border-color:#C9A24A}.cw-k.on{border-color:#C9A24A;background:#FBF3DD;box-shadow:0 0 0 2px rgb(201 162 74 / .22)}.cw-k.done{opacity:.7}
 .cw-new{width:100%;justify-content:center}
+.cw-print{width:100%;justify-content:center;font-weight:700}.cw-pst{margin-top:7px;font-size:12px;color:#9A6B00;line-height:1.6}.cw-pst.ok{color:#2F7D4A}.cw-pst small{color:var(--muted,#7A8592)}
 .cw-prog{height:6px;border-radius:99px;background:#EFE6D2;overflow:hidden;margin-bottom:8px}.cw-prog span{display:block;height:100%;background:linear-gradient(90deg,#2F7D4A,#C9A24A)}
 .cw-steps ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
 .cw-steps li>button,.cw-steps li>span{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:8px;width:100%;padding:5px 7px;border-radius:8px;font-size:13px}

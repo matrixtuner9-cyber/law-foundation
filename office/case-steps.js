@@ -61,12 +61,42 @@ const GO={
 A.csGo=v=>{const [kid,id]=String(v).split('|'),k=K(kid);if(!k)return;KID=k.id;if(!can()&&!['intake','evidence','analysis'].includes(id))return toast('صلاحيتك للاطلاع فقط');(GO[id]||(()=>{}))(k)};
 A.csTpl=v=>{const [kid,t]=v.split('|');A.close();S.tplCase=kid;if(t)S.tpl=t;S.tplVals={};S.view='tpls';render();window.scrollTo(0,0)};
 /* طباعة الوكالة ومعها اتفاقية الأتعاب كمستند مستقل (مستندان في معاينة واحدة، يُطبع كلٌّ منهما وحده) */
+/* بند المصاريف القضائية في اتفاقية الأتعاب — نص واضح لكل حالة */
+const EXP_ITEMS='(رسوم المحكمة والطوابع والتبليغ والخبرة والترجمة وكاتب العدل ودائرة التنفيذ والتنقل)';
+root.MQ_feeExp=(mode,cap,how,days)=>{const m=/^تشمل|^included$/.test(String(mode||'').trim())?'in':/سقف|^cap$/.test(String(mode||''))?'cap':'out';const d=days||7,capN=String(cap||'').replace(/[^\d.,]/g,'');
+ if(m==='in')return [`تشمل الأتعاب المذكورة جميع الرسوم والمصاريف القضائية في هذه الدعوى ${EXP_ITEMS}، ولا يُطالَب الطرف الثاني بأي مبلغ إضافي عنها.`,'لا تشمل الأتعاب رسوم ومصاريف الطعن بالاستئناف أو النقض، ولا أي إجراء خارج موضوع هذه الدعوى، إلا باتفاق مكتوب.'];
+ if(m==='cap')return [`تشمل الأتعاب الرسوم والمصاريف القضائية ${EXP_ITEMS} حتى مبلغ ${capN||'……'} شيكل فقط، وما زاد على ذلك يتحمله الطرف الثاني؛ ${how||'يدفعها الطرف الأول عنه ويستردها منه بموجب إيصالاتها'}.`,`يقدّم الطرف الأول للطرف الثاني كشفاً بالمصاريف مرفقاً بإيصالاتها، ويلتزم الطرف الثاني بسداد ما زاد على السقف خلال ${d} أيام من تقديمه.`];
+ return [`لا تشمل الأتعاب الرسوم والمصاريف القضائية ${EXP_ITEMS}، ويتحملها الطرف الثاني؛ ${how||'يدفعها الطرف الأول عنه عند الحاجة ويستردها منه بموجب إيصالاتها'}.`,`يقدّم الطرف الأول للطرف الثاني كشفاً بالمصاريف المدفوعة عنه مرفقاً بإيصالاتها، ويلتزم الطرف الثاني بسدادها خلال ${d} أيام من تقديمه، وهي مستقلة عن الأتعاب ولا تُخصم منها.`]};
+const EXP_LABEL={out:'المصاريف القضائية غير مشمولة بالأتعاب (يتحملها الموكل)',in:'المصاريف القضائية مشمولة بالأتعاب',cap:'المصاريف مشمولة حتى سقف محدد'};
+root.MQ_feeTermsLabel=k=>{const t=k&&k.feeTerms;if(!t)return '';return (EXP_LABEL[t.expMode]||'')+(t.expMode==='cap'&&t.expCap?' ('+Number(t.expCap).toLocaleString('en-US')+' ₪)':'')};
+/* أوراق قبول القضية: الوكالة + اتفاقية الأتعاب، بعد تحديد شمول المصاريف بوضوح */
 A.csPrintPoa=v=>{const k=K(v);if(!k||!window.MQP||!MQP.D||!MQP.D.tpl)return toast('الطباعة غير متاحة');
- const fv=(document.getElementById('saF')||{}).value,pv=(document.getElementById('saP')||{}).value,acc=k.accepted||{},g=k.gate||{};
- const fee=Number(fv||acc.fee||g.fee||k.fee||0),plan=pv||acc.pay||g.pay||'';
+ const acc=k.accepted||{},g=k.gate||{},t=k.feeTerms||{},fee=Number(t.fee||acc.fee||g.fee||k.fee||0),plan=t.plan||acc.pay||g.pay||'نصفها عند التوقيع والباقي عند صدور الحكم';
+ const mode=t.expMode||'out',r=(v2,lb,sub)=>`<label class="fp-opt ${mode===v2?'on':''}"><input type="radio" name="fpExp" value="${v2}" ${mode===v2?'checked':''}><span><b>${lb}</b><small>${sub}</small></span></label>`;
+ document.getElementById('modal').innerHTML=`<div class="modal-bg" data-act="close"><div class="modal fp-m" role="dialog" aria-label="أوراق قبول القضية"><div class="head"><h1 style="font-size:21px">🖨 أوراق قبول القضية ${esc(k.no||'')}</h1><button class="btn sm" data-act="close">إغلاق</button></div>
+  <p class="m" style="margin-top:0">تُطبع ورقتان منفصلتان: <b>الوكالة الخاصة</b> و<b>اتفاقية أتعاب المحاماة</b>، كلٌّ منهما من نسختين للتوقيع.</p>
+  <form class="form" id="fFp"><label>الأتعاب المتفق عليها (شيكل)<input class="field mono" id="fpFee" inputmode="numeric" value="${fee?fee.toLocaleString('en-US'):''}" placeholder="مثال: 8,000"></label><label>طريقة الدفع<input class="field" id="fpPlan" value="${esc(plan)}"></label>
+   <fieldset class="wide fp-exp"><legend>هل تشمل الأتعاب المصاريف القضائية؟</legend>
+    ${r('out','لا تشمل — يتحملها الموكل','رسوم المحكمة والطوابع والتبليغ والخبرة… يدفعها المكتب عنه ويستردها بإيصالاتها')}
+    ${r('in','تشمل — لا يدفع الموكل شيئاً إضافياً','كل الرسوم والمصاريف القضائية لهذه الدعوى ضمن الأتعاب')}
+    ${r('cap','تشمل حتى سقف محدد','وما زاد على السقف يتحمله الموكل')}
+    <label class="fp-cap" ${mode==='cap'?'':'hidden'}>سقف المصاريف المشمولة (شيكل)<input class="field mono" id="fpCap" inputmode="numeric" value="${esc(t.expCap||'')}"></label></fieldset>
+   <div class="wide fp-prev" id="fpPrev"></div>
+   <button class="btn pri wide">معاينة وطباعة الورقتين</button></form></div></div>`;
+ const f=document.getElementById('fFp'),prev=()=>{const m=(f.querySelector('input[name=fpExp]:checked')||{}).value||'out';f.querySelectorAll('.fp-opt').forEach(l=>l.classList.toggle('on',l.querySelector('input').checked));f.querySelector('.fp-cap').hidden=m!=='cap';const X=MQ_feeExp(m,document.getElementById('fpCap').value);document.getElementById('fpPrev').innerHTML=`<b>كما سيظهر في الاتفاقية:</b><br>2. ${esc(X[0])}<br>3. ${esc(X[1])}`};
+ f.addEventListener('change',prev);f.addEventListener('input',prev);prev()};
+document.addEventListener('submit',e=>{if(e.target.id!=='fFp')return;e.preventDefault();e.stopImmediatePropagation();const k=K(KID_FP);if(!k)return;
+ const g=id=>(document.getElementById(id)||{}).value||'',fee=Number(g('fpFee').replace(/[^\d.]/g,''))||0,mode=(document.querySelector('input[name=fpExp]:checked')||{}).value||'out',cap=g('fpCap').replace(/[^\d.]/g,'');
+ if(mode==='cap'&&!cap)return toast('اكتب سقف المصاريف المشمولة');
+ if(!fee&&!confirm('لم تُحدَّد قيمة الأتعاب؛ ستظهر في الاتفاقية فراغاً للتعبئة باليد. متابعة؟'))return;
+ k.feeTerms={fee,plan:g('fpPlan').trim(),expMode:mode,expCap:mode==='cap'?cap:'',printedAt:iso(TODAY),by:me()};save();A.close();
  const doc=(tid,label,vals)=>({label,build(){const o=[S.tpl,S.tplCase,S.tplVals];S.tpl=tid;S.tplCase=k.id;S.tplVals=vals||{};try{const r=MQP.D.tpl().build();r.title=label;return r}finally{[S.tpl,S.tplCase,S.tplVals]=o}}});
- MQP.open([doc('t1','وكالة خاصة'),doc('t6','اتفاقية أتعاب محاماة',{...(fee?{fee:fee.toLocaleString('en-US')}:{}),...(plan?{plan}:{})})],0);
- toast('المعاينة فيها مستندان: الوكالة واتفاقية الأتعاب — بدّل بينهما من «المستند» واطبع كلاً منهما')};
+ MQP.open([doc('t1','وكالة خاصة'),doc('t6','اتفاقية أتعاب محاماة',{...(fee?{fee:fee.toLocaleString('en-US')}:{}),plan:k.feeTerms.plan,expMode:mode==='in'?'تشمل':mode==='cap'?'سقف':'لا تشمل',expCap:cap})],0);
+ toast('المعاينة فيها الورقتان: الوكالة واتفاقية الأتعاب — بدّل بينهما من «المستند» واطبع كلاً منهما');render()},true);
+let KID_FP=null;{const p0=A.csPrintPoa;A.csPrintPoa=v=>{KID_FP=v;p0(v)}}
+{const st=document.createElement('style');st.textContent=`.fp-m{max-width:720px}.fp-exp{border:1px solid var(--line,#E5DCC8);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;gap:6px}.fp-exp legend{font-weight:700;padding:0 6px}
+.fp-opt{display:flex!important;flex-direction:row!important;gap:10px;align-items:flex-start;padding:8px 10px;border:1px solid var(--line,#E5DCC8);border-radius:10px;cursor:pointer;margin:0}.fp-opt input{width:auto!important;margin-top:4px}.fp-opt span{display:flex;flex-direction:column}.fp-opt small{color:var(--muted,#7A8592);font-size:12px}.fp-opt.on{border-color:#C9A24A;background:#FBF3DD}
+.fp-prev{background:#FFFDF7;border:1px dashed #C9A24A;border-radius:10px;padding:10px 12px;font-size:13.5px;line-height:1.9}`;document.head.appendChild(st)}
 A.csAi=v=>{A.close();A.aiOpen&&A.aiOpen(v)};
 document.addEventListener('submit',e=>{const f=e.target;if(!['fCsConf','fCsFile'].includes(f.id))return;e.preventDefault();e.stopImmediatePropagation();if(!can())return toast('صلاحيتك للاطلاع فقط');const k=K(KID);if(!k)return;const g=id=>(document.getElementById(id)||{}).value||'';
  if(f.id==='fCsConf'){const ok=document.getElementById('ccOk').checked;k.gate={...(k.gate||{}),other:g('ccQ').trim(),conflictOk:ok,conflictAt:iso(TODAY),conflictBy:me()};A.close();save();render();toast(ok?'سُجّل فحص التعارض: لا تعارض':'حُفظ الفحص؛ لم يُؤكَّد خلوّه من التعارض')}
