@@ -235,7 +235,10 @@ A.asPrint=()=>{if(!window.MQP||!AS.res)return;const r=AS.res,k=K(AS.k),B=MQP.B,E
    ...(r.unverified.length?[B.h('يحتاج تحقق'),...r.unverified.map(u=>B.p('• '+E(u)))]:[])],sign:['المحامي'],mark:'داخلي'}}})};
 
 const css=document.createElement('style');css.textContent=`
-.ai-modal{max-width:980px}.ai-form{grid-template-columns:1fr 1fr}
+.ai-modal{max-width:min(1440px,96vw)!important;width:min(1440px,96vw)!important;max-height:94vh!important;overflow:auto}
+@media(min-width:1180px){.ai-modal .as-modes{grid-template-columns:repeat(4,minmax(0,1fr))!important}}
+.ai-modal #asQ,.ai-modal #aiText{min-height:170px;font-size:15px;line-height:1.9;resize:vertical}
+.ai-modal .as-txt{max-height:55vh!important}.ai-form{grid-template-columns:1fr 1fr}
 .ai-case{background:var(--sunk);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13.5px}
 .ai-dict{border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--surface)}
 .ai-mic-row{display:flex;gap:12px;align-items:center;margin-bottom:10px;font-size:14px;line-height:1.7}
