@@ -18,8 +18,12 @@ const HINT={facts:'يرتّب وقائع القضية زمنياً، ويبيّ�
  client:'يكتب المسبار رسالة قصيرة بلغة بسيطة للموكل عن مستجدات قضيته وما المطلوب منه؛ تراجعها وتعدّلها، ثم ترسلها عبر بوابة الموكل.',
  draft:'يكتب المسبار الورقة كاملة من عقل القضية: الوقائع وبيناتها، وردود ميزان الحجج، والنصوص والأحكام من القاعدة؛ وما لا يعرفه يتركه بين معقوفين [..] لتكمله.',
  hearing:'ورقة جاهزة: ما جرى سابقاً، المطلوب، المستندات، الردود الممكنة، أسئلة الشهود، نقاط المرافعة.'};
+/* «تعديل»: لكل ملاحظة تكشف خطأً أو نقصاً — تصحيح مباشر في ملف القضية مع سجل لما عُدّل */
+const FIXABLE=['gap','contradiction','missing_evidence','deadline','procedure','next_step','con','neutral'];
+const FIXF={subject:'الموضوع',type:'نوع القضية',role:'صفة الموكل',stage:'المرحلة',status:'الحالة',no:'رقم القضية'};
+const FIXI='<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 const URG={high:['عاجل','u-h'],medium:['متوسط','u-m'],low:['عادي','u-l']};
-const STAT={proposed:['مقترح — بانتظار المراجعة','s-p'],approved:['معتمد','s-a'],rejected:['مرفوض','s-r']};
+const STAT={proposed:['مقترح — بانتظار المراجعة','s-p'],approved:['معتمد','s-a'],rejected:['مرفوض','s-r'],fixed:['عُدّل — عولج الخطأ','s-f']};
 const VIA={pdf:'نص PDF',ocr:'تعرّف على النص',docx:'Word',txt:'نص',local:'محلي',manual:'يدوي',draft:'مسودة في التطبيق'};
 const ST={k:null,data:null,err:'',busy:'',sub:'next',rd:{},note:{},ff:'',added:{},stage:'',dtype:''};
 const DICON={claim:'⚖️',answer:'🛡️',evidence_list:'📋',evidence_request:'📑',reply:'↩️'};
@@ -97,8 +101,10 @@ function richText(t,f){const dm=new Map((f.evidence||[]).map(x=>[x.tag,x]));
 
 function card(f){const u=URG[f.urgency]||URG.medium,s=STAT[f.status]||STAT.proposed;
  const row=(lb,v,cls='')=>v?`<div class="mbc-ch ${cls}"><span>${lb}</span><div>${v}</div></div>`:'';
- const dec=f.status==='proposed'&&ST.data.canWrite?`<div class="mbc-dec"><button type="button" class="btn sm pri" data-act="mbcDecide" data-v="${e(f.id)}|approved">اعتماد</button><button type="button" class="btn sm" data-act="mbcDecide" data-v="${e(f.id)}|rejected">رفض</button></div>`
-  :f.status!=='proposed'?`<div class="mbc-who">${s[0]} بواسطة ${e(f.decidedName||f.decidedBy)} · ${e(String(f.decidedAt||'').slice(0,16).replace('T',' '))}${f.note?' — '+e(f.note):''}${ST.data.canWrite?` <button type="button" class="link" data-act="mbcDecide" data-v="${e(f.id)}|proposed">تراجع</button>`:''}</div>`:'';
+ const dec=f.status==='proposed'&&ST.data.canWrite?`<div class="mbc-dec"><button type="button" class="btn sm pri" data-act="mbcDecide" data-v="${e(f.id)}|approved">اعتماد</button><button type="button" class="btn sm" data-act="mbcDecide" data-v="${e(f.id)}|rejected">رفض</button>${FIXABLE.includes(f.kind)?`<button type="button" class="btn sm mbc-fixb" data-act="mbcFix" data-v="${e(f.id)}" title="صحّح الخطأ في ملف القضية مباشرة وسجّل ما عُدّل">${FIXI}تعديل</button>`:''}</div>`
+  :f.status!=='proposed'?`<div class="mbc-who">${s[0]} بواسطة ${e(f.decidedName||f.decidedBy)} · ${e(String(f.decidedAt||'').slice(0,16).replace('T',' '))}${f.note&&f.status!=='fixed'?' — '+e(f.note):''}${ST.data.canWrite?`${f.status==='approved'&&FIXABLE.includes(f.kind)?` <button type="button" class="link" data-act="mbcFix" data-v="${e(f.id)}">تعديل</button>`:''} <button type="button" class="link" data-act="mbcDecide" data-v="${e(f.id)}|proposed">تراجع</button>`:''}</div>`:'';
+ const fixRec=f.status==='fixed'&&f.fix?`<div class="mbc-fixrec">${FIXI}<div><b>ما عُدّل:</b> ${e(f.fix.note)}${(f.fix.actions||[]).length?`<ul>${f.fix.actions.map(a=>`<li>${e(a)}</li>`).join('')}</ul>`:''}</div></div>`:'';
+ const sug=f.status==='proposed'&&f.suggest?`<div class="mbc-ch reply"><span>التصحيح المقترح</span><div>${e(FIXF[f.suggest.field]||f.suggest.field)}: ${e(f.suggest.value)}</div></div>`:'';
  if(f.kind==='report')return `<article class="mbc-f rep is-${e(f.status)}"><header><b>${e(f.title)}</b><span class="mbc-s ${s[1]}">${s[0]}</span></header><div class="mbc-rep">${richText(f.text||'',f)}</div>
   ${(f.law||[]).length?`<div class="mbc-refs">${f.law.map(refBtn).join('')}</div>`:''}<footer><small>أعدّها المسبار لـ ${e(f.byName||f.by)} · ${e(String(f.at).slice(0,16).replace('T',' '))} — لا تُعتمد قبل مراجعة المحامي.</small>${dec}</footer></article>`;
  return `<article class="mbc-f is-${e(f.status)}"><header><span class="mbc-k">${e((ST.data.kinds||{})[f.kind]||f.kind)}</span><b>${e(f.title)}</b><span class="mbc-u ${u[1]}">${u[0]}</span><span class="mbc-s ${s[1]}">${s[0]}</span></header>
@@ -107,8 +113,8 @@ function card(f){const u=URG[f.urgency]||URG.medium,s=STAT[f.status]||STAT.propo
   ${row('البينة',(f.evidence||[]).length?f.evidence.map(docChip).join(' '):'<span class="mbc-unv">لا بينة من مستندات القضية</span>')}
   ${row('النص والحكم',(f.law||[]).length?f.law.map(refBtn).join(' '):'<span class="mbc-unv">لا مرجع من القاعدة — يحتاج تحقق</span>')}
   ${row('الاستنتاج',e(f.conclusion))}${row('المخاطر',e(f.risk),'risk')}${row(f.kind==='con'?'الرد المضاد':'الرد / الإجراء المقترح',e(f.reply),'reply')}
-  ${f.due||f.owner?row('الموعد والمسؤول',[f.due?'الموعد: '+e(f.due)+' (بعد التحقق)':'',f.owner?'المسؤول: '+e(f.owner):''].filter(Boolean).join(' · ')):''}
- </div>${f.unverified?'<p class="mbc-warn sm">بعض ما ورد هنا بلا سند مسترجع من القاعدة؛ تحقّق منه قبل الاعتماد.</p>':''}
+  ${f.due||f.owner?row('الموعد والمسؤول',[f.due?'الموعد: '+e(f.due)+' (بعد التحقق)':'',f.owner?'المسؤول: '+e(f.owner):''].filter(Boolean).join(' · ')):''}${sug}
+ </div>${fixRec}${f.unverified?'<p class="mbc-warn sm">بعض ما ورد هنا بلا سند مسترجع من القاعدة؛ تحقّق منه قبل الاعتماد.</p>':''}
  <footer><small>${e(String(f.at).slice(0,16).replace('T',' '))} · طلبه ${e(f.byName||f.by)}</small>${dec}</footer></article>`}
 
 const FST={proven:['مثبتة بمستند','ok'],claimed:['ادعاء بلا دليل','warn'],disputed:['متنازع عليها','bad']};
@@ -284,6 +290,42 @@ A.mbcNeed=key=>{const [fid,i]=String(key).split(':'),f=ST.data.findings.find(x=>
 A.mbcDecide=async v=>{const [id,status]=String(v).split('|');let note='';
  if(status==='rejected'){note=prompt('سبب الرفض (اختياري):','');if(note===null)return}
  try{ST.data=await api('decide',{id,status,note});toast(status==='approved'?'اعتُمدت النتيجة':status==='rejected'?'رُفضت النتيجة':'أعيدت للمراجعة')}catch(x){toast(x.message)}paint()};
+/* نافذة «تعديل»: تصحيح بيان، مهلة أو إجراء، بينة مطلوبة، إرفاق المستند المصحّح — ثم تُعلَّم الملاحظة «عُدّل» مع سجل ما نُفّذ */
+const fxIso=n=>{const d=new Date();d.setDate(d.getDate()+n);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+A.mbcFix=id=>{const f=ST.data.findings.find(x=>x.id===id),k=typeof K==='function'?K(ST.k):null;if(!f||!k)return toast('تعذّر فتح القضية');
+ const sg=f.suggest||{},fld=sg.field||'subject',isDl=['deadline','procedure','next_step'].includes(f.kind),isEv=f.kind==='missing_evidence';
+ const opts=Object.entries(FIXF).map(([v,l])=>`<option value="${v}" ${v===fld?'selected':''}>${l}</option>`).join('');
+ const vals=fl=>[...new Set((typeof cases!=='undefined'?cases:[]).map(c=>c[fl]).filter(Boolean))].slice(0,40).map(v=>`<option value="${e(v)}">`).join('');
+ const box=(id,on,ttl,sub,body)=>`<section class="mbx-sec ${on?'on':''}" id="${id}S"><label class="mbx-h"><input type="checkbox" id="${id}" ${on?'checked':''} onchange="this.closest('section').classList.toggle('on',this.checked)"><b>${ttl}</b><small>${sub}</small></label><div class="mbx-b">${body}</div></section>`;
+ document.getElementById('modal').innerHTML=`<div class="modal-bg" data-act="close"><div class="modal mbx" role="dialog" aria-label="تعديل الخطأ" style="max-width:760px">
+ <div class="head"><h1 style="font-size:21px">${FIXI} تعديل الخطأ</h1><button class="btn sm" data-act="close">إغلاق</button></div>
+ <div class="mbx-f"><span class="mbc-k">${e((ST.data.kinds||{})[f.kind]||f.kind)}</span><b>${e(f.title)}</b>
+  ${f.fact?`<p><span>الواقعة</span>${e(f.fact)}</p>`:''}${f.risk?`<p><span>المخاطر</span>${e(f.risk)}</p>`:''}${f.reply?`<p class="r"><span>المقترح</span>${e(f.reply)}</p>`:''}</div>
+ <p class="m" style="margin:10px 0 6px">اختر ما تريد تنفيذه على ملف القضية ${e(k.no||'')} (واحداً أو أكثر):</p>
+ ${box('fxF',!!sg.field,'تصحيح بيان في ملف القضية','يُستبدل البيان الخاطئ بالصحيح ويُحفظ أصله في السجل',`<div class="mbx-g"><label>البيان<select class="field" id="fxFld">${opts}</select></label><label>القيمة الحالية<input class="field" id="fxOld" readonly value="${e(k[fld]||'')}"></label><label class="wide">القيمة الصحيحة<input class="field" id="fxVal" list="fxVals" maxlength="300" value="${e(sg.value||'')}"><datalist id="fxVals">${vals(fld)}</datalist></label></div>`)}
+ ${box('fxD',isDl,'إضافة مهلة / إجراء للمتابعة','تظهر في «المهل» وفي «اليوم في قضاياك»',`<div class="mbx-g"><label class="wide">الإجراء<input class="field" id="fxDt" maxlength="160" value="${e(String(f.reply||f.title||'').slice(0,160))}"></label><label>الموعد<input class="field" type="date" id="fxDd" value="${e(f.due||fxIso(7))}"></label><label>النوع<select class="field" id="fxDk"><option>إجراء</option><option>متابعة</option><option>تقديم بينة</option><option>طعن</option></select></label></div>`)}
+ ${box('fxE',isEv,'إضافة إلى البينات المطلوبة','تُضاف إلى قائمة «الدراسة والقرار» ويمكن طلبها من الموكل عبر البوابة',`<div class="mbx-g"><label class="wide">البينة / المستند المطلوب<input class="field" id="fxEt" maxlength="200" value="${e(String(f.fact&&isEv?f.fact:f.reply||f.title||'').slice(0,200))}"></label><label>من يوفّرها<select class="field" id="fxEs"><option value="client">الموكل</option><option value="">المكتب</option></select></label></div>`)}
+ ${box('fxA',false,'إرفاق المستند المصحّح','بعد الحفظ يُفتح تبويب «المستندات» لإرفاقه','')}
+ <label class="mbx-n">ما الذي عُدّل؟ <small>(يُحفظ في سجل القضية وسجل المسبار)</small><textarea class="field" id="fxN" rows="3" maxlength="1200" placeholder="مثال: صُحّح تاريخ الإخطار وفق المستند D2، وأُضيفت مهلة لتقديم البينة"></textarea></label>
+ <div class="toolbar" style="margin-top:12px"><button type="button" class="btn pri" data-act="mbcFixSave" data-v="${e(f.id)}">${FIXI} حفظ التعديل</button><button type="button" class="btn" data-act="close">إلغاء</button></div></div></div>`;
+ const sel=document.getElementById('fxFld');if(sel)sel.onchange=()=>{document.getElementById('fxOld').value=k[sel.value]||'';document.getElementById('fxVals').innerHTML=vals(sel.value)};
+ document.getElementById('fxN').focus()};
+A.mbcFixSave=async id=>{const f=ST.data.findings.find(x=>x.id===id),k=typeof K==='function'?K(ST.k):null;if(!f||!k)return;
+ const g=i=>{const el=document.getElementById(i);return el?(el.type==='checkbox'?el.checked:String(el.value||'').trim()):''};
+ const acts=[],who=(window.MQ&&MQ.user&&MQ.user.name)||'',n=new Date(),at=fxIso(0)+' '+String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0');
+ if(g('fxF')){const fl=g('fxFld'),v=g('fxVal');if(!FIXF[fl]||!v)return toast('اكتب القيمة الصحيحة للبيان');
+  const old=String(k[fl]??'');if(old!==v){k.fixLog=[...(k.fixLog||[]),{at,by:who,field:fl,from:old,to:v,src:'المسبار',finding:f.id}].slice(-100);k[fl]=v;acts.push(FIXF[fl]+': «'+(old||'فارغ')+'» ← «'+v+'»')}}
+ if(g('fxD')){const t=g('fxDt'),d=g('fxDd');if(!t||!/^\d{4}-\d{2}-\d{2}$/.test(d))return toast('حدّد الإجراء وموعده');
+  if(typeof deadlines!=='undefined'&&!deadlines.some(x=>x.k===k.id&&x.title===t&&!x.done)){deadlines.push({id:'dl-mb'+Date.now().toString(36),k:k.id,title:t,due:d,kind:g('fxDk')||'إجراء',done:false,src:'المسبار',finding:f.id});acts.push('مهلة: '+t+' ('+d+')')}}
+ if(g('fxE')){const t=g('fxEt');if(!t)return toast('اكتب البينة المطلوبة');k.gather=k.gather||{};const need=k.gather.need||[];
+  if(!need.some(x=>x.t===t)){k.gather.need=[...need,{id:'n'+Date.now().toString(36),t,st:g('fxEs'),src:'المسبار',note:f.title}];acts.push('بينة مطلوبة: '+t)}}
+ const att=g('fxA');if(att)acts.push('إرفاق المستند المصحّح');
+ const note=g('fxN')||acts.join('؛ ');if(!note)return toast('اختر تعديلاً أو اكتب ما الذي عُدّل');
+ k.notes=[...(k.notes||[]),{id:'n'+Date.now().toString(36),at,by:who,text:('تعديل بناءً على ملاحظة المسبار «'+f.title+'»: '+note+(acts.length&&g('fxN')?' — '+acts.join('؛ '):'')).slice(0,3000)}];
+ if(window.MQ&&MQ.saveState)MQ.saveState();
+ try{ST.data=await api('decide',{id,status:'fixed',note,actions:acts});A.close();toast('حُفظ التعديل وعُلّمت الملاحظة «عُدّل»')}catch(x){return toast(x.message)}
+ if(att&&typeof S!=='undefined'){S.caseTab='docs';if(typeof render==='function')render();return}
+ paint()};
 async function readOne(id,quiet){const x=ST.data.docs.find(d=>String(d.id)===String(id));if(!x||!x.file)return false;
  ST.rd[id]='جارٍ التحضير…';if(!quiet)paint();window.MQ_extractStage=t=>{ST.rd[id]=t;if(quiet){const el=document.getElementById('mbcStage');if(el)el.textContent='يقرأ «'+x.title+'»: '+t}else paint()};
  try{const r=await MQ_extract(x.file,extOf(x.file));if(!r||String(r.text||'').trim().length<20)throw new Error('لم يُستخرج نص كافٍ من «'+x.title+'».');
@@ -347,6 +389,16 @@ const css=document.createElement('style');css.textContent=`
 .mbc-warn{color:#8A4B00;background:#FFF3DC;border:1px solid #F0D49A;border-radius:10px;padding:8px 10px;margin:6px 0 0}.mbc-warn.sm{font-size:12.5px;padding:5px 8px}
 .mbc-empty{padding:8px 4px}
 .mbc-f{background:#fff;border:1px solid var(--line,#e5dccb);border-radius:14px;padding:12px 14px;border-inline-start:4px solid #C9A24A}
+.mbc-f.is-fixed{border-inline-start-color:#B7791F}.mbc-s.s-f{background:#FDF3E1;color:#8A5A12}
+.mbc-fixb{display:inline-flex;align-items:center;gap:5px;border-color:#D9B26A;color:#8A5A12;background:#FFFAF0}.mbc-fixb:hover{background:#FDF3E1}
+.mbc-fixrec{display:flex;gap:8px;align-items:flex-start;margin:8px 0 0;padding:9px 12px;border-radius:10px;background:#FFFAF0;border:1px solid #F0DDB4;color:#5B4310;font-size:13.5px}.mbc-fixrec ul{margin:4px 0 0;padding-inline-start:18px}.mbc-fixrec svg{flex:none;margin-top:3px}
+.mbx-f{background:#F8F6F1;border:1px solid #E7E1D4;border-radius:12px;padding:10px 14px}.mbx-f b{display:block;margin:4px 0 6px;font-size:15.5px}.mbx-f p{margin:3px 0;font-size:13.5px;display:flex;gap:8px}.mbx-f p span{flex:none;min-width:62px;color:#6B7280}.mbx-f p.r{color:#1F4D33}
+.mbx-sec{border:1px solid #E5E7EB;border-radius:12px;margin:8px 0;background:#fff}.mbx-sec.on{border-color:#D9B26A;background:#FFFCF5}
+.mbx-h{display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;flex-wrap:wrap}.mbx-h small{color:#6B7280;font-size:12.5px;margin-inline-start:auto}
+.mbx-b{display:none;padding:0 12px 12px}.mbx-sec.on .mbx-b{display:block}.mbx-b:empty{display:none!important}
+.mbx-g{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px 10px}.mbx-g label{display:flex;flex-direction:column;gap:4px;font-size:13px}.mbx-g .wide{grid-column:1/-1}
+.mbx-n{display:flex;flex-direction:column;gap:4px;margin-top:10px;font-size:13.5px}.mbx-n small{color:#6B7280}
+html.night .mbx-f,html.night .mbx-sec,html.night .mbc-fixrec{background:#1d2433;border-color:#38425a;color:inherit}html.night .mbx-sec.on{border-color:#B7791F}
 .mbc-f.is-approved{border-inline-start-color:#2F7D4F}.mbc-f.is-rejected{border-inline-start-color:#9CA3AF;opacity:.75}
 .mbc-f header{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;margin-bottom:8px}.mbc-f header b{flex:1;min-width:200px;font-size:15px}
 .mbc-k{font-size:12px;font-weight:700;color:#0B1B2B;background:#F3D58A;border-radius:6px;padding:1px 8px}

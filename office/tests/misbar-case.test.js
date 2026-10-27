@@ -72,6 +72,27 @@ test('case brain: access, enable gate, doc text, run with redaction and trust ch
   assert.equal(r3.body.findings.filter(x => x.task === 'brain').length, 2, 'older proposed superseded'); assert.equal(r3.body.superseded, 1);
 });
 
+test('case brain: «تعديل» يحفظ ما نُفّذ ويقترح تصحيح بيان مسموح فقط', async () => {
+  const t = setup({ reply: JSON.stringify({ findings: [
+    { kind: 'contradiction', title: 'صفة الموكل خاطئة', reply: 'تصحيح الصفة', fix: { field: 'role', value: 'مدعى عليه' } },
+    { kind: 'gap', title: 'حقل غير مسموح', fix: { field: "fee", value: "999" } }] }) });
+  await t.call('enable', 'POST', { k: 'k1', on: true });
+  const r = await t.call('run', 'POST', { k: 'k1', task: 'brain' });
+  const [a, b] = r.body.findings.sort((x, y) => x.title.localeCompare(y.title));
+  const fx = [a, b].find(x => x.title === 'صفة الموكل خاطئة'), bad = [a, b].find(x => x !== fx);
+  assert.deepEqual(fx.suggest, { field: 'role', value: 'مدعى عليه' }); assert.equal(bad.suggest, undefined, 'fee is not fixable from here');
+  assert.equal((await t.call('decide', 'POST', { k: 'k1', id: fx.id, status: 'fixed', note: '' })).status, 400, 'note required');
+  const d = await t.call('decide', 'POST', { k: 'k1', id: fx.id, status: 'fixed', note: 'صُحّحت الصفة', actions: ['صفة الموكل: مدعي ← مدعى عليه', ''] });
+  const g = d.body.findings.find(x => x.id === fx.id);
+  assert.equal(g.status, 'fixed'); assert.deepEqual(g.fix.actions, ['صفة الموكل: مدعي ← مدعى عليه']); assert.equal(g.suggest.field, 'role');
+  assert.ok(t.audits.some(x => x.action === 'misbar.finding_fixed'));
+  /* المعالَج يصل لعقل القضية في الصياغة حتى لا يُعاد طرحه */
+  await t.call('run', 'POST', { k: 'k1', task: 'draft', dtype: Object.keys(require('../lib/misbar-case').DRAFTS)[0] });
+  assert.match(t.sent.at(-1).user, /\[عُولج: صُحّحت الصفة\]/);
+  const u = await t.call('decide', 'POST', { k: 'k1', id: fx.id, status: 'proposed' });
+  assert.equal(u.body.findings.find(x => x.id === fx.id).fix, undefined, 'undo clears the fix record');
+});
+
 test('case brain: hearing report restores hidden values and keeps citations', async () => {
   const t = setup({ reply: '## الجلسة السابقة\n- سُمع شاهدان [D1.1] بخصوص المورد [هوية-1]\n- النص [M77] و[M5]' });
   await t.call('doctext', 'POST', { k: 'k1', doc: 'd1', text: 'المورد هويته 401234567 وقد سلّم البضاعة.' });
