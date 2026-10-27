@@ -107,6 +107,13 @@ const cap = (arr) => LIMIT ? arr.slice(0, LIMIT) : arr;
   log('EG_LEGISLATION', rows.length, f ? path.basename(path.dirname(f)) : '');
 }
 
+/* 6) أحكام محكمة النقض المصرية (المواد المدنية): eg-naqd/eg_naqd.jsonl من tools/eg-naqd-build.js — مبادئ ونص كامل حرفي */
+{
+  const rows = cap(jsonl(P('eg-naqd', 'eg_naqd.jsonl')));
+  for (const d of rows) add({ ...d, src: 'EG_CASSATION', country: 'EG', kind: 'ruling', cites: [] });
+  log('EG_CASSATION', rows.length);
+}
+
 /* الكتابة */
 if (fs.existsSync(OUT)) fs.unlinkSync(OUT);
 const db = new DatabaseSync(OUT);
