@@ -28,7 +28,7 @@ V.client=function(){
   <div class="cw-cact">${c.whatsapp||c.phone?`<a class="btn sm cw-wa" target="_blank" rel="noopener" href="https://wa.me/${String(c.whatsapp||c.phone).replace(/\D/g,'').replace(/^0/,'970')}">واتساب</a>`:''}<details class="cw-more"><summary class="btn sm">⋯ المزيد</summary><div class="cw-pop"></div></details></div>
   <div class="cw-portal ${c.portal?'on':''}"><i></i>${c.portal?'البوابة مفعّلة'+(c.last?' · آخر دخول '+E(dm(c.last)):''):'البوابة غير مفعّلة'}</div></section>`;
  /* 2) قضايا الموكل */
- const list=`<section class="cw-box"><h3>القضايا <small>${ks.length}</small></h3>${ks.map(k=>{const h=nextH(k);const on=tab==='case'&&S.caseId===k.id;return `<button type="button" class="cw-k ${on?'on':''} ${k.status==='منتهية'?'done':''}" data-act="openCase" data-v="${E(k.id)}"><b class="mono">${E(k.no||'جديدة')}</b><span>${E(String(k.subject||'').slice(0,60))}</span><small>${E(ctName(k))}${h?' · جلسة '+E(dm(h.date)):''}${k.status==='منتهية'?' · منتهية':''}</small></button>`}).join('')||'<div class="m">لا قضايا بعد.</div>'}
+ const list=`<section class="cw-box"><h3>القضايا <small>${ks.length}</small>${bagTabs&&bagTabs.querySelector('[data-v="cases"]')?`<button type="button" class="cw-st ${tab==='cases'?'on':''}" data-act="bagTab" data-v="cases" title="محطات القضايا: أين وصلت كل قضية">🧭 المحطات</button>`:''}</h3>${ks.map(k=>{const h=nextH(k);const on=tab==='case'&&S.caseId===k.id;return `<button type="button" class="cw-k ${on?'on':''} ${k.status==='منتهية'?'done':''}" data-act="openCase" data-v="${E(k.id)}"><b class="mono">${E(k.no||'جديدة')}</b><span>${E(String(k.subject||'').slice(0,60))}</span><small>${E(ctName(k))}${h?' · جلسة '+E(dm(h.date)):''}${k.status==='منتهية'?' · منتهية':''}</small></button>`}).join('')||'<div class="m">لا قضايا بعد.</div>'}
   ${hubCases&&hubCases.querySelector('[data-act="caseFor"]')?`<button type="button" class="btn sm cw-new" data-act="caseFor" data-v="${E(c.id)}">+ قضية جديدة</button>`:''}</section>`;
  /* 2ب) أوراق قبول القضية: الوكالة + اتفاقية الأتعاب، في مكان ثابت وواضح */
  const kc=tab==='case'&&typeof K==='function'?K(S.caseId):null;
@@ -41,7 +41,7 @@ V.client=function(){
   stepsBox=`<section class="cw-box cw-steps"><h3>سير القضية <small>${cur>=0?(cur+1)+' من '+lis.length:'اكتملت'}</small></h3><div class="cw-prog"><span style="width:${Math.round(done/Math.max(1,lis.length)*100)}%"></span></div><ol>${lis.map((l,i)=>{const st=l.classList.contains('cs-done')?'done':l.classList.contains('cs-cur')?'cur':'todo';const b=l.querySelector('[data-act="csGo"]');const ti=(l.querySelector('.cs-b b')||{}).textContent||'';const de=(l.querySelector('.cs-b small')||{}).textContent||'';
    return `<li class="${st}">${b?`<button type="button" data-act="csGo" data-v="${E(b.dataset.v)}" title="${E(de)}">`:'<span title="'+E(de)+'">'}<i>${st==='done'?'✓':i+1}</i>${E(ti)}${b?'</button>':'</span>'}</li>`}).join('')}</ol></section>`}
  /* 4) أقسام ملف الموكل (التبويبات السابقة) */
- const secs=bagTabs?[...bagTabs.querySelectorAll('button')].filter(b=>b.dataset.v!=='case'):[];
+ const secs=bagTabs?[...bagTabs.querySelectorAll('button')].filter(b=>b.dataset.v!=='case'&&b.dataset.v!=='cases'):[];
  const ICO={msgs:'💬',media:'📎',cases:'🧭',settle:'🤝',acct:'₪',mizan:'⟳'};
  const menu=secs.length?`<section class="cw-box"><h3>ملف الموكل</h3><nav class="cw-menu">${secs.map(b=>{const n=b.querySelector('.tcount');return `<button type="button" data-act="bagTab" data-v="${E(b.dataset.v)}" class="${b.classList.contains('on')?'on':''}"><i>${ICO[b.dataset.v]||'•'}</i>${E(b.childNodes[0]?b.childNodes[0].textContent.trim():b.textContent)}${n&&n.textContent.trim()?`<span class="${n.classList.contains('hot')?'hot':''}">${E(n.textContent.trim())}</span>`:''}</button>`}).join('')}</nav></section>`:'';
  /* 5) العمود الرئيسي */
@@ -49,6 +49,12 @@ V.client=function(){
   if(steps){const cur=steps.querySelector('.cs-list > li.cs-cur');if(cur){const ti=(cur.querySelector('.cs-b b')||{}).textContent||'',go=cur.querySelector('[data-act="csGo"]');
     const now=doc.createElement('div');now.className='cw-now';now.innerHTML=`<span><b>الآن:</b> ${E(ti)}</span>${go?`<button type="button" class="btn sm pri" data-act="csGo" data-v="${E(go.dataset.v)}">الخطوة التالية ←</button>`:''}`;steps.replaceWith(now)}else steps.remove()}
   const qc=body.querySelector('.qc-box');if(qc){const n=(qc.textContent.match(/\((\d+)\)/)||[])[1]||'';const d=doc.createElement('details');d.className='cw-qc';d.innerHTML=`<summary>⚠ ينقص هذا الملف${n?' · '+n+(n==='1'?' أمر':' أمور'):''} <small>اضغط للعرض</small></summary>`;qc.replaceWith(d);d.appendChild(qc)}
+  /* إزالة المكرر داخل الحقيبة: الطباعة في «أوراق التوكيل»، والمراسلة من بطاقة الموكل وخانة «رسائل الموكل» */
+  body.querySelectorAll('.hub-acts [data-act="csPrintPoa"],.hub-acts [data-act="bag"]').forEach(b=>b.remove());
+  /* صف «ترابط بيانات القضية»: الموكل في البطاقة الجانبية والجلسة في «الآن»؛ يبقى سطر مختصر بالمحكمة والخصوم ومرجع ميزان */
+  const chain=body.querySelector('.chain');if(chain){const nd=[...chain.querySelectorAll('.node')],tx=el=>el?el.textContent.trim():'';
+   const court=nd[2]?tx(nd[2].querySelector('.nm')):'',opp=nd[3]?[...nd[3].querySelectorAll('.nm')].map(n=>{const l=n.nextElementSibling&&n.nextElementSibling.classList.contains('lb')?tx(n.nextElementSibling):'';return E(tx(n))+(l?' <small>(وكيله '+E(l)+')</small>':'')}).join('، '):'',mz=nd[4]?tx(nd[4].querySelector('.nm')):'';
+   const m=doc.createElement('div');m.className='cw-meta';m.innerHTML=[court&&`<span><i>المحكمة</i>${E(court)}</span>`,opp&&`<span><i>الخصم</i>${opp}</span>`,mz&&mz!=='—'&&`<span><i>ميزان</i><b class="mono">${E(mz)}</b></span>`].filter(Boolean).join('');chain.replaceWith(m)}
  }
  const pop=doc.createElement('div');if(wa)pop.appendChild(wa);
  const cardT=doc.createElement('template');cardT.innerHTML=card;const pp=cardT.content.querySelector('.cw-pop');if(pp)pp.appendChild(pop);
@@ -74,7 +80,7 @@ const css=doc.createElement('style');css.textContent=`
 .cw-pop .wa-bar{display:flex;flex-direction:column;align-items:stretch;gap:6px}.cw-pop .wa-bar>*{width:100%;justify-content:center}
 .cw-portal{font-size:11.5px;color:#C9D4DB;display:flex;align-items:center;gap:6px}.cw-portal i{width:8px;height:8px;border-radius:50%;background:#9AA2AC}.cw-portal.on i{background:#3DDC84}
 .cw-box{background:var(--surface,#fff);border:1px solid var(--line,#E5DCC8);border-radius:14px;padding:10px 12px}
-.cw-box h3{margin:0 0 8px;font-size:14px;display:flex;justify-content:space-between;align-items:center}.cw-box h3 small{font-weight:400;color:var(--muted,#7A8592);font-size:12px}
+.cw-box h3{margin:0 0 8px;font-size:14px;display:flex;justify-content:space-between;align-items:center}.cw-box h3 small{margin-inline-start:6px;margin-inline-end:auto;font-weight:400;color:var(--muted,#7A8592);font-size:12px}
 .cw-k{all:unset;box-sizing:border-box;cursor:pointer;display:flex;flex-direction:column;gap:1px;width:100%;padding:8px 10px;border:1px solid var(--line,#E5DCC8);border-radius:10px;margin-bottom:6px;font-size:13px}
 .cw-k b{font-size:14px}.cw-k span{color:var(--ink,#1F2A36)}.cw-k small{font-size:11.5px;color:var(--muted,#7A8592)}
 .cw-k:hover{border-color:#C9A24A}.cw-k.on{border-color:#C9A24A;background:#FBF3DD;box-shadow:0 0 0 2px rgb(201 162 74 / .22)}.cw-k.done{opacity:.7}
@@ -88,6 +94,8 @@ const css=doc.createElement('style');css.textContent=`
 .cw-steps li.cur>*{background:#F6E7BF;color:#0B1B2B;font-weight:700}.cw-steps li.cur i{background:#C9A24A;color:#0B1B2B}
 .cw-steps li.todo{color:#9AA2AC}.cw-steps li.todo i{background:#EFE6D2;color:#7A6A48}.cw-steps li.todo>span{cursor:default}
 .cw-steps li>button:hover{background:#F8F3E6}
+.cw-meta{display:flex;flex-wrap:wrap;gap:6px 18px;margin:2px 0 10px;font-size:13.5px}.cw-meta i{font-style:normal;color:var(--muted,#6B7280);margin-inline-end:6px;font-size:12px}.cw-meta small{color:var(--muted,#6B7280)}
+.cw-st{all:unset;cursor:pointer;margin-inline-start:auto;font-size:12px;padding:2px 9px;border-radius:999px;background:#F3ECDC;color:#5B4310}.cw-st:hover,.cw-st.on{background:#0B1B2B;color:#F3D58A}
 .cw-menu{display:flex;flex-direction:column;gap:2px}.cw-menu button{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:9px;font-size:13.5px}
 .cw-menu button i{font-style:normal;width:22px;text-align:center}.cw-menu button span{margin-inline-start:auto;font-size:11px;background:#EFE6D2;border-radius:999px;padding:1px 7px}.cw-menu button span.hot{background:#B23A3A;color:#fff}
 .cw-menu button:hover{background:#F8F3E6}.cw-menu button.on{background:#0B1B2B;color:#F3D58A}

@@ -79,7 +79,7 @@ function strip(k){const f=facts(k,DATA(),today());
  </div>`}
 const addDays=(d,n)=>{const x=new Date(d+'T00:00:00');x.setDate(x.getDate()+n);return x.toISOString().slice(0,10)};
 function actions(k){if(!can())return '';const b=(act,v,t,pri)=>`<button type="button" class="btn sm${pri?' pri':''}" data-act="${act}" data-v="${e(v)}">${t}</button>`;
- return `<div class="hub-acts" role="toolbar" aria-label="أوامر القضية">${b('hubTab','hearings',svg('hearing')+'جلسة')}${b('hubTab','deadlines',svg('deadline')+'مهلة')}${b('hubTab','docs',svg('attach')+'مرفق')}${b('hubPay',k.client,svg('pay')+'دفعة')}${b('hubNote',k.id,svg('note')+'ملاحظة')}${b('bag',k.client,'مراسلة الموكل')}${A.aiOpen?b('hubDraft',k.id,'🎙 صياغة لائحة'):''}${A.hpOpen?b('hubPrep',k.id,'تحضير جلسة'):''}${A.asOpen?b('hubAssist',k.id,'مساعد القضية'):''}${b('printCase',k.id,'طباعة ملف القضية')}</div>`}
+ return `<div class="hub-acts" role="toolbar" aria-label="أوامر القضية">${b('hubTab','hearings',svg('hearing')+'جلسة')}${b('hubNewDl',k.id,svg('deadline')+'مهلة')}${b('hubTab','docs',svg('attach')+'مرفق')}${b('hubNote',k.id,svg('note')+'ملاحظة')}${b('bag',k.client,'مراسلة الموكل')}${A.aiOpen?b('hubDraft',k.id,'🎙 صياغة لائحة'):''}${A.hpOpen?b('hubPrep',k.id,'تحضير جلسة'):''}${A.asOpen?b('hubAssist',k.id,'مساعد القضية'):''}${b('printCase',k.id,'طباعة ملف القضية')}</div>`}
 function timeline(k){const all=events(k,DATA(),today()),list=H.filter==='all'?all:all.filter(x=>x.type===H.filter),shown=list.slice(0,H.limit);
  const cnt=t=>t==='all'?all.length:all.filter(x=>x.type===t).length;
  const shared=all.some(x=>x.shared);
@@ -104,6 +104,14 @@ if(typeof ctab==='function'){root.caseTab=k=>S.caseTab==='hub'?timeline(k):ctab(
 const oc=A.openCase;A.openCase=(v,...r)=>{oc(v,...r);if(S.caseTab!=='hub'){S.caseTab='hub';render()}};
 S.caseTab='hub';
 
+/* إضافة مهلة فعلية (لا مجرد فتح التبويب) */
+A.hubNewDl=id=>{const k=K(id||S.caseId);if(!k||!can())return;const d=new Date();d.setDate(d.getDate()+7);const dd=d.toISOString().slice(0,10);
+ document.getElementById('modal').innerHTML=`<div class="modal-bg" data-act="close"><div class="modal" role="dialog" aria-label="مهلة جديدة" style="max-width:600px"><div class="head"><h1 style="font-size:22px">مهلة جديدة · ${e(k.no||'')}</h1><button class="btn sm" data-act="close">إغلاق</button></div>
+ <form class="form" id="hubDlF" data-k="${e(k.id)}"><label class="wide">المهلة / الإجراء<input class="field" id="hubDlT" maxlength="160" required placeholder="مثال: إيداع قائمة البينات"></label><label>الموعد<input class="field" type="date" id="hubDlD" required value="${dd}"></label><label>النوع<select class="field" id="hubDlK"><option>إجرائية</option><option>متابعة</option><option>تقديم بينة</option><option>طعن</option></select></label><div class="wide toolbar"><button class="btn pri">حفظ المهلة</button></div></form></div></div>`;
+ document.getElementById('hubDlT').focus()};
+document.addEventListener('submit',ev=>{if(ev.target.id!=='hubDlF')return;ev.preventDefault();ev.stopImmediatePropagation();const k=K(ev.target.dataset.k),t=document.getElementById('hubDlT').value.trim(),due=document.getElementById('hubDlD').value;if(!k||!t||!due)return;
+ deadlines.push({id:'dl-h'+Date.now().toString(36),k:k.id,title:t.slice(0,160),due,kind:document.getElementById('hubDlK').value,done:false});
+ A.close();if(root.MQ&&MQ.saveState)MQ.saveState();render();toast('أُضيفت المهلة')},true);
 A.hubTab=v=>{S.caseTab=v;render();setTimeout(()=>{const f=document.querySelector('#page form');if(f){f.scrollIntoView({block:'center'});const i=f.querySelector('input,select,textarea');if(i)i.focus()}},60)};
 A.hubFilter=v=>{H.filter=v;H.limit=60;render()};
 A.hubMore=()=>{H.limit+=60;render()};

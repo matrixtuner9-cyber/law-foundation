@@ -23,7 +23,7 @@ V.case=function(){const html=v0.apply(this,arguments);const k=K(S.caseId);if(!k)
  /* 2) شريط أوامر واحد */
  const acts=R.querySelector('.hub-acts');
  if(acts){const all=[...acts.querySelectorAll('button')];const add=[],tools=[];
-  all.forEach(b=>{const tx=b.textContent.trim();(tx.startsWith('+')?add:tools).push(b)});
+  const ADD=['hubNewDl','hubNote','hubTab|hearings','hubTab|docs'];all.forEach(b=>{const tx=b.textContent.trim();(tx.startsWith('+')||ADD.includes(b.dataset.act)||ADD.includes(b.dataset.act+'|'+b.dataset.v)?add:tools).push(b)});
   const pb=document.createElement('button');pb.type='button';pb.className='btn sm';pb.dataset.act='printCase';pb.dataset.v=k.id;pb.textContent='طباعة';
   const doc=document.createElement('button');doc.type='button';doc.className='btn sm';doc.dataset.act='tplFor';doc.dataset.v=k.id;doc.textContent='مستند من نموذج';
   const seen=new Set();const uniq=a=>a.filter(b=>{const key=b.textContent.replace(/[^\p{L}\s]/gu,'').trim();if(seen.has(key))return false;seen.add(key);return true});
@@ -32,7 +32,7 @@ V.case=function(){const html=v0.apply(this,arguments);const k=K(S.caseId);if(!k)
   tl.forEach(b=>b.classList.remove('gold'));
   acts.innerHTML='';acts.classList.add('cl-acts');
   const grp=(lb,bs)=>{const g=document.createElement('div');g.className='cl-grp';g.innerHTML=`<span class="cl-lb">${lb}</span>`;bs.forEach(b=>g.appendChild(b));return g};
-  acts.appendChild(grp('إضافة',uniq(add)));acts.appendChild(grp('أدوات',tl))}
+  const ad=uniq(add);if(ad.length)acts.appendChild(grp('إضافة',ad));acts.appendChild(grp('أدوات',tl))}
  /* 3) أربعة تبويبات */
  const tabs=R.querySelector('.tabs');
  if(tabs){const cur=S.caseTab==='gather'?'study':S.caseTab;
