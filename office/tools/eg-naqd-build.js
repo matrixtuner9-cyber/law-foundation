@@ -21,6 +21,8 @@ function appealOf(s) {
   return nos.length ? { nos, jy: String(+m[2]) } : null;
 }
 const keyOf = (no, jy) => `${+no}/${+jy}`;
+/* تاريخ صالح فقط: في المصدر تواريخ مدخلة خطأً مثل 0193-04-01 */
+const okDate = s => /^(19[3-9]\d|20[0-3]\d)-\d{2}-\d{2}$/.test(s || '') ? s : '';
 
 function read(dir, t) { const f = path.join(dir, t + '.jsonl'); return fs.existsSync(f) ? fs.readFileSync(f, 'utf8').split('\n').filter(l => l.trim()).map(l => JSON.parse(l)) : [] }
 
@@ -48,7 +50,7 @@ function build(dir) {
   for (const t of PR) for (const r of rows[t]) {
     const a = appealOf(r.a9 || '') || (r.a7 ? { nos: [String(r.a7)], jy: String(+digits(r.a8 || '')) } : null);
     const key = a && a.jy !== 'NaN' ? keyOf(a.nos[0], a.jy) : `d${r.a2}|${r.a3}`;
-    const d = get(key); d.appeal = d.appeal || a; d.date = d.date || r.a2 || ''; d.rule = d.rule || String(r.a3 ?? ''); d.page = d.page || String(r.a4 ?? ''); d.part = d.part || oneLine(r.a10 || '');
+    const d = get(key); d.appeal = d.appeal || a; d.date = d.date || okDate(r.a2); d.rule = d.rule || String(r.a3 ?? ''); d.page = d.page || String(r.a4 ?? ''); d.part = d.part || oneLine(r.a10 || '');
     if (r.a5) d.topics.add(oneLine(r.a5));
     const p = tidy(r.a6 || ''); if (p && !d.principles.includes(p)) d.principles.push(p);
     d.tables.add(t); nPr++;
@@ -64,7 +66,7 @@ function build(dir) {
     let key = a ? keyOf(a.nos[0], a.jy) : byDateRule.get(`${r.a3}|${r.a2}`);
     if (!a && key) viaRule++;
     if (!key) { key = `d${r.a3}|${r.a2}|${t}`; orphan++ }
-    const d = get(key); d.appeal = d.appeal || a; d.date = d.date || r.a3 || ''; d.rule = d.rule || String(r.a2 ?? '');
+    const d = get(key); d.appeal = d.appeal || a; d.ftDate = d.ftDate || okDate(r.a3); d.rule = d.rule || String(r.a2 ?? '');
     if (ix) for (const x of ix.topics) d.topics.add(x);
     if (!d.texts.includes(text)) d.texts.push(text);
     d.tables.add(t); nFt++;
@@ -73,6 +75,7 @@ function build(dir) {
   /* 3) مستند مِسْبار لكل طعن */
   const out = [];
   for (const d of docs.values()) {
+    d.date = d.ftDate || d.date; /* تاريخ الجلسة من نص الحكم الكامل أوثق من فهرس المبادئ */
     const a = d.appeal, nos = a ? a.nos.join(' و') : '', jy = a ? a.jy : '';
     const year = /^\d{4}/.test(d.date) ? +d.date.slice(0, 4) : null;
     const label = a ? `${a.nos.length > 1 ? 'الطعنان رقما' : 'الطعن رقم'} ${nos} لسنة ${jy} ق` : 'طعن غير مرقّم في المصدر';
