@@ -91,8 +91,11 @@ const css=doc.createElement('style');css.textContent=`
 .cw-main .chain .link-line{display:none!important}
 .cw-main .chain .node{all:unset;box-sizing:border-box;display:flex;flex-direction:column;padding:5px 10px;border:1px solid var(--line,#E5DCC8);border-radius:10px;background:var(--surface,#fff);font-size:12px;max-width:240px;cursor:default}
 .cw-main .chain button.node{cursor:pointer}.cw-main .chain .node *{font-size:12px!important;margin:0!important;line-height:1.5!important}
-.cw-now{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#FBF6EA;border:1px solid #EADFC4;border-radius:12px;padding:9px 14px;margin:0 0 10px;font-size:14.5px}
-.cw-main .hub-strip{gap:8px!important;margin:0 0 10px!important}.cw-main .hub-f{padding:7px 10px!important}.cw-main .hub-f b{font-size:15px}
+.cw-now{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#FBF6EA;border:1px solid #EADFC4;border-radius:10px;padding:5px 6px 5px 12px;margin:0 0 8px;font-size:13px}.cw-now .btn{padding:4px 10px!important;font-size:12px!important}
+.cw-main .hub-strip{display:grid!important;grid-template-columns:repeat(auto-fit,minmax(118px,1fr))!important;gap:6px!important;margin:0 0 8px!important}
+.cw-main .hub-f{min-width:0;flex-direction:row!important;flex-wrap:wrap;align-items:baseline;gap:2px 6px!important;padding:5px 9px!important;border-radius:9px!important;min-height:0!important}
+.cw-main .hub-f>span{font-size:11px!important;color:var(--muted,#7A8592)}.cw-main .hub-f>b{font-size:13px!important;line-height:1.4!important}
+.cw-main .hub-f>small{flex-basis:100%;font-size:10.5px!important;line-height:1.35!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--muted,#8A93A0)}
 .cw-qc{margin:0 0 10px;border:1px solid #E9B7B7;background:#FFF7F7;border-radius:12px}
 .cw-qc>summary{cursor:pointer;padding:9px 14px;font-weight:700;color:#B23A3A;list-style:none}.cw-qc>summary::-webkit-details-marker{display:none}.cw-qc>summary small{font-weight:400;color:#9A6060;margin-inline-start:6px}
 .cw-qc[open]>summary small{display:none}.cw-qc .qc-box{margin:0 10px 10px!important}
