@@ -145,6 +145,7 @@ function reader(){
    <button class="btn sm" data-act="mbCopy">نسخ</button><button class="btn sm" data-act="mbPrint">طباعة A4</button>
    ${d.kind==='ruling'&&can2('write')?'<button class="btn sm" data-act="mbSaveRuling">حفظ في الاجتهادات</button>':''}
    ${window.MQREFS&&(typeof window.MQ_can!=='function'||window.MQ_can('cases'))?`<button class="btn sm pri" data-act="crLinkDoc" data-v="${d.id}" title="ربط ${d.kind==='law'?'التشريع كاملاً':'الحكم'} بقضية أو أكثر؛ ولربط مادة بعينها اضغط «🔗 ربط» بجانبها، أو ظلّل فقرة">🔗 ربط بقضية</button>`:''}
+   ${d.kind==='ruling'&&d.body&&can2('write')&&window.MQ_judgOpen?`<button class="btn sm pri" data-act="mbJudg" data-v="${d.id}" title="تشريح الحكم: وقائعه ومسائله وتسبيبه والمبدأ منه، ومقارنته بقضية من قضاياك">⚖️ تشريح الحكم</button>`:''}
    ${can2('write')&&d.body?`<button class="btn sm pri" data-act="mbAnalyze">${d.kind==='ruling'?'تحليل الحكم وأسباب الطعن':'تحليل النص'}</button>`:''}
 </div></div>
   <div class="mb-body" style="font-size:${MB.fs}px">${d.body?bodyHtml(d.body,MB.q):`<p class="m">النص الكامل غير متوفر في القاعدة لهذا ${d.kind==='law'?'التشريع':'الحكم'}.</p>`}</div>
@@ -456,4 +457,12 @@ html.night .mb-wrap .mb-t{color:#F3E9CF}
 /* مقتطف النتيجة: خلفية بيج غامق فاتحة ونص داكن واضح (منفصل عن زر الإغلاق الذي يحمل الصنف نفسه) */
 .mb-wrap p.mb-x,.mb-wrap p.mb-x:hover{position:static;display:block;margin:8px 0 2px;padding:9px 14px;border-radius:12px;border:1px solid #D2BD8F;background:#E9DCBE;color:#2B2416;font-weight:400;font-size:13.5px;line-height:1.95;cursor:inherit;-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:none}
 html.night .mb-wrap p.mb-x{background:#3A3324;border-color:#5C4E2E;color:#F2E6C4}`;document.head.appendChild(css)}
+/* تشريح الحكم من القارئ: اختيار القضية ثم الانتقال إلى تبويب المسبار فيها */
+A.mbJudg=v=>{const d=MB.doc;if(!d||String(d.id)!==String(v)||!window.MQ_judgOpen)return;
+ const list=(typeof cases!=='undefined'?cases:[]).filter(k=>k.status!=='closed'&&k.status!=='مغلقة');
+ if(!list.length)return toast('لا توجد قضايا لربط التشريح بها');
+ const m=document.getElementById('modal');if(!m)return;
+ m.innerHTML=`<div class="modal-bg" data-act="close"><div class="modal" role="dialog" aria-label="تشريح الحكم"><div class="head"><h1 style="font-size:17px">تشريح الحكم</h1></div><div class="body"><p class="m">اختر القضية التي يُقارَن بها الحكم. يُرسَل نص الحكم (وهو من القاعدة العامة) وملف القضية بعد إخفاء الهويات.</p><select class="field" id="mbJgCase">${list.map(k=>`<option value="${e(k.id)}">${e(k.no)} — ${e(k.subject||k.type||'')}</option>`).join('')}</select></div><div class="foot"><button class="btn" data-act="close">إلغاء</button><button class="btn pri" data-act="mbJudgGo" data-v="${e(String(d.id))}">متابعة</button></div></div></div>`};
+A.mbJudgGo=v=>{const sel=document.getElementById('mbJgCase'),k=sel&&sel.value,d=MB.doc;if(!k||!d)return;
+ window.MQ_judgOpen(k,v,cleanT(d.title));A.close();A.openCase(k);S.caseTab='misbar';render()};
 })();

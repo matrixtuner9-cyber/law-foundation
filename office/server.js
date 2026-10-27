@@ -52,7 +52,7 @@ const aiKey = () => store.kv.get('ai_key') || process.env.ANTHROPIC_API_KEY || g
 const dsKey = () => store.kv.get('deepseek_key') || process.env.DEEPSEEK_API_KEY || gwToken();
 /* مختبر تحليل المسبار: DeepSeek أو Claude، مراجعه من القاعدة المحلية فقط */
 const misbarAi = MisbarAi.createAnalyzer({ misbar, keys: { deepseek: dsKey, anthropic: aiKey, provider: () => store.kv.get('ai_provider') || '' }, audit, models: { deepseek: process.env.MQ_DEEPSEEK_MODEL, anthropic: process.env.MQ_AI_MODEL } });
-const caseBrain = MisbarCase.createCaseBrain({ kv: store.kv, state: () => cur(), courts: () => SEED.courts || [], analyzer: misbarAi, system: MisbarAi.SYSTEM, norm: Misbar.norm, audit, match: require('./mizan/match').match });
+const caseBrain = MisbarCase.createCaseBrain({ kv: store.kv, state: () => cur(), courts: () => SEED.courts || [], analyzer: misbarAi, system: MisbarAi.SYSTEM, norm: Misbar.norm, audit, match: require('./mizan/match').match, getDoc: id => misbar.doc(id) });
 const drafter = AiDraft.createDrafter({ audit, getKey: aiKey, laws, lawSearch, rulingSearch: misbarRulings, model: process.env.MQ_AI_MODEL });
 const extractor = AiDraft.createExtractor({ audit, getKey: aiKey, model: process.env.MQ_AI_MODEL });
 const transcriber0 = AiDraft.createTranscriber({ audit, getKey: aiKey, model: process.env.MQ_AI_MODEL });

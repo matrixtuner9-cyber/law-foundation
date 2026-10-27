@@ -22,7 +22,7 @@ test('chunks splits long text on paragraph boundaries within size', () => {
   assert.equal(c.join('\n').replace(/\s+/g, ''), t.replace(/\s+/g, ''));
 });
 
-function setup({ reply } = {}) {
+function setup({ reply, getDoc } = {}) {
   const store = new Map();
   const kv = { get: (k, d = null) => store.has(k) ? JSON.parse(store.get(k)) : d, set: (k, v) => store.set(k, JSON.stringify(v)) };
   const S = { cases: [{ id: 'k1', no: '1187/2025', court: 'ct2', type: 'حقوقية · مطالبة مالية', subject: 'مطالبة بقيمة توريدات', client: 'c1', opps: ['o1'], role: 'مدعية', stage: 'بينات المدعية' }, { id: 'k2', client: 'c1' }],
@@ -33,7 +33,7 @@ function setup({ reply } = {}) {
     research: async () => ({ queries: ['عقد توريد'], refs: [{ id: 77, title: 'قانون المخالفات', source: 'فلسطين · تشريعات', primary: true, excerpt: 'نص' }] }),
     call: async a => { sent.push(a); return { text: reply || JSON.stringify({ findings: [{ kind: 'gap', title: 'لا سند استلام', fact: 'التسليم', evidence: ['D1.1', 'D7.1'], law: ['M77', 'M999'], conclusion: 'يحتاج إثبات', risk: 'رد الدعوى', reply: 'طلب سندات التسليم', urgency: 'high', due: '2026-10-13', owner: 'المحامي' }] }) } } }) };
   const audits = [];
-  const brain = createCaseBrain({ kv, state: () => S, courts: () => [{ id: 'ct2', name: 'بداية نابلس' }], analyzer, system: 'SYS', norm, audit: x => audits.push(x), match: require('../mizan/match').match });
+  const brain = createCaseBrain({ kv, state: () => S, courts: () => [{ id: 'ct2', name: 'بداية نابلس' }], analyzer, system: 'SYS', norm, getDoc, audit: x => audits.push(x), match: require('../mizan/match').match });
   const me = { id: 'u1', username: 'lawyer1', name: 'محامٍ', cases: ['k1'] };
   const can = w => w === 'write';
   const who = { user_id: 'u1', username: 'lawyer1' };
@@ -199,4 +199,35 @@ test('mizan import: extraction restores hidden IDs for matching, normalises date
   const m = await call('mzmatch', { records: r.body.records });
   assert.equal(m.status, 200); assert.equal(m.body.matched[0].caseId, 'k1'); assert.equal(m.body.matched[0].newSessions.length, 2);
   assert.equal(m.body.newForClient[0].clientId, 'c7'); assert.equal(b.parties[0].idNo, '987654321');
+});
+
+test('case brain: judgment dissection verifies quotes verbatim, flags comparative rulings, hides ids', async () => {
+  const body = 'حكم محكمة النقض. الوقائع: تعاقد الطرفان على توريد بضاعة وهوية المدعي 401234567 وسُلّمت البضاعة ناقصة. المبدأ: لا يُلزم المشتري بالثمن عن بضاعة لم تُسلَّم. ' + 'تفصيل '.repeat(60);
+  const reply = JSON.stringify({ summary: 'نقض لعدم التسليم', court: 'محكمة النقض', facts: [{ fact: 'سُلّمت ناقصة', quote: 'سُلّمت البضاعة ناقصة' }, { fact: 'واقعة مختلقة', quote: 'عبارة ليست في الحكم أبداً' }],
+    issues: [{ issue: 'الثمن عن بضاعة غير مسلّمة', holding: 'لا يلزم', reasoning: 'انتفاء المقابل', law: ['المادة 5'], quote: 'لا يُلزم المشتري بالثمن' }], principle: 'لا ثمن دون تسليم',
+    use: { supports: [{ point: 'عدم التسليم', why: 'مطابق' }], distinguish: [{ point: 'الحكم أردني', why: 'غير ملزم' }] }, notes: [] });
+  const t = setup({ reply, getDoc: async id => id === '55' ? { id: 55, title: 'نقض أردني 12/2020', body, source: 'الأردن · محكمة التمييز', primary: false, court: 'التمييز', case_no: '12/2020' } : null });
+  await t.call('enable', 'POST', { k: 'k1', on: true });
+  assert.equal((await t.call('run', 'POST', { k: 'k1', task: 'judgment' })).status, 400, 'needs a ruling');
+  assert.equal((await t.call('run', 'POST', { k: 'k1', task: 'judgment', ruling: '9' })).status, 404);
+  const r = await t.call('run', 'POST', { k: 'k1', task: 'judgment', ruling: '55' });
+  assert.equal(r.status, 200, JSON.stringify(r.body));
+  const f = r.body.findings[0];
+  assert.equal(f.kind, 'judgment'); assert.equal(f.ruling, 55); assert.equal(f.comparative, true);
+  assert.equal(f.facts[0].quote.found, true); assert.equal(f.facts[1].quote.found, false, 'fabricated quote flagged');
+  assert.equal(f.issues[0].quote.found, true); assert.equal(f.quotesBad, 1); assert.equal(f.unverified, true);
+  assert.ok(f.notes.some(n => /استئناس/.test(n)), 'comparative note added');
+  const sent = t.sent.at(-1).user; assert.ok(!sent.includes('401234567'), 'ids hidden'); assert.match(sent, /الحكم المطلوب تشريحه/);
+  const again = await t.call('run', 'POST', { k: 'k1', task: 'judgment', ruling: '55' });
+  assert.equal(again.body.findings.filter(x => x.kind === 'judgment' && x.status === 'proposed').length, 1, 'earlier proposal superseded');
+});
+
+test('case brain: judgment dissection of a case document needs read text', async () => {
+  const reply = JSON.stringify({ summary: 'ملخص', issues: [{ issue: 'م', holding: 'ق', reasoning: 'ت', law: [], quote: '' }], facts: [], use: {}, notes: [] });
+  const t = setup({ reply });
+  await t.call('enable', 'POST', { k: 'k1', on: true });
+  assert.equal((await t.call('run', 'POST', { k: 'k1', task: 'judgment', doc: 'd1' })).status, 400);
+  await t.call('doctext', 'POST', { k: 'k1', doc: 'd1', text: 'نص حكم طويل. '.repeat(40) });
+  const r = await t.call('run', 'POST', { k: 'k1', task: 'judgment', doc: 'd1' });
+  assert.equal(r.status, 200, JSON.stringify(r.body)); assert.equal(r.body.findings[0].doc, 'd1'); assert.equal(r.body.findings[0].comparative, false);
 });

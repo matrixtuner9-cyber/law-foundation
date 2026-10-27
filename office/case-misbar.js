@@ -9,8 +9,8 @@
 if(typeof V==='undefined')return;
 const e=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const MK='<img src="misbar-emblem.webp" alt="" class="mbc-mk">';
-const SUBS=[['next','الخطوة التالية'],['facts','خريطة الوقائع'],['brain','الثغرات والتعارضات'],['mizan','ميزان الحجج'],['rebut','الرد على لائحة الخصم'],['hearing','تحضير الجلسة'],['draft','الصياغة'],['client','رسالة للموكل'],['docs','المستندات المقروءة'],['log','سجل الإرسال']];
-const HINT={facts:'يرتّب وقائع القضية زمنياً، ويبيّن لكل واقعة: مثبتة بمستند، أم ادعاء بلا دليل، أم متنازع عليها، ويكشف التناقضات وما يلزم جمعه.',
+const SUBS=[['next','الخطوة التالية'],['facts','خريطة الوقائع'],['brain','الثغرات والتعارضات'],['mizan','ميزان الحجج'],['rebut','الرد على لائحة الخصم'],['judgment','تشريح الحكم'],['hearing','تحضير الجلسة'],['draft','الصياغة'],['client','رسالة للموكل'],['docs','المستندات المقروءة'],['log','سجل الإرسال']];
+const HINT={judgment:'يشرّح حكماً كاملاً: خلاصته، والوقائع التي أثبتها، والمسائل التي فصل فيها وتسبيبها، والنصوص التي استند إليها، والمبدأ المستخلص، ثم يقارنه بقضية الموكل: ما يصلح للاستشهاد به وما يميّزه عنها. كل اقتباس يُطابَق حرفياً على نص الحكم، وما لم يُطابَق يُعلَّم.',facts:'يرتّب وقائع القضية زمنياً، ويبيّن لكل واقعة: مثبتة بمستند، أم ادعاء بلا دليل، أم متنازع عليها، ويكشف التناقضات وما يلزم جمعه.',
  next:'يفحص: هل يوجد إجراء عاجل؟ ما آخر إجراء مثبت؟ ماذا طلبت المحكمة؟ هل الملف جاهز؟ ثم يقترح الإجراء وسببه والمسؤول.',
  brain:'الاختصاص والصفة والمصلحة والتمثيل والتبليغات والمدد وشروط القبول، والتعارض بين الأقوال والمستندات، والبينات الناقصة.',
  mizan:'ثلاث قراءات مستقلة لكل مسألة: ما يؤيد الموكل، وما قد يدفع به الخصم مع الرد، والفجوات المحايدة.',
@@ -80,6 +80,7 @@ function runBox(d,t){
 function taskView(d,t){const fs=d.findings.filter(f=>f.task===t);
  if(t==='draft')return draftView(d,fs);
  if(t==='rebut')return rebutView(d,fs);
+ if(t==='judgment')return judgView(d,fs);
  if(t==='client')return runBox(d,t)+(fs.filter(f=>f.kind==='client_msg').map(clientCard).join('')||'<p class="m mbc-empty">لا رسائل بعد.</p>');
  if(t==='facts')return runBox(d,t)+(fs.length?fs.map(mapView).join(''):'<p class="m mbc-empty">لم تُبنَ خريطة الوقائع بعد. اضغط الزر أعلاه، وسيقرأ المسبار المستندات ويرتّب الوقائع.</p>');
  let list='';
@@ -163,6 +164,71 @@ function rebutText(f){const L=[`الرد على «${f.docTitle}»`,''];
  L.push('ثانياً: الرد على بنود اللائحة');(f.points||[]).forEach(x=>L.push(`- البند ${x.n} (${x.position}): ${x.reply} ${(x.law||[]).map(refName).join(' ')}`.trim()));
  if((f.requests||[]).length){L.push('','ثالثاً: الرد على المطالب');f.requests.forEach(x=>L.push(`- ${x.request}: ${x.reply} ${(x.law||[]).map(refName).join(' ')}`.trim()))}
  return L.join('\n')}
+
+
+/* ── تشريح الحكم ── */
+function judgView(d,fs){
+ if(ST.busy==='judgment')return runBox(d,'judgment');
+ const P=ST.judgPend,docsT=d.docs.filter(x=>x.hasText||(x.file&&READABLE.includes(extOf(x.file))));
+ const pend=P?`<div class="mbc-rowb mbc-or"><small>حكم محال من قارئ الأحكام: <b>${e(P.title)}</b></small><button type="button" class="btn pri mbc-go" data-act="mbcJgRuling" ${d.canWrite?'':'disabled'}>${MK}<span>تشريح هذا الحكم</span></button><button type="button" class="btn sm" data-act="mbcJgClear">إلغاء</button></div>`:'';
+ const up=d.canWrite?`<label class="mbc-drop"><input type="file" id="mbcJgFile" accept="image/*,.pdf,.docx,.txt" multiple hidden><span class="mbc-di">⚖️</span><b>ارفع حكماً من جهازك</b><small>صورة ممسوحة (عدة صفحات بالترتيب) أو PDF أو Word — يُقرأ على هذا الجهاز ثم يُشرَّح. ولحكم من قاعدة المسبار افتحه في «الأحكام» واضغط «تشريح الحكم».</small></label>`:'';
+ const pick=docsT.length?`<div class="mbc-rowb mbc-or"><small>أو اختر حكماً موجوداً في مستندات القضية:</small><select class="field" id="mbcJgDoc">${docsT.map(x=>`<option value="${e(x.id)}">${e(x.title)}${x.hasText?'':' (سيُقرأ أولاً)'}</option>`).join('')}</select><button type="button" class="btn pri mbc-go" data-act="mbcJgDoc" ${d.canWrite?'':'disabled'}>${MK}<span>تشريح هذا الحكم</span></button></div>`:'';
+ return `<div class="mbc-run"><p>${e(HINT.judgment)}</p>${pend}${up}${d.canWrite?`<details class="mbc-paste"><summary>✍️ أو الصق نص الحكم</summary><textarea class="field" id="mbcJgText" rows="7" placeholder="الصق نص الحكم كاملاً"></textarea><div class="mbc-rowb"><button type="button" class="btn pri mbc-go" data-act="mbcJgText">${MK}<span>تشريح النص</span></button></div></details>`:''}${pick}
+  <details class="mbc-opt"${ST.note.judgment?' open':''}><summary>توجيه للمسبار (اختياري)</summary><textarea class="field" id="mbcNote" rows="2" maxlength="600" placeholder="مثلاً: ركّز على مسألة التقادم وهل تنطبق على وقائع الموكل">${e(ST.note.judgment||'')}</textarea></details></div>
+  ${fs.filter(f=>f.kind==='judgment').map(judgCard).join('')||'<p class="m mbc-empty">لم يُشرَّح حكم بعد.</p>'}`}
+const qchip=q=>q?`<blockquote class="mbc-q ${q.found?'ok':'bad'}">«${e(q.text)}» <small>${q.found?'✔ اقتباس حرفي من الحكم':'⚠ لم يُطابَق على نص الحكم — لا تعتمد عليه'}</small></blockquote>`:'';
+function judgCard(f){const s=STAT[f.status]||STAT.proposed,u=f.use||{};
+ const dec=f.status==='proposed'&&ST.data.canWrite?`<button type="button" class="btn sm" data-act="mbcDecide" data-v="${e(f.id)}|approved">اعتماد التشريح</button><button type="button" class="btn sm" data-act="mbcDecide" data-v="${e(f.id)}|rejected">رفض</button>`:f.status!=='proposed'?`<span class="mbc-who">${s[0]} بواسطة ${e(f.decidedName||f.decidedBy)}</span>`:'';
+ const meta=[f.court,f.case_no&&'رقم '+f.case_no,f.date,f.meta].filter(Boolean).filter((x,i,a)=>a.indexOf(x)===i).map(e).join(' · ');
+ const pts=(a,lb)=>(a||[]).length?`<section class="mbc-rbs"><h4>${lb}</h4>${a.map(x=>`<div class="mbc-pt2"><div class="mbc-cl"><p>${e(x.point)}</p></div><div class="mbc-rp"><p>${e(x.why)}</p></div></div>`).join('')}</section>`:'';
+ return `<article class="mbc-rb is-${e(f.status)}"><header><span class="mbc-di">⚖️</span><div><b>${e(f.title)}</b>${meta?`<small>${meta}</small>`:''}</div><span class="mbc-s ${s[1]}">${s[0]}</span></header>
+ ${f.comparative?`<div class="mbc-notes"><b>مرجع للمقارنة والاستئناس</b><ul><li>${e(f.source)} — ليس ملزماً أمام المحاكم الفلسطينية.</li></ul></div>`:''}
+ ${f.unverified?`<div class="mbc-notes"><b>تنبيه</b><ul><li>${f.quotesBad} من ${f.quotesAll} اقتباساً لم يُطابَق حرفياً على نص الحكم؛ راجعها على النص الأصلي قبل الاستشهاد.</li></ul></div>`:''}
+ ${f.summary?`<section class="mbc-rbs"><h4>خلاصة الحكم</h4><p>${e(f.summary)}</p>${f.parties?`<small>الأطراف: ${e(f.parties)}</small>`:''}</section>`:''}
+ ${f.principle?`<section class="mbc-rbs"><h4>المبدأ المستخلص</h4><p><b>${e(f.principle)}</b></p></section>`:''}
+ ${(f.facts||[]).length?`<section class="mbc-rbs"><h4>الوقائع كما أثبتها الحكم</h4>${f.facts.map(x=>`<div class="mbc-pt2"><div class="mbc-cl"><p>${e(x.fact)}</p></div>${x.quote?`<div class="mbc-rp">${qchip(x.quote)}</div>`:''}</div>`).join('')}</section>`:''}
+ <section class="mbc-rbs"><h4>المسائل القانونية وما قرره الحكم فيها</h4>${(f.issues||[]).map((x,i)=>`<div class="mbc-pt2"><div class="mbc-cl"><span class="mbc-pn">المسألة ${i+1}</span><p>${e(x.issue)}</p></div><div class="mbc-rp"><p><b>القرار:</b> ${e(x.holding)}</p>${x.reasoning?`<p>${e(x.reasoning)}</p>`:''}${(x.law||[]).length?`<div class="mbc-meta">${x.law.map(l=>`<span class="mbc-doc">📜 ${e(l)}</span>`).join('')}</div>`:''}${qchip(x.quote)}</div></div>`).join('')}</section>
+ ${f.result?`<section class="mbc-rbs"><h4>منطوق الحكم</h4><p>${e(f.result)}</p></section>`:''}
+ ${pts(u.supports,'ما يصلح للاستشهاد به في قضية الموكل')}${pts(u.distinguish,'الفروق والقيود على الاستشهاد')}
+ ${(f.notes||[]).length?`<div class="mbc-notes"><b>للتحقق قبل الاستشهاد</b><ul>${f.notes.map(n=>`<li>${e(n)}</li>`).join('')}</ul></div>`:''}
+ <footer><div class="mbc-dec"><button type="button" class="btn sm" data-act="mbcJgSave" data-v="${e(f.id)}">حفظ في المستندات</button><button type="button" class="btn sm" data-act="mbcJgCopy" data-v="${e(f.id)}">نسخ</button></div><div class="mbc-dec">${dec}</div></footer></article>`}
+function judgText(f){const L=[f.title,[f.court,f.case_no&&'رقم '+f.case_no,f.date].filter(Boolean).join(' · '),''];
+ if(f.comparative)L.push('(مرجع للمقارنة والاستئناس وليس ملزماً)','');
+ if(f.summary)L.push('الخلاصة: '+f.summary,'');if(f.principle)L.push('المبدأ: '+f.principle,'');
+ if((f.facts||[]).length){L.push('الوقائع:');f.facts.forEach(x=>L.push('- '+x.fact));L.push('')}
+ L.push('المسائل:');(f.issues||[]).forEach((x,i)=>{L.push(`${i+1}. ${x.issue}`,'   القرار: '+x.holding);if(x.reasoning)L.push('   التسبيب: '+x.reasoning);if((x.law||[]).length)L.push('   النصوص: '+x.law.join('، '));if(x.quote&&x.quote.found)L.push('   «'+x.quote.text+'»')});
+ if(f.result)L.push('','المنطوق: '+f.result);
+ const u=f.use||{};if((u.supports||[]).length){L.push('','ما يصلح للاستشهاد به:');u.supports.forEach(x=>L.push('- '+x.point+' — '+x.why))}
+ if((u.distinguish||[]).length){L.push('','الفروق والقيود:');u.distinguish.forEach(x=>L.push('- '+x.point+' — '+x.why))}
+ return L.join('\n')}
+async function runJudg(o){const n=document.getElementById('mbcNote');if(n)ST.note.judgment=n.value;
+ const r=await api('run',{task:'judgment',doc:o.doc,ruling:o.ruling,note:ST.note.judgment});ST.data=r;toast('اكتمل تشريح الحكم')}
+async function judgGo(fn){try{if(!(await ensureEnabled()))return}catch(x){return toast(x.message)}
+ ST.busy='judgment';ST.stage=THINK[0];paint();think(true);try{await fn()}catch(x){toast(x.message)}think(false);ST.busy='';paint()}
+A.mbcJgRuling=()=>{const P=ST.judgPend;if(!P)return;judgGo(async()=>{await runJudg({ruling:P.ruling});ST.judgPend=null})};
+A.mbcJgClear=()=>{ST.judgPend=null;paint()};
+A.mbcJgDoc=()=>{const sel=document.getElementById('mbcJgDoc'),id=sel&&sel.value;if(!id)return;
+ judgGo(async()=>{const x=ST.data.docs.find(d=>String(d.id)===String(id));if(x&&!x.hasText){if(!(await readOne(id,true)))throw new Error('تعذّرت قراءة الحكم.')}await runJudg({doc:id})})};
+A.mbcJgText=()=>{const ta=document.getElementById('mbcJgText'),text=String(ta&&ta.value||'').trim();if(text.replace(/\s/g,'').length<200)return toast('الصق نص الحكم كاملاً (200 حرف على الأقل).');
+ judgGo(async()=>{const did='d'+Date.now().toString(36);docs.push({id:did,k:ST.k,title:'حكم (نص) — '+new Date().toISOString().slice(0,10),kind:'حكم',date:new Date().toISOString().slice(0,10),src:'لصق في المسبار',pages:1,shared:false});
+  MQ.saveState();if(MQ.flush)await MQ.flush();ST.data=await api('doctext',{doc:did,text,via:'manual'});await runJudg({doc:did})})};
+A.mbcJgPick=async(v,el)=>{const files=[...((el&&el.files)||[])];if(!files.length)return;el.value='';
+ judgGo(async()=>{const texts=[],stored=[];
+  for(let i=0;i<files.length;i++){const f=files[i],ext=extOf(f.name),url=URL.createObjectURL(f);
+   window.MQ_extractStage=t=>setStage('يقرأ '+(files.length>1?'الصفحة '+(i+1)+' من '+files.length:'الحكم')+': '+t);
+   try{const r=await MQ_extract(url,ext);texts.push(String(r.text||'').trim())}finally{URL.revokeObjectURL(url);window.MQ_extractStage=null}
+   setStage('يحفظ الحكم في مستندات القضية…');
+   const up=await fetch('/api/admin/case-file?name='+encodeURIComponent(f.name),{method:'POST',headers:{'content-type':f.type||'application/octet-stream'},credentials:'same-origin',body:f});const j=await up.json().catch(()=>({}));if(!up.ok)throw new Error(j.error||'تعذّر حفظ الملف');stored.push(j.file)}
+  const text=texts.filter(Boolean).join('\n\n');if(text.replace(/\s/g,'').length<200)throw new Error('لم يُقرأ نص كافٍ من الحكم. جرّب صورة أوضح أو ملف PDF.');
+  const did='d'+Date.now().toString(36),name=files[0].name.replace(/\.[^.]+$/,'');
+  docs.push({id:did,k:ST.k,title:'حكم — '+name,kind:'حكم',date:new Date().toISOString().slice(0,10),src:'رفع إلى المسبار',pages:files.length,shared:false,file:stored[0],files:stored});
+  MQ.saveState();if(MQ.flush)await MQ.flush();ST.data=await api('doctext',{doc:did,text,via:'ocr'});ST.stage=THINK[0];await runJudg({doc:did})})};
+document.addEventListener('change',ev=>{if(ev.target&&ev.target.id==='mbcJgFile')A.mbcJgPick(null,ev.target)});
+A.mbcJgCopy=id=>{const f=ST.data.findings.find(x=>x.id===id);if(f)navigator.clipboard.writeText(judgText(f)).then(()=>toast('نُسخ التشريح'),()=>toast('تعذّر النسخ'))};
+A.mbcJgSave=id=>{const f=ST.data.findings.find(x=>x.id===id);if(!f||typeof docs==='undefined')return;if(docs.some(d=>d.mbFinding===f.id))return toast('التشريح محفوظ في مستندات القضية');
+ docs.push({id:'d'+Date.now().toString(36),k:ST.k,title:'تشريح '+f.docTitle+' (المِسْبار)',kind:'مذكرة',date:new Date().toISOString().slice(0,10),src:'المِسْبار',pages:1,shared:false,mbFinding:f.id,text:judgText(f)});MQ.saveState();toast('حُفظ التشريح في مستندات القضية')};
+/* من قارئ الأحكام: يفتح تبويب المسبار في القضية المختارة على «تشريح الحكم» */
+window.MQ_judgOpen=(kid,ruling,title)=>{ST.judgPend={ruling:Number(ruling),title:String(title||'حكم')};ST.sub='judgment';if(ST.k!==kid){ST.k=null;ST.data=null}};
 
 function clientCard(f){const s=STAT[f.status]||STAT.proposed,sent=f.status==='approved'&&/أُرسلت/.test(f.note||'');
  return `<article class="mbc-cm is-${e(f.status)}"><header><span class="mbc-di">💬</span><b>${e(f.title)}</b><span class="mbc-s ${s[1]}">${sent?'أُرسلت عبر البوابة':s[0]}</span></header>
@@ -476,6 +542,7 @@ html.night .mbc-dt,html.night .mbc-draft{background:#14213a;color:#e5e7eb}html.n
 .mbc-rb>header{display:flex;gap:10px;align-items:flex-start}.mbc-rb>header>div{flex:1}.mbc-rb>header b{font-size:16px;display:block}.mbc-rb>header small{color:var(--muted,#6b7280)}
 .mbc-rbs h4{margin:0 0 8px;padding:6px 12px;border-radius:10px;background:linear-gradient(135deg,#0B1B2B,#1B3654);color:#F3D58A;font-size:14px}
 .mbc-fd{border:1px solid #efe6d0;border-radius:12px;padding:8px 12px;margin-bottom:8px;background:#FCFAF4}.mbc-fd>div{display:flex;gap:8px;align-items:center;justify-content:space-between}.mbc-fd p{margin:4px 0}
+.mbc-q{margin:6px 0 0;padding:6px 10px;border-inline-start:3px solid #4C8A5B;background:rgba(76,138,91,.08);font-size:13px;line-height:1.8}.mbc-q.bad{border-color:#B5483A;background:rgba(181,72,58,.08)}.mbc-q small{display:block;opacity:.75}
 .mbc-pt2{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:0;border:1px solid #efe6d0;border-radius:12px;overflow:hidden;margin-bottom:8px}
 .mbc-cl{background:#F7F3EA;padding:10px 12px;border-inline-end:3px solid #C9A24A}.mbc-cl p{margin:4px 0 0;color:#4B5563;font-size:13.5px;line-height:1.75}
 .mbc-pn{font-size:12px;font-weight:700;color:#8A6A25}
