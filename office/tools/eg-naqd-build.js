@@ -79,7 +79,8 @@ function build(dir) {
     const a = d.appeal, nos = a ? a.nos.join(' و') : '', jy = a ? a.jy : '';
     const year = /^\d{4}/.test(d.date) ? +d.date.slice(0, 4) : null;
     const label = a ? `${a.nos.length > 1 ? 'الطعنان رقما' : 'الطعن رقم'} ${nos} لسنة ${jy} ق` : 'طعن غير مرقّم في المصدر';
-    const topics = [...d.topics].filter(Boolean);
+    /* الموضوعات بلا تكرار إملائي (تأمين/تامين، إيجار/ايجار) */
+    const tk = new Set(), topics = [...d.topics].filter(Boolean).filter(t => { const k = t.replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/\s+/g, ''); return tk.has(k) ? false : tk.add(k) });
     const pub = [d.part && `الجزء ${d.part}`, d.page && `ص ${d.page}`, d.rule && `القاعدة ${d.rule}`].filter(Boolean).join(' — ');
     const body = [
       'محكمة النقض المصرية — المواد المدنية',
