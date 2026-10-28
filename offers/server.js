@@ -63,7 +63,15 @@ if (!db.prepare('SELECT COUNT(*) n FROM lawyers').get().n) { try { const r = imp
 
 /* ── القوالب: الباقة الجاهزة تُزرع مرة، ويمكن تعديلها أو إضافة غيرها ── */
 const SEED = require('./templates.js');
-{ const ins = db.prepare('INSERT OR IGNORE INTO templates(id,cat,title,formal,short,custom,sort) VALUES(?,?,?,?,?,0,?)'); SEED.forEach((t, i) => ins.run(t.id, t.cat, t.title, t.formal, t.short, i)) }
+/* القوالب الجاهزة التي لم يعدّلها المستخدم تُحدَّث تلقائياً حين تتغير نصوصها في إصدار جديد؛ ما عدّله يبقى كما هو */
+{ const ins = db.prepare('INSERT OR IGNORE INTO templates(id,cat,title,formal,short,custom,sort) VALUES(?,?,?,?,?,0,?)');
+  const prev = kv.get('seed_txt', {}), cur = {};
+  SEED.forEach((t, i) => {
+    ins.run(t.id, t.cat, t.title, t.formal, t.short, i); cur[t.id] = t.title + '\u0001' + t.formal + '\u0001' + t.short;
+    const row = db.prepare('SELECT title, formal, short, custom FROM templates WHERE id=?').get(t.id), now = row.title + '\u0001' + row.formal + '\u0001' + row.short;
+    if (!row.custom && now !== cur[t.id] && (!(t.id in prev) || now === prev[t.id])) db.prepare('UPDATE templates SET cat=?, title=?, formal=?, short=?, sort=? WHERE id=?').run(t.cat, t.title, t.formal, t.short, i, t.id);
+  });
+  kv.set('seed_txt', cur) }
 const DEFAULT_SETTINGS = { waMode: 'app', sender: '', role: '', company: 'المِسْبار — نظام إدارة مكاتب المحاماة', phone: '', email: '', link: '', offer: '', offerEnd: '', dailyLimit: 40, optoutLine: true };
 const settings = () => ({ ...DEFAULT_SETTINGS, ...kv.get('settings', {}) });
 
