@@ -109,3 +109,29 @@ test('عناوين المكتب بصيغ أخرى تُحذف من صفحات ا�
   const C = require('../tools/jo-ads-clean');
   assert.strictEqual(C.cleanBody('نص القرار\nعمان / الأردن / العبدلي\nمكتب محاماة في الأردن ، عمان العاصمة ، العبدلي'), 'نص القرار');
 });
+
+test('إثراء التشريعات الأردنية من LawCodex: الرقم والتاريخ والجريدة والتعديلات، وتصحيح العنوان الناقص فقط، والنص لا يُمس', () => {
+  const J = require('../tools/jo-lawcodex-meta');
+  const md = `---\ntitle: قانون مرتبات عائلات شهداء الجنود " اثناء الوظيفة "\nidentifier: lob.gov.jo:2:989\nnumber: 016\nyear: 1960\ndate: '1960-01-01'\nin_force_from: '1960-06-01'\ngazette_number: 1487\ngazette_page: 374\nlast_amended: '2025'\namended_by:\n- قانون معدل لقانون العقوبات رقم 9 لسنة 1988\n- قانون معدل  لقانون العقوبات رقم 27 لسنة 2017\nstatus: in_force\nretrieved: '2026-10-13'\n---\n\n# عنوان\n\n##### المادة 1\n\nنص مختلف لا يُستعمل\n`;
+  const F = J.fieldsOf(J.frontMatter(md));
+  assert.strictEqual(F.id, 'lob.gov.jo:2:989'); assert.strictEqual(F.number, '16'); assert.strictEqual(F.date, '1960-01-01');
+  assert.deepStrictEqual(F.meta.amended_by, ['قانون معدل لقانون العقوبات رقم 9 لسنة 1988', 'قانون معدل لقانون العقوبات رقم 27 لسنة 2017']);
+  assert.strictEqual(F.meta.gazette_number, '1487'); assert.strictEqual(F.meta.last_amended, '2025');
+  assert.strictEqual(J.betterTitle('قانون مرتبات عائلات شهداء الجنود " اثناء الوظيفة', F.title), F.title, 'علامة التنصيص الناقصة تُضاف');
+  assert.strictEqual(J.betterTitle('قانون العقوبات', 'قانون أصول المحاكمات'), 'قانون العقوبات', 'عنوان مختلف لا يُستبدل');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'lc-')), f = path.join(dir, 'li.db'); fs.mkdirSync(path.join(dir, 'ar', 'laws'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'ar', 'laws', 'x.md'), md);
+  const d = new DatabaseSync(f);
+  d.exec(`CREATE TABLE docs(id INTEGER PRIMARY KEY, src TEXT NOT NULL, country TEXT, kind TEXT, ext_id TEXT, title TEXT, year INTEGER, number TEXT, court TEXT, case_no TEXT, date TEXT,
+    ltype TEXT, subject TEXT, status TEXT, status_code TEXT, url TEXT, file_url TEXT, body TEXT, has_text INTEGER, cites TEXT, meta TEXT, UNIQUE(src, ext_id));
+    CREATE VIRTUAL TABLE fts USING fts5(title, body, content='', tokenize='unicode61 remove_diacritics 2');`);
+  const body = 'المادة 1\nيسمى هذا القانون قانون مرتبات عائلات شهداء الجنود ويعمل به من تاريخ نشره.';
+  d.prepare("INSERT INTO docs(id,src,country,kind,ext_id,title,year,number,date,body,has_text,cites,meta,case_no,subject) VALUES(9,'JO_LEGISLATION','JO','law','lob.gov.jo:2:989',?,1960,'','',?,1,'[]','{\"origin\":\"lob.gov.jo\"}','','')").run('قانون مرتبات عائلات شهداء الجنود " اثناء الوظيفة', body);
+  d.prepare('INSERT INTO fts(rowid,title,body) VALUES(9,?,?)').run(M.norm('قانون مرتبات عائلات شهداء الجنود " اثناء الوظيفة  '), M.norm(body));
+  const st = J.run({ db: d, dir: path.join(dir, 'ar'), norm: M.norm });
+  assert.strictEqual(st.matched, 1); assert.strictEqual(st.titles, 1);
+  const r = d.prepare('SELECT title, number, date, body, meta FROM docs WHERE id=9').get();
+  assert.strictEqual(r.number, '16'); assert.strictEqual(r.date, '1960-01-01'); assert.strictEqual(r.body, body, 'النص كما هو');
+  const meta = JSON.parse(r.meta); assert.strictEqual(meta.origin, 'lob.gov.jo'); assert.strictEqual(meta.amended_by.length, 2);
+  assert.strictEqual(d.prepare("SELECT count(*) n FROM fts WHERE fts MATCH ?").get(M.norm('اثناء الوظيفه')).n, 1, 'الفهرس محدَّث'); assert.strictEqual(d.prepare("SELECT count(*) n FROM fts WHERE fts MATCH ?").get(M.norm('تاريخ نشره')).n, 1, 'النص في الفهرس مرة واحدة'); d.exec("INSERT INTO fts(fts) VALUES('integrity-check')");
+});

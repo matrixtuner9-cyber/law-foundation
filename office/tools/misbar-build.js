@@ -64,6 +64,15 @@ const cap = (arr) => LIMIT ? arr.slice(0, LIMIT) : arr;
     d.close();
   }
   log('JO_LEGISLATION', n);
+  /* إثراء من نسخة LawCodex لديوان التشريع (jo-master/ar): الرقم وتاريخ النشر والجريدة الرسمية والتعديلات، والعنوان الناقص */
+  const lc = [P('jo-master', 'jo-master', 'ar'), P('jo-master', 'ar')].find(d => fs.existsSync(d));
+  if (lc) {
+    const J = require('./jo-lawcodex-meta'), byId = new Map(docs.filter(d => d.src === 'JO_LEGISLATION').map(d => [d.ext_id, d])); let k = 0;
+    const walk = d => fs.readdirSync(d, { withFileTypes: true }).flatMap(e => e.isDirectory() ? walk(path.join(d, e.name)) : e.name.endsWith('.md') ? [path.join(d, e.name)] : []);
+    for (const f of walk(lc)) { const F = J.fieldsOf(J.frontMatter(fs.readFileSync(f, 'utf8'))), d = byId.get(F.id); if (!d) continue;
+      d.title = J.betterTitle(d.title, F.title); d.number = F.number || d.number; d.date = F.date || d.date; d.meta = { ...(d.meta || {}), ...F.meta }; k++ }
+    log('JO_LEGISLATION إثراء من LawCodex', k);
+  }
 }
 /* 4) التمييز الأردني: jordan_search.db + مبادئ المكتب الفني (بلا تكرار للرابط) */
 {
