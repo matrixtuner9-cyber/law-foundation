@@ -17,7 +17,7 @@ const egRow = { id: 'SCC-4551', rule_id: 4551, rule_number: 6, rule_date: '1970-
 
 test('عدالة: المبادئ والتشريعات تُنقل حرفياً، ورقم القضية بصيغة رقم/سنة، والمراجع بصيغة «المادة رقم»', () => {
   const d = JO.convert(joRow);
-  assert.strictEqual(d.src, 'JO_CASSATION'); assert.strictEqual(d.ext_id, 'adaleh-6'); assert.strictEqual(d.case_no, '836/1993'); assert.strictEqual(d.date, '1993-10-06'); assert.strictEqual(d.ltype, 'حقوقي');
+  assert.strictEqual(d.src, 'JO_CASSATION'); assert.strictEqual(d.ext_id, 'jtm-6'); assert.strictEqual(d.case_no, '836/1993'); assert.strictEqual(d.date, '1993-10-06'); assert.strictEqual(d.ltype, 'حقوقي');
   assert.ok(d.body.includes(PRIN), 'المبادئ كاملة دون تعديل'); assert.ok(!/^_/m.test(d.body.split('المبادئ:\n')[1]), 'بلا خط الفاصل');
   assert.ok(d.body.includes(joRow.legislation_refs), 'التشريعات كاملة');
   assert.deepStrictEqual(d.cites.map(c => c.title), ['المادة رقم 13 من قانون المالكين والمستاجرين رقم 29 لسنة 1982', 'المادة رقم 826 من القانون المدني رقم 43 لسنة 1976']);

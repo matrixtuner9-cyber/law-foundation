@@ -39,7 +39,7 @@ function convert(r) {
   const body = [unbrand(r.title), refs && 'التشريعات المستشهد بها: ' + refs, topics && 'الموضوعات: ' + topics, principles && 'المبادئ:\n' + principles].filter(Boolean).join('\n\n');
   const head = [court.replace(/الاردنية/, 'الأردنية'), no && y ? `رقم ${no}/${y}` : '', r.panel ? `(${r.panel})` : '', date ? 'تاريخ ' + date : ''].filter(Boolean).join(' ');
   return {
-    src: 'JO_CASSATION', country: 'JO', kind: 'ruling', ext_id: 'adaleh-' + (r.item_id ?? r.id), title: clip(head + (topics ? ' — ' + topics : ''), 200), year: y, number: no,
+    src: 'JO_CASSATION', country: 'JO', kind: 'ruling', ext_id: 'jtm-' + (r.item_id ?? r.id), title: clip(head + (topics ? ' — ' + topics : ''), 200), year: y, number: no,
     court: 'محكمة التمييز الأردنية', case_no: no && y ? `${no}/${y}` : '', date, ltype: branchOf(court), subject: [unbrand(r.subject), topics].filter((v, i, a) => v && a.indexOf(v) === i).join(' › '), status: '', status_code: '',
     url: '', file_url: '', body, cites: citesOf(refs),
     meta: { court_full: court, panel: r.panel || '', principles: Number(r.principles_count) || 0 }
