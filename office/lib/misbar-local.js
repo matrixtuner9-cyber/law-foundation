@@ -225,8 +225,6 @@ function createLocal({ misbar, now = () => new Date() } = {}) {
   /* المواد الأقرب لنص المستخدم داخل تشريع: تطابق الكلمات الثقيلة، والمادة الملغاة لا تُقترح */
   function rankArticles(arts, terms, n = 3) {
     if (!terms.length) return [];
-    /* قانون العقوبات لسنة 1960 يكتب «شك» لا «شيك» */
-    if (terms.includes('شيك') && !terms.includes('شك')) terms = [...terms, 'شك'];
     const seen = new Set(), DEF = /^(?:لغايات|التعاريف|تعاريف|يسمى هذا|يعمل بهذا|على جميع الجهات|يلغى|يُلغى)/;
     return arts.filter(a => !a.repealed && !seen.has(a.n) && seen.add(a.n)).map(a => { const t = ' ' + norm(a.text) + ' '; const hit = terms.filter(w => t.includes(' ' + w) || t.includes(w + ' ')); return { a, hit, s: hit.reduce((x, w) => x + Math.min(w.length, 7), 0) * (DEF.test(flat(a.text).trim()) || a.n === '1' ? 0.4 : 1) } })
       .filter(x => x.hit.length >= Math.min(2, terms.length)).sort((a, b) => b.s - a.s).slice(0, n).map(x => ({ n: x.a.n, label: x.a.label, text: x.a.text, why: 'تطابقت فيها: ' + x.hit.slice(0, 5).join('، ') }));
@@ -275,7 +273,8 @@ function createLocal({ misbar, now = () => new Date() } = {}) {
     const lawKeys = [...new Set(tp.flatMap(t => t.laws))].slice(0, 5), related = [];
     for (const k of lawKeys) {
       const L = await resolveLaw(k); if (!L || related.some(r => r.lawId === L.id)) continue;
-      const arts = rankArticles(await articlesOf(L.id), terms, 3).filter(a => !law.some(c => c.lawId === L.id && c.article === a.n));
+      /* قانون العقوبات لسنة 1960 يكتب «شك» لا «شيك» */
+      const arts = rankArticles(await articlesOf(L.id), k === 'penal' && terms.includes('شيك') ? [...terms, 'شك'] : terms, 3).filter(a => !law.some(c => c.lawId === L.id && c.article === a.n));
       related.push({ lawId: L.id, title: L.title, status: L.status, topic: (tp.find(t => t.laws.includes(k)) || {}).label || '', articles: arts });
     }
     /* استعلامات الأحكام: الكلمات الدالّة، ثم كل موضوع، ثم كل مادة مذكورة (الأحكام التي ورد فيها رقمها مع اسم قانونها) */
@@ -307,14 +306,19 @@ function createLocal({ misbar, now = () => new Date() } = {}) {
     for (const r of ps) for (const c of r.cites || []) { const m = /^المادة رقم (\d+) من (.+)$/.exec(c); if (!m) continue; const k = m[2].trim(); if (!relied.has(k)) relied.set(k, new Map()); const a = relied.get(k); a.set(m[1], (a.get(m[1]) || 0) + 1) }
     for (const [title, arts] of [...relied].sort((a, b) => [...b[1].values()].reduce((x, y) => x + y, 0) - [...a[1].values()].reduce((x, y) => x + y, 0)).slice(0, 4)) {
       let L = related.find(r => norm(r.title) === norm(title));
+      /* تشريع خارج موضوع المسألة لا يُضاف إلا إن استندت إلى مادة منه ثلاثة أحكام فأكثر (يستبعد مواد الإجراءات العامة) */
+      if (!L && Math.max(...arts.values()) < 3) continue;
       if (!L) { const hit = (typeof misbar.byTitle === 'function' ? await misbar.byTitle(title, 'PS_LEGISLATION', 20) : []).find(x => norm(x.title) === norm(title)); if (!hit) continue; L = { lawId: hit.id, title: hit.title, status: hit.status || '', topic: 'استندت إليه الأحكام أدناه', articles: [] }; related.push(L) }
       const all = await articlesOf(L.lawId);
       for (const [n, c] of [...arts].sort((a, b) => b[1] - a[1]).slice(0, 3)) {
         if (law.some(x => x.lawId === L.lawId && x.article === n)) continue;
         const ex = L.articles.find(a => a.n === n), why = `استند إليها ${c === 1 ? 'حكم واحد' : c === 2 ? 'حكمان' : c + ' أحكام'} من الأحكام أدناه`;
-        if (ex) { ex.why = why + ' · ' + ex.why; continue }
-        const a = all.find(x => x.n === n); if (a) L.articles.unshift({ n, label: a.label, text: a.text, why, relied: c });
+        if (ex) { ex.why = why + ' · ' + ex.why; ex.relied = c; continue }
+        /* مادة استند إليها حكم واحد فقط ولا تطابق كلمات المسألة: عابرة، لا تُضاف */
+        if (c < 2) continue;
+        const a = all.find(x => x.n === n); if (a) L.articles.push({ n, label: a.label, text: a.text, why, relied: c });
       }
+      L.articles.sort((a, b) => (b.relied || 0) - (a.relied || 0));
     }
     /* المقارن: الموضوعات وكلماتها المشتركة فقط، فالكلمات المفردة في أحكام غير فلسطينية تجلب نتائج بعيدة */
     const cq = tp.slice(0, 3).map(t => ({ q: t.q, label: 'موضوع: ' + t.label })).concat(terms.length >= 2 ? [{ q: terms.slice(0, 3).join(' '), label: 'كلمات النص: ' + terms.slice(0, 3).join('، '), mode: 'all' }] : []);
