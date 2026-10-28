@@ -161,7 +161,7 @@ function createMisbar(db, { audit } = {}) {
   /* تشريعات أو أحكام بكلمات العنوان وحده (لا بنصها): لتحديد قانون بعينه من اسمه */
   async function byTitle(q, src, n = 50) {
     const ws = [...new Set(norm(q).split(' ').filter(w => w && !STOP.has(w)))].slice(0, 10); if (!ws.length) return [];
-    const m = ws.map(w => 'title : "' + w + '"').join(' AND ');
+    const m = ws.map(w => 'title : "' + w + '"' + (/^\d+$/.test(w) ? '*' : '')).join(' AND '); /* الأرقام ببادئة: «2024» تطابق «2024م» */
     const rows = await all(`SELECT d.id, d.title, d.status, d.status_code, d.year FROM (SELECT DISTINCT (rowid % ${CHUNK_BASE}) fid FROM fts WHERE fts MATCH ?) f JOIN docs d ON d.id=f.fid WHERE d.has_text=1${src ? ' AND d.src=?' : ''} LIMIT ?`, ...(src ? [m, src, n] : [m, n]));
     return rows.map(r => ({ ...r, title: scrub(r.title) }));
   }

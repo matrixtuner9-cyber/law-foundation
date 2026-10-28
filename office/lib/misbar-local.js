@@ -201,6 +201,41 @@ function bestPassage(body, terms, len = 520) {
   const st = Math.max(0, at - Math.floor(len / 3)); return (st > 0 ? '… ' : '') + ln.slice(st, st + len) + (st + len < ln.length ? ' …' : '');
 }
 
+/* ── محرك السريان: ملاحظات التعديل والإلغاء المكتوبة في نص كل مادة كما في القاعدة ──
+   «عدلت بموجب المادة رقم (3) من القرار بقانون رقم(24) لسنة2024م بشأن …»، «ألغيت هذه المادة بموجب …»، «أضيفت المادة رقم(5) بموجب …» */
+const NOTE_RX = /(عُ?دّ?لت|ع?دلت|أُ?لغيت|الغيت|أُ?ضيفت|اضيفت)((?:\s+الفقرة\s*(?:رقم)?\s*\(?\s*\d+\s*\)?)?(?:\s+هذه\s+المادة|\s+المادة\s*(?:رقم)?\s*\(?\s*\d+\s*\)?)?)\s*بموجب\s+(?:ال)?مادة\s*(?:رقم)?\s*\(?\s*(\d+)\s*\)?\s*(?:من|م)?\s*/g;
+function amendNotes(text) {
+  const t = flat(text).slice(0, 2500), out = [];
+  const ms = [...t.matchAll(NOTE_RX)];
+  ms.forEach((m, i) => {
+    const seg = t.slice(m.index + m[0].length, i + 1 < ms.length ? ms[i + 1].index : Math.min(t.length, m.index + m[0].length + 260));
+    const type = /لغيت/.test(m[1]) ? 'repealed' : /ضيفت/.test(m[1]) ? 'added' : 'amended';
+    const kind = /^\s*(?:ال)?أمر|^\s*امر/.test(seg) ? 'order' : /^\s*(?:ال)?قرار\s*بقانون/.test(seg) ? 'decree' : /^\s*(?:ال)?قانون/.test(seg) ? 'law' : 'other';
+    let no = '', year = '';
+    const mo = kind === 'order' && /\(\s*رقم\s*(\d+)\s*\)\s*لس\S*\s*(\d{4})/.exec(seg);
+    const md = mo || /رقم\s*\(?\s*(\d+)\s*\)?\s*لسن[ةه]\s*(\d{4})/.exec(seg);
+    if (md) { no = md[1]; year = md[2] }
+    const para = (/الفقرة\s*(?:رقم)?\s*\(?\s*(\d+)/.exec(m[2] || '') || [])[1] || '';
+    const label = (kind === 'order' ? 'الأمر' : kind === 'decree' ? 'القرار بقانون' : kind === 'law' ? 'القانون' : 'التشريع') + (no ? ' رقم (' + no + ')' : '') + (year ? ' لسنة ' + year : '');
+    out.push({ type, para, byArticle: m[3], kind, no, year: year ? Number(year) : null, label });
+  });
+  return out;
+}
+/* مواعيد واختصاص من نصوص بعينها: يُحسب الموعد فقط إذا وُجدت العبارة المتوقعة حرفياً في نص المادة المخزّن */
+const RULES = [
+  { id: 'civ-appeal', group: 'civil', label: 'ميعاد الطعن بالاستئناف (حقوقي)', law: 'usul', art: '205', must: 'ثلاثين يوماً', days: 30 },
+  { id: 'civ-appeal-urgent', group: 'civil', label: 'ميعاد الاستئناف في المواد المستعجلة', law: 'usul', art: '205', must: 'خمسة عشرة يوماً', days: 15 },
+  { id: 'civ-cassation', group: 'civil', label: 'ميعاد الطعن بالنقض (حقوقي)', law: 'usul', art: '227', must: 'أربعين يوماً', days: 40 },
+  { id: 'civ-retrial', group: 'civil', label: 'ميعاد الطعن بإعادة المحاكمة', law: 'usul', art: '252', must: 'ثلاثين يوماً', days: 30 },
+  { id: 'admin', group: 'admin', label: 'ميعاد تقديم الاستدعاء إلى محكمة العدل العليا', law: 'usul', art: '284', must: 'ستين يوماً', days: 60 },
+  { id: 'crim-objection', group: 'crim', label: 'اعتراض المحكوم عليه غيابياً (جنح ومخالفات)', law: 'crimproc', art: '314', must: 'العشرة أيام', days: 10 },
+  { id: 'crim-appeal', group: 'crim', label: 'ميعاد الاستئناف (جزائي)', law: 'crimproc', art: '328', must: 'خمسة عشر يوماً', days: 15 },
+  { id: 'crim-cassation', group: 'crim', label: 'ميعاد الطعن بالنقض (جزائي)', law: 'crimproc', art: '355', must: 'أربعين يوماً', days: 40 },
+  { id: 'labour-injury', group: 'labour', label: 'سقوط حق المصاب في التعويض عن إصابة العمل', law: 'labour', art: '124', must: 'انقضاء سنتين', days: 730, years: 2 },
+];
+const CIVIL_TOPICS = new Set(['notice', 'jurisdiction', 'appeal', 'evidence', 'tort', 'accident', 'labour', 'rent', 'exec', 'cheque', 'companies', 'contract', 'limitation', 'urgent', 'arbitration', 'land', 'fees', 'consumer']);
+const CRIM_TOPICS = new Set(['crimproc', 'penal', 'cyber', 'drugs', 'juvenile']);
+
 function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
   /* ── تعليم المسبار: تقييمات طاقم المكتب وقاموسه، محفوظة في بيانات المكتب على الجهاز ── */
   const FB = 'mbl:fb', DICT = 'mbl:dict';
@@ -233,6 +268,37 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
     lawCache.set(key, v); return v;
   }
   async function articlesOf(lawId) { const d = await getDoc(lawId); return d ? splitArticles(d.body) : [] }
+  /* أداة التعديل في القاعدة (لفتحها): عنوانها يحوي نوعها ورقمها وسنتها */
+  const instCache = new Map();
+  async function instrumentDoc(n) {
+    if (!n.no || typeof misbar.byTitle !== 'function') return null;
+    const k = n.kind + ':' + n.no + ':' + (n.year || ''); if (instCache.has(k)) return instCache.get(k);
+    const q = (n.kind === 'order' ? 'أمر ' : n.kind === 'decree' ? 'قرار بقانون ' : 'قانون ') + n.no + (n.year && n.kind !== 'order' ? ' ' + n.year : '');
+    let hit = null; try { const rx = new RegExp('رقم\\s*\\(?\\s*' + n.no + '\\s*\\)?' + (n.year && n.kind !== 'order' ? '\\s*لسن[ةه]\\s*' + n.year : '')); hit = (await misbar.byTitle(q, 'PS_LEGISLATION', 40)).find(x => rx.test(flat(x.title))) || null } catch { hit = null }
+    const v = hit ? { id: hit.id, title: hit.title } : null; instCache.set(k, v); return v;
+  }
+  /* فحص سريان مادة (أو تشريع إن لم تُذكر مادة) بالنسبة لمكان الواقعة وتاريخها */
+  async function validity(lawId, artText, ctx) {
+    const d = await getDoc(lawId), flags = []; if (!d) return { flags };
+    const ey = ctx.eventDate ? Number(String(ctx.eventDate).slice(0, 4)) : null;
+    const code = d.status_code || '', st = d.status || '';
+    if (code === 'repealed' || /ملغ/.test(st)) flags.push({ level: 'bad', text: 'التشريع ملغى حسب القاعدة' + (ey ? '؛ تحقق هل كان نافذاً سنة ' + ey : '') });
+    else if (code === 'suspended' || /موقوف/.test(st)) flags.push({ level: 'bad', text: 'التشريع موقوف النفاذ حسب القاعدة' });
+    if (ctx.region === 'gaza' && (code === 'partial' || (/الضفة/.test(st) && !/غزة/.test(st)))) flags.push({ level: 'bad', text: 'ساري في الضفة الغربية فقط حسب القاعدة، والواقعة في قطاع غزة' });
+    const ly = Number(d.year) || null;
+    if (ey && ly && ly > ey) flags.push({ level: 'warn', text: `صدر التشريع سنة ${ly} بعد تاريخ الواقعة (${ey}): تحقق من سريانه زمنياً على الواقعة` });
+    const notes = artText ? amendNotes(artText) : [];
+    for (const n of notes) {
+      const inst = await instrumentDoc(n); if (inst) { n.instId = inst.id; n.instTitle = inst.title }
+      const verb = n.type === 'repealed' ? 'أُلغيت' : n.type === 'added' ? 'أُضيفت' : 'عُدّلت' + (n.para ? ' الفقرة (' + n.para + ')' : '');
+      const by = `${verb} بموجب المادة (${n.byArticle}) من ${n.label}`;
+      if (!n.year) { flags.push({ level: 'info', text: by, note: n }); continue }
+      if (!ey) flags.push({ level: n.type === 'repealed' ? 'bad' : 'info', text: by, note: n });
+      else if (n.year > ey) flags.push({ level: 'warn', note: n, text: n.type === 'repealed' ? `${by} — بعد الواقعة (${ey})؛ كانت قائمة وقتها حسب القاعدة` : n.type === 'added' ? `${by} — بعد الواقعة (${ey})؛ لم تكن موجودة وقتها` : `${by} — بعد الواقعة (${ey})؛ النص المعروض هو النص بعد التعديل وقد يختلف عن النص النافذ وقت الواقعة` });
+      else flags.push({ level: n.type === 'repealed' ? 'bad' : 'info', note: n, text: `${by} — قبل الواقعة (${ey})` });
+    }
+    return { flags, notes, lawYear: ly, statusCode: code };
+  }
 
   /* المواد الأقرب لنص المستخدم داخل تشريع: تطابق الكلمات الثقيلة، والمادة الملغاة لا تُقترح */
   function rankArticles(arts, terms, n = 3) {
@@ -271,7 +337,7 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
     return uniq.slice(0, 60).map((d, i) => ({ date: d.date, ctx: d.ctx, times: d.times, sincePrev: i ? D(uniq[i - 1].date, d.date) : null, fromToday: D(d.date, today) }));
   }
 
-  async function analyze({ text = '', title = '' } = {}) {
+  async function analyze({ text = '', title = '', region = '', eventDate = '' } = {}) {
     const src = String(text || '').slice(0, 200000);
     if (src.replace(/\s/g, '').length < 15) return { status: 400, body: { error: 'اكتب السؤال أو الوقائع (15 حرفاً على الأقل).' } };
     const t0 = Date.now();
@@ -363,12 +429,44 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
       ps.push({ id: d.id, title: d.title, court: d.court, case_no: d.case_no, date: d.date || d.year, source: d.source, primary: d.primary, excerpt: bestPassage(d.body, terms), cites: (d.cites || []).slice(0, 8).map(c => c.title), why: [`قيّمه المكتب مفيداً (${v.up}) لسؤال مشابه`], liked: v.up }); learned.boosted++ }
     ps.sort((a, b) => (b.liked ? 1 : 0) - (a.liked ? 1 : 0));
     const cmp2 = cmp.filter(r => { const v = vOf('R:' + r.id); if (v && v.sum < 0) { learned.hidden++; return false } return true });
+    /* ── فحص السريان والاختصاص ── */
+    const evs = dates(src), evUser = /^\d{4}-\d{2}-\d{2}$/.test(String(eventDate)) ? String(eventDate) : '';
+    const ctx = { region: ['wb', 'gaza'].includes(region) ? region : '', eventDate: evUser || (evs[0] && evs[0].date) || '', eventFrom: evUser ? 'user' : evs[0] ? 'text' : '' };
+    for (const c of law) if (c.found) c.valid = await validity(c.lawId, c.text, ctx);
+    for (const L of related) { L.valid = await validity(L.lawId, '', ctx); for (const a of L.articles) a.valid = await validity(L.lawId, a.text, ctx) }
+    /* قاعدة سريان قانون الأصول من حيث الزمان (المادة 1) تُعرض حين يكون في النتائج نص منه عُدّل بعد الواقعة */
+    let timeRule = null; const usul = await resolveLaw('usul');
+    const usulLate = usul && [...law.filter(c => c.lawId === usul.id && c.valid), ...related.filter(L => L.lawId === usul.id).flatMap(L => L.articles)].some(a => a.valid && a.valid.flags.some(f => f.level === 'warn' && f.note));
+    if (usulLate) { const a1 = (await articlesOf(usul.id)).find(a => a.n === '1'); if (a1) timeRule = { lawId: usul.id, lawTitle: usul.title, label: a1.label, text: a1.text } }
+    /* المواعيد ذات الصلة بموضوع المسألة، مع نص مادتها والتحقق من عبارة المدة فيه */
+    const ids = new Set(tp.map(t => t.id)), groups = new Set();
+    if ([...ids].some(i => CIVIL_TOPICS.has(i))) groups.add('civil'); if ([...ids].some(i => CRIM_TOPICS.has(i))) groups.add('crim'); if (ids.has('labour') || ids.has('accident')) groups.add('labour'); if (ids.has('civilservice')) groups.add('admin');
+    const deadlines = [];
+    for (const R of RULES.filter(r => groups.has(r.group))) {
+      const L = await resolveLaw(R.law); if (!L) continue; const a = (await articlesOf(L.id)).find(x => x.n === R.art); if (!a) continue;
+      const ok = flat(a.text).includes(flat(R.must));
+      deadlines.push({ id: R.id, label: R.label, lawId: L.id, lawTitle: L.title, article: R.art, articleLabel: a.label, text: a.text, days: ok ? R.days : null, years: ok ? R.years || null : null, verified: ok, valid: await validity(L.id, a.text, ctx) });
+    }
+    let countRule = null; if (deadlines.length && usul) { const a21 = (await articlesOf(usul.id)).find(a => a.n === '21'); if (a21) countRule = { lawId: usul.id, label: a21.label, lawTitle: usul.title, text: a21.text } }
+    /* الاختصاص القيمي (حقوقي): يُقارن بالحد المكتوب في نص المادة 39 من قانون الأصول كما هو مخزّن */
+    let jurisdiction = null;
+    if (groups.has('civil') && usul) {
+      const a39 = (await articlesOf(usul.id)).find(a => a.n === '39'), a41 = (await articlesOf(usul.id)).find(a => a.n === '41');
+      const lim = a39 && /\(\s*([\d,٬]+)\s*\)\s*عشرة\s*ال[اآ]ف\s*دينار/.exec(flat(a39.text));
+      const jod = amounts(src).filter(x => x.currency === 'دينار أردني'), other = amounts(src).filter(x => x.currency !== 'دينار أردني');
+      if (a39) {
+        const limit = lim ? Number(lim[1].replace(/[,٬]/g, '')) : null, max = jod.length ? Math.max(...jod.map(x => x.value)) : null;
+        jurisdiction = { lawId: usul.id, lawTitle: usul.title, articles: [{ label: a39.label, text: a39.text }, ...(a41 ? [{ label: a41.label, text: a41.text }] : [])], limit, claim: max,
+          verdict: limit && max != null ? (max <= limit ? `أكبر مبلغ بالدينار في النص (${max.toLocaleString('en')}) لا يتجاوز حد محكمة الصلح في المادة 39 (${limit.toLocaleString('en')})` : `أكبر مبلغ بالدينار في النص (${max.toLocaleString('en')}) يتجاوز حد محكمة الصلح في المادة 39 (${limit.toLocaleString('en')})، فالولاية العامة لمحكمة البداية (المادة 41)`) : '',
+          note: other.length && !jod.length ? 'المبالغ في النص بغير الدينار؛ قدّر ما يعادلها بالدينار للمقارنة بحد المادة 39.' : '', valid: await validity(usul.id, a39.text, ctx) };
+      }
+    }
     const am = amounts(src), cn = caseNos(src);
     const total = am.reduce((a, x) => { a[x.currency] = (a[x.currency] || 0) + x.value; return a }, {});
     return { status: 200, body: {
       title: clip(title, 160), at: now().toISOString(), ms: Date.now() - t0, offline: true,
       topics: tp.map(({ q, laws, ...t }) => t), keyterms: { terms, phrases: kt.phrases },
-      citations: law, laws: related, rulings: ps, comparative: cmp2, learned, qterms: qw,
+      citations: law, laws: related, rulings: ps, comparative: cmp2, learned, qterms: qw, ctx, timeRule, deadlines, countRule, jurisdiction,
       timeline: timeline(ds), amounts: am.slice(0, 40), amountTotals: total, caseNos: cn.slice(0, 30),
       notice: 'نتائج بحث آلي من القاعدة المحلية دون إنترنت: النصوص منقولة حرفياً، والمدد والمبالغ محسوبة من النص المُدخل. لا يتضمن رأياً قانونياً؛ راجع كل نتيجة قبل الاعتماد عليها.',
     } };
@@ -471,4 +569,4 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
   return { analyze, dissect, handle, resolveLaw };
 }
 
-module.exports = { createLocal, citations, dates, amounts, caseNos, topics, keyterms, splitArticles, matchLaw, LAWS, TOPICS };
+module.exports = { createLocal, amendNotes, RULES, citations, dates, amounts, caseNos, topics, keyterms, splitArticles, matchLaw, LAWS, TOPICS };

@@ -781,7 +781,7 @@ async function api(req, res, u) {
       /* تعليم المسبار (تقييم النتائج وقاموس المكتب) لمن يعمل على القضايا */
       if (['local/feedback', 'local/dict-save'].includes(a) && !need('cases')) return;
       const b = await jbody(req, 4 * 1024 * 1024); let inp = b;
-      if (b.k) { const c = await caseBrain.handle('plain', 'GET', { k: String(b.k) }, null, me, w => auth.can(me, w === 'write' ? 'ai' : w), who); if (c.status !== 200) return json(res, c.status, c.body); inp = { text: c.body.text, title: c.body.title, caseInfo: c.body } }
+      if (b.k) { const c = await caseBrain.handle('plain', 'GET', { k: String(b.k) }, null, me, w => auth.can(me, w === 'write' ? 'ai' : w), who); if (c.status !== 200) return json(res, c.status, c.body); inp = { text: c.body.text, title: c.body.title, caseInfo: c.body, region: b.region, eventDate: b.eventDate } }
       const r = await misbarLocal.handle(a.slice(6), inp, me, audit); if (r.status === 200 && inp.caseInfo) r.body.caseInfo = { docs: inp.caseInfo.docs, read: inp.caseInfo.read, unread: inp.caseInfo.unread }; return json(res, r.status, r.body);
     }
     if (a === 'analyze' && M === 'POST') { if (!need('ai')) return; const r = await misbarAi.analyze(await jbody(req, 2 * 1024 * 1024), me); return json(res, r.status, r.body) }
