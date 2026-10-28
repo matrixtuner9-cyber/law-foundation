@@ -1,0 +1,22 @@
+{
+  "name": "misbar-offers",
+  "productName": "MisbarOffers",
+  "version": "1.0.0",
+  "description": "عروض المِسْبار — التعريف بالتطبيق لدى المحامين",
+  "main": "main.js",
+  "author": "Misbar Law Systems",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test tests/"
+  },
+  "build": {
+    "appId": "ps.misbar.offers",
+    "productName": "MisbarOffers",
+    "electronVersion": "44.7.0",
+    "asar": false,
+    "directories": { "output": "dist" },
+    "files": ["main.js", "server.js", "templates.js", "index.html", "app.js", "package.json", "icon.ico"],
+    "win": { "target": ["dir"], "icon": "icon.ico" }
+  }
+}
