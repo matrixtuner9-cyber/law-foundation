@@ -60,7 +60,7 @@ const TOPICS = [
   { id: 'cheque', label: 'الشيكات والأوراق التجارية', w: ['شيك', 'الشيك', 'شيكات', 'كمبيالة', 'سند سحب', 'سند لأمر', 'الرصيد', 'عدم كفاية الرصيد'], laws: ['trade'], q: 'شيك عدم كفاية الرصيد' },
   { id: 'companies', label: 'الشركات والشراكة', w: ['شركة', 'الشركة', 'شريك', 'الشركاء', 'مساهم', 'تصفية الشركة', 'مدير الشركة', 'شركة تضامن', 'محدودة المسؤولية'], laws: ['companies', 'trade'], q: 'الشركاء تصفية الشركة' },
   { id: 'contract', label: 'العقود والالتزامات', w: ['عقد', 'العقد', 'فسخ', 'الفسخ', 'بطلان العقد', 'إخلال', 'الإخلال', 'شرط جزائي', 'الشرط الجزائي', 'التزام', 'الالتزام', 'تعهد', 'بيع', 'البيع', 'ثمن'], laws: ['majalla'], q: 'فسخ العقد الاخلال بالالتزام' },
-  { id: 'limitation', label: 'التقادم ومرور الزمن', w: ['تقادم', 'التقادم', 'مرور الزمن', 'سقوط الحق', 'مضي المدة', 'عدم سماع الدعوى'], laws: ['majalla'], q: 'مرور الزمن عدم سماع الدعوى' },
+  { id: 'limitation', label: 'التقادم ومرور الزمن', w: ['تقادم', 'التقادم', 'مرور الزمن', 'سقوط الحق', 'مضي المدة', 'عدم سماع الدعوى', 'ميعاد رفع الدعوى', 'مدة رفع الدعوى', 'مدة التقادم'], laws: ['majalla'], q: 'مرور الزمن عدم سماع الدعوى' },
   { id: 'urgent', label: 'القضاء المستعجل والطلبات', w: ['مستعجل', 'المستعجلة', 'قاضي الأمور المستعجلة', 'وقف التنفيذ', 'حجز تحفظي', 'منع سفر', 'طلب مستعجل'], laws: ['usul'], q: 'قاضي الامور المستعجلة الضرر المحدق' },
   { id: 'arbitration', label: 'التحكيم', w: ['تحكيم', 'التحكيم', 'محكم', 'قرار التحكيم', 'شرط التحكيم'], laws: ['arbitration'], q: 'قرار التحكيم بطلان' },
   { id: 'crimproc', label: 'الإجراءات الجزائية', w: ['توقيف', 'التوقيف', 'الكفالة', 'النيابة العامة', 'النيابة', 'التحقيق', 'لائحة اتهام', 'القبض', 'التفتيش', 'إخلاء سبيل', 'متهم', 'المتهم', 'المشتكي'], laws: ['crimproc'], q: 'بطلان اجراءات التفتيش التوقيف' },
@@ -78,7 +78,7 @@ const TOPICS = [
   { id: 'expropriation', label: 'الاستملاك', w: ['استملاك', 'الاستملاك', 'استملاك للمنفعة العامة'], laws: ['expropriation'], q: 'الاستملاك التعويض' },
 ];
 /* كلمات عامة في كل نص قانوني لا تميّز موضوعاً */
-const GENERIC = new Set(['قانون', 'ماده', 'مواد', 'محكمه', 'دعوي', 'قضيه', 'حكم', 'قرار', 'تاريخ', 'رقم', 'سنه', 'لسنه', 'مدعي', 'عليه', 'عليها', 'جهه', 'طرف', 'طرفين', 'فان', 'وان', 'ولا', 'كان', 'كانت', 'يكون', 'تكون', 'هذا', 'هذه', 'تلك', 'ذلك', 'التي', 'الذي', 'الذين', 'وقد', 'لقد', 'بعد', 'قبل', 'عند', 'حيث', 'كما', 'اما', 'الا', 'غير', 'بين', 'اذا', 'لدي', 'منذ', 'حتي', 'ضمن', 'خلال', 'وذلك', 'بان', 'ايضا', 'جميع', 'تم', 'يتم', 'قام', 'قامت', 'عن', 'الي', 'علي', 'في', 'من', 'مع', 'او', 'ان', 'لا', 'ما', 'هو', 'هي', 'لم', 'لن', 'قد', 'كل', 'اي', 'وهو', 'وهي', 'لها', 'له', 'لهم', 'بها', 'به', 'فيه', 'فيها', 'منه', 'منها', 'وكيل', 'وكيله', 'محامي', 'المحامي', 'السيد', 'السيده', 'شيكل', 'دينار', 'دولار', 'مبلغ', 'وقيمه', 'قيمه', 'يوم', 'شهر', 'عام', 'اول', 'ثاني', 'الاول', 'الثاني', 'موكل', 'موكلي', 'موكلنا', 'نريد', 'اريد', 'هل', 'يجوز', 'يحق', 'كيف', 'ماذا', 'لماذا', 'متي', 'نحن', 'انا', 'انه', 'انها', 'لكن', 'ولكن', 'فقط', 'جدا', 'اخر', 'احد', 'نفس', 'بشان', 'وفق', 'وفقا', 'حسب', 'لدى', 'مستند', 'مستندات', 'ملف', 'جلسه', 'جلسات']);
+const GENERIC = new Set(['قانون', 'ماده', 'مواد', 'محكمه', 'دعوي', 'قضيه', 'حكم', 'قرار', 'تاريخ', 'رقم', 'سنه', 'لسنه', 'مدعي', 'عليه', 'عليها', 'جهه', 'طرف', 'طرفين', 'فان', 'وان', 'ولا', 'كان', 'كانت', 'يكون', 'تكون', 'هذا', 'هذه', 'تلك', 'ذلك', 'التي', 'الذي', 'الذين', 'وقد', 'لقد', 'بعد', 'قبل', 'عند', 'حيث', 'كما', 'اما', 'الا', 'غير', 'بين', 'اذا', 'لدي', 'منذ', 'حتي', 'ضمن', 'خلال', 'وذلك', 'بان', 'ايضا', 'جميع', 'تم', 'يتم', 'قام', 'قامت', 'عن', 'الي', 'علي', 'في', 'من', 'مع', 'او', 'ان', 'لا', 'ما', 'هو', 'هي', 'لم', 'لن', 'قد', 'كل', 'اي', 'وهو', 'وهي', 'لها', 'له', 'لهم', 'بها', 'به', 'فيه', 'فيها', 'منه', 'منها', 'وكيل', 'وكيله', 'محامي', 'المحامي', 'السيد', 'السيده', 'شيكل', 'دينار', 'دولار', 'مبلغ', 'وقيمه', 'قيمه', 'يوم', 'شهر', 'عام', 'اول', 'ثاني', 'الاول', 'الثاني', 'موكل', 'موكلي', 'موكلنا', 'بتاريخ', 'استنادا', 'استناد', 'مستانف', 'مستانفه', 'مستانفين', 'مستدعي', 'مستدعيه', 'طاعن', 'طاعنه', 'مطعون', 'ضده', 'ضدها', 'ضدهم', 'يطالب', 'يستحق', 'تستحق', 'بموجب', 'المذكور', 'مذكور', 'المذكوره', 'وعليه', 'فقره', 'بند', 'لايحه', 'نريد', 'اريد', 'هل', 'يجوز', 'يحق', 'كيف', 'ماذا', 'لماذا', 'متي', 'نحن', 'انا', 'انه', 'انها', 'لكن', 'ولكن', 'فقط', 'جدا', 'اخر', 'احد', 'نفس', 'بشان', 'وفق', 'وفقا', 'حسب', 'لدى', 'مستند', 'مستندات', 'ملف', 'جلسه', 'جلسات']);
 
 const LAWN = LAWS.map(l => { const al = new Set([norm(l.title), ...l.alias.map(norm)]); for (const a of [...al]) if (a.startsWith('قانون ')) al.add(a.slice(6)); return { ...l, n: norm(l.title), al: [...al].filter(Boolean).sort((a, b) => b.length - a.length) } });
 const TOPN = TOPICS.map(t => ({ ...t, wn: [...new Set(t.w.map(norm).filter(Boolean))] }));
@@ -116,7 +116,8 @@ function caseNos(text) {
   return out;
 }
 /* المواد المذكورة: «المادة (240) من قانون أصول المحاكمات»، «المواد 12 و13 من قانون البينات»، «م/223/2 أصول»، «المادة ذاتها/من القانون ذاته» */
-const ART_HEAD = /(?<![ء-ي])(?:(?:ب|و|ل|ف)?(?:ال)?ماد(?:ة|ه|تين|تان|تي|تا)|(?:ب|و|ل|ف)?(?:ال)?مواد|م\s*\/)\s*/g;
+/* «م/1» في الأحكام رمز مبرز لا مادة، فلا يُعتمد */
+const ART_HEAD = /(?<![ء-ي])(?:(?:ب|و|ل|ف|لل|بال|وال|فال)?(?:ال)?ماد(?:ة|ه|تين|تان|تي|تا)|(?:ب|و|ل|ف|لل|بال|وال)?(?:ال)?مواد)\s*/g;
 function citations(text) {
   const s = flat(text), out = []; let lastLaw = null;
   for (const m of s.matchAll(ART_HEAD)) {
@@ -157,7 +158,9 @@ function topics(text) {
     const cnt = hits.reduce((a, w) => a + (n.split(' ' + w + ' ').length - 1 || 1), 0);
     out.push({ id: t.id, label: t.label, hits: t.w.filter(w => hits.includes(norm(w))).slice(0, 6), score: hits.length * 2 + Math.min(cnt, 10), laws: t.laws, q: t.q });
   }
-  return out.sort((a, b) => b.score - a.score).slice(0, 5);
+  out.sort((a, b) => b.score - a.score);
+  /* موضوع بكلمة دالّة واحدة عابرة (مثل «شركة» في اسم صاحب العمل) لا يُعرض إلا إن كان الوحيد */
+  return out.filter((t, i) => i === 0 || t.score >= 4).slice(0, 5);
 }
 /* الكلمات الأثقل في النص: التكرار مع طول الكلمة، بعد حذف العام */
 function keyterms(text, k = 8) {
@@ -185,6 +188,19 @@ function splitArticles(body) {
   return out.map(a => ({ ...a, repealed: /^(?:ال)?[اأإ]?لغيت هذه الماد/.test(flat(a.text).trim()) }));
 }
 
+/* أنسب فقرة في نص طويل: أكثر الكلمات المطلوبة تنوعاً، مقصوصة حول أول تطابق */
+function bestPassage(body, terms, len = 520) {
+  const ws = terms.filter(w => w.length > 2); if (!ws.length) return '';
+  const lines = String(body || '').split('\n').map(x => x.replace(/\s+/g, ' ').trim()).filter(x => x.length > 40);
+  let best = null;
+  lines.forEach((ln, i) => { if (i < 6) return; const t = ' ' + norm(ln) + ' '; const hit = ws.filter(w => t.includes(' ' + w) || t.includes(w + ' ')); const s = new Set(hit).size * 10 + hit.reduce((a, w) => a + w.length, 0) / 10; if (s > 0 && (!best || s > best.s)) best = { s, ln } });
+  if (!best) return '';
+  const ln = best.ln; if (ln.length <= len) return ln;
+  const n = norm(ln); const w = ws.find(x => n.includes(x)); let at = 0;
+  if (w) { const words = ln.split(' '); let acc = 0; for (const x of words) { if (norm(x).includes(w)) { at = acc; break } acc += x.length + 1 } }
+  const st = Math.max(0, at - Math.floor(len / 3)); return (st > 0 ? '… ' : '') + ln.slice(st, st + len) + (st + len < ln.length ? ' …' : '');
+}
+
 function createLocal({ misbar, now = () => new Date() } = {}) {
   if (!misbar) throw new Error('misbar required');
   const lawCache = new Map(), docCache = new Map();
@@ -196,7 +212,7 @@ function createLocal({ misbar, now = () => new Date() } = {}) {
   async function resolveLaw(key) {
     if (lawCache.has(key)) return lawCache.get(key);
     const L = LAWN.find(l => l.key === key); if (!L) return null;
-    const r = await misbar.search({ q: '"' + L.title + '"', src: 'PS_LEGISLATION', per: 30, facets: '0', has_text: '1' });
+    const r = typeof misbar.byTitle === 'function' ? { results: await misbar.byTitle(L.title, 'PS_LEGISLATION', 200) } : await misbar.search({ q: '"' + L.title + '"', src: 'PS_LEGISLATION', per: 30, facets: '0', has_text: '1' });
     const need = L.n.split(' ');
     const sc = x => { const t = norm(x.title); if (!need.every(w => t.includes(w))) return -1; let s = 10;
       if (/تعديل|معدل/.test(t)) s -= 6; if (/لايحه|نظام|تعليمات|مجلس الوزراء|وزير/.test(t)) s -= 5; if (/^قانون/.test(t)) s += 2; if (x.status_code === 'repealed' || /ملغ/.test(x.status || '')) s -= 4; s -= t.length / 200; return s };
@@ -209,7 +225,8 @@ function createLocal({ misbar, now = () => new Date() } = {}) {
   /* المواد الأقرب لنص المستخدم داخل تشريع: تطابق الكلمات الثقيلة، والمادة الملغاة لا تُقترح */
   function rankArticles(arts, terms, n = 3) {
     if (!terms.length) return [];
-    return arts.filter(a => !a.repealed).map(a => { const t = ' ' + norm(a.text) + ' '; const hit = terms.filter(w => t.includes(' ' + w) || t.includes(w + ' ')); return { a, hit, s: hit.reduce((x, w) => x + Math.min(w.length, 7), 0) } })
+    const seen = new Set(), DEF = /^(?:لغايات|التعاريف|تعاريف|يسمى هذا|يعمل بهذا|على جميع الجهات|يلغى|يُلغى)/;
+    return arts.filter(a => !a.repealed && !seen.has(a.n) && seen.add(a.n)).map(a => { const t = ' ' + norm(a.text) + ' '; const hit = terms.filter(w => t.includes(' ' + w) || t.includes(w + ' ')); return { a, hit, s: hit.reduce((x, w) => x + Math.min(w.length, 7), 0) * (DEF.test(flat(a.text).trim()) || a.n === '1' ? 0.4 : 1) } })
       .filter(x => x.hit.length >= Math.min(2, terms.length)).sort((a, b) => b.s - a.s).slice(0, n).map(x => ({ n: x.a.n, label: x.a.label, text: x.a.text, why: 'تطابقت فيها: ' + x.hit.slice(0, 5).join('، ') }));
   }
 
@@ -237,8 +254,9 @@ function createLocal({ misbar, now = () => new Date() } = {}) {
 
   function timeline(ds) {
     const today = now().toISOString().slice(0, 10), D = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 864e5);
-    const uniq = []; for (const d of ds) if (!uniq.some(u => u.date === d.date && u.ctx === d.ctx)) uniq.push(d);
-    return uniq.slice(0, 60).map((d, i) => ({ date: d.date, ctx: d.ctx, sincePrev: i ? D(uniq[i - 1].date, d.date) : null, fromToday: D(d.date, today) }));
+    /* التاريخ المكرر يُعرض مرة بأول سياق ورد فيه مع عدد مرات وروده */
+    const uniq = []; for (const d of ds) { const u = uniq.find(x => x.date === d.date); if (u) u.times++; else uniq.push({ ...d, times: 1 }) }
+    return uniq.slice(0, 60).map((d, i) => ({ date: d.date, ctx: d.ctx, times: d.times, sincePrev: i ? D(uniq[i - 1].date, d.date) : null, fromToday: D(d.date, today) }));
   }
 
   async function analyze({ text = '', title = '' } = {}) {
@@ -247,28 +265,46 @@ function createLocal({ misbar, now = () => new Date() } = {}) {
     const t0 = Date.now();
     const cs = citations(src), tp = topics(src), kt = keyterms(src), ds = dates(src);
     const law = await cited(cs);
+    /* كلمات البحث: كلمات الموضوعات الدالّة أولاً ثم الأثقل في النص، دون كلمات أسماء التشريعات المذكورة (تملأ النتائج بكل حكم ذكر القانون) */
+    const titleW = new Set(law.filter(c => c.lawTitle).flatMap(c => norm(c.lawTitle).split(' ')).concat(['قانون', 'فلسطيني']));
+    const topicW = tp.flatMap(t => t.hits.map(norm).filter(w => !w.includes(' ')));
+    const terms = [...new Set([...topicW, ...kt.terms])].filter(w => !titleW.has(w)).slice(0, 14);
     /* التشريعات المعنية بالموضوعات، وأقرب موادها لنص المستخدم */
     const lawKeys = [...new Set(tp.flatMap(t => t.laws))].slice(0, 5), related = [];
-    const terms = [...new Set([...kt.terms, ...tp.flatMap(t => t.hits.map(norm).filter(w => !w.includes(' ')))])].slice(0, 14);
     for (const k of lawKeys) {
-      const L = await resolveLaw(k); if (!L) continue;
+      const L = await resolveLaw(k); if (!L || related.some(r => r.lawId === L.id)) continue;
       const arts = rankArticles(await articlesOf(L.id), terms, 3).filter(a => !law.some(c => c.lawId === L.id && c.article === a.n));
       related.push({ lawId: L.id, title: L.title, status: L.status, topic: (tp.find(t => t.laws.includes(k)) || {}).label || '', articles: arts });
     }
-    /* استعلامات الأحكام: الكلمات الثقيلة، ثم كل موضوع، ثم كل مادة مذكورة (الأحكام التي طبّقتها) */
-    const Q = [];
-    if (kt.terms.length) Q.push({ q: kt.terms.slice(0, 6).join(' '), label: 'كلمات النص: ' + kt.terms.slice(0, 6).join('، '), w: 1.4 });
+    /* استعلامات الأحكام: الكلمات الدالّة، ثم كل موضوع، ثم كل مادة مذكورة (الأحكام التي ورد فيها رقمها مع اسم قانونها) */
+    const Q = [], q6 = terms.slice(0, 6);
+    if (q6.length) Q.push({ q: q6.join(' '), label: 'كلمات النص: ' + q6.join('، '), w: 1.4 });
     for (const p of kt.phrases) Q.push({ q: '"' + p + '"', label: 'عبارة متكررة: ' + p, w: 1.2, mode: 'all' });
     for (const t of tp.slice(0, 3)) Q.push({ q: t.q, label: 'موضوع: ' + t.label });
-    for (const c of law.filter(x => x.found).slice(0, 4)) { const lw = norm(c.lawTitle).split(' ').filter(w => w.length > 3).slice(0, 2).join(' '); Q.push({ q: '"ماده ' + c.article + '" ' + lw, label: 'طبّق ' + c.label + ' من ' + c.lawTitle, w: 1.6, mode: 'all' }) }
-    const ps = await rulings(Q, 'PS_JUDGMENT', 10, 8);
-    const cq = Q.filter(q => !q.label.startsWith('طبّق'));
-    const cmp = [...await rulings(cq, 'JO_CASSATION', 6, 3), ...await rulings(cq, 'EG_CASSATION', 6, 3)];
+    const artQ = [];
+    for (const c of law.filter(x => x.found).slice(0, 4)) { const lw = norm(c.lawTitle).split(' ').filter(w => w.length > 3 && !/^\d+$/.test(w) && !['قانون', 'لسنه', 'رقم', 'بشان', 'فلسطيني'].includes(w)).slice(0, 2); const q = { q: '"ماده ' + c.article + '" ' + lw.join(' '), label: 'ورد فيه ' + c.label + ' من ' + c.lawTitle, w: 1.6, mode: 'all', art: c.article, lw }; Q.push(q); artQ.push(q) }
+    let ps = await rulings(Q, 'PS_JUDGMENT', 10, 12);
+    /* مقتطف من صلب الحكم لا من ترويسته، والتحقق من ورود المادة فعلاً بجانب اسم قانونها */
+    const out = [];
+    for (const r of ps) {
+      const d = await getDoc(r.id); if (!d || !d.body) { out.push(r); continue }
+      const body = flat(d.body), why = [];
+      for (const w of r.why) { const q = artQ.find(x => x.label === w); if (!q) { why.push(w); continue }
+        const rx = new RegExp('(?<![ء-ي0-9])(?:ال)?ماد[ةه]\\s*(?:رقم\\s*)?[(\\[]?\\s*' + q.art + '(?!\\d)[^\\n]{0,90}', 'g'); let ok = false;
+        for (const m of body.matchAll(rx)) { const t = norm(m[0]); if (q.lw.every(x => t.includes(x))) { ok = true; break } } if (ok) why.push(w) }
+      if (!why.length) continue;
+      out.push({ ...r, why, excerpt: bestPassage(d.body, terms) || r.excerpt, cites: (d.cites || []).slice(0, 8).map(c => c.title) });
+      if (out.length >= 8) break;
+    }
+    ps = out;
+    /* المقارن: الموضوعات وكلماتها المشتركة فقط، فالكلمات المفردة في أحكام غير فلسطينية تجلب نتائج بعيدة */
+    const cq = tp.slice(0, 3).map(t => ({ q: t.q, label: 'موضوع: ' + t.label })).concat(terms.length >= 2 ? [{ q: terms.slice(0, 3).join(' '), label: 'كلمات النص: ' + terms.slice(0, 3).join('، '), mode: 'all' }] : []);
+    const cmp = cq.length ? [...await rulings(cq, 'JO_CASSATION', 6, 3), ...await rulings(cq, 'EG_CASSATION', 6, 3)] : [];
     const am = amounts(src), cn = caseNos(src);
     const total = am.reduce((a, x) => { a[x.currency] = (a[x.currency] || 0) + x.value; return a }, {});
     return { status: 200, body: {
       title: clip(title, 160), at: now().toISOString(), ms: Date.now() - t0, offline: true,
-      topics: tp.map(({ q, laws, ...t }) => t), keyterms: kt,
+      topics: tp.map(({ q, laws, ...t }) => t), keyterms: { terms, phrases: kt.phrases },
       citations: law, laws: related, rulings: ps, comparative: cmp,
       timeline: timeline(ds), amounts: am.slice(0, 40), amountTotals: total, caseNos: cn.slice(0, 30),
       notice: 'نتائج بحث آلي من القاعدة المحلية دون إنترنت: النصوص منقولة حرفياً، والمدد والمبالغ محسوبة من النص المُدخل. لا يتضمن رأياً قانونياً؛ راجع كل نتيجة قبل الاعتماد عليها.',
@@ -287,7 +323,7 @@ function createLocal({ misbar, now = () => new Date() } = {}) {
       const l = L[i]; if (!l) continue;
       const m = ROLE_RX.exec(l);
       if (m) { const v = nextVal(i); if (v && !ROLE_RX.test(v)) parties.push({ role: m[1].replace(/\s+/g, ' '), name: clip(v, 300) }); continue }
-      if (/^وكيل(?:ه|ها|هم|هما|اه|تها)?\s*(?:المحامي|المحامية|المحاميان|المحامون)?/.test(l)) { const v = nextVal(i) || l.replace(/^وكيل\S*\s*/, ''); if (v) counsel.push(clip(v.replace(/^(?:المحامي|المحامية|المحاميان)\s*/, ''), 200)); continue }
+      if (/^وكيل(?:ه|ها|هم|هما|اه|تها|تهم)?(?:\s|$|[:：])/.test(l)) { const inl = l.replace(/^وكيل\S*\s*(?:المحامي|المحامية|المحاميان|المحامون|المحاميين)?\s*[:：]?\s*/, '').trim(); const v = inl || nextVal(i); if (v && !ROLE_RX.test(v)) counsel.push(clip(v.replace(/^(?:المحامي|المحامية|المحاميان)\s*/, ''), 200)); continue }
       if (!panel && /الهيئ[ةه]\s*الحاكم[ةه]/.test(l)) { panel = clip((l.replace(/.*الحاكم[ةه]\s*[:：]?\s*/, '') || nextVal(i)), 400) }
       if (!appealed && /^(?:الحكم|القرار)\s*(?:المستأنف|المطعون\s*فيه|المطعون\s*به)/.test(l)) appealed = clip(nextVal(i), 600);
     }
@@ -300,7 +336,7 @@ function createLocal({ misbar, now = () => new Date() } = {}) {
     const closing = endAt < L.length ? lines.slice(endAt, Math.min(L.length, endAt + 2)).join(' ').trim() : '';
     /* بدء أسباب المحكمة: «المحكمة» وحدها في سطر، أو «بعد التدقيق والمداولة» */
     let rsAt = -1;
-    for (let i = 0; i < (opAt >= 0 ? opAt : L.length); i++) if (/^ال\s*م\s*ح\s*ك\s*م\s*[ةه]\s*$/.test(L[i].replace(/\s/g, '')) || /^بعد\s*(?:التدقيق|الاطلاع|التدقيق\s*والمداولة|المداولة)/.test(L[i])) { rsAt = i; break }
+    for (let i = 0; i < (opAt >= 0 ? opAt : L.length); i++) if (/^ال\s*م\s*ح\s*ك\s*م\s*[ةه]\s*$/.test(L[i].replace(/\s/g, '')) || /^و?\s*بعد\s*(?:التدقيق|الاطلاع|المداولة)/.test(L[i]) || /^(?:و\s*)?بعد\s*التدقيق\s*والمداولة/.test(L[i].replace(/^.*?\.\s*(?=و?بعد\s*التدقيق)/, ''))) { rsAt = i; break }
     const reasoning = rsAt >= 0 ? lines.slice(rsAt, opAt >= 0 ? opAt : L.length).join('\n').trim() : '';
     /* أسباب الطعن: من «أسباب الاستئناف/الطعن» حتى بدء أسباب المحكمة */
     let grAt = -1; for (let i = 0; i < (rsAt >= 0 ? rsAt : L.length); i++) if (/(?:أسباب|اسباب)\s*(?:ال)?(?:استئناف|طعن|الاستئناف|الطعن|الاعتراض)|وتتلخص\s*أسباب|تتلخص\s*اسباب|وقد\s*بني\s*الطعن|ويستند\s*الطعن/.test(L[i])) { grAt = i; break }

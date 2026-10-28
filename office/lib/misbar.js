@@ -158,6 +158,13 @@ function createMisbar(db, { audit } = {}) {
     for (const x of pool.slice(0, n)) { const d = await doc(x.id); if (d && d.body) out.push({ ref: 'M' + d.id, id: d.id, src: d.src, source: d.source, primary: d.primary, title: d.title, year: d.year, court: d.court, case_no: d.case_no, status: d.status, url: d.url, excerpt: snippet(d.body, snip || q, chars) }) }
     return out;
   }
+  /* تشريعات أو أحكام بكلمات العنوان وحده (لا بنصها): لتحديد قانون بعينه من اسمه */
+  async function byTitle(q, src, n = 50) {
+    const ws = [...new Set(norm(q).split(' ').filter(w => w && !STOP.has(w)))].slice(0, 10); if (!ws.length) return [];
+    const m = ws.map(w => 'title : "' + w + '"').join(' AND ');
+    const rows = await all(`SELECT d.id, d.title, d.status, d.status_code, d.year FROM (SELECT DISTINCT (rowid % ${CHUNK_BASE}) fid FROM fts WHERE fts MATCH ?) f JOIN docs d ON d.id=f.fid WHERE d.has_text=1${src ? ' AND d.src=?' : ''} LIMIT ?`, ...(src ? [m, src, n] : [m, n]));
+    return rows.map(r => ({ ...r, title: scrub(r.title) }));
+  }
   /* هل الاقتباس موجود حرفياً (بعد التطبيع) في نص المرجع المخزّن؟ */
   async function verifyQuote(id, quote) {
     const d = await doc(id); if (!d) return { ok: false, error: 'المرجع غير موجود' };
@@ -181,7 +188,7 @@ function createMisbar(db, { audit } = {}) {
       throw e;
     }
   }
-  return { search, doc, stats, excerpts, verifyQuote, handle };
+  return { search, doc, stats, excerpts, verifyQuote, byTitle, handle };
 }
 
 /* بدائل بنفس واجهة البحث القديم للصياغة والمساعد: lawSearch(action, params) و rulingSearch(q, user, max) */
