@@ -129,6 +129,11 @@ const cap = (arr) => LIMIT ? arr.slice(0, LIMIT) : arr;
   log('EG_CONSTITUTIONAL', rows.length);
 }
 
+/* إزالة إشارات جهة النشر (منشورات عدالة) من أحكام التمييز الأردنية القادمة من المصادر الأخرى أيضاً */
+{ const { unbrandLines, BRAND_RX } = require('./jo-adaleh-build'); let n = 0;
+  for (const d of docs) if (d.src === 'JO_CASSATION' && (BRAND_RX.test(d.body) || BRAND_RX.test(d.title))) { d.body = unbrandLines(d.body); d.title = unbrandLines(d.title); n++ }
+  log('JO_CASSATION إزالة إشارات النشر', n) }
+
 /* الكتابة */
 if (fs.existsSync(OUT)) fs.unlinkSync(OUT);
 const db = new DatabaseSync(OUT);

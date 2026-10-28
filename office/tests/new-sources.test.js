@@ -61,3 +61,18 @@ test('عدالة: تُزال إشارات جهة النشر من النص وال
   assert.ok(d.body.includes('تقتضي العدالة تصحيحه') && d.body.includes('/ 87 / ايجارات)') && d.body.includes('/ 2018 / تجارية)'));
   assert.strictEqual(d.url, ''); assert.ok(d.title.endsWith('— ايجارات'));
 });
+
+test('misbar-unbrand: ينظّف الأحكام القديمة في مكانها ويحدّث الفهرس، والأسطر الأخرى كما هي', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'unb-')), f = path.join(dir, 'li.db'), d = new DatabaseSync(f);
+  d.exec(`CREATE TABLE docs(id INTEGER PRIMARY KEY, src TEXT NOT NULL, country TEXT, kind TEXT, ext_id TEXT, title TEXT, year INTEGER, number TEXT, court TEXT, case_no TEXT, date TEXT,
+    ltype TEXT, subject TEXT, status TEXT, status_code TEXT, url TEXT, file_url TEXT, body TEXT, has_text INTEGER, cites TEXT, meta TEXT, UNIQUE(src, ext_id));
+    CREATE VIRTUAL TABLE fts USING fts5(title, body, content='', tokenize='unicode61 remove_diacritics 2');`);
+  const body = 'وحيث إن العدالة تقتضي ذلك  ،\nقرار صادر عن محكمة التمييز الاردنية الحقوقية رقم 49/ 2024/هيئة خماسية/منشورات عدالة مدنية\n(تمييز حقوق رقم 1008/ 2022/ منشورات عدالة).';
+  d.prepare("INSERT INTO docs(id,src,ext_id,title,body,case_no,subject) VALUES(5,'JO_CASSATION','x','الإقالة',?,'',' ')").run(body);
+  d.prepare('INSERT INTO fts(rowid,title,body) VALUES(5,?,?)').run(M.norm('الإقالة   '), M.norm(body)); d.close();
+  const r = JSON.parse(execFileSync(process.execPath, [path.join(__dirname, '..', 'tools', 'misbar-unbrand.js'), '--db', f, '--sql', path.join(dir, 'u.sql')], { encoding: 'utf8' }).trim().split('\n').pop());
+  assert.deepStrictEqual(r.ids, [5]);
+  const b = new DatabaseSync(f).prepare('SELECT body FROM docs WHERE id=5').get().body;
+  assert.strictEqual(b, 'وحيث إن العدالة تقتضي ذلك  ،\nقرار صادر عن محكمة التمييز الاردنية الحقوقية رقم 49/ 2024/هيئة خماسية/مدنية\n(تمييز حقوق رقم 1008/ 2022).');
+  assert.ok(fs.readFileSync(path.join(dir, 'u.sql'), 'utf8').includes('UPDATE docs SET'));
+});

@@ -29,6 +29,9 @@ function unbrand(s, { topic = false } = {}) {
   if (topic) t = t.replace(/^\s*عدالة\s+(?=[\u0621-\u064A])/, '');
   return t.replace(/\/\s*\/+/g, '/').replace(/\/\s*([)\]])/g, '$1').replace(/[ \t]{2,}/g, ' ').trim();
 }
+/* للنصوص الطويلة القائمة: تنظيف الأسطر التي فيها الإشارة فقط، فتبقى بقية النص بمسافاته وأسطره كما هي */
+const BRAND_RX = /منش\S{1,3}ات\s+(?:مركز\s+)?عدالة|مركز\s+عدالة|adaleh\.info/i;
+const unbrandLines = s => String(s ?? '').split('\n').map(l => BRAND_RX.test(l) ? unbrand(l) : l).join('\n');
 const branchOf = court => /جزائي/.test(court) ? 'جزائي' : /اداري|إداري/.test(court) ? 'إداري' : /حقوقي/.test(court) ? 'حقوقي' : '';
 
 function convert(r) {
@@ -55,4 +58,4 @@ if (require.main === module) {
   fs.writeFileSync(OUT, out.map(d => JSON.stringify(d)).join('\n') + '\n');
   console.log(JSON.stringify({ in: rows.length, out: out.length, withText: out.filter(d => d.body.length > 200).length, cites: out.reduce((a, d) => a + d.cites.length, 0) }));
 }
-module.exports = { convert, citesOf, unbrand };
+module.exports = { convert, citesOf, unbrand, unbrandLines, BRAND_RX };
