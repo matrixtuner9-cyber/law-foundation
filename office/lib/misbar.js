@@ -165,6 +165,14 @@ function createMisbar(db, { audit } = {}) {
     const rows = await all(`SELECT d.id, d.title, d.status, d.status_code, d.year FROM (SELECT DISTINCT (rowid % ${CHUNK_BASE}) fid FROM fts WHERE fts MATCH ?) f JOIN docs d ON d.id=f.fid WHERE d.has_text=1${src ? ' AND d.src=?' : ''} LIMIT ?`, ...(src ? [m, src, n] : [m, n]));
     return rows.map(r => ({ ...r, title: scrub(r.title) }));
   }
+  /* تشريع بنوعه ورقمه وسنته من عنوانه مباشرة (بلا فهرس): «قرار بقانون رقم (24) لسنة 2024» بأي تباعد */
+  async function byNumber(kind, no, year, src = 'PS_LEGISLATION') {
+    const n = String(no || '').replace(/\D/g, ''), y = String(year || '').replace(/\D/g, ''); if (!n) return [];
+    const rows = await all(`SELECT d.id, d.title, d.status, d.status_code, d.year FROM docs d WHERE d.src=? AND d.has_text=1 AND d.title LIKE ? ${y ? 'AND d.title LIKE ?' : ''} LIMIT 60`, ...(y ? [src, '%' + n + '%', '%' + y + '%'] : [src, '%' + n + '%']));
+    const rx = new RegExp('رقم\\s*\\(?\\s*' + n + '\\s*\\)?\\s*' + (y ? 'لسن[ةه]\\s*' + y : ''));
+    const kindRx = kind === 'decree' ? /^\s*(?:ال)?قرار\s*بقانون/ : kind === 'order' ? /^\s*(?:ال)?[أا]مر/ : kind === 'law' ? /^\s*(?:ال)?قانون/ : /./;
+    return rows.filter(r => { const t = scrub(r.title).replace(/[ًٌٍَُِّْـ]/g, ''); const m = rx.exec(t); return m && kindRx.test(t) && t.slice(0, m.index).replace(/\d/g, '').length === t.slice(0, m.index).length }).map(r => ({ ...r, title: scrub(r.title) }));
+  }
   /* هل الاقتباس موجود حرفياً (بعد التطبيع) في نص المرجع المخزّن؟ */
   async function verifyQuote(id, quote) {
     const d = await doc(id); if (!d) return { ok: false, error: 'المرجع غير موجود' };
@@ -188,7 +196,7 @@ function createMisbar(db, { audit } = {}) {
       throw e;
     }
   }
-  return { search, doc, stats, excerpts, verifyQuote, byTitle, handle };
+  return { search, doc, stats, excerpts, verifyQuote, byTitle, byNumber, handle };
 }
 
 /* بدائل بنفس واجهة البحث القديم للصياغة والمساعد: lawSearch(action, params) و rulingSearch(q, user, max) */

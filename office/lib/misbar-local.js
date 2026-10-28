@@ -271,13 +271,14 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
   /* أداة التعديل في القاعدة (لفتحها): عنوانها يحوي نوعها ورقمها وسنتها */
   const instCache = new Map();
   async function instrumentDoc(n) {
-    if (!n.no || typeof misbar.byTitle !== 'function') return null;
+    if (!n.no) return null;
     const k = n.kind + ':' + n.no + ':' + (n.year || ''); if (instCache.has(k)) return instCache.get(k);
-    const q = (n.kind === 'order' ? 'أمر ' : n.kind === 'decree' ? 'قرار بقانون ' : 'قانون ') + n.no + (n.year && n.kind !== 'order' ? ' ' + n.year : '');
-    let hit = null; try { const rx = new RegExp('رقم\\s*\\(?\\s*' + n.no + '\\s*\\)?' + (n.year && n.kind !== 'order' ? '\\s*لسن[ةه]\\s*' + n.year : '')), kindRx = n.kind === 'decree' ? /قرار\s*بقانون/ : n.kind === 'order' ? /^\s*(?:ال)?أمر|^\s*امر/ : /^\s*(?:ال)?قانون/;
-      const cands = (await misbar.byTitle(q, 'PS_LEGISLATION', 60)).filter(x => { const t = flat(x.title); return rx.test(t) && kindRx.test(t) });
-      /* أداة التعديل عنوانها يذكر «تعديل»؛ وتُفضَّل على غيرها */
-      hit = cands.find(x => /تعديل|بتعديل/.test(x.title)) || cands[0] || null } catch { hit = null }
+    let hit = null;
+    try {
+      /* بالرقم والسنة من العنوان مباشرة؛ الأمر العسكري يُعرف برقمه فقط */
+      const cands = typeof misbar.byNumber === 'function' ? await misbar.byNumber(n.kind, n.no, n.kind === 'order' ? '' : n.year) : [];
+      hit = cands.find(x => /تعديل|بتعديل/.test(x.title)) || cands[0] || null;
+    } catch { hit = null }
     const v = hit ? { id: hit.id, title: hit.title } : null; instCache.set(k, v); return v;
   }
   /* فحص سريان مادة (أو تشريع إن لم تُذكر مادة) بالنسبة لمكان الواقعة وتاريخها */
