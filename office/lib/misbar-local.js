@@ -290,8 +290,9 @@ function createLocal({ misbar, now = () => new Date() } = {}) {
       const d = await getDoc(r.id); if (!d || !d.body) { out.push(r); continue }
       const body = flat(d.body), why = [];
       for (const w of r.why) { const q = artQ.find(x => x.label === w); if (!q) { why.push(w); continue }
-        const rx = new RegExp('(?<![ء-ي0-9])(?:ال)?ماد[ةه]\\s*(?:رقم\\s*)?[(\\[]?\\s*' + q.art + '(?!\\d)[^\\n]{0,90}', 'g'); let ok = false;
-        for (const m of body.matchAll(rx)) { const t = norm(m[0]); if (q.lw.every(x => t.includes(x))) { ok = true; break } } if (ok) why.push(w) }
+        const rx = new RegExp('(?<![ء-ي0-9])(?:ال)?ماد[ةه]\\s*(?:رقم\\s*)?[(\\[]?\\s*' + q.art + '(?!\\d)[^\\n.،؛]{0,80}', 'g'); let ok = false;
+        /* اسم القانون يجب أن يلي رقم المادة قبل ذكر مادة أخرى: «المادة 42 من قانون الأصول … قانون العمل» لا تُحسب */
+        for (const m of body.matchAll(rx)) { const tail = m[0].replace(/^[^)\]\d]*[)\]]?\s*\d+/, '').split(/ماد[ةه]/)[0].split(/(?=قانون)/).slice(0, 2).join(''), t = norm(tail); if (q.lw.every(x => t.includes(x))) { ok = true; break } } if (ok) why.push(w) }
       if (!why.length) continue;
       /* الحكم نفسه منشور أحياناً بأكثر من رقم (استئنافان متقابلان): يكفي ظهوره مرة */
       const ex = bestPassage(d.body, terms) || r.excerpt; if (out.some(o => o.title === r.title || (ex && o.excerpt === ex))) continue;
