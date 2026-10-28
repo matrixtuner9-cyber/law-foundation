@@ -78,3 +78,14 @@ test('السريان: مادة أُلغيت بعد الواقعة كانت قا�
   const r2 = (await loc.analyze({ text: 'وفق المادة 10 من قانون أصول المحاكمات المدنية والتجارية فإن التبليغ على العنوان القديم صحيح', eventDate: '2025-06-01' })).body;
   assert.ok(r2.citations[0].valid.flags.some(f => f.level === 'bad' && /قبل الواقعة/.test(f.text)));
 });
+
+test('اكتشف ما فاتك: دفوع شكلية من نصوص قانون الأصول لم ترد في المذكرة، وما ورد منها لا يُقترح', async () => {
+  const loc = L.createLocal({ misbar: mkdb() });
+  const memo = 'مذكرة بدفاع المدعى عليه: المستأنف قدّم استئنافه ضمن ميعاد ثلاثين يوماً، ونطلب رد الدعوى موضوعاً لعدم ثبوت الدين. ' + 'تفصيل '.repeat(10);
+  const r = (await loc.gaps({ text: memo })).body;
+  assert.strictEqual(r.role, 'defendant');
+  const ids = r.defenses.map(d => d.id);
+  assert.ok(ids.includes('jurisdiction'), JSON.stringify(ids)); assert.ok(!ids.includes('notice'), 'مواد التبليغ غير موجودة في هذه القاعدة فلا يُقترح الدفع');
+  assert.ok(!ids.includes('appeal'), 'ذكر الميعاد فلا يُقترح');
+  const j = r.defenses.find(d => d.id === 'jurisdiction'); assert.ok(j.articles.some(a => a.label === 'المادة (39)') && j.articles[0].text.length > 20);
+});

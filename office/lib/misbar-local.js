@@ -50,7 +50,7 @@ const LAWS = [
 const TOPICS = [
   { id: 'notice', label: 'التبليغات', w: ['تبليغ', 'التبليغ', 'مذكرة دعوى', 'ورقة قضائية', 'مأمور التبليغ', 'الموطن المختار', 'النشر في الصحف'], laws: ['usul'], q: 'تبليغ اوراق قضائية بطلان التبليغ' },
   { id: 'jurisdiction', label: 'الاختصاص', w: ['اختصاص', 'الاختصاص القيمي', 'الاختصاص المكاني', 'الاختصاص النوعي', 'عدم الاختصاص', 'محكمة الصلح', 'محكمة البداية'], laws: ['usul', 'courts'], q: 'الدفع بعدم الاختصاص' },
-  { id: 'appeal', label: 'الطعن ومواعيده', w: ['استئناف', 'نقض', 'الطعن', 'ميعاد الطعن', 'مدة الطعن', 'لائحة الاستئناف', 'لائحة الطعن', 'اعتراض الغير', 'إعادة المحاكمة'], laws: ['usul'], q: 'ميعاد الطعن رد الطعن شكلا' },
+  { id: 'appeal', label: 'الطعن ومواعيده', w: ['استئناف', 'الاستئناف', 'استئنافه', 'المستأنف', 'نقض', 'الطعن', 'رد الدعوى', 'رد الاستئناف', 'ميعاد الطعن', 'مدة الطعن', 'لائحة الاستئناف', 'لائحة الطعن', 'اعتراض الغير', 'إعادة المحاكمة'], laws: ['usul'], q: 'ميعاد الطعن رد الطعن شكلا' },
   { id: 'evidence', label: 'الإثبات والبينات', w: ['بينة', 'البينات', 'شاهد', 'الشهود', 'شهادة', 'اليمين', 'إقرار', 'الإقرار', 'خبرة', 'خبير', 'سند عادي', 'سند رسمي', 'إنكار التوقيع', 'الادعاء بالتزوير', 'قرينة'], laws: ['bayyinat'], q: 'عبء الاثبات البينة الشخصية' },
   { id: 'tort', label: 'التعويض عن الضرر', w: ['تعويض', 'ضرر', 'الضرر', 'إهمال', 'الإهمال', 'مسؤولية تقصيرية', 'مخالفة مدنية', 'عطل وضرر'], laws: ['tort'], q: 'التعويض عن الضرر الاهمال' },
   { id: 'accident', label: 'حوادث الطرق والتأمين', w: ['حادث سير', 'حادث طرق', 'مركبة', 'سيارة', 'شركة التأمين', 'تأمين إلزامي', 'صندوق تعويض مصابي', 'مصاب', 'إصابة جسدية', 'عجز'], laws: ['insurance', 'traffic'], q: 'تعويض مصابي حوادث الطرق شركة التامين' },
@@ -480,6 +480,65 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
     } };
   }
 
+
+  /* ── «اكتشف ما فاتك»: ما استشهدت به الأحكام الفلسطينية في المسألة نفسها ولم يذكره المحامي في مذكرته ──
+     يُستخرج ما ذكره (مواد وأحكام)، ثم تُجمع استشهادات الأحكام الأقرب لموضوعه، ويُعرض الفارق بوصفه فرصاً للفحص لا استنتاجات */
+  async function gaps({ text = '', title = '', region = '', eventDate = '' } = {}) {
+    const src = String(text || '').slice(0, 200000);
+    if (src.replace(/\s/g, '').length < 80) return { status: 400, body: { error: 'الصق المذكرة أو اللائحة كاملة (80 حرفاً على الأقل).' } };
+    const t0 = Date.now();
+    const r = await analyze({ text: src, title, region, eventDate }); if (r.status !== 200) return r;
+    const b = r.body;
+    /* ما ذكره المحامي */
+    const citedKeys = new Set(b.citations.filter(c => c.found).map(c => c.lawId + ':' + c.article));
+    const citedLaws = new Set(b.citations.filter(c => c.found).map(c => c.lawId));
+    const mentionedCases = new Set(caseNos(src).map(c => c.no));
+    /* استشهادات الأحكام الأقرب: تُعدّ كل مادة بعدد الأحكام التي استندت إليها، مع الأحكام نفسها */
+    const pool = b.rulings.filter(x => x.primary);
+    const byArt = new Map();
+    for (const x of pool) for (const c of x.cites || []) { const m = /^المادة رقم (\d+) من (.+)$/.exec(c); if (!m) continue; const k = m[2].trim() + '|' + m[1]; const v = byArt.get(k) || { lawTitle: m[2].trim(), n: m[1], rulings: [] }; if (!v.rulings.some(y => y.id === x.id)) v.rulings.push({ id: x.id, title: x.title, case_no: x.case_no, date: x.date }); byArt.set(k, v) }
+    const missed = [], covered = [];
+    for (const v of [...byArt.values()].sort((a, c) => c.rulings.length - a.rulings.length)) {
+      const hit = (typeof misbar.byTitle === 'function' ? await misbar.byTitle(v.lawTitle, 'PS_LEGISLATION', 20) : []).find(x => norm(x.title) === norm(v.lawTitle));
+      if (!hit) continue;
+      const key = hit.id + ':' + v.n;
+      const a = (await articlesOf(hit.id)).find(x => x.n === v.n);
+      const item = { lawId: hit.id, lawTitle: hit.title, status: hit.status || '', n: v.n, label: a ? a.label : 'المادة (' + v.n + ')', text: a ? a.text : '', repealed: a ? a.repealed : false, rulings: v.rulings.slice(0, 6), count: v.rulings.length, valid: await validity(hit.id, a ? a.text : '', { region: b.ctx.region, eventDate: b.ctx.eventDate, lawLevel: false }) };
+      if (citedKeys.has(key)) covered.push(item); else if (v.rulings.length >= 2 || citedLaws.has(hit.id)) missed.push(item);
+      if (missed.length >= 12) break;
+    }
+    /* أحكام في المسألة نفسها لم يذكرها: بترتيب الصلة، مع ما يؤيد الموكل وما قد يعارضه حسب صفته */
+    const role = /المدعى عليه|المستأنف عليه|المطعون ضده|المشتكى عليه|المتهم/.test(flat(src).slice(0, 1500)) && !/بصفتي وكيلاً عن المدعي|موكلي المدعي|وكيل المدعي/.test(flat(src)) ? 'defendant' : 'plaintiff';
+    const unseen = []; for (const x of pool.filter(x => !mentionedCases.has(x.case_no)).slice(0, 8)) { const d = await getDoc(x.id); unseen.push({ ...x, stance: stanceOf(d ? structure(d.body) : null, role) }) }
+    /* دفوع شكلية متوقعة في موضوعه لم ترد في مذكرته: تُقترح من المواد لا من عندنا */
+    const DEF = [
+      { id: 'notice', words: ['تبليغ', 'بطلان التبليغ'], law: 'usul', arts: ['13', '20', '22'], label: 'بطلان التبليغ' },
+      { id: 'jurisdiction', words: ['عدم الاختصاص', 'الاختصاص القيمي', 'الاختصاص المكاني'], law: 'usul', arts: ['39', '42'], label: 'الدفع بعدم الاختصاص' },
+      { id: 'appeal', words: ['ميعاد', 'بعد الميعاد', 'شكلاً'], law: 'usul', arts: ['193', '195', '205'], label: 'رد الطعن شكلاً لفوات الميعاد' },
+      { id: 'interest', words: ['المصلحة', 'الصفة'], law: 'usul', arts: ['3'], label: 'انتفاء المصلحة أو الصفة' },
+      { id: 'resjudicata', words: ['حاز قوة الأمر المقضي', 'سبق الفصل'], law: 'usul', arts: ['226'], label: 'سبق الفصل في النزاع' },
+    ];
+    const defenses = [];
+    const n = ' ' + norm(src) + ' ', topicIds = new Set(b.topics.map(t => t.id));
+    for (const D of DEF) {
+      if (D.words.some(w => n.includes(' ' + norm(w) + ' ') || n.includes(norm(w)))) continue;
+      const L = await resolveLaw(D.law); if (!L) continue; const arts = await articlesOf(L.id);
+      const found = D.arts.map(k => arts.find(a => a.n === k)).filter(Boolean).map(a => ({ label: a.label, text: a.text }));
+      if (found.length) defenses.push({ id: D.id, label: D.label, lawId: L.id, lawTitle: L.title, articles: found, why: 'لم ترد عبارة «' + D.words[0] + '» في المذكرة؛ يُعرض للفحص فقط' });
+    }
+    return { status: 200, body: { title: clip(title, 160), at: now().toISOString(), ms: Date.now() - t0, offline: true, ctx: b.ctx, topics: b.topics,
+      cited: b.citations, coveredCount: covered.length, missed, unseenRulings: unseen, defenses, role,
+      notice: 'فرص للفحص لا استنتاجات: ما يلي هو ما استشهدت به الأحكام الفلسطينية الأقرب لموضوع مذكرتك ولم يرد فيها، مع نصوصه كما في القاعدة. صلته بوقائعك يقدّرها المحامي.' } };
+  }
+  /* يؤيد أم يعارض؟ تصنيف آلي لمنطوق الحكم بالنسبة لصفة الموكل (مدعٍ/طاعن أم مدعى عليه)، يُعرض كاحتمال لا حكم */
+  function stanceOf(st, role) {
+    if (!st || !st.result || !st.result.length) return '';
+    const won = st.result.some(r => /قُبل الطعن|نُقض|أُلغي/.test(r)), lost = st.result.some(r => /رُدّ الطعن/.test(r));
+    if (!won && !lost) return '';
+    const forAppellant = won && !lost;
+    return role === 'plaintiff' ? (forAppellant ? 'قد يؤيد (قُبل الطعن)' : 'قد يعارض (رُدّ الطعن)') : (forAppellant ? 'قد يعارض (قُبل الطعن)' : 'قد يؤيد (رُدّ الطعن)');
+  }
+
   /* ── تشريح الحكم بالقواعد: البنية المعتادة للأحكام الفلسطينية (الهيئة، الأطراف، الحكم المطعون فيه، الأسباب، «لذلك»، المنطوق) ── */
   const ROLES = ['المستأنف عليهما', 'المستأنف عليهم', 'المستأنف عليها', 'المستأنف عليه', 'المستأنفة', 'المستأنفون', 'المستأنفان', 'المستأنف', 'المستدعى ضدهم', 'المستدعى ضدها', 'المستدعى ضده', 'المستدعية', 'المستدعون', 'المستدعي', 'المطعون ضدهم', 'المطعون ضدها', 'المطعون ضده', 'الطاعنة', 'الطاعنون', 'الطاعنان', 'الطاعن', 'المدعى عليهم', 'المدعى عليها', 'المدعى عليه', 'المدعية', 'المدعون', 'المدعي', 'المشتكي', 'المشتكى عليه', 'المتهم', 'المتهمة', 'النيابة العامة', 'المعترض', 'المعترض عليه'];
   const ROLE_RX = new RegExp('^(' + ROLES.map(r => r.replace(/\s+/g, '\\s*')).join('|') + ')\\s*(?:[:：]|$)');
@@ -549,6 +608,7 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
     try {
       if (action === 'analyze') { const r = await analyze(b); audit && audit({ user_id: me && me.id, user_name: me && me.name, action: 'misbar.local.analyze', entity: 'misbar', detail: { chars: String(b.text || '').length, laws: r.body.citations ? r.body.citations.length : 0 } }); return r }
       if (action === 'dissect') return await dissect(b);
+      if (action === 'gaps') { const r = await gaps(b); audit && audit({ user_id: me && me.id, user_name: me && me.name, action: 'misbar.local.gaps', entity: 'misbar', detail: { chars: String(b.text || '').length, missed: r.body.missed ? r.body.missed.length : 0 } }); return r }
       const who = { user_id: me && me.id, user_name: me && me.name };
       if (action === 'dict') return { status: 200, body: dict() };
       if (action === 'feedback') {
@@ -574,7 +634,7 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
       throw e;
     }
   }
-  return { analyze, dissect, handle, resolveLaw };
+  return { analyze, dissect, gaps, handle, resolveLaw };
 }
 
 module.exports = { createLocal, amendNotes, RULES, citations, dates, amounts, caseNos, topics, keyterms, splitArticles, matchLaw, LAWS, TOPICS };

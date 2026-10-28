@@ -127,3 +127,19 @@ test('تعليم المسبار: التقييم السالب يخفي النتي
   assert.deepStrictEqual(r.learned.synonyms, ['فصل تعسفي']); assert.ok(r.topics.some(t => t.id === 'labour'), 'المرادف أظهر الموضوع');
   const p = r.laws.find(l => l.lawId === 1).articles[0]; assert.strictEqual(p.n, '46'); assert.match(p.why, /^مثبّتة في قاموس المكتب/);
 });
+
+test('اكتشف ما فاتك: المواد التي استشهدت بها الأحكام ولم تُذكر في المذكرة، والأحكام غير المذكورة بموقفها، ودفوع لم ترد', async () => {
+  const loc = L.createLocal({ misbar: mkdb() });
+  const memo = 'بصفتي وكيلاً عن المدعي العامل أتقدم بهذه المذكرة: فصل صاحب العمل موكلي فصلاً تعسفياً ولم يدفع مكافأة نهاية الخدمة، واستناداً إلى المادة 42 من قانون العمل الفلسطيني نلتمس الحكم بالمكافأة والتعويض. ' + 'تفصيل '.repeat(10);
+  const r = await loc.gaps({ text: memo });
+  assert.strictEqual(r.status, 200, JSON.stringify(r.body));
+  const b = r.body;
+  assert.ok(b.missed.some(m => m.n === '45' && m.lawTitle.startsWith('قانون العمل')), 'المادة 45 استشهد بها الحكم ولم تُذكر: ' + JSON.stringify(b.missed.map(m => m.n)));
+  assert.ok(!b.missed.some(m => m.n === '42'), 'المذكورة لا تُعدّ فائتة');
+  assert.ok(b.missed[0].text.startsWith('مكافأة نهاية الخدمة'), 'نص المادة الفائتة حرفياً');
+  assert.strictEqual(b.missed[0].rulings[0].case_no, '102/2018');
+  assert.strictEqual(b.role, 'plaintiff');
+  const u = b.unseenRulings.find(x => x.case_no === '102/2018'); assert.ok(u); assert.match(u.stance, /قد يعارض/, 'رُدّ الاستئناف فيعارض المدعي');
+  assert.deepStrictEqual(b.defenses, [], 'لا قانون أصول في هذه القاعدة فلا دفوع تُقترح');
+  assert.strictEqual((await loc.gaps({ text: 'قصير' })).status, 400);
+});
