@@ -1,0 +1,75 @@
+<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><style>
+@font-face{font-family:Plex;src:url(IBMPlexSansArabic_700Bold.ttf);font-weight:700}
+@font-face{font-family:Plex;src:url(IBMPlexSansArabic_500Medium.ttf);font-weight:500}
+@font-face{font-family:Cairo;src:url(cairo-arabic.woff2) format('woff2');font-weight:200 1000}
+*{margin:0;box-sizing:border-box}
+body{width:1080px;height:1920px;overflow:hidden;background:#050d16;font-family:Plex;color:#fff;direction:rtl}
+.pn{position:absolute;left:14px;right:14px;overflow:hidden;border-radius:22px;box-shadow:0 0 0 3px #c99a40,0 0 0 6px #0b1b2b,inset 0 0 0 1px rgba(243,213,138,.4)}
+.bg{position:absolute;inset:0;background-size:cover;background-position:center}
+.shade{position:absolute;inset:0}
+.bub{position:absolute;white-space:nowrap;padding:22px 30px;border-radius:30px;font-family:Cairo;font-weight:800;font-size:36px;line-height:1.4;box-shadow:0 18px 40px rgba(0,0,0,.45)}
+.bub.w{background:#fff;color:#0b1b2b}
+.bub.g{background:linear-gradient(135deg,#13263b,#0b1b2b);color:#fff;border:3px solid #f3d58a}
+.bub.g em{font-style:normal;color:#f3d58a}
+.bub::after{content:'';position:absolute;bottom:-18px;width:0;height:0;border:18px solid transparent;border-bottom:0}
+.bub.w::after{border-top-color:#fff}.bub.g::after{border-top-color:#f3d58a}
+.bub.tr::after{right:46px}.bub.tl::after{left:46px}
+.chip{position:absolute;font-family:Cairo;font-weight:900;font-size:34px;color:#0b1b2b;background:linear-gradient(135deg,#f3d58a,#c99a40);padding:10px 28px;border-radius:999px;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+.scr{position:absolute;border-radius:18px;overflow:hidden;box-shadow:0 0 0 3px #f3d58a,0 0 50px rgba(243,213,138,.45),0 30px 60px rgba(0,0,0,.6);background:#fbf7ee}
+.scr img{display:block;width:100%}
+.feat{position:absolute;right:30px;width:590px;display:flex;flex-direction:column;gap:12px}
+.feat div{display:flex;align-items:center;gap:18px;background:rgba(11,27,43,.82);border:2px solid rgba(243,213,138,.55);border-radius:20px;padding:12px 18px;font-size:28px;font-weight:700;line-height:1.3}
+.feat b{flex:none;width:56px;height:56px;border-radius:14px;display:grid;place-items:center;font-size:32px;background:linear-gradient(135deg,#f3d58a,#c99a40);color:#0b1b2b}
+.phone{position:absolute;width:300px;height:560px;border-radius:44px;border:12px solid #0b0f14;overflow:hidden;background:#fbf7ee;box-shadow:0 0 0 3px #f3d58a,0 0 60px rgba(243,213,138,.4),0 40px 80px rgba(0,0,0,.6)}
+.phone img{width:100%;display:block}
+.wa{display:inline-flex;align-items:center;gap:18px;background:linear-gradient(135deg,#2fd06b,#1a9e4b);color:#fff;font-family:Cairo;font-weight:900;font-size:50px;padding:18px 44px;border-radius:999px;direction:ltr;box-shadow:0 20px 50px rgba(37,211,102,.35)}
+.wa svg{width:60px;height:60px}
+</style></head><body>
+
+<!-- 1: المحامي والموكّل -->
+<div class="pn" style="top:14px;height:420px">
+  <div class="bg" style="background-image:url(p1.jpg)"></div>
+  <div class="shade" style="background:linear-gradient(0deg,rgba(5,13,22,.55),transparent 45%)"></div>
+  <div class="bub w tr" style="top:26px;right:30px">أستاذ، كيف بقدر أتابع<br>قضيتي من تلفوني؟</div>
+  <div class="bub g tl" style="bottom:40px;left:30px">مع بوابة <em>«ميثاق»</em> بتتابع جلساتك<br>ومستنداتك، وبتحكي معي مباشرة.</div>
+</div>
+
+<!-- 2: الشاشة -->
+<div class="pn" style="top:452px;height:390px">
+  <div class="bg" style="background-image:url(p2.jpg);background-position:left center"></div>
+  <div class="shade" style="background:linear-gradient(270deg,rgba(5,13,22,.75),transparent 70%)"></div>
+  <div class="scr" style="right:26px;top:70px;width:600px;height:290px"><img src="scr.png"></div>
+  <div class="chip" style="right:40px;top:16px">مكتبة قانونية على جهازك</div>
+  <div class="bub w tl" style="left:24px;bottom:22px;font-size:30px;padding:16px 24px">+11,000 حكم فلسطيني<br>حتى بدون إنترنت</div>
+</div>
+
+<!-- 3: عقل المِسبار -->
+<div class="pn" style="top:860px;height:420px">
+  <div class="bg" style="background:radial-gradient(90% 120% at 80% 30%,#1d3b5c,#0b1b2b 60%,#050d16)"></div>
+  <div class="bg" style="left:0;right:auto;width:420px;background-image:url(k.jpg);background-position:center 18%;-webkit-mask-image:linear-gradient(270deg,transparent,#000 35%)"></div>
+  <div class="bub g tl" style="left:24px;bottom:28px;font-size:30px;padding:16px 24px">وعقل المِسبار…<br><em>شو بيميّزه؟</em></div>
+  <div class="feat" style="top:34px">
+    <div><b>⚖</b>بيربط كل مسألة بالمادة والأحكام</div>
+    <div><b>✂</b>بيشرّح الحكم ويحدد نقاط الطعن</div>
+    <div><b>⚖</b>بيبني ميزان الحجج والخطة</div>
+    <div><b>🔒</b>على جهاز مكتبك… وملفاتك بتضل عندك</div>
+  </div>
+</div>
+
+<!-- 4: التطبيق -->
+<div class="pn" style="top:1298px;height:330px">
+  <div class="bg" style="background-image:url(p1.jpg);filter:blur(6px) brightness(.45);transform:scale(1.1)"></div>
+  <div class="phone" style="left:40px;top:24px;transform:rotate(-6deg)"><img src="m-phone.png"></div>
+  <div class="bub w tr" style="top:28px;right:30px;font-size:32px">يعني بقدر أتابع جلساتي<br>ومستنداتي من التطبيق؟</div>
+  <div class="bub g tr" style="bottom:34px;right:30px;font-size:32px">أكيد، وكل إشي بيوصل<br>على <em>ملف قضيتك</em>… بأمان.</div>
+</div>
+
+<!-- 5: العلامة -->
+<div class="pn" style="top:1646px;height:260px">
+  <div class="bg" style="background:radial-gradient(70% 140% at 50% 0%,#1d3b5c,#0b1b2b 60%,#050d16)"></div>
+  <img src="icon.png" style="position:absolute;right:40px;top:40px;width:180px;border-radius:40px;box-shadow:0 0 0 3px #f3d58a,0 0 50px rgba(243,213,138,.4)">
+  <div style="position:absolute;right:250px;top:34px;font-family:Cairo;font-weight:900;font-size:76px;color:#f3d58a;line-height:1.1">المِسبار</div>
+  <div style="position:absolute;right:252px;top:126px;font-size:34px;font-weight:700;color:#e3e9f1;line-height:1.35">مكتبك كله<br>بنظام واحد</div>
+  <div style="position:absolute;left:34px;top:60px" class="wa"><svg viewBox="0 0 32 32" fill="#fff"><path d="M16 3C9 3 3.3 8.6 3.3 15.6c0 2.4.7 4.7 1.9 6.7L3 29l6.9-2.1c1.9 1 4 1.6 6.1 1.6 7 0 12.7-5.6 12.7-12.6S23 3 16 3zm0 23.1c-1.9 0-3.8-.5-5.4-1.5l-.4-.2-4.1 1.2 1.2-4-.3-.4c-1.1-1.7-1.7-3.6-1.7-5.6C5.3 9.8 10.1 5 16 5s10.7 4.8 10.7 10.6S21.9 26.1 16 26.1zm5.9-7.9c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.6-1.6-1-.9-1.6-1.9-1.8-2.2-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.4.3-.6.1-.2 0-.4 0-.6l-1-2.4c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.2 1.4 3.5c.2.2 2.4 3.6 5.8 5 .8.3 1.4.5 1.9.7.8.3 1.5.2 2.1.1.6-.1 1.9-.8 2.2-1.5.3-.7.3-1.4.2-1.5-.1-.2-.3-.3-.6-.4z"/></svg><span>0568717122</span></div>
+</div>
+</body></html>
