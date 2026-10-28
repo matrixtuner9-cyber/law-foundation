@@ -376,6 +376,12 @@ function createCaseBrain({ kv, state, courts = () => [], analyzer, system = '', 
     const { S, k, err } = caseOf(me, can, M === 'GET' ? query.k : b.k);
     if (err) return { status: err[0], body: { error: err[1] } };
     if (a === 'get' && M === 'GET') return { status: 200, body: view(S, k, me, can) };
+    /* نص القضية كاملاً للمسبار المحلي: يبقى على الجهاز، فلا يُشترط تفعيل الإرسال ولا يُخفى شيء */
+    if (a === 'plain' && M === 'GET') {
+      const ds = docsOf(S, k).map(d => { const t = kv.get(TKEY(d.id), null); const text = (t && t.text) || (typeof d.text === 'string' ? d.text : ''); return { id: d.id, title: d.title || '', text } });
+      const text = [caseFile(S, k), ...ds.filter(d => d.text).map(d => `\n==== مستند: ${d.title} ====\n${d.text}`)].join('\n').slice(0, 200000);
+      return { status: 200, body: { title: `القضية ${k.no || ''} — ${k.subject || ''}`.trim(), text, docs: ds.length, read: ds.filter(d => d.text).length, unread: ds.filter(d => !d.text).map(d => d.title).slice(0, 30) } };
+    }
     if (M !== 'POST') return { status: 404, body: { error: 'غير موجود' } };
     if (!can('write')) return { status: 403, body: { error: 'صلاحيتك للاطلاع فقط.' } };
     if (a === 'enable') {

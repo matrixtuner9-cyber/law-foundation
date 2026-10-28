@@ -78,7 +78,7 @@ function head(){
 function side(){
  const it=(v,ic,t,act='mbView')=>`<button class="${MB.view===v?'on':''}" data-act="${act}" data-v="${v}"><i>${ic}</i>${t}</button>`;
  return `<aside class="mb-side" aria-label="أقسام المسبار"><div class="mb-brand"><img src="misbar-emblem.webp" alt="" width="96" height="91"><b>مِسْبار</b><small>Misbar AI · عقل التحليل والاستنباط القانوني</small></div>
-  <div class="g">الاستقصاء القضائي</div>${it('search','⌕','البحث في التشريعات والقرارات')}${it('tools','✦','التحليل واستخلاص النتائج')}
+  <div class="g">الاستقصاء القضائي</div>${it('search','⌕','البحث في التشريعات والقرارات')}${it('tools','✦','التحليل واستخلاص النتائج')}${it('local','⛁','المسبار المحلي · دون إنترنت')}
   <div class="g">مختبر التحليل</div>${LABT.map(([m,ic,t])=>`<button class="${MB.view==='tools'&&LAB.task===m?'on':''}" data-act="mbLab" data-v="${m}"><i>${ic}</i>${t}</button>`).join('')}
   <div class="g">أدوات القضية</div>${TOOLS.filter(([m])=>['draft','defences','similar','opponent','brief'].includes(m)).map(([m,ic,t])=>`<button data-act="mbTool" data-v="${m}"><i>${ic}</i>${t}</button>`).join('')}
   <div class="g">مراجع المكتب</div><button data-act="nav" data-v="rulings"><i>§</i>الاجتهادات القضائية</button><button data-act="nav" data-v="laws"><i>✎</i>تشريعات المكتب</button><button data-act="nav" data-v="legalShelf"><i>❏</i>مكتبتي القانونية</button>
@@ -145,6 +145,7 @@ function reader(){
    <button class="btn sm" data-act="mbCopy">نسخ</button><button class="btn sm" data-act="mbPrint">طباعة A4</button>
    ${d.kind==='ruling'&&can2('write')?'<button class="btn sm" data-act="mbSaveRuling">حفظ في الاجتهادات</button>':''}
    ${window.MQREFS&&(typeof window.MQ_can!=='function'||window.MQ_can('cases'))?`<button class="btn sm pri" data-act="crLinkDoc" data-v="${d.id}" title="ربط ${d.kind==='law'?'التشريع كاملاً':'الحكم'} بقضية أو أكثر؛ ولربط مادة بعينها اضغط «🔗 ربط» بجانبها، أو ظلّل فقرة">🔗 ربط بقضية</button>`:''}
+   ${d.kind==='ruling'&&d.body?`<button class="btn sm" data-act="mbLocDissect" data-v="${d.id}" title="تقسيم الحكم إلى أطرافه وأسبابه ومنطوقه والمواد التي استند إليها، على الجهاز دون إنترنت">⛁ تشريح دون إنترنت</button>`:''}
    ${d.kind==='ruling'&&d.body&&can2('write')&&window.MQ_judgOpen?`<button class="btn sm pri" data-act="mbJudg" data-v="${d.id}" title="تشريح الحكم: وقائعه ومسائله وتسبيبه والمبدأ منه، ومقارنته بقضية من قضاياك">⚖️ تشريح الحكم</button>`:''}
    ${can2('write')&&d.body?`<button class="btn sm pri" data-act="mbAnalyze">${d.kind==='ruling'?'تحليل الحكم وأسباب الطعن':'تحليل النص'}</button>`:''}
 </div></div>
@@ -188,7 +189,7 @@ function labResult(){const r=LAB.res;
 function toolsView(){setTimeout(loadAi,0);return `<section class="mb-card" id="mbLab">${labView()}</section>`}
 V.misbar=()=>{setTimeout(loadStats,0);
  const enter=!!MB._enter;MB._enter=false;
- return `<div class="mb-wrap${enter?' mb-enter':''}">${head()}<div class="mb-grid">${side()}<main class="mb-main">${MB.view==='tools'?toolsView():`
+ return `<div class="mb-wrap${enter?' mb-enter':''}">${head()}<div class="mb-grid">${side()}<main class="mb-main">${MB.view==='local'?localView():MB.view==='tools'?toolsView():`
   <section class="mb-card"><div class="mb-h"><div><h1>البحث القانوني المتقدم</h1><p class="m">استقصاء التشريعات والقرارات المحلية والمقارنة</p></div></div>${form()}</section>
   <section class="mb-card mb-resw" id="mbRes">${results()}</section>`}</main></div></div>`};
 
@@ -211,7 +212,7 @@ document.addEventListener('submit',ev=>{if(ev.target.id!=='mbForm')return;ev.pre
 document.addEventListener('change',ev=>{if(S.view!=='misbar')return;
  if(ev.target.id==='mbSrcSel'){const was=kindOf();readForm();MB.kind='';MB.country=MB.src?MB.src.slice(0,2):'';document.querySelectorAll('.mb-flag').forEach(b=>b.classList.toggle('on',b.dataset.v===MB.country));if(!MB.src){mbRender();if(hasQuery())run(1);return}if(kindOf()!==was){mbRender();if(hasQuery())run(1);return}}
  if(['mbSrcSel','mbCourt','mbStatus','mbText','mbSort','mbLtype','mbD1','mbD2'].includes(ev.target.id)&&MB.data){run(1)}});
-A.mbView=v=>{readForm();MB.view=v==='tools'?'tools':'search';mbRender()};
+A.mbView=v=>{readForm();MB.view=v==='tools'?'tools':v==='local'?'local':'search';mbRender()};
 A.mbSrc=v=>{readForm();MB.src=MB.src===v?'':v;if(MB.view!=='search'){MB.view='search';mbRender()}const s=document.getElementById('mbSrcSel');if(s)s.value=MB.src;if(hasQuery())run(1);else{MB.data=null;paint()}document.querySelectorAll('.mb-chip').forEach(b=>b.classList.toggle('on',b.dataset.v===MB.src))};
 A.mbPage=v=>run(Number(v)||1);
 /* تبديل نوع المرجع: تتغير الفلاتر، وتُفرَّغ الخاصة بالنوع الآخر */
@@ -456,7 +457,18 @@ html.night .mb-wrap .mb-card{background:#14213A;border-color:#2A3A55}
 html.night .mb-wrap .mb-t{color:#F3E9CF}
 /* مقتطف النتيجة: خلفية بيج غامق فاتحة ونص داكن واضح (منفصل عن زر الإغلاق الذي يحمل الصنف نفسه) */
 .mb-wrap p.mb-x,.mb-wrap p.mb-x:hover{position:static;display:block;margin:8px 0 2px;padding:9px 14px;border-radius:12px;border:1px solid #D2BD8F;background:#E9DCBE;color:#2B2416;font-weight:400;font-size:13.5px;line-height:1.95;cursor:inherit;-webkit-backdrop-filter:none;backdrop-filter:none;box-shadow:none}
-html.night .mb-wrap p.mb-x{background:#3A3324;border-color:#5C4E2E;color:#F2E6C4}`;document.head.appendChild(css)}
+html.night .mb-wrap p.mb-x{background:#3A3324;border-color:#5C4E2E;color:#F2E6C4}
+.mb-los{margin-top:14px}.mb-los>h3,.mb-los summary h3{display:inline;font-size:15.5px;margin:0;color:var(--ink,#2B2416)}.mb-los summary{cursor:pointer;padding:4px 0}.mb-los>h3{display:block;margin-bottom:8px}
+.mb-loa,.mb-lol,.mb-lor{border:1px solid #e8dcc0;border-radius:12px;padding:10px 12px;margin:8px 0;background:#FFFDF8}.mb-loa.miss{background:#FBF3EF;border-color:#ebcfc3}.mb-lor.cmp{background:#F4F7FA;border-color:#d6e0ea}
+.mb-lol>.mb-loa{background:#fff}.mb-loh{display:flex;flex-wrap:wrap;align-items:center;gap:6px}.mb-loh .mb-ref{margin-inline-start:auto}
+.mb-loq{margin:8px 0 4px;padding:8px 12px;border-inline-start:3px solid #C9A24A;background:#FBF6EA;line-height:1.95;white-space:normal}
+.mb-lox{margin:6px 0;line-height:1.9}.mb-low{font-size:12px;color:#7a6a4c;margin-top:4px}.mb-locs{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0}
+.mb-chip{font-size:12px;padding:3px 9px;border-radius:999px;background:#F3EBD8;color:#5a4a2c;border:1px solid #e4d3a6}.mb-chip.on{background:#2F4A3A;color:#F5EBD2;border-color:#2F4A3A}
+.mb-st{font-size:11.5px;padding:2px 8px;border-radius:999px;background:#E7F0E8;color:#2f5b3c}.mb-st.bad{background:#F6E3DE;color:#8a3a2b}
+.mb-lot{width:100%;border-collapse:collapse;font-size:13.5px}.mb-lot th,.mb-lot td{border-bottom:1px solid #eee2c8;padding:6px 8px;text-align:start;vertical-align:top}.mb-lot th{white-space:nowrap;color:#6b5a3a;font-weight:600}
+.mb-lom{margin:6px 0;padding-inline-start:18px;line-height:1.9}.mb-lopre{white-space:normal;line-height:1.95;background:#FFFDF8;border:1px solid #eee2c8;border-radius:10px;padding:10px 12px;max-height:520px;overflow:auto}
+html.night .mb-loa,html.night .mb-lol,html.night .mb-lor,html.night .mb-lopre{background:#2A261D;border-color:#4A4130}html.night .mb-loq{background:#332D21}html.night .mb-lor.cmp{background:#232A31}
+@media (max-width:700px){.mb-lot td:nth-child(4){min-width:180px}}`;document.head.appendChild(css)}
 /* تشريح الحكم من القارئ: اختيار القضية ثم الانتقال إلى تبويب المسبار فيها */
 A.mbJudg=v=>{const d=MB.doc;if(!d||String(d.id)!==String(v)||!window.MQ_judgOpen)return;
  const list=(typeof cases!=='undefined'?cases:[]).filter(k=>k.status!=='closed'&&k.status!=='مغلقة');
@@ -465,4 +477,80 @@ A.mbJudg=v=>{const d=MB.doc;if(!d||String(d.id)!==String(v)||!window.MQ_judgOpen
  m.innerHTML=`<div class="modal-bg" data-act="close"><div class="modal" role="dialog" aria-label="تشريح الحكم"><div class="head"><h1 style="font-size:17px">تشريح الحكم</h1></div><div class="body"><p class="m">اختر القضية التي يُقارَن بها الحكم. يُرسَل نص الحكم (وهو من القاعدة العامة) وملف القضية بعد إخفاء الهويات.</p><select class="field" id="mbJgCase">${list.map(k=>`<option value="${e(k.id)}">${e(k.no)} — ${e(k.subject||k.type||'')}</option>`).join('')}</select></div><div class="foot"><button class="btn" data-act="close">إلغاء</button><button class="btn pri" data-act="mbJudgGo" data-v="${e(String(d.id))}">متابعة</button></div></div></div>`};
 A.mbJudgGo=v=>{const sel=document.getElementById('mbJgCase'),k=sel&&sel.value,d=MB.doc;if(!k||!d)return;
  window.MQ_judgOpen(k,v,cleanT(d.title));A.close();A.openCase(k);S.caseTab='misbar';render()};
+/* ── المسبار المحلي: بحث وتحليل وتشريح على الجهاز من القاعدة المحلية، دون إنترنت ودون إرسال أي نص ── */
+const LOC={mode:'research',text:'',k:'',rtext:'',rid:null,busy:false,res:null,err:'',kind:''};
+const LOCM=[['research','⌕','بحث قانوني','اكتب سؤالك أو وقائع المسألة: يستخرج المواد التي ذكرتها بنصها، ويحدد الموضوعات والتشريعات المعنية وأقرب موادها، ويجلب الأحكام الفلسطينية الأقرب ثم الأردنية والمصرية للمقارنة.'],['case','❏','تحليل قضية','اختر قضية: يقرأ ملفها ونصوص مستنداتها المقروءة على هذا الجهاز، ويرتّب التواريخ ويحسب المدد بينها، ويستخرج المبالغ والأرقام والمواد المذكورة، ثم يبحث في القاعدة كما في البحث القانوني.'],['ruling','§','تشريح حكم','افتح حكماً من القاعدة واضغط «تشريح دون إنترنت»، أو الصق نص حكم: يقسّمه إلى الهيئة والأطراف والحكم المطعون فيه وأسباب الطعن وأسباب المحكمة والمنطوق، مع نصوص المواد التي استند إليها.']];
+function locKeep(){const g=id=>document.getElementById(id);if(g('mbLoT'))LOC.text=g('mbLoT').value;if(g('mbLoK'))LOC.k=g('mbLoK').value;if(g('mbLoR'))LOC.rtext=g('mbLoR').value}
+function localView(){const M=LOCM.find(x=>x[0]===LOC.mode)||LOCM[0];
+ const cs=(typeof cases!=='undefined'?cases:[]).filter(k=>!/مغلق|closed/.test(String(k.status||'')));
+ const form=LOC.mode==='research'?`<label class="wide">السؤال أو الوقائع<textarea class="field" id="mbLoT" rows="7" maxlength="200000" placeholder="مثال: فصل صاحب العمل الموكل بتاريخ 3/2/2024 دون إشعار ولم يدفع مكافأة نهاية الخدمة؛ هل يستحق تعويضاً عن الفصل التعسفي وفق المادة 42 من قانون العمل الفلسطيني؟">${e(LOC.text)}</textarea></label>
+   <div class="mb-labrow"><label class="mb-file">استيراد مستند نصي (txt / docx)<input type="file" id="mbLoFile" accept=".txt,.docx,.md"></label></div>`
+  :LOC.mode==='case'?`<label class="wide">القضية<select class="field" id="mbLoK"><option value="">— اختر القضية —</option>${cs.map(k=>`<option value="${e(k.id)}" ${LOC.k===k.id?'selected':''}>${e(k.no||'قيد التسجيل')} — ${e(k.subject||k.type||'')}</option>`).join('')}</select></label>`
+  :`${LOC.rid?`<div class="mb-cmp">الحكم المختار من القاعدة: <b>${e(LOC.rtitle||'#'+LOC.rid)}</b> <button type="button" class="btn sm" data-act="mbLocClearR">إلغاء</button></div>`:`<label class="wide">نص الحكم<textarea class="field" id="mbLoR" rows="8" placeholder="الصق نص الحكم كاملاً، أو افتح حكماً من «البحث» واضغط «تشريح دون إنترنت»">${e(LOC.rtext)}</textarea></label>`}`;
+ return `<section class="mb-card" id="mbLoc"><div class="mb-h"><div><h1>المسبار المحلي · دون إنترنت</h1><p class="m">يعمل كله على هذا الجهاز من قاعدة المسبار المحلية؛ لا يُرسل أي نص خارج الجهاز ولا يستخدم الذكاء الاصطناعي. لا يكتب رأياً من عنده: يعرض النصوص كما هي ويحسب المدد والمبالغ، ويبيّن سبب ظهور كل نتيجة.</p></div></div>
+  <div class="mb-tabs">${LOCM.map(([m,ic,t])=>`<button type="button" class="${LOC.mode===m?'on':''}" data-act="mbLocMode" data-v="${m}"><i>${ic}</i> ${t}</button>`).join('')}</div>
+  <p class="mb-tdesc">${e(M[3])}</p>
+  <form class="mb-labf" id="mbLocForm" autocomplete="off">${form}
+   <div class="mb-labrow"><button class="btn mb-go" id="mbLoGo" ${LOC.busy?'disabled':''}>${LOC.busy?'جارٍ التحليل على الجهاز…':'⛁ '+(LOC.mode==='ruling'?'تشريح الحكم':'تحليل على الجهاز')}</button>${LOC.busy?'<span class="m">يبحث في القاعدة المحلية…</span>':''}</div>
+  </form>
+  ${LOC.err?`<div class="mb-empty bad">${e(LOC.err)}</div>`:''}
+  ${LOC.res?(LOC.kind==='dissect'?locDissect(LOC.res,true):locResult(LOC.res,true)):''}</section>`}
+const locOpen=(id,t)=>`<button type="button" class="mb-ref" data-act="mbRefOpen" data-v="${id}">${e(t||'فتح النص')}</button>`;
+const locQ=t=>`<blockquote class="mb-loq">${e(t).replace(/\n/g,'<br>')}</blockquote>`;
+const dd=n=>n==null?'—':n===0?'اليوم نفسه':n<0?`بعد ${-n} يوماً`:`${n} يوماً`;
+function locResult(r,ui){
+ const sec=(t,body,n)=>body?`<section class="mb-los"><h3>${t}${n!=null?` <small>(${n})</small>`:''}</h3>${body}</section>`:'';
+ const cits=(r.citations||[]).map(c=>`<div class="mb-loa ${c.found?'':'miss'}"><div class="mb-loh"><b>${e(c.label||('المادة '+c.article))}</b> ${c.lawTitle?`من ${e(c.lawTitle)}`:''} ${c.status?`<span class="mb-st">${e(c.status)}</span>`:''}${c.repealed?'<span class="mb-st bad">ملغاة</span>':''}${ui&&c.lawId?locOpen(c.lawId,'التشريع كاملاً'):''}</div>${c.found?locQ(c.text):`<p class="m">${e(c.note||'')}</p>`}<small class="m">وردت في نصك: «${e(c.ctx)}»</small></div>`).join('');
+ const laws=(r.laws||[]).map(l=>`<div class="mb-lol"><div class="mb-loh"><b>${e(l.title)}</b> <span class="mb-st">${e(l.status||'')}</span>${l.topic?`<span class="mb-chip">${e(l.topic)}</span>`:''}${ui?locOpen(l.lawId,'التشريع كاملاً'):''}</div>${(l.articles||[]).map(a=>`<div class="mb-loa"><div class="mb-loh"><b>${e(a.label)}</b> <small class="m">${e(a.why)}</small></div>${locQ(a.text)}</div>`).join('')||'<p class="m">لم تُطابَق مادة بعينها مع كلمات نصك؛ افتح التشريع كاملاً.</p>'}</div>`).join('');
+ const rul=(arr,cmp)=>(arr||[]).map(x=>`<div class="mb-lor ${cmp?'cmp':''}"><div class="mb-loh"><b>${e(x.title)}</b>${ui?locOpen(x.id,'نص الحكم'):''}</div><div class="m">${e([x.court,x.case_no&&'رقم '+x.case_no,x.date,x.source].filter(Boolean).join(' · '))}${cmp?' — للمقارنة والاستئناس، غير ملزم أمام المحاكم الفلسطينية':''}</div>${x.excerpt?`<p class="mb-lox">${e(x.excerpt)}</p>`:''}${(x.cites||[]).length?`<div class="mb-locs">${x.cites.map(c=>`<span class="mb-chip">${e(c)}</span>`).join('')}</div>`:''}<div class="mb-low">ظهر بسبب: ${(x.why||[]).map(e).join(' · ')}</div></div>`).join('');
+ const tl=(r.timeline||[]).length?`<table class="mb-lot"><thead><tr><th>التاريخ</th><th>عن السابق</th><th>حتى اليوم</th><th>السياق</th></tr></thead><tbody>${r.timeline.map(t=>`<tr><td class="mono">${e(t.date)}${t.times>1?` <small>×${t.times}</small>`:''}</td><td>${dd(t.sincePrev)}</td><td>${t.fromToday<0?'بعد '+(-t.fromToday)+' يوماً':t.fromToday+' يوماً'}</td><td>${e(t.ctx)}</td></tr>`).join('')}</tbody></table>`:'';
+ const am=(r.amounts||[]).length?`<ul class="mb-lom">${r.amounts.map(a=>`<li><b class="mono">${Number(a.value).toLocaleString('en')}</b> ${e(a.currency)} — <small class="m">${e(a.ctx)}</small></li>`).join('')}</ul><p class="m">المجموع الحسابي لما ورد: ${Object.entries(r.amountTotals||{}).map(([c,v])=>Number(v).toLocaleString('en')+' '+e(c)).join(' · ')} (قد يتكرر المبلغ نفسه في النص)</p>`:'';
+ const ci=r.caseInfo?`<div class="mb-cmp">قُرئ ملف القضية و${r.caseInfo.read} من ${r.caseInfo.docs} مستنداً${(r.caseInfo.unread||[]).length?` — لم تُقرأ بعد: ${r.caseInfo.unread.map(e).join('، ')} (اقرأها من تبويب المسبار في القضية)`:''}.</div>`:'';
+ return `<section class="mb-labres" id="mbLocRes"><div class="mb-rh"><b>${e(r.title||'حصيلة التحليل المحلي')}</b><span class="m">${r.ms!=null?(r.ms<1000?'استغرق أقل من ثانية على الجهاز':'استغرق '+(r.ms/1000).toFixed(1)+' ث على الجهاز'):''}</span></div>
+  <div class="mb-cmp">${e(r.notice||'')}</div>${ci}
+  ${(r.topics||[]).length?`<div class="mb-locs">${r.topics.map(t=>`<span class="mb-chip on" title="${e('الكلمات: '+t.hits.join('، '))}">${e(t.label)}</span>`).join('')}<small class="m"> كلمات البحث: ${e((r.keyterms&&r.keyterms.terms||[]).join('، '))}</small></div>`:''}
+  ${sec('المواد المذكورة في النص',cits,(r.citations||[]).length)}${sec('التشريعات المعنية وأقرب موادها',laws)}${sec('أحكام فلسطينية',rul(r.rulings),(r.rulings||[]).length)}${sec('للمقارنة والاستئناس (الأردن ومصر)',rul(r.comparative,true),(r.comparative||[]).length)}
+  ${sec('التسلسل الزمني والمدد',tl,(r.timeline||[]).length)}${sec('المبالغ',am)}${sec('أرقام دعاوى وطلبات وردت',(r.caseNos||[]).length?`<ul>${r.caseNos.map(c=>`<li><b class="mono">${e(c.no)}</b> ${e(c.kind)} — <small class="m">${e(c.ctx)}</small></li>`).join('')}</ul>`:'')}
+  ${ui?`<div class="mb-tools"><button class="btn sm" data-act="mbLocCopy">نسخ التقرير</button><button class="btn sm" data-act="mbLocPrint">طباعة A4</button></div>`:''}</section>`}
+function locDissect(r,ui){const pre=t=>`<div class="mb-lopre">${e(t).replace(/\n/g,'<br>')}</div>`;
+ const sec=(t,b,open)=>b?`<details class="mb-los" ${open?'open':''}><summary><h3>${t}</h3></summary>${b}</details>`:'';
+ const parties=(r.parties||[]).length?`<table class="mb-lot"><tbody>${r.parties.map(p=>`<tr><th>${e(p.role)}</th><td>${e(p.name)}</td></tr>`).join('')}${(r.counsel||[]).length?`<tr><th>الوكلاء</th><td>${r.counsel.map(e).join(' · ')}</td></tr>`:''}${r.panel?`<tr><th>الهيئة</th><td>${e(r.panel)}</td></tr>`:''}${r.appealed?`<tr><th>الحكم المطعون فيه</th><td>${e(r.appealed)}</td></tr>`:''}</tbody></table>`:'';
+ const cits=[...(r.citations||[]).filter(c=>c.found).map(c=>`<div class="mb-loa"><div class="mb-loh"><b>${e(c.label)}</b> من ${e(c.lawTitle)}${c.repealed?'<span class="mb-st bad">ملغاة</span>':''}</div>${locQ(c.text)}</div>`),...(r.dbCites||[]).filter(c=>!(r.citations||[]).some(x=>x.found&&c.title.includes('رقم '+x.article+' من'))).map(c=>`<div class="mb-loa"><div class="mb-loh"><b>${e(c.title)}</b> <small class="m">مسجّلة في القاعدة لهذا الحكم</small></div>${c.text?locQ(c.text):''}</div>`)].join('');
+ return `<section class="mb-labres" id="mbLocRes"><div class="mb-rh"><b>${e(r.title||'تشريح الحكم')}</b>${ui&&r.id?locOpen(r.id,'النص الكامل'):''}</div>
+  <div class="m">${e([r.court,r.case_no&&'رقم '+r.case_no,r.date,r.source].filter(Boolean).join(' · '))}${r.primary===false?' — للمقارنة والاستئناس، غير ملزم أمام المحاكم الفلسطينية':''}</div>
+  <div class="mb-cmp">${e(r.notice||'')}</div>
+  ${(r.result||[]).length?`<div class="mb-locs"><b>النتيجة (تصنيف آلي):</b> ${r.result.map(x=>`<span class="mb-chip on">${e(x)}</span>`).join('')}</div>`:''}
+  ${sec('الأطراف والهيئة',parties,true)}
+  ${r.operative?sec('المنطوق',pre(r.operative)+(r.closing?`<p class="m">${e(r.closing)}</p>`:''),true):'<p class="m">لم يُعثر على «لذلك» أو «لهذه الأسباب» لتحديد المنطوق؛ راجع النص الكامل.</p>'}
+  ${sec('أسباب الطعن كما وردت',r.grounds?pre(r.grounds):'')}${sec('أسباب المحكمة وتسبيبها',r.reasoning?pre(r.reasoning):'')}
+  ${sec('المواد التي استند إليها الحكم',cits,true)}
+  ${sec('التواريخ الواردة في الحكم',(r.dates||[]).length?`<table class="mb-lot"><tbody>${r.dates.map(t=>`<tr><td class="mono">${e(t.date)}</td><td>${dd(t.sincePrev)}</td><td>${e(t.ctx)}</td></tr>`).join('')}</tbody></table>`:'')}
+  ${ui?`<div class="mb-tools"><button class="btn sm" data-act="mbLocCopy">نسخ التشريح</button><button class="btn sm" data-act="mbLocPrint">طباعة A4</button></div>`:''}</section>`}
+function locText(){const r=LOC.res;if(!r)return'';const L=[];
+ if(LOC.kind==='dissect'){L.push(r.title||'تشريح الحكم',[r.court,r.case_no,r.date].filter(Boolean).join(' · '),'');if((r.result||[]).length)L.push('النتيجة (تصنيف آلي): '+r.result.join('، '),'');for(const p of r.parties||[])L.push(p.role+': '+p.name);if(r.appealed)L.push('الحكم المطعون فيه: '+r.appealed);L.push('');if(r.operative)L.push('المنطوق:',r.operative,'');for(const c of (r.citations||[]).filter(c=>c.found))L.push(c.label+' من '+c.lawTitle+':',c.text,'');return L.join('\n')}
+ if(r.title)L.push(r.title,'');
+ for(const c of r.citations||[])L.push((c.label||'المادة '+c.article)+(c.lawTitle?' من '+c.lawTitle:'')+':',c.found?c.text:'('+(c.note||'غير موجودة')+')','');
+ for(const l of r.laws||[]){L.push(l.title+' — '+(l.status||''));for(const a of l.articles||[])L.push(a.label+': '+a.text);L.push('')}
+ if((r.rulings||[]).length){L.push('أحكام فلسطينية:');for(const x of r.rulings)L.push('- '+x.title+(x.excerpt?'\n  '+x.excerpt:''));L.push('')}
+ if((r.comparative||[]).length){L.push('للمقارنة والاستئناس:');for(const x of r.comparative)L.push('- '+x.source+': '+x.title);L.push('')}
+ if((r.timeline||[]).length){L.push('التسلسل الزمني:');for(const t of r.timeline)L.push(`- ${t.date} (عن السابق: ${dd(t.sincePrev)}): ${t.ctx}`);L.push('')}
+ L.push(r.notice||'');return L.join('\n')}
+A.mbLocMode=v=>{locKeep();LOC.mode=LOCM.some(m=>m[0]===v)?v:'research';LOC.err='';mbRender()};
+A.mbLocClearR=()=>{LOC.rid=null;LOC.rtitle='';mbRender()};
+A.mbLocDissect=v=>{const d=MB.doc;LOC.mode='ruling';LOC.rid=Number(v);LOC.rtitle=d&&String(d.id)===String(v)?cleanT(d.title):'';MB.doc=null;MB.docBusy=false;paintReader();MB.view='local';if(S.view!=='misbar'){A.nav('misbar')}else mbRender();setTimeout(locRun,30)};
+async function locPost(a,b){const r=await fetch('/api/admin/misbar/local/'+a,{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify(b)});
+ if(r.status===401){location.replace('/login.html');throw new Error('انتهت الجلسة')}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(r.status===404?'المسبار المحلي متاح في تطبيق المكتب على الجهاز.':j.error||'تعذّر التحليل');return j}
+async function locRun(){locKeep();if(LOC.busy)return;
+ const m=LOC.mode;let a='analyze',b;
+ if(m==='research'){if(LOC.text.replace(/\s/g,'').length<15)return toast('اكتب السؤال أو الوقائع');b={text:LOC.text}}
+ else if(m==='case'){if(!LOC.k)return toast('اختر القضية');b={k:LOC.k}}
+ else{a='dissect';if(LOC.rid)b={id:LOC.rid};else{if(LOC.rtext.replace(/\s/g,'').length<200)return toast('الصق نص الحكم كاملاً');b={text:LOC.rtext}}}
+ LOC.busy=true;LOC.err='';LOC.res=null;const box=()=>document.getElementById('mbLoc');if(box())box().outerHTML=localView();
+ try{LOC.res=await locPost(a,b);LOC.kind=a}catch(x){LOC.err=x.message}
+ LOC.busy=false;const el=box();if(el){el.outerHTML=localView();const rs=document.getElementById('mbLocRes');if(rs)rs.scrollIntoView({block:'start',behavior:'smooth'})}}
+document.addEventListener('submit',ev=>{if(ev.target.id!=='mbLocForm')return;ev.preventDefault();locRun()},true);
+document.addEventListener('change',async ev=>{if(ev.target.id!=='mbLoFile')return;const f=ev.target.files[0];if(!f)return;locKeep();if(f.size>5*1024*1024)return toast('الملف أكبر من 5 ميغابايت');
+ try{const nm=f.name.toLowerCase();LOC.text=nm.endsWith('.docx')?(typeof window.MQ_docxText==='function'?await MQ_docxText(await f.arrayBuffer()):(()=>{throw new Error('قراءة docx غير متاحة هنا؛ الصق النص')})()):await f.text();const t=document.getElementById('mbLoT');if(t)t.value=LOC.text;toast('استُورد النص')}catch(x){toast(x.message)}});
+A.mbLocCopy=()=>{const t=locText();if(t)navigator.clipboard.writeText(t).then(()=>toast('نُسخ التقرير'),()=>toast('تعذّر النسخ'))};
+A.mbLocPrint=()=>{const r=LOC.res;if(!r||!window.MQP||!MQP.B)return;MQP.open({label:'المسبار المحلي',build(){return {title:'مِسْبار — '+(LOC.kind==='dissect'?'تشريح حكم':'تحليل محلي'),sub:String(r.title||LOC.text||'').slice(0,120),file:'misbar-local',blocks:[{html:`<div class="mb-print">${LOC.kind==='dissect'?locDissect(r,false):locResult(r,false)}</div>`}]}}})};
 })();

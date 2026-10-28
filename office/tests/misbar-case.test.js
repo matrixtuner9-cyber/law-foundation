@@ -231,3 +231,12 @@ test('case brain: judgment dissection of a case document needs read text', async
   const r = await t.call('run', 'POST', { k: 'k1', task: 'judgment', doc: 'd1' });
   assert.equal(r.status, 200, JSON.stringify(r.body)); assert.equal(r.body.findings[0].doc, 'd1'); assert.equal(r.body.findings[0].comparative, false);
 });
+
+test('case brain: plain text of the case for the local engine, without enabling or redaction', async () => {
+  const t = setup();
+  await t.call('doctext', 'POST', { k: 'k1', doc: 'd1', text: 'عقد توريد بين الطرفين وهوية المورد 401234567 ومدة التسليم ثلاثون يوماً من تاريخ 1/3/2025.' });
+  const r = await t.call('plain', 'GET', null, { k: 'k1' });
+  assert.equal(r.status, 200); assert.match(r.body.text, /401234567/); assert.match(r.body.text, /==== مستند: عقد التوريد ====/);
+  assert.equal(r.body.read, 1); assert.equal(t.sent.length, 0, 'nothing sent');
+  assert.equal((await t.call('plain', 'GET', null, { k: 'k2' })).status, 403);
+});
