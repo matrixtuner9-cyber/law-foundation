@@ -525,5 +525,51 @@ if(R==='flow'){
   add(`<svg viewBox="0 0 32 32" fill="#fff"><path d="M16 3C9 3 3.3 8.6 3.3 15.6c0 2.4.7 4.7 1.9 6.7L3 29l6.9-2.1c1.9 1 4 1.6 6.1 1.6 7 0 12.7-5.6 12.7-12.6S23 3 16 3zm0 23.1c-1.9 0-3.8-.5-5.4-1.5l-.4-.2-4.1 1.2 1.2-4-.3-.4c-1.1-1.7-1.7-3.6-1.7-5.6C5.3 9.8 10.1 5 16 5s10.7 4.8 10.7 10.6S21.9 26.1 16 26.1zm5.9-7.9c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.6-1.6-1-.9-1.6-1.9-1.8-2.2-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.4.3-.6.1-.2 0-.4 0-.6l-1-2.4c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.2 1.4 3.5c.2.2 2.4 3.6 5.8 5 .8.3 1.4.5 1.9.7.8.3 1.5.2 2.1.1.6-.1 1.9-.8 2.2-1.5.3-.7.3-1.4.2-1.5-.1-.2-.3-.3-.6-.4z"/></svg><span>0568717122</span>`,'cta wa',{top:'1150px',marginLeft:'-340px'},{a:a+1.2,b:999,from:{s:.8},to:{s:1}});
 }
 
+if(R==='mithaq'){
+  const B=(new URLSearchParams(location.search).get('b')||'0,4.5,8.5,12,17.5,25,29,34,37.5,42').split(',').map(Number);
+  window.DUR=B[B.length-1]+3.2; const sc=i=>[B[i],B[i+1]];
+  const WA=`<svg viewBox="0 0 32 32" fill="#fff"><path d="M16 3C9 3 3.3 8.6 3.3 15.6c0 2.4.7 4.7 1.9 6.7L3 29l6.9-2.1c1.9 1 4 1.6 6.1 1.6 7 0 12.7-5.6 12.7-12.6S23 3 16 3zm0 23.1c-1.9 0-3.8-.5-5.4-1.5l-.4-.2-4.1 1.2 1.2-4-.3-.4c-1.1-1.7-1.7-3.6-1.7-5.6C5.3 9.8 10.1 5 16 5s10.7 4.8 10.7 10.6S21.9 26.1 16 26.1zm5.9-7.9c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.6-1.6-1-.9-1.6-1.9-1.8-2.2-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.4.3-.6.1-.2 0-.4 0-.6l-1-2.4c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.2 1.4 3.5c.2.2 2.4 3.6 5.8 5 .8.3 1.4.5 1.9.7.8.3 1.5.2 2.1.1.6-.1 1.9-.8 2.2-1.5.3-.7.3-1.4.2-1.5-.1-.2-.3-.3-.6-.4z"/></svg><span>0568717122</span>`;
+  add('<i></i>','prog',{},{a:0,b:999,fi:.01}); add('','glow',{},{a:0,b:999,fi:1.5,drift:{s:.2}});
+  let a,b;
+  // 1 — المشكلة
+  [a,b]=sc(0); add('موكّلك بيتّصل <em>كل يوم</em>','cap',{top:'300px',fontSize:'72px'},{a,b,from:{y:24},to:{y:0}});
+  add('<svg viewBox="0 0 24 24" width="150" height="150" fill="#0b1b2b"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg>','ring',{top:'600px'},{a:a+.2,b,from:{s:.6},to:{s:1},on:(t,d)=>{d.style.transform+=` rotate(${Math.sin(t*28)*9}deg)`}});
+  add('إيمتى الجلسة؟','bub',{left:'110px',top:'1020px'},{a:a+1.4,b,fi:.25,from:{s:.6},to:{s:1}});
+  add('شو صار بقضيتي؟','bub',{left:'480px',top:'1220px'},{a:a+2.4,b,fi:.25,from:{s:.6},to:{s:1}});
+  // 2 — ميثاق
+  [a,b]=sc(1); add(`<img src="${A}mithaq-icon.png" style="width:100%;border-radius:60px">`,'logo',{width:'280px',height:'280px',left:'400px',top:'520px'},{a,b,from:{s:.6},to:{s:1}});
+  add('بوابة <em>«ميثاق»</em>','h',{top:'880px'},{a:a+.3,b,from:{y:30},to:{y:0}});
+  add('على تلفون موكّلك','p',{top:'1060px'},{a:a+.8,b,from:{y:20},to:{y:0}});
+  // 3..6 — التلفون (عنصر واحد يتنقّل بين أقسامه)
+  const S3=sc(2),S4=sc(3),S5=sc(4),S6=sc(5);
+  const scroll=t=>{const k=(t0,y0,y1)=>y0+(y1-y0)*inout((t-t0)/1.1);
+    if(t<S4[0]) return k(S3[0]+1,0,150); if(t<S5[0]) return 150; if(t<S6[0]) return k(S5[0],150,420); return k(S6[0],420,470)};
+  add(`<img src="${A}m-phone.png" style="display:block;width:100%">`,'phone',{left:'90px',top:'500px',width:'900px',height:'1260px',overflow:'hidden',padding:'0',borderRadius:'70px',border:'18px solid #0b0f14',background:'#fbf7ee'},
+    {a:S3[0]+.2,b:S6[1],mv:.8,from:{y:200,s:.94},to:{y:0,s:1},on:(t,d)=>{d.firstChild.style.transform=`translateY(${-scroll(t)}px)`;
+      const dim=(t>=S4[0]&&t<S5[0]); d.style.filter=dim?'brightness(.55)':'none'}});
+  add('قضاياه، و<em>وين وصلت</em>','cap',{top:'280px',fontSize:'68px'},{a:S3[0],b:S3[1],from:{y:24},to:{y:0}});
+  add('إشعار <em>قبل الجلسة وبعدها</em>','cap',{top:'280px',fontSize:'64px'},{a:S4[0],b:S4[1],from:{y:24},to:{y:0}});
+  add(`<img src="${A}mithaq-icon.png"><div><b>ميثاق · تذكير</b><span>جلستك بكرا الأحد الساعة 10:00 — محكمة صلح نابلس</span></div>`,'notif',{left:'90px',top:'720px'},{a:S4[0]+.5,b:S4[1],from:{y:-200},to:{y:0}});
+  add(`<img src="${A}mithaq-icon.png"><div><b>ميثاق · الآن</b><span>ما جرى في جلستك: سُمع الشهود وتأجلت للبيّنات</span></div>`,'notif',{left:'90px',top:'1000px'},{a:S4[0]+(S4[1]-S4[0])*.55,b:S4[1],from:{y:200},to:{y:0}});
+  add('المستندات <em>رايحة جاية</em>','cap',{top:'280px',fontSize:'68px'},{a:S5[0],b:S5[1],from:{y:24},to:{y:0}});
+  add(`<img src="${A}icon.png"><div><b>المِسبار · ملف 1187/2025</b><span>وصل من الموكّل: كشف حساب.pdf</span></div>`,'notif',{left:'90px',top:'1520px'},{a:S5[0]+(S5[1]-S5[0])*.55,b:S5[1],from:{y:200},to:{y:0}});
+  add('أتعابه: <em>قدّيش دفع وقدّيش ضايل</em>','cap',{top:'280px',fontSize:'60px'},{a:S6[0],b:S6[1],from:{y:24},to:{y:0}});
+  // 7 — المراسلات
+  [a,b]=sc(6); add('وكل رسالة <em>بقضيتها</em>','cap',{top:'280px',fontSize:'68px'},{a,b,from:{y:24},to:{y:0}});
+  add(`<img src="${A}t-chats.png">`,'pan',{left:'40px',width:'1000px',top:'520px',height:'1180px'},{a:a+.2,b,mv:.8,from:{y:120,s:.96},to:{y:0,s:1},on:(t,d)=>{const im=d.firstChild;const max=Math.max(0,im.offsetWidth-1000);im.style.transform=`translateX(${inout((t-a)/(b-a))*max}px)`}});
+  // 8 — التحكّم
+  [a,b]=sc(7); add('وإنت <em>بتحدد</em> شو بيشوف','cap',{top:'280px',fontSize:'68px'},{a,b,from:{y:24},to:{y:0}});
+  [['مشاركة المستندات',1],['إشعار بموعد الجلسة',1],['ما جرى في الجلسة',1],['ملاحظات المكتب الداخلية',0]].forEach(([x,on],i)=>
+    add(`<span>${x}</span><i class="sw${on?'':' off'}"></i>`,'tog',{left:'110px',top:(620+i*190)+'px'},{a:a+.4+i*.35,b,fi:.3,from:{x:-120},to:{x:0}}));
+  // 9 — النتيجة والختام
+  [a,b]=sc(8); add('<span class="i">📉</span><b>اتصالات أقل</b>','res',{left:'100px',top:'560px'},{a,b,fi:.3,from:{x:-160},to:{x:0}});
+  add('<span class="i">😌</span><b>وموكّل مطمّن</b>','res',{left:'100px',top:'820px'},{a:a+1.2,b,fi:.3,from:{x:-160},to:{x:0}});
+  add(`<img src="${A}icon.png" style="width:100%;border-radius:60px">`,'logo',{width:'240px',height:'240px',left:'420px',top:'420px'},{a:b,b:999,from:{s:.6},to:{s:1}});
+  add('المِسبار <em>وميثاق</em>','h',{top:'720px'},{a:b+.2,b:999,from:{y:30},to:{y:0}});
+  add('مكتبك وموكّلك <em>على تواصل</em>','cap',{top:'900px',fontSize:'60px'},{a:b+.5,b:999,from:{y:20},to:{y:0}});
+  add(WA,'cta wa',{top:'1120px',marginLeft:'-340px'},{a:b+.9,b:999,from:{s:.8},to:{s:1}});
+  add('احكينا على الواتساب','p',{top:'1310px'},{a:b+1.2,b:999,from:{y:20},to:{y:0}});
+}
+
 window.render=render; render(0);
 </script></body></html>
