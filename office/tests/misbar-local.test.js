@@ -143,3 +143,11 @@ test('اكتشف ما فاتك: المواد التي استشهدت بها ال
   assert.deepStrictEqual(b.defenses, [], 'لا قانون أصول في هذه القاعدة فلا دفوع تُقترح');
   assert.strictEqual((await loc.gaps({ text: 'قصير' })).status, 400);
 });
+
+test('أداة القياس: Recall@10 وMRR على أسئلة معروفة الإجابة', async () => {
+  const { evaluate } = require('../tools/misbar-eval/run');
+  const r = await evaluate(mkdb(), [{ id: 'a', q: 'العامل فُصل تعسفياً فما التعويض؟', articles: ['labour:47'] }, { id: 'b', q: 'مكافأة نهاية الخدمة للعامل', articles: ['labour:45'], rulings: ['102/2018'] }, { id: 'c', q: 'عقوبة السرقة', articles: ['penal:399'] }]);
+  assert.strictEqual(r.n, 3); assert.strictEqual(r.rows[0].recall, 1); assert.ok(r.rows[0].rr > 0);
+  assert.strictEqual(r.rows[1].recall, 1, JSON.stringify(r.rows[1].hits)); assert.deepStrictEqual(r.rows[2].missingLaw, ['penal'], 'القانون غير موجود في القاعدة يُذكر');
+  assert.ok(r.recall > 0.6 && r.recall < 0.7);
+});
