@@ -26,7 +26,7 @@ function convert(r) {
   const refs = String(r.legislation_refs || '').trim(), topics = String(r.topics || '').trim();
   const date = /^\d{4}-\d{2}-\d{2}$/.test(r.decision_date || '') ? r.decision_date : '';
   const body = [String(r.title || '').trim(), refs && 'التشريعات المستشهد بها: ' + refs, topics && 'الموضوعات: ' + topics, principles && 'المبادئ:\n' + principles].filter(Boolean).join('\n\n');
-  const head = [court.replace(/^محكمة\s+/, '').replace(/الاردنية/, 'الأردنية'), no && y ? `رقم ${no}/${y}` : '', r.panel ? `(${r.panel})` : '', date ? 'تاريخ ' + date : ''].filter(Boolean).join(' ');
+  const head = [court.replace(/الاردنية/, 'الأردنية'), no && y ? `رقم ${no}/${y}` : '', r.panel ? `(${r.panel})` : '', date ? 'تاريخ ' + date : ''].filter(Boolean).join(' ');
   return {
     src: 'JO_CASSATION', country: 'JO', kind: 'ruling', ext_id: 'adaleh-' + (r.item_id ?? r.id), title: clip(head + (topics ? ' — ' + topics : ''), 200), year: y, number: no,
     court: 'محكمة التمييز الأردنية', case_no: no && y ? `${no}/${y}` : '', date, ltype: branchOf(court), subject: [r.subject, topics].filter(Boolean).join(' › '), status: '', status_code: '',
