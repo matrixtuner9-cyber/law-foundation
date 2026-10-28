@@ -98,8 +98,8 @@ function createMisbar(db, { audit } = {}) {
     const per = int(f.per, 5, 50, 20), page = int(f.page, 1, 10000, 1);
     const sort = SORTS.includes(f.sort) ? f.sort : (fq ? 'relevance' : 'year_desc');
     /* مع عبارة بحث: صفوف FTS (صف لكل جزء من نص طويل) تُجمع على معرّف المستند، والترتيب بأفضل bm25 بين الأجزاء */
-    const from = fq ? `(SELECT DISTINCT (fts.rowid % ${CHUNK_BASE}) fid FROM fts WHERE fts MATCH ?) f JOIN docs d ON d.id=f.fid` : 'docs d';
-    const fromRank = fq ? `(SELECT fid, MIN(rk) rk FROM (SELECT (rowid % ${CHUNK_BASE}) fid, rank rk FROM fts WHERE fts MATCH ? AND rank MATCH 'bm25(4.0, 1.0)') GROUP BY fid) f JOIN docs d ON d.id=f.fid` : 'docs d';
+    const from = fq ? `(SELECT DISTINCT (fts.rowid % ${CHUNK_BASE}) fid FROM fts WHERE fts MATCH ?) f CROSS JOIN docs d ON d.id=f.fid` : 'docs d';
+    const fromRank = fq ? `(SELECT fid, MIN(rk) rk FROM (SELECT (rowid % ${CHUNK_BASE}) fid, rank rk FROM fts WHERE fts MATCH ? AND rank MATCH 'bm25(4.0, 1.0)') GROUP BY fid) f CROSS JOIN docs d ON d.id=f.fid` : 'docs d';
     const cond = w, args = (fq ? [fq] : []).concat(a);
     const W = cond.length ? ' WHERE ' + cond.join(' AND ') : '';
     /* الترتيب بالصلة: bm25 مع وزن أكبر للعنوان، ثم الفلسطيني أولاً */
@@ -163,7 +163,7 @@ function createMisbar(db, { audit } = {}) {
   async function byTitle(q, src, n = 50) {
     const ws = [...new Set(norm(q).split(' ').filter(w => w && !STOP.has(w)))].slice(0, 10); if (!ws.length) return [];
     const m = ws.map(w => 'title : "' + w + '"' + (/^\d+$/.test(w) ? '*' : '')).join(' AND '); /* الأرقام ببادئة: «2024» تطابق «2024م» */
-    const rows = await all(`SELECT d.id, d.title, d.status, d.status_code, d.year FROM (SELECT DISTINCT (rowid % ${CHUNK_BASE}) fid FROM fts WHERE fts MATCH ?) f JOIN docs d ON d.id=f.fid WHERE d.has_text=1${src ? ' AND d.src=?' : ''} LIMIT ?`, ...(src ? [m, src, n] : [m, n]));
+    const rows = await all(`SELECT d.id, d.title, d.status, d.status_code, d.year FROM (SELECT DISTINCT (rowid % ${CHUNK_BASE}) fid FROM fts WHERE fts MATCH ?) f CROSS JOIN docs d ON d.id=f.fid WHERE d.has_text=1${src ? ' AND d.src=?' : ''} LIMIT ?`, ...(src ? [m, src, n] : [m, n]));
     return rows.map(r => ({ ...r, title: scrub(r.title) }));
   }
   /* تشريع بنوعه ورقمه وسنته من عنوانه مباشرة (بلا فهرس): «قرار بقانون رقم (24) لسنة 2024» بأي تباعد */
