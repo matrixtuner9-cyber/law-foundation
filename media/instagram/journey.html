@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:Cairo;src:url(assets/cairo-arabic.woff2) format('woff2');font-weight:200 1000}
+@font-face{font-family:Cairo;src:url(assets/cairo-latin.woff2) format('woff2');font-weight:200 1000;unicode-range:U+0000-00FF}
+@font-face{font-family:Plex;src:url(assets/IBMPlexSansArabic_400Regular.ttf);font-weight:400}
+@font-face{font-family:Plex;src:url(assets/IBMPlexSansArabic_600SemiBold.ttf);font-weight:600}
+@font-face{font-family:Plex;src:url(assets/IBMPlexSansArabic_700Bold.ttf);font-weight:700}
+:root{--navy:#0b1b2b;--navy2:#152d47;--gold:#e2bc6a;--gold2:#f3d58a;--cream:#f6efe1;--green:#123d2f;--mute:#9fb0c4}
+*{box-sizing:border-box;margin:0}
+body{background:#333;font-family:Plex,sans-serif}
+.post{width:1080px;height:1350px;position:relative;overflow:hidden;color:#fff;background:radial-gradient(120% 80% at 50% 0%,#1d3b5c 0%,var(--navy) 55%,#060f19 100%);margin:0 0 40px}
+.post.cream{background:radial-gradient(120% 80% at 50% 0%,#fffaf0 0%,var(--cream) 60%,#eadfc6 100%);color:var(--navy)}
+.post.green{background:radial-gradient(120% 80% at 50% 0%,#1d5a45 0%,var(--green) 55%,#07201a 100%)}
+.grain::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(45deg,rgba(255,255,255,.012) 0 2px,transparent 2px 6px);pointer-events:none}
+.brand{position:absolute;top:56px;right:64px;display:flex;align-items:center;gap:18px}
+.brand img{width:74px;height:74px;border-radius:18px}
+.brand b{font-family:Cairo;font-weight:800;font-size:38px;color:var(--gold2);line-height:1}
+.brand small{display:block;font-size:20px;color:var(--mute);margin-top:6px}
+.cream .brand small{color:#7a6c50}
+.tag{position:absolute;top:70px;left:64px;font-family:Cairo;font-weight:700;font-size:22px;color:var(--navy);background:var(--gold);padding:8px 22px;border-radius:999px}
+h1{font-family:Cairo;font-weight:900;font-size:76px;line-height:1.18;letter-spacing:-.5px}
+h1 em{font-style:normal;color:var(--gold2)}
+.cream h1 em{color:#a8771c}
+.lead{font-size:33px;line-height:1.65;color:#d5dde8;font-weight:400}
+.cream .lead{color:#3a4658}
+.txt{position:absolute;right:72px;left:72px;top:190px}
+.shot{position:absolute;border-radius:22px;overflow:hidden;box-shadow:0 40px 90px rgba(0,0,0,.55),0 0 0 2px rgba(243,213,138,.35);background:#fff}
+.shot img{display:block;width:100%}
+.bar{height:34px;background:#e9e2d2;display:flex;gap:9px;align-items:center;padding:0 16px;direction:ltr}
+.bar i{width:13px;height:13px;border-radius:50%;background:#d26a5c}.bar i+i{background:#e0b14f}.bar i+i+i{background:#6aa86a}
+.foot{position:absolute;bottom:54px;right:72px;left:72px;display:flex;justify-content:space-between;align-items:center;font-size:26px;color:var(--mute)}
+.cream .foot{color:#7a6c50}
+.foot b{color:var(--gold2);font-family:Cairo;font-weight:800;direction:ltr}
+.cream .foot b{color:#a8771c}
+.pill{display:inline-flex;align-items:center;gap:12px;border:2px solid rgba(243,213,138,.45);border-radius:999px;padding:10px 26px;font-size:28px;color:var(--gold2);font-weight:600}
+.cream .pill{border-color:#c9a65a;color:#8a6014}
+.chips{display:flex;flex-wrap:wrap;gap:14px;margin-top:34px}
+.glow{position:absolute;width:900px;height:900px;border-radius:50%;background:radial-gradient(circle,rgba(243,213,138,.20),transparent 62%);left:90px;top:330px}
+.list{margin-top:40px;display:grid;gap:22px}
+.li{display:flex;gap:24px;align-items:flex-start;background:rgba(255,255,255,.05);border:1px solid rgba(243,213,138,.22);border-radius:24px;padding:26px 30px}
+.li .ic{flex:0 0 66px;height:66px;border-radius:18px;background:linear-gradient(135deg,var(--gold2),#b98a35);display:grid;place-items:center;font-size:36px;color:var(--navy)}
+.li b{font-family:Cairo;font-weight:800;font-size:36px;display:block;line-height:1.3}
+.li span{font-size:27px;color:#c4cfdc;line-height:1.55}
+.nums{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:46px}
+.num{background:rgba(255,255,255,.06);border:1px solid rgba(243,213,138,.25);border-radius:26px;padding:28px 30px}
+.num b{display:block;font-family:Cairo;font-weight:900;font-size:74px;color:var(--gold2);line-height:1.05;direction:ltr;text-align:right}
+.num span{font-size:27px;color:#d5dde8;line-height:1.45}
+.num.ps{background:linear-gradient(135deg,rgba(243,213,138,.22),rgba(243,213,138,.06));border-color:rgba(243,213,138,.6)}
+.phone{position:absolute;width:430px;height:880px;border-radius:66px;background:#0b0f14;padding:16px;box-shadow:0 50px 100px rgba(0,0,0,.6),0 0 0 3px rgba(243,213,138,.35)}
+.scr{width:100%;height:100%;border-radius:52px;overflow:hidden;background:linear-gradient(180deg,#f7f2e7,#efe5cf);color:#13261f;position:relative;font-size:22px}
+.notch{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:130px;height:34px;background:#0b0f14;border-radius:20px;z-index:2}
+.ph{background:linear-gradient(135deg,#1d5a45,#0e3326);color:#fff;padding:70px 28px 26px}
+.ph small{color:#cfe3d9;font-size:19px}.ph b{display:block;font-family:Cairo;font-size:30px;font-weight:800;margin-top:4px}
+.card{background:#fff;border-radius:22px;margin:16px 18px;padding:18px 20px;box-shadow:0 6px 18px rgba(20,40,30,.08)}
+.card .k{font-size:18px;color:#7c8a83}.card .v{font-family:Cairo;font-weight:800;font-size:27px;color:#123d2f;margin-top:2px}
+.card .s{font-size:19px;color:#4b5b54;margin-top:4px;line-height:1.5}
+.badge{display:inline-block;background:#e9f3ee;color:#1d5a45;border-radius:999px;padding:3px 14px;font-size:17px;margin-top:8px}
+.notif{position:absolute;left:-60px;top:150px;width:560px;background:rgba(255,255,255,.96);color:#13261f;border-radius:26px;padding:20px 24px;box-shadow:0 30px 70px rgba(0,0,0,.45);display:flex;gap:16px;align-items:center;z-index:3}
+.notif img{width:58px;height:58px;border-radius:14px}
+.notif b{font-family:Cairo;font-size:24px;display:block}.notif span{font-size:21px;color:#45524c}
+.lock{width:260px;height:260px;border-radius:50%;margin:60px auto 0;display:grid;place-items:center;background:radial-gradient(circle,rgba(243,213,138,.28),rgba(243,213,138,.04) 70%);border:2px solid rgba(243,213,138,.55);position:relative}
+.ring{position:absolute;inset:-34px;border-radius:50%;border:2px dashed rgba(243,213,138,.3)}
+.center{text-align:center}
+.cta{display:inline-block;margin-top:44px;background:linear-gradient(135deg,var(--gold2),#c99a40);color:var(--navy);font-family:Cairo;font-weight:900;font-size:44px;padding:22px 54px;border-radius:999px;direction:ltr;box-shadow:0 20px 50px rgba(226,188,106,.35)}
+.quote{font-family:Cairo;font-weight:800;font-size:58px;line-height:1.35}
+.x{color:#ff8b7a;text-decoration:line-through;text-decoration-thickness:4px;opacity:.85}
+</style></head><body>
+<!-- كاروسيل «من موكّل جديد لحد قرار المحكمة»: 10 شرائح 1080×1350. يُرسم بـ node render-journey.js -->
+<style>
+.steps{display:grid;grid-template-columns:1fr 1fr;gap:16px 22px;margin-top:44px}
+.st{display:flex;align-items:center;gap:16px;background:rgba(255,255,255,.05);border:1px solid rgba(243,213,138,.22);border-radius:20px;padding:16px 20px;font-size:29px;font-weight:600}
+.st i{font-style:normal;flex:0 0 52px;height:52px;border-radius:14px;background:linear-gradient(135deg,var(--gold2),#b98a35);color:var(--navy);display:grid;place-items:center;font-family:Cairo;font-weight:900;font-size:28px}
+.prog{position:absolute;bottom:58px;right:72px;left:72px;display:flex;align-items:center;gap:20px;direction:rtl}
+.prog .dots{display:flex;gap:9px;flex:1}
+.prog .dots span{flex:1;height:10px;border-radius:6px;background:rgba(255,255,255,.14)}
+.prog .dots span.on{background:var(--gold2)}
+.prog .dots span.done{background:rgba(243,213,138,.4)}
+.prog b{font-family:Cairo;font-weight:800;font-size:26px;color:var(--gold2);white-space:nowrap}
+.swipe{position:absolute;top:70px;left:64px;font-family:Cairo;font-weight:800;font-size:26px;color:var(--navy);background:var(--gold);padding:8px 24px;border-radius:999px}
+.clip{position:absolute;border-radius:22px;overflow:hidden;box-shadow:0 40px 90px rgba(0,0,0,.55),0 0 0 2px rgba(243,213,138,.35);background:#fff}
+.clip img{display:block;width:100%}
+.ai{display:inline-flex;align-items:center;gap:10px;margin-top:26px;background:rgba(243,213,138,.14);border:1px solid rgba(243,213,138,.5);color:var(--gold2);border-radius:999px;padding:8px 22px;font-size:26px;font-weight:600}
+</style>
+
+<!-- 1 الغلاف -->
+<section class="post grain" id="j01">
+  <div class="brand"><img src="assets/icon.png"><div><b>المِسْبار</b><small>رحلة القضية</small></div></div>
+  <div class="swipe">اسحب ←</div>
+  <div class="txt" style="top:200px"><h1 style="font-size:80px">من <em>موكّل جديد</em><br>لحد <em>قرار المحكمة</em></h1>
+    <p class="lead" style="margin-top:18px">11 خطوة واضحة، وكل خطوة ما بتنفتح إلا لما تخلص اللي قبلها. والمِسبار معك بكل خطوة.</p>
+    <div class="steps">
+      <div class="st"><i>1</i>الاستقبال الأولي</div><div class="st"><i>2</i>فحص التعارض</div>
+      <div class="st"><i>3</i>الدراسة الأولية</div><div class="st"><i>4</i>الأتعاب والوكالة</div>
+      <div class="st"><i>5</i>فتح الملف</div><div class="st"><i>6</i>جمع البيّنات</div>
+      <div class="st"><i>7</i>التحليل والاستراتيجية</div><div class="st"><i>8</i>إعداد الأوراق</div>
+      <div class="st"><i>9</i>التقديم والمتابعة</div><div class="st"><i>10</i>الحكم وما بعده</div>
+      <div class="st"><i>11</i>الإغلاق والأرشفة</div>
+    </div></div>
+</section>
+
+<!-- 2 الاستقبال والتعارض -->
+<section class="post grain" id="j02" data-steps="1,2">
+  <div class="brand"><img src="assets/icon.png"><div><b>المِسْبار</b><small>رحلة القضية</small></div></div>
+  <div class="txt" style="top:190px"><h1>الاستقبال<br><em>وفحص التعارض</em></h1>
+    <p class="lead" style="margin-top:18px">بتسجّل الموكّل وقصته وطلباته، والمِسبار بيدوّر على الخصم بكل ملفاتك، وبينبّهك لأي تعارض قبل ما تقبل القضية.</p></div>
+  <div class="clip" style="width:860px;right:110px;top:650px"><img src="assets/s-conflict-m.png"></div>
+</section>
+
+<!-- 3 الدراسة -->
+<section class="post grain" id="j03" data-steps="3">
+  <div class="brand"><img src="assets/icon.png"><div><b>المِسْبار</b><small>رحلة القضية</small></div></div>
+  <div class="txt" style="top:190px"><h1>الدراسة <em>الأولية</em></h1>
+    <p class="lead" style="margin-top:18px">بتحدّد المسائل، و«عقل القانون» بيجيبلك المواد والأحكام الفلسطينية اللي بتحكمها.</p>
+    <div class="ai">✨ عقل القانون</div></div>
+  <div class="clip" style="width:940px;right:70px;top:680px;height:540px"><div class="bar"><i></i><i></i><i></i></div><img src="assets/misbar.png"></div>
+</section>
+
+<!-- 4 الأتعاب وفتح الملف -->
+<section class="post grain" id="j04" data-steps="4,5">
+  <div class="brand"><img src="assets/icon.png"><div><b>المِسْبار</b><small>رحلة القضية</small></div></div>
+  <div class="txt" style="top:190px"><h1>الأتعاب والوكالة<br><em>وفتح الملف</em></h1>
+    <p class="lead" style="margin-top:18px">بتطبع الاتفاقية والوكالة بترويسة مكتبك، وبتفتح الملف: رقم، ومحامي مسؤول، وفريق.</p></div>
+  <div class="clip" style="width:560px;right:70px;top:650px;height:560px"><img src="assets/s-fees-m.png"></div>
+  <div class="clip" style="width:560px;left:70px;top:820px"><img src="assets/s-file-m.png"></div>
+</section>
+
+<!-- 5 البيّنات -->
+<section class="post grain" id="j05" data-steps="6">
+  <div class="brand"><img src="assets/icon.png"><div><b>المِسْبار</b><small>رحلة القضية</small></div></div>
+  <div class="txt" style="top:190px"><h1>جمع <em>البيّنات</em></h1>
+    <p class="lead" style="margin-top:18px">بترفع المستندات، والمِسبار بيقراها وبيبني خريطة الوقائع، وبيقلّك أي واقعة ناقصها دليل.</p>
+    <div class="ai">✨ خريطة الوقائع</div></div>
+  <div class="clip" style="width:900px;right:90px;top:680px;height:540px"><img src="assets/ai-timeline.png"></div>
+</section>
+
+<!-- 6 التحليل -->
+<section class="post grain" id="j06" data-steps="7">
+  <div class="brand"><img src="assets/icon.png"><div><b>المِسْبار</b><small>رحلة القضية</small></div></div>
+  <div class="txt" style="top:190px"><h1>التحليل <em>والاستراتيجية</em></h1>
+    <p class="lead" style="margin-top:18px">الثغرات، وميزان الحجج، وأقوى دفوع ممكن يقدّمها الخصم، والرد عليها.</p>
+    <div class="ai">✨ ميزان الحجج</div></div>
+  <div class="clip" style="width:450px;right:80px;top:680px;height:540px"><img src="assets/ai-mzpro.png"></div>
+  <div class="clip" style="width:450px;left:80px;top:680px;height:540px"><img src="assets/ai-mzcon.png"></div>
+</section>
+
+<!-- 7 الأوراق -->
+<section class="post grain" id="j07" data-steps="8">
+  <div class="brand"><img src="assets/icon.png"><div><b>المِسْبار</b><small>رحلة القضية</small></div></div>
+  <div class="txt" style="top:190px"><h1>إعداد <em>الأوراق</em></h1>
+    <p class="lead" style="margin-top:18px">لائحة الدعوى أو اللائحة الجوابية بتنصاغ من ملف القضية نفسه، وإنت بتراجع وبتعتمد.</p>
+    <div class="ai">✨ صياغة من ملف القضية</div></div>
+  <div class="clip" style="width:900px;right:90px;top:680px;height:540px"><img src="assets/ai-draft.png"></div>
+</section>
+
+<!-- 8 التقديم والمتابعة -->
+<section class="post grain" id="j08" data-steps="9">
+  <div class="brand"><img src="assets/icon.png"><div><b>المِسْبار</b><small>رحلة القضية</small></div></div>
+  <div class="txt" style="top:190px"><h1>التقديم <em>والمتابعة</em></h1>
+    <p class="lead" style="margin-top:18px">قبل كل جلسة ورقة تحضير، وبعدها بتسجّل شو صار، فبيوصل الموكّل على «ميثاق»، والمِسبار بيوصي بالخطوة الجاية.</p></div>
+  <div class="clip" style="width:700px;right:80px;top:700px;height:520px"><img src="assets/s-hreport-m.png"></div>
+  <div class="notif" style="left:70px;top:1010px;width:600px"><img src="assets/mithaq-icon.png"><div><b>ميثاق · الآن</b><span>ما جرى في جلستك: سُمع الشهود وتأجلت للبيّنات</span></div></div>
+</section>
+
+<!-- 9 الحكم وما بعده -->
+<section class="post grain" id="j09" data-steps="10,11">
+  <div class="brand"><img src="assets/icon.png"><div><b>المِسْبار</b><small>رحلة القضية</small></div></div>
+  <div class="txt" style="top:190px"><h1>الحكم <em>وما بعده</em></h1>
+    <p class="lead" style="margin-top:18px">بتسجّل الحكم، والمِسبار بيحسب آخر موعد للطعن وبيبلّغ موكّلك. وبالآخر بتغلق الملف وبتأرشفه.</p></div>
+  <div class="clip" style="width:900px;right:70px;top:640px"><img src="assets/dl-card.png"></div>
+  <div class="clip" style="width:600px;left:70px;top:990px"><img src="assets/dl-prev.png"></div>
+</section>
+
+<!-- 10 الختام -->
+<section class="post grain" id="j10">
+  <div class="brand"><img src="assets/icon.png"><div><b>المِسْبار</b><small>نظام مكاتب المحاماة</small></div></div>
+  <div class="glow" style="top:200px"></div>
+  <div class="txt center" style="top:300px">
+    <img src="assets/icon.png" style="width:220px;border-radius:50px;box-shadow:0 0 0 4px rgba(243,213,138,.6)">
+    <h1 style="margin-top:50px;font-size:84px">من أول موكّل،<br><em>لآخر قرار</em></h1>
+    <p class="lead" style="margin-top:22px">مكتبك كله بنظام واحد. بدك تشوفه على مكتبك؟</p>
+    <div class="cta">واتساب 0568717122</div>
+    <p class="lead" style="margin-top:30px;font-size:28px;color:var(--mute)">📲 كبسة من الرابط بالبايو</p></div>
+</section>
+
+<script>
+document.querySelectorAll('section[data-steps]').forEach(s=>{
+  const on=s.dataset.steps.split(',').map(Number), mx=Math.max(...on);
+  const lab=on.length>1?`الخطوة ${on[0]}–${on[on.length-1]} من 11`:`الخطوة ${on[0]} من 11`;
+  const d=document.createElement('div'); d.className='prog';
+  d.innerHTML=`<b>${lab}</b><div class="dots">${Array.from({length:11},(_,i)=>`<span class="${on.includes(i+1)?'on':(i+1<mx?'done':'')}"></span>`).join('')}</div>`;
+  s.appendChild(d);
+});
+</script>
+</body></html>
