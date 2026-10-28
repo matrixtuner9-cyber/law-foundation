@@ -119,17 +119,17 @@ function drawList() {
     <small>${e([r.city, r.status, r.mobile ? '📱' : (r.phones[0] ? '☎' : 'بلا هاتف'), r.last_at ? 'آخر تواصل ' + r.last_at.slice(0, 10) : ''].filter(Boolean).join(' · '))}</small></div>`).join('');
 }
 async function pick(mno) {
-  const d = await api('/api/lawyer/' + encodeURIComponent(mno)); S.sel = d; S.mobile = d.mobile || ''; S.edited = false;
+  const d = await api('/api/lawyer/' + encodeURIComponent(mno)); S.sel = d; S.mobile = waNumber(d.phones.find(p => local9(p)) || ''); S.edited = false;
   drawList(); drawSel(); drawTpls(); refreshText(true);
 }
 function drawSel() {
   const el = $('#sel'); if (!el) return; const l = S.sel;
   if (!l) { el.innerHTML = '<p class="muted" style="margin-top:12px">ابحث في دليل النقابة (أكثر من 18 ألف محامٍ) واختر المحامي، أو ابدأ «حملة جديدة».</p>'; return }
-  const mobiles = l.phones.map(p => ({ p, wa: waNumber(p) }));
+  const mobiles = l.phones.map(p => ({ p, wa: waNumber(p) })).map(m => ({ ...m, on: m.wa && local9(m.wa) === local9(S.mobile) }));
   el.innerHTML = `<div class="card"><div class="row" style="justify-content:space-between"><h3>${e(l.name)}</h3><button class="btn sm" data-act="fav">${l.fav ? '★ مفضّل' : '☆ مفضّل'}</button></div>
     <div class="muted">${e([l.mno, l.status, l.city].filter(Boolean).join(' · '))}</div>
     ${l.office ? `<div>${e(l.office)}${l.address ? ' — <span class="muted">' + e(l.address) + '</span>' : ''}</div>` : ''}
-    <div class="chips">${mobiles.map(m => `<span class="chip ${m.wa && m.wa === S.mobile ? 'on' : ''}" data-phone="${e(m.wa || '')}" title="${m.wa ? 'جوال (واتساب)' : 'أرضي'}">${m.wa ? '📱' : '☎'} ${e(m.p)}</span>`).join('') || '<span class="muted">لا هاتف في الدليل</span>'}${l.email ? `<span class="chip">✉ ${e(l.email)}</span>` : ''}</div>
+    <div class="chips">${mobiles.map(m => `<span class="chip ${m.on ? 'on' : ''}" data-phone="${e(m.wa || '')}" title="${m.wa ? 'جوال (واتساب)' : 'أرضي'}">${m.wa ? '📱' : '☎'} ${e(m.p)}</span>`).join('') || '<span class="muted">لا هاتف في الدليل</span>'}${l.email ? `<span class="chip">✉ ${e(l.email)}</span>` : ''}</div>
     ${l.never ? `<div class="warn">حالة «${e(l.status)}» — لا تُرسل لها عروض.</div>` : ''}
     <div class="form" style="margin-top:6px">
       <label>المرحلة<select class="field" id="stage">${STAGES.map(([k, t]) => `<option value="${k}" ${l.stage === k ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
@@ -144,7 +144,7 @@ function drawTpls() {
   const el = $('#tpls'); if (!el) return;
   const list = S.tpls.filter(t => !S.cat || t.cat === S.cat || (S.cat === 'custom' && t.custom));
   el.innerHTML = list.map(t => `<div class="tp ${S.tpl === t.id ? 'on' : ''}" data-tpl="${e(t.id)}"><b>${e(t.title)}</b><small>${e((CATS.find(c => c[0] === t.cat) || ['', 'قوالبي'])[1])}${t.custom ? ' · مخصص' : ''}</small></div>`).join('') || '<p class="muted">لا قوالب في هذا التصنيف.</p>';
-  const to = $('#to'); if (to) to.innerHTML = S.sel ? `إلى: <b>${e(S.sel.name)}</b> ${S.mobile ? '· ' + e(S.mobile) : ''}${S.sel.email ? ' · ' + e(S.sel.email) : ''}` : 'اختر المحامي من القائمة (أو اكتب الرسالة واختره لاحقاً)';
+  const to = $('#to'); if (to) to.innerHTML = S.sel ? `إلى: <b>${e(S.sel.name)}</b> ${S.mobile ? `· <span dir="ltr">+${e(S.mobile)}</span> <span class="cc">${['970', '972'].map(c => `<button dir="ltr" class="pill sm ${ccOf(S.mobile) === c ? 'on' : ''}" data-cc="${c}" title="المقدمة الدولية لهذه الرسالة">+${c}</button>`).join('')}</span>` : ''}${S.sel.email ? ' · ' + e(S.sel.email) : ''}` : 'اختر المحامي من القائمة (أو اكتب الرسالة واختره لاحقاً)';
 }
 /* ── صور العرض ── */
 function drawMedia() {
@@ -175,7 +175,11 @@ async function startPaste(where) {
   await copyImage(names[0]); drawPaste();
 }
 function msgMeta() { const t = $('#msg').value, m = missing(t); $('#len').textContent = t.length + ' حرفاً'; $('#miss').textContent = m.length ? 'ينقص: ' + m.join(' ') : '' }
-function waNumber(p) { let d = String(p || '').replace(/[^\d+]/g, ''); if (!d) return ''; if (d.startsWith('+')) d = d.slice(1); else if (d.startsWith('00')) d = d.slice(2); if (/^(970|972)5\d{8}$/.test(d)) return d; if (/^05\d{8}$/.test(d)) return (/^05[69]/.test(d) ? '970' : '972') + d.slice(1); if (/^5\d{8}$/.test(d)) return (/^5[69]/.test(d) ? '970' : '972') + d; return '' }
+/* رقم الجوال المحلي (9 أرقام تبدأ بـ5) ثم المقدمة الدولية: تلقائي (059/056 ← 970، والبقية ← 972) أو 970/972 حسب الاختيار */
+function local9(p) { let d = String(p || '').replace(/[^\d+]/g, ''); if (!d) return ''; if (d.startsWith('+')) d = d.slice(1); else if (d.startsWith('00')) d = d.slice(2); if (/^(970|972)5\d{8}$/.test(d)) return d.slice(3); if (/^05\d{8}$/.test(d)) return d.slice(1); if (/^5\d{8}$/.test(d)) return d; return '' }
+const autoCC = l => /^5[69]/.test(l) ? '970' : '972';
+function waNumber(p, cc) { const l = local9(p); if (!l) return ''; cc = cc || (S.settings && S.settings.cc) || 'auto'; return (cc === '970' || cc === '972' ? cc : autoCC(l)) + l }
+const ccOf = n => String(n || '').slice(0, 3);
 
 /* ── الإرسال ── */
 async function doSend(ch) {
@@ -229,6 +233,7 @@ function settingsView() {
     ${!s.sender ? '<p class="warn">أدخل اسمك أولاً — يظهر في التحية والتوقيع.</p>' : ''}
     <div class="form">${f('sender', 'اسم المرسل', 'مثال: سعيد …')}${f('role', 'الصفة (اختياري)', 'مثال: مسؤول المبيعات')}${f('company', 'الجهة')}${f('phone', 'هاتف التواصل', '059…')}${f('email', 'البريد')}${f('link', 'رابط (موقع أو فيديو تعريفي)', 'https://…')}
       ${f('offer', 'نص العرض الحالي {العرض}', 'مثال: شهر تجربة مجاناً')}${f('offerEnd', 'انتهاء العرض {انتهاء_العرض}', 'مثال: 30/11/2026')}${f('dailyLimit', 'الحد اليومي للرسائل', '40', 'number')}
+      <label>المقدمة الدولية للجوال<select class="field" data-set="cc"><option value="auto" ${!s.cc || s.cc === 'auto' ? 'selected' : ''}>تلقائي: 059 و056 ← ‎+970، وغيرهما ← ‎+972</option><option value="970" ${s.cc === '970' ? 'selected' : ''}>‎+970 دائماً</option><option value="972" ${s.cc === '972' ? 'selected' : ''}>‎+972 دائماً</option></select></label>
       <label>فتح واتساب في<select class="field" data-set="waMode"><option value="app" ${s.waMode !== 'web' ? 'selected' : ''}>تطبيق واتساب على الجهاز</option><option value="web" ${s.waMode === 'web' ? 'selected' : ''}>واتساب ويب (المتصفح)</option></select></label></div>
     <label class="ck" style="margin-top:10px"><input type="checkbox" data-set="optoutLine" ${s.optoutLine ? 'checked' : ''}> أضف سطر «للإيقاف أرسل: إيقاف» إلى الرسائل</label>
     <div class="btns"><button class="btn pri" data-act="saveSet">حفظ</button></div></div>
@@ -258,7 +263,7 @@ function tplModal(t) {
 
 /* ── الأحداث ── */
 document.addEventListener('click', async ev => {
-  const b = ev.target.closest('[data-media],[data-mdel],[data-tab],[data-list],[data-mno],[data-tpl],[data-tone],[data-cat],[data-send],[data-act],[data-phone],[data-open]'); if (!b) return;
+  const b = ev.target.closest('[data-cc],[data-media],[data-mdel],[data-tab],[data-list],[data-mno],[data-tpl],[data-tone],[data-cat],[data-send],[data-act],[data-phone],[data-open]'); if (!b) return;
   const d = b.dataset;
   if (d.media) { const i = S.picked.indexOf(d.media); if (i >= 0) S.picked.splice(i, 1); else S.picked.push(d.media); store.set('picked', S.picked); return drawMedia() }
   if (d.mdel) { if (!confirm('حذف الصورة «' + d.mdel + '»؟')) return; S.media = await api('/api/media/' + encodeURIComponent(d.mdel), { method: 'DELETE' }); S.picked = S.picked.filter(n => n !== d.mdel); store.set('picked', S.picked); return drawMedia() }
@@ -269,7 +274,8 @@ document.addEventListener('click', async ev => {
   if (d.tpl) { S.tpl = d.tpl; store.set('tpl', S.tpl); drawTpls(); return refreshText(true) }
   if (d.tone) { S.tone = d.tone; store.set('tone', S.tone); document.querySelectorAll('[data-tone]').forEach(x => x.classList.toggle('on', x.dataset.tone === S.tone)); return refreshText(true) }
   if (d.cat !== undefined && b.matches('[data-cat]')) { S.cat = d.cat; document.querySelectorAll('[data-cat]').forEach(x => x.classList.toggle('on', x.dataset.cat === S.cat)); return drawTpls() }
-  if (d.phone !== undefined && b.matches('[data-phone]')) { if (d.phone) { S.mobile = d.phone; drawSel(); drawTpls() } return }
+  if (d.cc) { if (S.mobile) { S.mobile = d.cc + local9(S.mobile); drawSel(); drawTpls() } return }
+  if (d.phone !== undefined && b.matches('[data-phone]')) { if (d.phone) { const cc = S.mobile ? ccOf(S.mobile) : ''; S.mobile = cc && local9(d.phone) ? cc + local9(d.phone) : d.phone; drawSel(); drawTpls() } return }
   if (d.send) return doSend(d.send);
   const a = d.act;
   if (a === 'rebuild') return refreshText(true);

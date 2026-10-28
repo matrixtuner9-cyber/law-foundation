@@ -72,7 +72,7 @@ const SEED = require('./templates.js');
     if (!row.custom && now !== cur[t.id] && (!(t.id in prev) || now === prev[t.id])) db.prepare('UPDATE templates SET cat=?, title=?, formal=?, short=?, sort=? WHERE id=?').run(t.cat, t.title, t.formal, t.short, i, t.id);
   });
   kv.set('seed_txt', cur) }
-const DEFAULT_SETTINGS = { waMode: 'app', sender: '', role: '', company: 'المِسْبار — نظام إدارة مكاتب المحاماة', phone: '', email: '', link: '', offer: '', offerEnd: '', dailyLimit: 40, optoutLine: true };
+const DEFAULT_SETTINGS = { cc: 'auto', waMode: 'app', sender: '', role: '', company: 'المِسْبار — نظام إدارة مكاتب المحاماة', phone: '', email: '', link: '', offer: '', offerEnd: '', dailyLimit: 40, optoutLine: true };
 const settings = () => ({ ...DEFAULT_SETTINGS, ...kv.get('settings', {}) });
 
 /* ── البحث في الدليل مع حالة التواصل ── */
