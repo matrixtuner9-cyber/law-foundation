@@ -542,6 +542,7 @@ function locText(){const r=LOC.res;if(!r)return'';const L=[];
  L.push(r.notice||'');return L.join('\n')}
 A.mbLocMode=v=>{locKeep();LOC.mode=LOCM.some(m=>m[0]===v)?v:'research';LOC.err='';mbRender()};
 A.mbLocClearR=()=>{LOC.rid=null;LOC.rtitle='';mbRender()};
+window.MQ_mbLocal=()=>{MB.view='local';LOC.mode=LOC.mode==='dict'?'research':LOC.mode;A.nav('misbar');setTimeout(()=>{const t=document.getElementById('mbLoT');if(t)t.focus()},120)};
 A.mbLocToResearch=()=>{locKeep();LOC.text=LOC.rtext;LOC.mode='research';LOC.res=null;mbRender();setTimeout(locRun,30)};
 A.mbLocDissect=v=>{const d=MB.doc;LOC.mode='ruling';LOC.rid=Number(v);LOC.rtitle=d&&String(d.id)===String(v)?cleanT(d.title):'';MB.doc=null;MB.docBusy=false;paintReader();MB.view='local';if(S.view!=='misbar'){A.nav('misbar')}else mbRender();setTimeout(locRun,30)};
 async function locPost(a,b){const r=await fetch('/api/admin/misbar/local/'+a,{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify(b)});

@@ -54,7 +54,29 @@
 :root[data-theme="prestige"] .top .top-date{order:1}
 :root[data-theme="prestige"] .top .theme{order:0}
 :root[data-theme="prestige"] .top .menu-btn{order:-1}
-.top-icons{display:flex;gap:4px}
+.top-icons{display:flex;gap:4px;align-items:center}
+/* شريط الأوامر */
+body:has(#nav) .tico.tcmd,.tico.tcmd{width:auto;padding:0 12px;gap:6px;display:inline-flex;align-items:center;font:600 13px var(--f-body);color:var(--accent);white-space:nowrap}
+.tnew-w{position:relative;margin-inline-end:6px}
+.tnew{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 14px 0 12px;border-radius:12px;font:700 13.5px var(--f-body);color:#1d1408;background:linear-gradient(180deg,#E3C27A,#C9A24A);box-shadow:0 2px 8px rgb(185 150 90 / .35);white-space:nowrap}
+.tnew svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
+.tnew:hover{filter:brightness(1.05)}.tnew:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tmenu{position:absolute;top:calc(100% + 8px);inset-inline-start:0;z-index:60;min-width:270px;padding:6px;background:var(--surface,#fffdf8);border:1px solid var(--line);border-radius:14px;box-shadow:0 14px 34px rgb(11 27 43 / .16)}
+.tmenu[hidden]{display:none}
+.tmenu button,.gcmd-b{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:10px;width:100%;padding:8px 10px;border-radius:10px;color:var(--ink,#2B2416)}
+.tmenu button:hover,.tmenu button:focus-visible,.gcmd-b:hover,.gcmd-b:focus-visible{background:var(--brass-soft,#F3EBD8);outline:none}
+.tmenu .ci,.gcmd-b .ci{width:32px;height:32px;flex:none;border-radius:9px;display:grid;place-items:center;background:var(--brass-soft,#F3EBD8);color:var(--accent)}
+.tmenu .ci svg,.gcmd-b .ci svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tmenu b,.gcmd-b b{display:block;font-size:13.5px}.tmenu small,.gcmd-b small{display:block;font-size:11.5px;color:var(--muted)}
+.gcmd{padding:4px 0 6px;border-bottom:1px solid var(--line);margin-bottom:4px}.gcmd-h{font-size:11.5px;color:var(--muted);padding:4px 10px}
+html.night .tmenu{background:#1b2236;border-color:#33405e}html.night .tmenu button,html.night .gcmd-b{color:#F2E6C4}
+body:has(#nav) .top .search{min-width:240px;flex:1 1 260px}
+.tico.tcmd .att-n{position:absolute;top:-4px;inset-inline-end:-4px;left:auto}
+.tico.tcmd .tb{inset-inline-end:-4px;top:-4px}
+.tico[data-act="attOpen"] .tb{display:none!important}
+@media (max-width:1700px){.tico.tcmd>span:not(.tb):not(.att-n){display:none}body:has(#nav) .tico.tcmd,.tico.tcmd{width:40px;padding:0;justify-content:center}}
+@media (max-width:1360px){.tico.tcmd>span:not(.tb){display:none}body:has(#nav) .tico.tcmd,.tico.tcmd{width:40px;padding:0;justify-content:center}}
+@media (max-width:700px){.tnew span{display:none}.tnew{padding:0 11px}}
 .tico{all:unset;cursor:pointer;position:relative;width:38px;height:38px;border-radius:12px;display:grid;place-items:center;color:var(--accent);border:1px solid transparent}
 .tico svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .tico:hover{background:var(--brass-soft);border-color:rgb(185 150 90 / .4)}

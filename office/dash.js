@@ -63,9 +63,12 @@ function topBar(){
  if(search&&!search.querySelector('.kbd'))search.insertAdjacentHTML('beforeend','<kbd class="kbd">Ctrl + K</kbd>');
  if(search&&!search.querySelector('.s-ico'))search.insertAdjacentHTML('afterbegin',`<span class="s-ico">${I.search}</span>`);
  const icons=document.createElement('div');icons.className='top-icons';icons.id='topIcons';
- icons.innerHTML=`<button class="tico" data-act="nav" data-v="portal" title="الرسائل الجديدة">${I.bell}<span class="tb" id="tbBell"></span></button>
-  <button class="tico" data-act="nav" data-v="portal" title="بوابة الموكل">${I.mail}</button>
-  <button class="tico" data-act="nav" data-v="agenda" title="المواعيد والجلسات">${I.cal}</button>`;
+ /* شريط الأوامر: «+ جديد» ثم أوامر بأسمائها (تظهر الأسماء على الشاشات العريضة، وتبقى الأيقونة وتلميحها على الضيقة) */
+ icons.innerHTML=`<div class="tnew-w"><button class="tnew" type="button" data-act="topNew" aria-haspopup="menu" aria-expanded="false" id="topNewBtn">${I.plus}<span>جديد</span></button><div class="tmenu" id="topNewMenu" role="menu" hidden></div></div>
+  <button class="tico tcmd" data-act="nav" data-v="portal" title="ما يحتاج انتباهك">${I.bell}<span>للانتباه</span><span class="tb" id="tbBell"></span></button>
+  <button class="tico tcmd" data-act="nav" data-v="agenda" title="المواعيد والجلسات">${I.cal}<span>المواعيد</span></button>
+  <button class="tico tcmd" data-act="nav" data-v="portal" title="رسائل الموكلين">${I.msg}<span>الرسائل</span><span class="tb" id="tbMsg" hidden></span></button>
+  <button class="tico tcmd" data-act="topMisbar" title="المسبار: البحث في التشريعات والأحكام وتحليلها">${I.scales}<span>المسبار</span></button>`;
  const date=document.createElement('div');date.className='top-date';date.id="topDate";
  const theme=document.createElement('button');theme.className='tico theme';theme.id='themeBtn';theme.title='الوضع الليلي';theme.setAttribute('data-act','theme');
  /* الترتيب (من اليمين): المستخدم ثم الأيقونات ثم البحث ثم التاريخ وزر الوضع */
@@ -78,10 +81,37 @@ function drawDate(){const el=document.getElementById('topDate');if(!el)return;co
 const night=()=>document.documentElement.classList.contains('night');
 function userChevron(){const me=document.getElementById('meBtn');if(me&&!me.querySelector('.chev'))me.insertAdjacentHTML('beforeend',`<span class="chev">${I.chev}</span>`)}
 function drawTheme(){userChevron();const b=document.getElementById('themeBtn');if(b)b.innerHTML=night()?I.moon:I.sun;
- const bell=document.getElementById('tbBell');if(bell){const n=unreadN();bell.textContent=n||'';bell.hidden=!n}}
+ const bell=document.getElementById('tbBell');if(bell){const n=unreadN();bell.textContent=n||'';bell.hidden=!n}msgBadge()}
+const msgBadge=()=>{const m=document.getElementById('tbMsg');if(m){const n=unreadN();m.textContent=n>99?'99+':n||'';m.hidden=!n}};
 A.theme=()=>{document.documentElement.classList.toggle('night');try{localStorage.setItem('mq_theme',night()?'night':'day')}catch(e){}drawTheme()};
 try{if(localStorage.getItem('mq_theme')==='night')document.documentElement.classList.add('night')}catch(e){}
 document.addEventListener('keydown',e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='k'){e.preventDefault();const q=document.getElementById('gq');if(q){q.focus();q.select()}}});
+
+
+/* ── الأوامر: قائمة «+ جديد» ولوحة الأوامر داخل البحث الشامل (Ctrl+K) ── */
+const hasNav=v=>!!document.querySelector(`#nav [data-v="${v}"]`)||(typeof V!=='undefined'&&typeof V[v]==='function'&&v!=='misbar');
+const NEWS=()=>[['newCase','','قضية جديدة','فتح ملف قضية',NAV_ICON.cases,hasNav('cases')],['newClient','','موكل جديد','إضافة موكل وبطاقته',I.portal,hasNav('clients')],
+ ['nav','agenda','موعد أو جلسة','في المواعيد والجلسات',I.cal,hasNav('agenda')],['nav','tasks','مهمة','في قائمة المهام',I.task,hasNav('tasks')],
+ ['nav','tpls','عقد أو نموذج','من العقود والنماذج',NAV_ICON.tpls,hasNav('tpls')],['topLocal','','سؤال قانوني للمسبار','بحث دون إنترنت في التشريعات والأحكام',I.scales,hasNav('misbar')]].filter(x=>x[5]);
+const GOS=()=>[...document.querySelectorAll('#nav button[data-v]')].map(b=>['nav',b.dataset.v,b.textContent.replace(/\d+(\s*(جديدة|تحديث))?\s*$/,'').trim(),'انتقال',NAV_ICON[b.dataset.v]||I.doc]).concat(hasNav('misbar')?[['topLocal','','المسبار المحلي · دون إنترنت','انتقال',I.scales]]:[]);
+const cmdBtn=(c,cls='')=>`<button type="button" role="menuitem" class="${cls}" data-act="${c[0]}" ${c[1]?`data-v="${c[1]}"`:''}><span class="ci">${c[4]}</span><span><b>${c[2]}</b><small>${c[3]}</small></span></button>`;
+A.topNew=()=>{const m=document.getElementById('topNewMenu'),b=document.getElementById('topNewBtn');if(!m)return;const open=m.hidden;m.innerHTML=NEWS().map(c=>cmdBtn(c)).join('');m.hidden=!open;b.setAttribute('aria-expanded',open);if(open){const f=m.querySelector('button');if(f)f.focus()}};
+const closeNew=()=>{const m=document.getElementById('topNewMenu');if(m&&!m.hidden){m.hidden=true;const b=document.getElementById('topNewBtn');if(b)b.setAttribute('aria-expanded','false')}};
+document.addEventListener('click',e=>{if(!e.target.closest('.tnew-w')||e.target.closest('.tmenu button'))setTimeout(closeNew,0)},true);
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeNew();const m=document.getElementById('topNewMenu');if(m&&!m.hidden&&/^Arrow(Up|Down)$/.test(e.key)){const bs=[...m.querySelectorAll('button')],i=bs.indexOf(document.activeElement);e.preventDefault();(bs[(i+(e.key==='ArrowDown'?1:-1)+bs.length)%bs.length]||bs[0]).focus()}});
+A.topMisbar=()=>A.nav('misbar');
+A.topLocal=()=>{if(typeof window.MQ_mbLocal==='function')window.MQ_mbLocal();else A.nav('misbar')};
+/* البحث الشامل يعرض الأوامر أيضاً: فارغاً عند التركيز أوامر «جديد»، ومع الكتابة الأوامر المطابقة فوق النتائج */
+function cmdResults(){const q=document.getElementById('gq'),r=document.getElementById('gres');if(!q||!r)return;const t=q.value.trim();
+ r.querySelectorAll('.gcmd').forEach(x=>x.remove());
+ const all=[...NEWS().map(c=>[...c.slice(0,3),'أمر',c[4]]),...GOS()],hits=t?all.filter(c=>c[2].includes(t)||(t.length>=2&&c[2].split(' ').some(w=>w.startsWith(t)))).slice(0,5):NEWS();
+ if(!hits.length)return;
+ if(t&&t.length<2)r.innerHTML='';
+ if(r.querySelector('.empty')&&t)r.querySelector('.empty').remove();
+ r.insertAdjacentHTML('afterbegin',`<div class="gcmd"><div class="gcmd-h">${t?'أوامر':'أوامر سريعة'}</div>${hits.map(c=>cmdBtn(c,'gcmd-b')).join('')}</div>`);r.hidden=false}
+addEventListener('DOMContentLoaded',()=>{const q=document.getElementById('gq');if(!q)return;
+ q.addEventListener('input',()=>setTimeout(cmdResults,0));q.addEventListener('focus',()=>{if(!q.value.trim())cmdResults()});
+ q.addEventListener('blur',()=>setTimeout(()=>{const r=document.getElementById('gres');if(r&&!r.contains(document.activeElement)&&!q.value.trim())r.hidden=true},200))});
 
 /* ── الأيقونات في القائمة الجانبية ── */
 const NAV_ICON={dash:'<svg viewBox="0 0 24 24"><path d="M4 11 12 4l8 7v9H4z"/><path d="M10 20v-6h4v6"/></svg>',
@@ -105,7 +135,7 @@ window.drawNav=function(){baseNav();
  let foot=document.getElementById('navFoot');if(!foot){foot=document.createElement('div');foot.id='navFoot';foot.className='nav-foot';nav.after(foot)}
  foot.innerHTML='';if(st){st.classList.add('low');foot.append(st)}
  foot.insertAdjacentHTML('beforeend',`<button data-act="help" class="low"><span class="nico">${NAV_ICON.help}</span>المساعدة</button><button data-act="logout" class="low out"><span class="nico">${NAV_ICON.out}</span>تسجيل الخروج</button>`);
- const bell=document.getElementById('tbBell');if(bell){const n=unreadN();bell.textContent=n||'';bell.hidden=!n}
+ const bell=document.getElementById('tbBell');if(bell){const n=unreadN();bell.textContent=n||'';bell.hidden=!n}msgBadge()
 };
 function brand(){const b=document.querySelector('.brand');if(!b)return;const nm=b.querySelector('b'),sm=b.querySelector('small');if(nm)nm.textContent=OFFICE.name.replace(/\s+للمحاماة.*$/,' للمحاماة');if(sm)sm.textContent=(MQ.settings&&MQ.settings.tagline)||'محامون ومستشارون قانونيون'}
 A.help=()=>toast('للدعم الفني: تواصل مع مزوّد نظام المِسْبار');
