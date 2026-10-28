@@ -126,9 +126,13 @@ function stats() {
   };
 }
 
+/* ── صور العرض ── */
+const MEDIA = path.join(DATA, 'media'); fs.mkdirSync(MEDIA, { recursive: true });
+const listMedia = () => fs.readdirSync(MEDIA).filter(f => /\.(png|jpe?g|webp|gif)$/i.test(f)).map(f => ({ name: f, size: fs.statSync(path.join(MEDIA, f)).size, url: '/media/' + encodeURIComponent(f) })).sort((a, b) => a.name.localeCompare(b.name, 'ar'));
+
 /* ── الخادم ── */
 const send = (res, code, body, type = 'application/json; charset=utf-8') => { res.writeHead(code, { 'content-type': type, 'cache-control': 'no-store' }); res.end(typeof body === 'string' || Buffer.isBuffer(body) ? body : JSON.stringify(body)) };
-const readBody = req => new Promise((ok, no) => { let b = ''; req.on('data', c => { b += c; if (b.length > 2e6) req.destroy() }); req.on('end', () => { try { ok(b ? JSON.parse(b) : {}) } catch (e) { no(e) } }); req.on('error', no) });
+const readBody = (req, max = 2e6) => new Promise((ok, no) => { let b = ''; req.on('data', c => { b += c; if (b.length > max) req.destroy() }); req.on('end', () => { try { ok(b ? JSON.parse(b) : {}) } catch (e) { no(e) } }); req.on('error', no) });
 const csvCell = v => /[",\n]/.test(String(v ?? '')) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v ?? '');
 
 const server = http.createServer(async (req, res) => {
@@ -167,7 +171,7 @@ const server = http.createServer(async (req, res) => {
       if (c && c.optout) return send(res, 409, { error: 'هذا المحامي طلب عدم مراسلته' });
       if (NEVER.test(r.status || '')) return send(res, 409, { error: 'لا تُرسل عروض لهذه الحالة: ' + r.status });
       const at = now();
-      db.prepare('INSERT INTO log(at,mno,name,channel,tpl,tone,text) VALUES(?,?,?,?,?,?,?)').run(at, b.mno, r.name, String(b.channel || ''), String(b.tpl || ''), String(b.tone || ''), String(b.text || '').slice(0, 4000));
+      db.prepare('INSERT INTO log(at,mno,name,channel,tpl,tone,text) VALUES(?,?,?,?,?,?,?)').run(at, b.mno, r.name, String(b.channel || ''), String(b.tpl || ''), String(b.tone || ''), (String(b.text || '').slice(0, 4000) + (Array.isArray(b.images) && b.images.length ? '\n[صور: ' + b.images.join('، ') + ']' : '')));
       const n = upsertContact(b.mno, { last_at: at, count: ((c && c.count) || 0) + 1, stage: (c && c.stage && c.stage !== 'none') ? c.stage : 'sent' });
       return send(res, 200, { ok: true, contact: n, stats: stats() });
     }
@@ -179,6 +183,21 @@ const server = http.createServer(async (req, res) => {
     if (p === '/api/history' && M === 'GET') {
       const w = [], a = []; if (q.q) { w.push('(name LIKE ? OR mno LIKE ?)'); a.push('%' + q.q + '%', '%' + q.q + '%') } if (q.from) { w.push('at>=?'); a.push(q.from) }
       return send(res, 200, db.prepare(`SELECT * FROM log${w.length ? ' WHERE ' + w.join(' AND ') : ''} ORDER BY id DESC LIMIT ?`).all(...a, Math.min(500, Number(q.limit) || 100)));
+    }
+    /* صور العرض: لقطات من التطبيق تُرفق بالرسائل (تُنسخ للحافظة وتُلصق في واتساب) */
+    if (p === '/api/media' && M === 'GET') return send(res, 200, listMedia());
+    if (p === '/api/media' && M === 'POST') {
+      const b = await readBody(req, 40e6), m = /^data:image\/(png|jpe?g|webp|gif);base64,(.+)$/s.exec(String(b.data || ''));
+      if (!m) return send(res, 400, { error: 'صورة غير مدعومة (PNG أو JPG أو WEBP)' });
+      const ext = m[1] === 'jpeg' ? 'jpg' : m[1], base = path.basename(String(b.name || 'صورة').replace(/\\/g, '/')).replace(/\.[a-z0-9]+$/i, '').replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 60) || 'صورة';
+      let name = base + '.' + ext, k = 2; while (fs.existsSync(path.join(MEDIA, name))) name = `${base} (${k++}).${ext}`;
+      fs.writeFileSync(path.join(MEDIA, name), Buffer.from(m[2], 'base64'));
+      return send(res, 200, { ok: true, name, list: listMedia() });
+    }
+    if (p.startsWith('/api/media/') && M === 'DELETE') { const f = path.join(MEDIA, path.basename(decodeURIComponent(p.slice(11)))); if (fs.existsSync(f)) fs.unlinkSync(f); return send(res, 200, listMedia()) }
+    if (p.startsWith('/media/') && M === 'GET') {
+      const f = path.join(MEDIA, path.basename(decodeURIComponent(p.slice(7)))); if (!fs.existsSync(f)) return send(res, 404, { error: 'not found' });
+      const ext = path.extname(f).slice(1).toLowerCase(); return send(res, 200, fs.readFileSync(f), { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', gif: 'image/gif' }[ext] || 'application/octet-stream');
     }
     if (p === '/api/import' && M === 'POST') { const b = await readBody(req); return send(res, 200, importBar(b.path || '')) }
     if (p === '/api/export.csv') {
@@ -198,4 +217,4 @@ function start(port = PORT) {
   });
 }
 if (require.main === module) start().then(p => console.log(`عروض المِسْبار تعمل: http://localhost:${p}`));
-module.exports = { server, start, waNumber, importBar, search, stats, db, DATA };
+module.exports = { MEDIA, server, start, waNumber, importBar, search, stats, db, DATA };

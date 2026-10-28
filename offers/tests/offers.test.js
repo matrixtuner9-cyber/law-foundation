@@ -39,3 +39,13 @@ test('القوالب: الباقة موجودة، ويمكن إضافة قالب
   await fetch(base + '/api/templates/' + r.body.id, { method: 'DELETE' }); assert.ok(!(await j('/api/templates')).body.find(x => x.id === r.body.id));
 });
 test('التصدير CSV بترميز عربي (BOM لـExcel)', async () => { const b = Buffer.from(await (await fetch(base + '/api/export.csv')).arrayBuffer()); assert.deepStrictEqual([...b.subarray(0, 3)], [0xef, 0xbb, 0xbf]); assert.ok(b.toString('utf8').includes('نبيل اندريا')) });
+
+test('صور العرض: رفع وعرض وحذف، والاسم آمن', async () => {
+  const png = 'data:image/png;base64,' + Buffer.from('89504e470d0a1a0a0000000d4948445200000001000000010806000000', 'hex').toString('base64');
+  const r = await j('/api/media', { name: '../لقطة البحث.png', data: png }); assert.strictEqual(r.status, 200); assert.strictEqual(r.body.name, 'لقطة البحث.png');
+  const r2 = await j('/api/media', { name: 'لقطة البحث.png', data: png }); assert.strictEqual(r2.body.name, 'لقطة البحث (2).png', 'لا يُستبدل ملف موجود');
+  const got = await fetch(base + '/media/' + encodeURIComponent('لقطة البحث.png')); assert.strictEqual(got.headers.get('content-type'), 'image/png');
+  assert.strictEqual((await j('/api/media', { name: 'x.exe', data: 'data:application/x-msdownload;base64,AAAA' })).status, 400);
+  const del = await (await fetch(base + '/api/media/' + encodeURIComponent('لقطة البحث.png'), { method: 'DELETE' })).json(); assert.deepStrictEqual(del.map(m => m.name), ['لقطة البحث (2).png']);
+  assert.strictEqual((await fetch(base + '/media/' + encodeURIComponent('../offers.db'))).status, 404, 'لا يُقرأ ملف خارج مجلد الصور');
+});

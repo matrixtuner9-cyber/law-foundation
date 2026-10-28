@@ -9,7 +9,7 @@ const store = { get: (k, d) => { try { const v = localStorage.getItem('offers.' 
 const CATS = [['', 'الكل', ''], ['intro', 'تعريف', '✦'], ['feature', 'المزايا', '⚖'], ['demo', 'عرض ودعوة', '🖥'], ['offer', 'العروض', '🎁'], ['follow', 'متابعة', '↺'], ['custom', 'قوالبي', '✎']];
 const STAGES = [['', '— لم يُحدَّد —'], ['sent', 'أُرسل'], ['replied', 'ردّ'], ['interested', 'مهتم'], ['demo', 'حُدِّد عرض'], ['trial', 'في التجربة'], ['client', 'مشترك'], ['later', 'لاحقاً'], ['notint', 'غير مهتم']];
 const STAGE_L = Object.fromEntries(STAGES);
-const S = { tab: 'send', facets: null, settings: {}, stats: {}, tpls: [], q: '', list: 'dir', filters: store.get('filters', { city: '', status: 'محامي مزاول', mobile: '1', fresh: '' }), rows: [], total: 0, sel: null, tpl: store.get('tpl', 'intro'), tone: store.get('tone', 's'), cat: '', text: '', edited: false, queue: store.get('queue', null), mobile: '' };
+const S = { tab: 'send', facets: null, settings: {}, stats: {}, tpls: [], q: '', list: 'dir', filters: store.get('filters', { city: '', status: 'محامي مزاول', mobile: '1', fresh: '' }), rows: [], total: 0, sel: null, tpl: store.get('tpl', 'intro'), tone: store.get('tone', 's'), cat: '', text: '', edited: false, queue: store.get('queue', null), mobile: '', media: [], picked: store.get('picked', []), pasteQ: [] };
 
 /* ── بناء الرسالة ── */
 function shortName(n) { const p = String(n || '').trim().split(/\s+/); return p.length > 2 ? p[0] + ' ' + p[p.length - 1] : p.join(' ') }
@@ -32,7 +32,8 @@ function refreshText(force) { if (force || !S.edited) { S.text = build(); S.edit
 
 /* ── التحميل ── */
 async function load() {
-  [S.settings, S.facets, S.tpls, S.stats] = await Promise.all([api('/api/settings'), api('/api/facets'), api('/api/templates'), api('/api/stats')]);
+  [S.settings, S.facets, S.tpls, S.stats, S.media] = await Promise.all([api('/api/settings'), api('/api/facets'), api('/api/templates'), api('/api/stats'), api('/api/media')]);
+  S.picked = S.picked.filter(n => S.media.some(m => m.name === n));
   if (!S.settings.sender) S.tab = 'settings';
   render(); if (S.tab === 'send') search();
 }
@@ -44,6 +45,7 @@ function render() {
   drawToday();
   $('#main').innerHTML = S.tab === 'send' ? sendView() : S.tab === 'history' ? '<div id="hist">جارٍ التحميل…</div>' : settingsView();
   if (S.tab === 'send') { drawList(); drawSel(); drawTpls(); refreshText(); }
+  drawMedia();
   if (S.tab === 'history') drawHistory();
 }
 
@@ -77,6 +79,8 @@ function sendView() {
     <div class="row" style="justify-content:space-between"><span class="muted">نص الرسالة — يمكن التعديل قبل الإرسال</span><button class="btn sm" data-act="rebuild">إعادة بناء من القالب</button></div>
     <textarea class="msg" id="msg"></textarea>
     <div class="row" style="justify-content:space-between"><span class="muted" id="len"></span><span class="warn" id="miss"></span></div>
+    <div class="muted" style="margin-top:8px">صور مع الرسالة <span class="muted">(اختر بالضغط؛ تُنسخ للحافظة فتلصقها في المحادثة)</span></div>
+    <div class="media" id="mediaPick"></div><div id="pasteHint"></div>
     <div class="btns">
       <button class="btn wa" data-send="whatsapp">واتساب</button><button class="btn" data-send="sms">رسالة SMS</button><button class="btn" data-send="email">بريد</button><button class="btn" data-send="call">اتصال</button><button class="btn" data-send="copy">نسخ</button>
     </div>
@@ -142,6 +146,34 @@ function drawTpls() {
   el.innerHTML = list.map(t => `<div class="tp ${S.tpl === t.id ? 'on' : ''}" data-tpl="${e(t.id)}"><b>${e(t.title)}</b><small>${e((CATS.find(c => c[0] === t.cat) || ['', 'قوالبي'])[1])}${t.custom ? ' · مخصص' : ''}</small></div>`).join('') || '<p class="muted">لا قوالب في هذا التصنيف.</p>';
   const to = $('#to'); if (to) to.innerHTML = S.sel ? `إلى: <b>${e(S.sel.name)}</b> ${S.mobile ? '· ' + e(S.mobile) : ''}${S.sel.email ? ' · ' + e(S.sel.email) : ''}` : 'اختر المحامي من القائمة (أو اكتب الرسالة واختره لاحقاً)';
 }
+/* ── صور العرض ── */
+function drawMedia() {
+  const el = $('#mediaPick'); if (el) el.innerHTML = S.media.map(m => { const k = S.picked.indexOf(m.name); return `<div class="th ${k >= 0 ? 'on' : ''}" data-media="${e(m.name)}" title="${e(m.name)}"><img src="${m.url}" alt="">${k >= 0 ? `<span class="k">${k + 1}</span>` : ''}</div>` }).join('') + `<label class="th add" title="إضافة صور من الجهاز">+ صورة<input type="file" accept="image/png,image/jpeg,image/webp" multiple hidden data-upload="1"></label>`;
+  const g = $('#mediaAdmin'); if (g) g.innerHTML = S.media.map(m => `<div class="th" title="${e(m.name)}"><img src="${m.url}" alt=""><button class="x" data-mdel="${e(m.name)}">حذف</button></div>`).join('') + `<label class="th add">+ إضافة<input type="file" accept="image/png,image/jpeg,image/webp" multiple hidden data-upload="1"></label>`;
+  drawPaste();
+}
+function drawPaste() { const h = $('#pasteHint'); if (!h) return; h.innerHTML = S.pasteQ.length ? `<div class="hint">📋 ${e(S.pasteQ[0].msg)}${S.pasteQ.length > 1 ? ` <button class="btn sm" data-act="pasteNext">نسخ الصورة التالية (${S.pasteQ.length - 1})</button>` : ''} <button class="btn sm" data-act="pasteDone">تم</button></div>` : '' }
+async function upload(files) {
+  for (const f of files) {
+    if (f.size > 15e6) { toast('الصورة كبيرة جداً: ' + f.name); continue }
+    const data = await new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(r.result); r.onerror = no; r.readAsDataURL(f) });
+    try { const r = await api('/api/media', { body: { name: f.name, data } }); S.media = r.list; if (!S.picked.includes(r.name)) S.picked.push(r.name) } catch (er) { toast(er.message) }
+  }
+  store.set('picked', S.picked); drawMedia(); toast('أُضيفت الصور');
+}
+/* نسخ صورة للحافظة بصيغة PNG (ما يقبله واتساب عند اللصق) */
+async function copyImage(name) {
+  const m = S.media.find(x => x.name === name); if (!m) return false;
+  const blob = await (await fetch(m.url)).blob();
+  let png = blob;
+  if (blob.type !== 'image/png') { const bmp = await createImageBitmap(blob), c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height; c.getContext('2d').drawImage(bmp, 0, 0); png = await new Promise(ok => c.toBlob(ok, 'image/png')) }
+  try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': png })]); return true } catch (er) { toast('تعذّر نسخ الصورة: ' + er.message); return false }
+}
+async function startPaste(where) {
+  const names = S.picked.slice(); if (!names.length) return;
+  S.pasteQ = names.map((n, i) => ({ name: n, msg: `الصورة ${i + 1} من ${names.length} «${n}» منسوخة — الصقها في ${where} بـ Ctrl+V ثم أرسل.` }));
+  await copyImage(names[0]); drawPaste();
+}
 function msgMeta() { const t = $('#msg').value, m = missing(t); $('#len').textContent = t.length + ' حرفاً'; $('#miss').textContent = m.length ? 'ينقص: ' + m.join(' ') : '' }
 function waNumber(p) { let d = String(p || '').replace(/[^\d+]/g, ''); if (!d) return ''; if (d.startsWith('+')) d = d.slice(1); else if (d.startsWith('00')) d = d.slice(2); if (/^(970|972)5\d{8}$/.test(d)) return d; if (/^05\d{8}$/.test(d)) return (/^05[69]/.test(d) ? '970' : '972') + d.slice(1); if (/^5\d{8}$/.test(d)) return (/^5[69]/.test(d) ? '970' : '972') + d; return '' }
 
@@ -161,9 +193,10 @@ async function doSend(ch) {
   if (ch === 'sms') { if (!tel) return toast('لا رقم هاتف'); url = 'sms:' + (phone ? '+' + phone : tel) + '?body=' + encodeURIComponent(text) }
   if (ch === 'email') { if (!l.email) return toast('لا بريد إلكتروني في الدليل'); const t = S.tpls.find(x => x.id === S.tpl); url = 'mailto:' + l.email + '?subject=' + encodeURIComponent('المِسْبار — ' + (t ? t.title : 'نظام إدارة مكاتب المحاماة')) + '&body=' + encodeURIComponent(text) }
   if (ch === 'call') { if (!tel) return toast('لا رقم هاتف'); url = 'tel:' + (phone ? '+' + phone : tel) }
+  if (S.picked.length && (ch === 'whatsapp' || ch === 'email')) await startPaste(ch === 'email' ? 'رسالة البريد' : 'محادثة واتساب');
   if (url) window.open(url, '_blank');
   if (ch === 'copy' && !confirm('سجّل هذه الرسالة كأنها أُرسلت لهذا المحامي؟')) return;
-  try { const r = await api('/api/log', { body: { mno: l.mno, channel: ch, tpl: S.tpl, tone: S.tone, text } }); S.stats = r.stats; drawToday(); await pick(l.mno); toast('سُجّل التواصل'); if (S.queue && ch !== 'call') setTimeout(() => qMove(1), 600) } catch (er) { toast(er.message) }
+  try { const r = await api('/api/log', { body: { mno: l.mno, channel: ch, tpl: S.tpl, tone: S.tone, text, images: (ch === 'whatsapp' || ch === 'email') ? S.picked : [] } }); S.stats = r.stats; drawToday(); await pick(l.mno); toast('سُجّل التواصل'); if (S.queue && ch !== 'call' && !S.pasteQ.length) setTimeout(() => qMove(1), 600) } catch (er) { toast(er.message) }
 }
 
 /* ── الحملة ── */
@@ -204,6 +237,7 @@ function settingsView() {
     <div class="form"><label>مسار ملف الدليل lawyers.json (من بيانات المِسْبار)<input class="field" id="barPath" value="${e(s.bar_path || m.file || '')}" placeholder="D:\\Misbar Data\\data\\bar\\lawyers.json"></label></div>
     <div class="btns"><button class="btn" data-act="importBar">تحديث الدليل من الملف</button></div>
     <p class="muted">التحديث لا يمسّ سجل التواصل ولا المراحل ولا قائمة «لا يُراسل».</p></div>
+  <div class="panel" style="margin-top:14px"><h2>صور العرض</h2><p class="muted">لقطات من التطبيق أو ملصق العرض تُرفق بالرسائل. واتساب لا يقبل الصور عبر الرابط، فتُنسخ الصورة للحافظة لتلصقها في المحادثة (Ctrl+V).</p><div class="media" id="mediaAdmin"></div></div>
   <div class="panel" style="margin-top:14px"><h2>القوالب</h2><div class="btns"><button class="btn" data-act="tplNew">+ قالب جديد</button><button class="btn" data-act="tplReset">استعادة نصوص القوالب الأصلية</button></div>
     <p class="muted">المتغيرات: {الاسم} {المدينة} {المكتب} {المرسل} {الصفة} {الجهة} {هاتف_المرسل} {بريد_المرسل} {الرابط} {العرض} {انتهاء_العرض} {الموعد_ب}</p></div>`;
 }
@@ -224,8 +258,10 @@ function tplModal(t) {
 
 /* ── الأحداث ── */
 document.addEventListener('click', async ev => {
-  const b = ev.target.closest('[data-tab],[data-list],[data-mno],[data-tpl],[data-tone],[data-cat],[data-send],[data-act],[data-phone],[data-open]'); if (!b) return;
+  const b = ev.target.closest('[data-media],[data-mdel],[data-tab],[data-list],[data-mno],[data-tpl],[data-tone],[data-cat],[data-send],[data-act],[data-phone],[data-open]'); if (!b) return;
   const d = b.dataset;
+  if (d.media) { const i = S.picked.indexOf(d.media); if (i >= 0) S.picked.splice(i, 1); else S.picked.push(d.media); store.set('picked', S.picked); return drawMedia() }
+  if (d.mdel) { if (!confirm('حذف الصورة «' + d.mdel + '»؟')) return; S.media = await api('/api/media/' + encodeURIComponent(d.mdel), { method: 'DELETE' }); S.picked = S.picked.filter(n => n !== d.mdel); store.set('picked', S.picked); return drawMedia() }
   if (d.tab) { S.tab = d.tab; render(); if (S.tab === 'send') search(); return }
   if (d.list) { S.list = d.list; S.q = ''; render(); search(); return }
   if (d.mno) return pick(d.mno);
@@ -237,6 +273,8 @@ document.addEventListener('click', async ev => {
   if (d.send) return doSend(d.send);
   const a = d.act;
   if (a === 'rebuild') return refreshText(true);
+  if (a === 'pasteNext') { S.pasteQ.shift(); if (S.pasteQ.length) await copyImage(S.pasteQ[0].name); return drawPaste() }
+  if (a === 'pasteDone') { S.pasteQ = []; drawPaste(); if (S.queue) qMove(1); return }
   if (a === 'fav' && S.sel) { await api('/api/contact', { body: { mno: S.sel.mno, fav: !S.sel.fav } }); return pick(S.sel.mno) }
   if (a === 'tplNew') return tplModal();
   if (a === 'tplEdit') return tplModal(S.tpls.find(t => t.id === S.tpl));
@@ -255,6 +293,7 @@ document.addEventListener('input', ev => {
 });
 document.addEventListener('change', async ev => {
   const t = ev.target, f = S.filters;
+  if (t.dataset && t.dataset.upload) { const fl = [...t.files]; t.value = ''; return upload(fl) }
   if (['fCity', 'fStatus', 'fMobile', 'fFresh'].includes(t.id)) { f.city = $('#fCity').value; f.status = $('#fStatus').value; f.mobile = $('#fMobile').checked ? '1' : ''; f.fresh = $('#fFresh').checked ? '30' : ''; store.set('filters', f); return search() }
   if (S.sel && ['stage', 'nextAt', 'note', 'optout'].includes(t.id)) {
     const body = { mno: S.sel.mno }; if (t.id === 'stage') body.stage = t.value; if (t.id === 'nextAt') body.next_at = t.value; if (t.id === 'note') body.note = t.value;
