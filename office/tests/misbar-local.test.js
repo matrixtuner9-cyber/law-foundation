@@ -95,3 +95,12 @@ test('analyze: المواد التي استندت إليها الأحكام ال
   const a = law.articles.find(x => x.n === '45');
   assert.ok(a, JSON.stringify(law.articles.map(x => x.n))); assert.match(a.why, /^استند إليها حكم واحد/); assert.strictEqual(a.text, L.splitArticles(LAW)[2].text);
 });
+
+test('dissect: ملخص وقائع لا حكم كامل — يُستخرج ما قضت به المحكمة ويُنبَّه أنه ليس حكماً', async () => {
+  const loc = L.createLocal({ misbar: mkdb() });
+  const t = 'وقائع القضية: قام خالد بتحرير شيك بتاريخ 1 مارس 2025 وأعاده البنك بتاريخ 10 مارس 2025 لعدم كفاية الرصيد. ' + 'تفصيل '.repeat(20) + '\nوأمام المحكمة ثبت أن الحساب ليس به رصيد، وبناء عليه أصدرت المحكمة حكماً غيابياً بإدانة المتهم والحكم عليه بالحبس لمدة سنة.';
+  const r = await loc.dissect({ text: t });
+  assert.strictEqual(r.status, 200); assert.strictEqual(r.body.judgmentLike, false); assert.strictEqual(r.body.operative, '');
+  assert.match(r.body.opGuess, /أصدرت المحكمة حكماً غيابياً/); assert.ok(r.body.result.includes('غيابياً') && r.body.result.includes('الإدانة/عقوبة'));
+  assert.deepStrictEqual(r.body.dates.map(d => d.sincePrev), [null, 9]);
+});

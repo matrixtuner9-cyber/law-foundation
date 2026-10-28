@@ -521,7 +521,8 @@ function locDissect(r,ui){const pre=t=>`<div class="mb-lopre">${e(t).replace(/\n
   <div class="mb-cmp">${e(r.notice||'')}</div>
   ${(r.result||[]).length?`<div class="mb-locs"><b>النتيجة (تصنيف آلي):</b> ${r.result.map(x=>`<span class="mb-chip on">${e(x)}</span>`).join('')}</div>`:''}
   ${sec('الأطراف والهيئة',parties,true)}
-  ${r.operative?sec('المنطوق',pre(r.operative)+(r.closing?`<p class="m">${e(r.closing)}</p>`:''),true):'<p class="m">لم يُعثر على «لذلك» أو «لهذه الأسباب» لتحديد المنطوق؛ راجع النص الكامل.</p>'}
+  ${!r.judgmentLike&&!r.id?`<div class="mb-cmp">يبدو هذا النص ملخص وقائع لا حكماً كاملاً (لا أطراف ولا «لذلك»)؛ التشريح يناسب نص الحكم كما صدر. ${ui?'<button type="button" class="btn sm" data-act="mbLocToResearch">ابحث فيه بحثاً قانونياً ←</button>':''}</div>`:''}
+  ${r.operative?sec('المنطوق',pre(r.operative)+(r.closing?`<p class="m">${e(r.closing)}</p>`:''),true):r.opGuess?sec('ما قضت به المحكمة (مستخرج من النص)',pre(r.opGuess),true):'<p class="m">لم يُعثر على «لذلك» أو «لهذه الأسباب» لتحديد المنطوق؛ راجع النص الكامل.</p>'}
   ${sec('أسباب الطعن كما وردت',r.grounds?pre(r.grounds):'')}${sec('أسباب المحكمة وتسبيبها',r.reasoning?pre(r.reasoning):'')}
   ${sec('المواد التي استند إليها الحكم',cits,true)}
   ${sec('التواريخ الواردة في الحكم',(r.dates||[]).length?`<table class="mb-lot"><tbody>${r.dates.map(t=>`<tr><td class="mono">${e(t.date)}</td><td>${dd(t.sincePrev)}</td><td>${e(t.ctx)}</td></tr>`).join('')}</tbody></table>`:'')}
@@ -537,6 +538,7 @@ function locText(){const r=LOC.res;if(!r)return'';const L=[];
  L.push(r.notice||'');return L.join('\n')}
 A.mbLocMode=v=>{locKeep();LOC.mode=LOCM.some(m=>m[0]===v)?v:'research';LOC.err='';mbRender()};
 A.mbLocClearR=()=>{LOC.rid=null;LOC.rtitle='';mbRender()};
+A.mbLocToResearch=()=>{locKeep();LOC.text=LOC.rtext;LOC.mode='research';LOC.res=null;mbRender();setTimeout(locRun,30)};
 A.mbLocDissect=v=>{const d=MB.doc;LOC.mode='ruling';LOC.rid=Number(v);LOC.rtitle=d&&String(d.id)===String(v)?cleanT(d.title):'';MB.doc=null;MB.docBusy=false;paintReader();MB.view='local';if(S.view!=='misbar'){A.nav('misbar')}else mbRender();setTimeout(locRun,30)};
 async function locPost(a,b){const r=await fetch('/api/admin/misbar/local/'+a,{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify(b)});
  if(r.status===401){location.replace('/login.html');throw new Error('انتهت الجلسة')}const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(r.status===404?'المسبار المحلي متاح في تطبيق المكتب على الجهاز.':j.error||'تعذّر التحليل');return j}

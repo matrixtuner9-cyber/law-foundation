@@ -366,7 +366,10 @@ function createLocal({ misbar, now = () => new Date() } = {}) {
     /* أسباب الطعن: من «أسباب الاستئناف/الطعن» حتى بدء أسباب المحكمة */
     let grAt = -1; for (let i = 0; i < (rsAt >= 0 ? rsAt : L.length); i++) if (/(?:أسباب|اسباب)\s*(?:ال)?(?:استئناف|طعن|الاستئناف|الطعن|الاعتراض)|وتتلخص\s*أسباب|تتلخص\s*اسباب|وقد\s*بني\s*الطعن|ويستند\s*الطعن/.test(L[i])) { grAt = i; break }
     const grounds = grAt >= 0 ? lines.slice(grAt, rsAt >= 0 ? rsAt : grAt + 40).join('\n').trim() : '';
-    const op = tidy(operative), result = [];
+    /* نص ليس حكماً كاملاً (ملخص وقائع مثلاً): آخر جملة تذكر ما قضت به المحكمة تُعرض «منطوقاً مستخرجاً» */
+    let opGuess = '';
+    if (opAt < 0) { const sents = String(raw).replace(/\r/g, '').split(/(?<=[.؟!])\s+|\n+/).map(x => x.trim()).filter(Boolean); for (let i = sents.length - 1; i >= 0; i--) if (/(?:أصدرت|اصدرت|قضت|حكمت|قررت|تقرر|نقرر)\s+(?:المحكمة|المحكمه|محكمة)?/.test(sents[i]) || /الحكم\s+عليه/.test(sents[i])) { opGuess = sents[i]; break } }
+    const op = tidy(operative || opGuess), result = [];
     if (/رد\s*(?:ال)?(?:استئناف|طعن|اعتراض|الاستئناف|الطعن)\s*(?:موضوعا|موضوعاً)/.test(op) || /تأييد\s*(?:الحكم|القرار)/.test(op)) result.push('رُدّ الطعن موضوعاً وأُيّد الحكم');
     if (/رد\s*(?:ال)?(?:استئناف|طعن|الاستئناف|الطعن)\s*شكلا/.test(op)) result.push('رُدّ الطعن شكلاً');
     if (/قبول\s*(?:ال)?(?:استئناف|طعن|الاستئناف|الطعن)/.test(op)) result.push('قُبل الطعن');
@@ -379,7 +382,8 @@ function createLocal({ misbar, now = () => new Date() } = {}) {
     if (/إدانة|ادانة|بالحبس|بالسجن|الأشغال/.test(op)) result.push('الإدانة/عقوبة');
     if (/فسخ/.test(op)) result.push('الفسخ');
     if (/(?:إلزام|الزام)\s*/.test(op)) result.push('إلزام بمبلغ أو أداء');
-    return { panel, parties, counsel: [...new Set(counsel)].slice(0, 8), appealed, grounds, reasoning, operative, /* النص القانوني كاملاً كما ورد، دون اختصار */ closing: clip(closing, 300), result: [...new Set(result)], found: { operative: opAt >= 0, reasoning: rsAt >= 0, grounds: grAt >= 0 } };
+    if (/غيابي/.test(op)) result.push('غيابياً'); else if (/حضوري|وجاهي/.test(op)) result.push('حضورياً');
+    return { opGuess, judgmentLike: opAt >= 0 || parties.length > 0, panel, parties, counsel: [...new Set(counsel)].slice(0, 8), appealed, grounds, reasoning, operative, /* النص القانوني كاملاً كما ورد، دون اختصار */ closing: clip(closing, 300), result: [...new Set(result)], found: { operative: opAt >= 0, reasoning: rsAt >= 0, grounds: grAt >= 0 } };
   }
   async function dissect({ id, text = '' } = {}) {
     let d = null;
