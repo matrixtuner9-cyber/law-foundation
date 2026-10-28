@@ -52,7 +52,7 @@ const aiKey = () => store.kv.get('ai_key') || process.env.ANTHROPIC_API_KEY || g
 const dsKey = () => store.kv.get('deepseek_key') || process.env.DEEPSEEK_API_KEY || gwToken();
 /* مختبر تحليل المسبار: DeepSeek أو Claude، مراجعه من القاعدة المحلية فقط */
 const misbarAi = MisbarAi.createAnalyzer({ misbar, keys: { deepseek: dsKey, anthropic: aiKey, provider: () => store.kv.get('ai_provider') || '' }, audit, models: { deepseek: process.env.MQ_DEEPSEEK_MODEL, anthropic: process.env.MQ_AI_MODEL } });
-const misbarLocal = require('./lib/misbar-local').createLocal({ misbar });
+const misbarLocal = require('./lib/misbar-local').createLocal({ misbar, kv: store.kv });
 const caseBrain = MisbarCase.createCaseBrain({ kv: store.kv, state: () => cur(), courts: () => SEED.courts || [], analyzer: misbarAi, system: MisbarAi.SYSTEM, norm: Misbar.norm, audit, match: require('./mizan/match').match, getDoc: id => misbar.doc(id) });
 const drafter = AiDraft.createDrafter({ audit, getKey: aiKey, laws, lawSearch, rulingSearch: misbarRulings, model: process.env.MQ_AI_MODEL });
 const extractor = AiDraft.createExtractor({ audit, getKey: aiKey, model: process.env.MQ_AI_MODEL });
@@ -778,6 +778,8 @@ async function api(req, res, u) {
     if (a.startsWith('case/')) { if (ED.offline && a === 'case/run') return json(res, 403, OFFLINE_ERR); const r = await caseBrain.handle(a.slice(5), M, Object.fromEntries(u.searchParams), () => jbody(req, 2 * 1024 * 1024), me, w => auth.can(me, w === 'write' ? 'ai' : w), who); return json(res, r.status, r.body) }
     /* المسبار المحلي: يعمل دون إنترنت حتى في وضع عدم الاتصال، من القاعدة المحلية وحدها */
     if (a.startsWith('local/') && M === 'POST') {
+      /* تعليم المسبار (تقييم النتائج وقاموس المكتب) لمن يعمل على القضايا */
+      if (['local/feedback', 'local/dict-save'].includes(a) && !need('cases')) return;
       const b = await jbody(req, 4 * 1024 * 1024); let inp = b;
       if (b.k) { const c = await caseBrain.handle('plain', 'GET', { k: String(b.k) }, null, me, w => auth.can(me, w === 'write' ? 'ai' : w), who); if (c.status !== 200) return json(res, c.status, c.body); inp = { text: c.body.text, title: c.body.title, caseInfo: c.body } }
       const r = await misbarLocal.handle(a.slice(6), inp, me, audit); if (r.status === 200 && inp.caseInfo) r.body.caseInfo = { docs: inp.caseInfo.docs, read: inp.caseInfo.read, unread: inp.caseInfo.unread }; return json(res, r.status, r.body);

@@ -201,7 +201,19 @@ function bestPassage(body, terms, len = 520) {
   const st = Math.max(0, at - Math.floor(len / 3)); return (st > 0 ? '… ' : '') + ln.slice(st, st + len) + (st + len < ln.length ? ' …' : '');
 }
 
-function createLocal({ misbar, now = () => new Date() } = {}) {
+function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
+  /* ── تعليم المسبار: تقييمات طاقم المكتب وقاموسه، محفوظة في بيانات المكتب على الجهاز ── */
+  const FB = 'mbl:fb', DICT = 'mbl:dict';
+  const mem = new Map(), store = kv || { get: (k, d) => mem.has(k) ? mem.get(k) : d, set: (k, v) => mem.set(k, v) };
+  const dict = () => { const d = store.get(DICT, null) || {}; return { syn: Array.isArray(d.syn) ? d.syn : [], pins: Array.isArray(d.pins) ? d.pins : [] } };
+  const fbs = () => { const f = store.get(FB, null); return Array.isArray(f) ? f : [] };
+  const wordsOf = s => [...new Set(norm(s).split(' ').filter(w => w.length >= 3 && !GENERIC.has(w)))];
+  /* سؤالان متشابهان: نصف كلمات الأقصر منهما على الأقل مشتركة */
+  const similar = (a, b) => { const A = new Set(a), sh = b.filter(w => A.has(w)).length; return sh >= 1 && sh / Math.min(a.length, b.length) >= 0.5 };
+  /* حصيلة تقييمات النتيجة في الأسئلة المشابهة: موجب يرفعها، سالب يخفيها */
+  function verdicts(terms) { const out = new Map(); for (const f of fbs()) if (similar(terms, f.terms || [])) { const v = out.get(f.key) || { sum: 0, up: 0, down: 0, f }; v.sum += f.vote; f.vote > 0 ? v.up++ : v.down++; out.set(f.key, v) } return out }
+  /* مرادفات القاموس: إن ورد أحد الطرفين في النص يُضاف الآخر إلى ما يُبحث به (لا إلى النص المعروض) */
+  function expand(text) { const n = ' ' + norm(text) + ' ', add = []; for (const x of dict().syn) { const a = norm(x.a), b = norm(x.b); if (a && b) { if (n.includes(' ' + a + ' ') && !n.includes(' ' + b + ' ')) add.push(x.b); else if (n.includes(' ' + b + ' ') && !n.includes(' ' + a + ' ')) add.push(x.a) } } return add }
   if (!misbar) throw new Error('misbar required');
   const lawCache = new Map(), docCache = new Map();
   async function getDoc(id) {
@@ -263,7 +275,8 @@ function createLocal({ misbar, now = () => new Date() } = {}) {
     const src = String(text || '').slice(0, 200000);
     if (src.replace(/\s/g, '').length < 15) return { status: 400, body: { error: 'اكتب السؤال أو الوقائع (15 حرفاً على الأقل).' } };
     const t0 = Date.now();
-    const cs = citations(src), tp = topics(src), kt = keyterms(src), ds = dates(src);
+    const synAdd = expand(src), srch = synAdd.length ? src + '\n' + synAdd.join('\n') : src;
+    const cs = citations(src), tp = topics(srch), kt = keyterms(srch), ds = dates(src);
     const law = await cited(cs);
     /* كلمات البحث: كلمات الموضوعات الدالّة أولاً ثم الأثقل في النص، دون كلمات أسماء التشريعات المذكورة (تملأ النتائج بكل حكم ذكر القانون) */
     const titleW = new Set(law.filter(c => c.lawTitle).flatMap(c => norm(c.lawTitle).split(' ')).concat(['قانون', 'فلسطيني']));
@@ -325,12 +338,37 @@ function createLocal({ misbar, now = () => new Date() } = {}) {
     /* المقارن يُعرض فقط إن ورد في عنوانه أو مقتطفه كلمة دالّة من موضوع المسألة أو كلمتان من كلماتها */
     const rel = x => { const t = ' ' + norm((x.title || '') + ' ' + (x.excerpt || '')) + ' '; return topicW.some(w => t.includes(' ' + w)) || terms.filter(w => t.includes(' ' + w)).length >= 2 };
     const cmp = cq.length ? [...(await rulings(cq, 'JO_CASSATION', 8, 6)).filter(rel).slice(0, 3), ...(await rulings(cq, 'EG_CASSATION', 8, 6)).filter(rel).slice(0, 3)] : [];
+    /* ── ما تعلّمه المسبار من المكتب ── */
+    const qw = [...new Set([...terms, ...wordsOf(src)])].slice(0, 24), V = verdicts(qw), learned = { hidden: 0, boosted: 0, pinned: 0, synonyms: synAdd };
+    const vOf = k => V.get(k);
+    /* مواد ثبّتها المكتب لهذا الموضوع: كل كلمات العبارة موجودة في السؤال */
+    for (const p of dict().pins) {
+      const pw = wordsOf(p.phrase); if (!pw.length || !pw.every(w => qw.includes(w) || norm(srch).includes(w))) continue;
+      if (law.some(c => c.lawId === p.lawId && c.article === p.n)) continue;
+      let L = related.find(r => r.lawId === p.lawId);
+      if (!L) { const d = await getDoc(p.lawId); if (!d) continue; L = { lawId: p.lawId, title: d.title, status: d.status || '', topic: 'قاموس المكتب', articles: [] }; related.unshift(L) }
+      const a = (await articlesOf(p.lawId)).find(x => x.n === p.n); if (!a) continue;
+      const ex = L.articles.find(x => x.n === p.n), why = 'مثبّتة في قاموس المكتب لـ«' + p.phrase + '»';
+      if (ex) { ex.why = why + ' · ' + ex.why; ex.pinned = true } else L.articles.unshift({ n: p.n, label: a.label, text: a.text, why, pinned: true });
+      learned.pinned++;
+    }
+    /* تقييمات المواد والأحكام في الأسئلة المشابهة */
+    for (const L of related) {
+      L.articles = L.articles.filter(a => { const v = vOf('A:' + L.lawId + ':' + a.n); if (v && v.sum < 0 && !a.pinned) { learned.hidden++; return false } if (v && v.sum > 0) { a.why = `قيّمها المكتب مفيدة (${v.up}) · ` + a.why; a.liked = v.up; learned.boosted++ } return true });
+      L.articles.sort((a, b) => (b.pinned ? 2 : 0) + (b.liked ? 1 : 0) - (a.pinned ? 2 : 0) - (a.liked ? 1 : 0) || (b.relied || 0) - (a.relied || 0));
+    }
+    ps = ps.filter(r => { const v = vOf('R:' + r.id); if (v && v.sum < 0) { learned.hidden++; return false } if (v && v.sum > 0) { r.why = [`قيّمه المكتب مفيداً (${v.up})`, ...r.why]; r.liked = v.up; learned.boosted++ } return true });
+    /* حكم قيّمه المكتب مفيداً لسؤال مشابه ولم يظهر هذه المرة: يُضاف */
+    for (const [k, v] of V) { if (!k.startsWith('R:') || v.sum <= 0 || ps.some(r => 'R:' + r.id === k)) continue; const d = await getDoc(Number(k.slice(2))); if (!d || d.src !== 'PS_JUDGMENT') continue;
+      ps.push({ id: d.id, title: d.title, court: d.court, case_no: d.case_no, date: d.date || d.year, source: d.source, primary: d.primary, excerpt: bestPassage(d.body, terms), cites: (d.cites || []).slice(0, 8).map(c => c.title), why: [`قيّمه المكتب مفيداً (${v.up}) لسؤال مشابه`], liked: v.up }); learned.boosted++ }
+    ps.sort((a, b) => (b.liked ? 1 : 0) - (a.liked ? 1 : 0));
+    const cmp2 = cmp.filter(r => { const v = vOf('R:' + r.id); if (v && v.sum < 0) { learned.hidden++; return false } return true });
     const am = amounts(src), cn = caseNos(src);
     const total = am.reduce((a, x) => { a[x.currency] = (a[x.currency] || 0) + x.value; return a }, {});
     return { status: 200, body: {
       title: clip(title, 160), at: now().toISOString(), ms: Date.now() - t0, offline: true,
       topics: tp.map(({ q, laws, ...t }) => t), keyterms: { terms, phrases: kt.phrases },
-      citations: law, laws: related, rulings: ps, comparative: cmp,
+      citations: law, laws: related, rulings: ps, comparative: cmp2, learned, qterms: qw,
       timeline: timeline(ds), amounts: am.slice(0, 40), amountTotals: total, caseNos: cn.slice(0, 30),
       notice: 'نتائج بحث آلي من القاعدة المحلية دون إنترنت: النصوص منقولة حرفياً، والمدد والمبالغ محسوبة من النص المُدخل. لا يتضمن رأياً قانونياً؛ راجع كل نتيجة قبل الاعتماد عليها.',
     } };
@@ -405,6 +443,24 @@ function createLocal({ misbar, now = () => new Date() } = {}) {
     try {
       if (action === 'analyze') { const r = await analyze(b); audit && audit({ user_id: me && me.id, user_name: me && me.name, action: 'misbar.local.analyze', entity: 'misbar', detail: { chars: String(b.text || '').length, laws: r.body.citations ? r.body.citations.length : 0 } }); return r }
       if (action === 'dissect') return await dissect(b);
+      const who = { user_id: me && me.id, user_name: me && me.name };
+      if (action === 'dict') return { status: 200, body: dict() };
+      if (action === 'feedback') {
+        const key = String(b.key || ''); if (!/^(?:R:\d+|A:\d+:\d+(?: مكرر\S*)?)$/.test(key)) return { status: 400, body: { error: 'نتيجة غير معروفة.' } };
+        const vote = Number(b.vote), terms = wordsOf((Array.isArray(b.terms) ? b.terms : []).join(' ')).slice(0, 24);
+        if (!terms.length) return { status: 400, body: { error: 'لا كلمات للسؤال.' } };
+        /* تقييم الشخص نفسه للنتيجة نفسها في سؤال مشابه يُستبدل، و0 يلغيه */
+        const all = fbs().filter(f => !(f.key === key && f.by === (me && me.id) && similar(terms, f.terms || [])));
+        if (vote === 1 || vote === -1) all.push({ key, vote, terms, title: clip(b.title, 200), by: me && me.id, byName: me && me.name, at: now().toISOString() });
+        store.set(FB, all.slice(-3000)); audit && audit({ ...who, action: 'misbar.local.feedback', entity: 'misbar', detail: { key, vote } });
+        return { status: 200, body: { ok: true, count: all.length } };
+      }
+      if (action === 'dict-save') {
+        const syn = (Array.isArray(b.syn) ? b.syn : []).map(x => ({ a: clip(x && x.a, 80), b: clip(x && x.b, 80) })).filter(x => norm(x.a) && norm(x.b) && norm(x.a) !== norm(x.b)).slice(0, 500);
+        const pins = (Array.isArray(b.pins) ? b.pins : []).map(x => ({ phrase: clip(x && x.phrase, 120), lawId: Number(x && x.lawId) || 0, n: clip(x && x.n, 20), title: clip(x && x.title, 200), label: clip(x && x.label, 60) })).filter(x => wordsOf(x.phrase).length && x.lawId && x.n).slice(0, 500);
+        store.set(DICT, { syn, pins, at: now().toISOString(), by: me && me.name }); audit && audit({ ...who, action: 'misbar.local.dict', entity: 'misbar', detail: { syn: syn.length, pins: pins.length } });
+        return { status: 200, body: dict() };
+      }
       return { status: 404, body: { error: 'غير موجود' } };
     } catch (e) {
       const m = String(e && e.message || e);

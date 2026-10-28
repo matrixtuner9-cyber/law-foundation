@@ -104,3 +104,26 @@ test('dissect: ملخص وقائع لا حكم كامل — يُستخرج ما 
   assert.match(r.body.opGuess, /أصدرت المحكمة حكماً غيابياً/); assert.ok(r.body.result.includes('غيابياً') && r.body.result.includes('الإدانة/عقوبة'));
   assert.deepStrictEqual(r.body.dates.map(d => d.sincePrev), [null, 9]);
 });
+
+test('تعليم المسبار: التقييم السالب يخفي النتيجة في الأسئلة المشابهة، والموجب يرفعها ويضيفها، والقاموس يضيف المرادف والمادة المثبّتة', async () => {
+  const loc = L.createLocal({ misbar: mkdb() }), me = { id: 'u1', name: 'محامٍ' };
+  const q = 'العامل فصل تعسفياً ويطالب صاحب العمل بمكافأة نهاية الخدمة';
+  let r = (await loc.analyze({ text: q })).body;
+  const law = r.laws.find(l => l.title.startsWith('قانون العمل')); const bad = law.articles.find(a => a.n === '42');
+  assert.ok(bad, 'المادة 42 ظاهرة قبل التعليم');
+  assert.strictEqual((await loc.handle('feedback', { key: 'A:' + law.lawId + ':42', vote: -1, terms: r.qterms }, me)).status, 200);
+  assert.strictEqual((await loc.handle('feedback', { key: 'R:3', vote: 1, terms: r.qterms }, me)).status, 200);
+  r = (await loc.analyze({ text: 'فصل العامل تعسفياً من صاحب العمل دون مكافأة' })).body;
+  const law2 = r.laws.find(l => l.title.startsWith('قانون العمل'));
+  assert.ok(!law2.articles.some(a => a.n === '42'), 'أُخفيت في سؤال مشابه'); assert.ok(r.learned.hidden >= 1);
+  assert.strictEqual(r.rulings[0].id, 3); assert.match(r.rulings[0].why[0], /قيّمه المكتب مفيداً/);
+  r = (await loc.analyze({ text: 'ما حكم إخلاء المأجور لعدم دفع الأجرة' })).body;
+  assert.ok(!r.rulings.some(x => x.id === 3 && x.liked), 'سؤال مختلف لا يتأثر');
+  assert.strictEqual((await loc.handle('feedback', { key: 'bad', vote: 1, terms: ['x'] }, me)).status, 400);
+  // القاموس
+  const d = (await loc.handle('dict-save', { syn: [{ a: 'تسريح', b: 'فصل تعسفي' }, { a: 'x', b: 'x' }], pins: [{ phrase: 'تسريح العامل', lawId: 1, n: '46', title: 'قانون العمل' }, { phrase: 'مكافأة العامل', lawId: 1, n: '47', title: 'قانون العمل', label: 'المادة (47)' }] }, me)).body;
+  assert.strictEqual(d.syn.length, 1); assert.strictEqual(d.pins.length, 2);
+  r = (await loc.analyze({ text: 'تم تسريح العامل من عمله دون إنذار' })).body;
+  assert.deepStrictEqual(r.learned.synonyms, ['فصل تعسفي']); assert.ok(r.topics.some(t => t.id === 'labour'), 'المرادف أظهر الموضوع');
+  const p = r.laws.find(l => l.lawId === 1).articles[0]; assert.strictEqual(p.n, '46'); assert.match(p.why, /^مثبّتة في قاموس المكتب/);
+});
