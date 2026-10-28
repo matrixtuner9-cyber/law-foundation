@@ -34,8 +34,11 @@ function cleanBody(body) {
 
 /* العنوان: «دمج عقوبات | أفضل محامي دمج عقوبات | أحدث قرار بدمج العقوبات» ← «دمج عقوبات | أحدث قرار بدمج العقوبات» */
 function cleanTitle(title) {
-  const parts = String(title ?? '').split(/\s*\|\s*/).filter(p => p && !/محام|مكتب\s+محاماة|العبادي/.test(p));
-  return parts.join(' | ').trim() || String(title ?? '').replace(/\s*\|.*$/, '').trim();
+  /* مقاطع «| …» فيها محامٍ أو مكتب محاماة، ومقاطع «/ محامي …» القصيرة (دعاية لا موضوع) */
+  const seo = p => /^(?:أفضل\s+|إسأل\s+|اسأل\s+)?(?:محامي|محامين|محامية|محام)(?:\s+\S+){0,3}$/.test(p.trim());
+  const segs = String(title ?? '').split(/\s*\|\s*/).map(p => p.split(/\s+\/\s+/).filter(x => x && !seo(x)).join(' / ')).filter(Boolean);
+  const keep = segs.length > 1 ? segs.filter(p => !/محام|مكتب\s+محاماة|العبادي/.test(p)) : segs;
+  return (keep.length ? keep : segs.slice(0, 1)).join(' | ').trim();
 }
 const HAS_AD = /العبادي|bit\.ly|By mohammad|Read More|Section Title|00962|واتس|عقاركو|alabbadi|محامي/i;
 
