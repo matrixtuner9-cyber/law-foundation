@@ -168,7 +168,7 @@ function createMisbar(db, { audit } = {}) {
   /* تشريع بنوعه ورقمه وسنته من عنوانه مباشرة (بلا فهرس): «قرار بقانون رقم (24) لسنة 2024» بأي تباعد */
   async function byNumber(kind, no, year, src = 'PS_LEGISLATION') {
     const n = String(no || '').replace(/\D/g, ''), y = String(year || '').replace(/\D/g, ''); if (!n) return [];
-    const rows = await all(`SELECT d.id, d.title, d.status, d.status_code, d.year FROM docs d WHERE d.src=? AND d.has_text=1 AND d.title LIKE ? ${y ? 'AND d.title LIKE ?' : ''} LIMIT 60`, ...(y ? [src, '%' + n + '%', '%' + y + '%'] : [src, '%' + n + '%']));
+    const rows = await all(`SELECT d.id, d.title, d.status, d.status_code, d.year, d.has_text FROM docs d WHERE d.src=? AND d.title LIKE ? ${y ? 'AND d.title LIKE ?' : ''} LIMIT 60`, ...(y ? [src, '%' + n + '%', '%' + y + '%'] : [src, '%' + n + '%']));
     const rx = new RegExp('رقم\\s*\\(?\\s*' + n + '\\s*\\)?\\s*' + (y ? 'لسن[ةه]\\s*' + y : ''));
     const kindRx = kind === 'decree' ? /^\s*(?:ال)?قرار\s*بقانون/ : kind === 'order' ? /^\s*(?:ال)?[أا]مر/ : kind === 'law' ? /^\s*(?:ال)?قانون/ : /./;
     return rows.filter(r => { const t = scrub(r.title).replace(/[ًٌٍَُِّْـ]/g, ''); const m = rx.exec(t); return m && kindRx.test(t) && t.slice(0, m.index).replace(/\d/g, '').length === t.slice(0, m.index).length }).map(r => ({ ...r, title: scrub(r.title) }));

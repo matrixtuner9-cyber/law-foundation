@@ -279,7 +279,7 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
       const cands = typeof misbar.byNumber === 'function' ? await misbar.byNumber(n.kind, n.no, n.kind === 'order' ? '' : n.year) : [];
       hit = cands.find(x => /تعديل|بتعديل/.test(x.title)) || cands[0] || null;
     } catch { hit = null }
-    const v = hit ? { id: hit.id, title: hit.title } : null; instCache.set(k, v); return v;
+    const v = hit ? { id: hit.id, title: hit.title, hasText: hit.has_text !== 0 } : null; instCache.set(k, v); return v;
   }
   /* فحص سريان مادة (أو تشريع إن لم تُذكر مادة) بالنسبة لمكان الواقعة وتاريخها */
   async function validity(lawId, artText, ctx) {
@@ -293,7 +293,7 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
     if (ey && ly && ly > ey && ctx.lawLevel !== false) flags.push({ level: 'warn', text: `صدر التشريع سنة ${ly} بعد تاريخ الواقعة (${ey}): تحقق من سريانه زمنياً على الواقعة` });
     const notes = artText ? amendNotes(artText) : [];
     for (const n of notes) {
-      const inst = await instrumentDoc(n); if (inst) { n.instId = inst.id; n.instTitle = inst.title }
+      const inst = await instrumentDoc(n); if (inst) { n.instTitle = inst.title; if (inst.hasText) n.instId = inst.id; else n.instNoText = true }
       const verb = n.type === 'repealed' ? 'أُلغيت' : n.type === 'added' ? 'أُضيفت' : 'عُدّلت' + (n.para ? ' الفقرة (' + n.para + ')' : '');
       const by = `${verb} بموجب المادة (${n.byArticle}) من ${n.label}`;
       if (!n.year) { flags.push({ level: 'info', text: by, note: n }); continue }
