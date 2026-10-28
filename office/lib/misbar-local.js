@@ -274,7 +274,10 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
     if (!n.no || typeof misbar.byTitle !== 'function') return null;
     const k = n.kind + ':' + n.no + ':' + (n.year || ''); if (instCache.has(k)) return instCache.get(k);
     const q = (n.kind === 'order' ? 'أمر ' : n.kind === 'decree' ? 'قرار بقانون ' : 'قانون ') + n.no + (n.year && n.kind !== 'order' ? ' ' + n.year : '');
-    let hit = null; try { const rx = new RegExp('رقم\\s*\\(?\\s*' + n.no + '\\s*\\)?' + (n.year && n.kind !== 'order' ? '\\s*لسن[ةه]\\s*' + n.year : '')); hit = (await misbar.byTitle(q, 'PS_LEGISLATION', 40)).find(x => rx.test(flat(x.title))) || null } catch { hit = null }
+    let hit = null; try { const rx = new RegExp('رقم\\s*\\(?\\s*' + n.no + '\\s*\\)?' + (n.year && n.kind !== 'order' ? '\\s*لسن[ةه]\\s*' + n.year : '')), kindRx = n.kind === 'decree' ? /قرار\s*بقانون/ : n.kind === 'order' ? /^\s*(?:ال)?أمر|^\s*امر/ : /^\s*(?:ال)?قانون/;
+      const cands = (await misbar.byTitle(q, 'PS_LEGISLATION', 60)).filter(x => { const t = flat(x.title); return rx.test(t) && kindRx.test(t) });
+      /* أداة التعديل عنوانها يذكر «تعديل»؛ وتُفضَّل على غيرها */
+      hit = cands.find(x => /تعديل|بتعديل/.test(x.title)) || cands[0] || null } catch { hit = null }
     const v = hit ? { id: hit.id, title: hit.title } : null; instCache.set(k, v); return v;
   }
   /* فحص سريان مادة (أو تشريع إن لم تُذكر مادة) بالنسبة لمكان الواقعة وتاريخها */
@@ -286,7 +289,7 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
     else if (code === 'suspended' || /موقوف/.test(st)) flags.push({ level: 'bad', text: 'التشريع موقوف النفاذ حسب القاعدة' });
     if (ctx.region === 'gaza' && (code === 'partial' || (/الضفة/.test(st) && !/غزة/.test(st)))) flags.push({ level: 'bad', text: 'ساري في الضفة الغربية فقط حسب القاعدة، والواقعة في قطاع غزة' });
     const ly = Number(d.year) || null;
-    if (ey && ly && ly > ey) flags.push({ level: 'warn', text: `صدر التشريع سنة ${ly} بعد تاريخ الواقعة (${ey}): تحقق من سريانه زمنياً على الواقعة` });
+    if (ey && ly && ly > ey && ctx.lawLevel !== false) flags.push({ level: 'warn', text: `صدر التشريع سنة ${ly} بعد تاريخ الواقعة (${ey}): تحقق من سريانه زمنياً على الواقعة` });
     const notes = artText ? amendNotes(artText) : [];
     for (const n of notes) {
       const inst = await instrumentDoc(n); if (inst) { n.instId = inst.id; n.instTitle = inst.title }
@@ -433,24 +436,28 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
     const evs = dates(src), evUser = /^\d{4}-\d{2}-\d{2}$/.test(String(eventDate)) ? String(eventDate) : '';
     const ctx = { region: ['wb', 'gaza'].includes(region) ? region : '', eventDate: evUser || (evs[0] && evs[0].date) || '', eventFrom: evUser ? 'user' : evs[0] ? 'text' : '' };
     for (const c of law) if (c.found) c.valid = await validity(c.lawId, c.text, ctx);
-    for (const L of related) { L.valid = await validity(L.lawId, '', ctx); for (const a of L.articles) a.valid = await validity(L.lawId, a.text, ctx) }
+    for (const L of related) { L.valid = await validity(L.lawId, '', ctx); for (const a of L.articles) a.valid = await validity(L.lawId, a.text, { ...ctx, lawLevel: false }) }
     /* قاعدة سريان قانون الأصول من حيث الزمان (المادة 1) تُعرض حين يكون في النتائج نص منه عُدّل بعد الواقعة */
     let timeRule = null; const usul = await resolveLaw('usul');
     const usulLate = usul && [...law.filter(c => c.lawId === usul.id && c.valid), ...related.filter(L => L.lawId === usul.id).flatMap(L => L.articles)].some(a => a.valid && a.valid.flags.some(f => f.level === 'warn' && f.note));
     if (usulLate) { const a1 = (await articlesOf(usul.id)).find(a => a.n === '1'); if (a1) timeRule = { lawId: usul.id, lawTitle: usul.title, label: a1.label, text: a1.text } }
     /* المواعيد ذات الصلة بموضوع المسألة، مع نص مادتها والتحقق من عبارة المدة فيه */
     const ids = new Set(tp.map(t => t.id)), groups = new Set();
-    if ([...ids].some(i => CIVIL_TOPICS.has(i))) groups.add('civil'); if ([...ids].some(i => CRIM_TOPICS.has(i))) groups.add('crim'); if (ids.has('labour') || ids.has('accident')) groups.add('labour'); if (ids.has('civilservice')) groups.add('admin');
+    const crimText = /جزائي|جزائية|جنح|جناي|المتهم|النيابة العامة|بإدانة|إدانة|الحبس|غيابي|غيابياً/.test(flat(src));
+    if ([...ids].some(i => CRIM_TOPICS.has(i)) || crimText) groups.add('crim');
+    if ([...ids].some(i => CIVIL_TOPICS.has(i)) && !(crimText && !ids.has('appeal') && !ids.has('jurisdiction') && ![...ids].some(i => ['tort', 'accident', 'labour', 'rent', 'contract', 'exec'].includes(i)))) groups.add('civil');
+    /* شيك مع سياق جزائي: مواعيد الجزاء وحدها إلا إن ذُكرت مطالبة مدنية */
+    if (ids.has('cheque') && crimText && !/مدني|حقوقي|مطالبة بقيمة|دعوى مدنية/.test(flat(src))) groups.delete('civil'); if (ids.has('labour') || ids.has('accident')) groups.add('labour'); if (ids.has('civilservice')) groups.add('admin');
     const deadlines = [];
     for (const R of RULES.filter(r => groups.has(r.group))) {
       const L = await resolveLaw(R.law); if (!L) continue; const a = (await articlesOf(L.id)).find(x => x.n === R.art); if (!a) continue;
       const ok = flat(a.text).includes(flat(R.must));
-      deadlines.push({ id: R.id, label: R.label, lawId: L.id, lawTitle: L.title, article: R.art, articleLabel: a.label, text: a.text, days: ok ? R.days : null, years: ok ? R.years || null : null, verified: ok, valid: await validity(L.id, a.text, ctx) });
+      deadlines.push({ id: R.id, label: R.label, lawId: L.id, lawTitle: L.title, article: R.art, articleLabel: a.label, text: a.text, days: ok ? R.days : null, years: ok ? R.years || null : null, verified: ok, valid: await validity(L.id, a.text, { ...ctx, lawLevel: false }) });
     }
     let countRule = null; if (deadlines.length && usul) { const a21 = (await articlesOf(usul.id)).find(a => a.n === '21'); if (a21) countRule = { lawId: usul.id, label: a21.label, lawTitle: usul.title, text: a21.text } }
     /* الاختصاص القيمي (حقوقي): يُقارن بالحد المكتوب في نص المادة 39 من قانون الأصول كما هو مخزّن */
     let jurisdiction = null;
-    if (groups.has('civil') && usul) {
+    if (groups.has('civil') && usul && (ids.has('jurisdiction') || amounts(src).length)) {
       const a39 = (await articlesOf(usul.id)).find(a => a.n === '39'), a41 = (await articlesOf(usul.id)).find(a => a.n === '41');
       const lim = a39 && /\(\s*([\d,٬]+)\s*\)\s*عشرة\s*ال[اآ]ف\s*دينار/.exec(flat(a39.text));
       const jod = amounts(src).filter(x => x.currency === 'دينار أردني'), other = amounts(src).filter(x => x.currency !== 'دينار أردني');
