@@ -18,20 +18,31 @@ function citesOf(refs) {
   }
   return out;
 }
+/* إزالة إشارات جهة النشر (منشورات عدالة / مركز عدالة / adaleh.info) من النص المخزَّن؛ كلمة «العدالة» في متن المبدأ لا تُمس:
+   الإزالة فقط حين تأتي بعد «منشورات» أو «مركز» أو بعد شرطة مائلة في إسناد القرار، أو في أول حقل الموضوعات */
+function unbrand(s, { topic = false } = {}) {
+  let t = String(s || '');
+  t = t.replace(/(?:https?:\/\/)?(?:www\.)?adaleh\.info\S*/gi, '');
+  t = t.replace(/(?:منش\S{3,5}\s+)?مركز\s+عدالة(?:\s+للمعلومات\s+القانونية)?\s*[\/—–-]?\s*/g, '');
+  t = t.replace(/منش\S{1,3}ات\s+عدالة\s*\/?\s*/g, '');
+  t = t.replace(/(\/\s*)عدالة\s+(?=[\u0621-\u064A])/g, '$1');
+  if (topic) t = t.replace(/^\s*عدالة\s+(?=[\u0621-\u064A])/, '');
+  return t.replace(/\/\s*\/+/g, '/').replace(/\/\s*([)\]])/g, '$1').replace(/[ \t]{2,}/g, ' ').trim();
+}
 const branchOf = court => /جزائي/.test(court) ? 'جزائي' : /اداري|إداري/.test(court) ? 'إداري' : /حقوقي/.test(court) ? 'حقوقي' : '';
 
 function convert(r) {
   const court = String(r.court || '').trim(), no = String(r.case_number || '').trim(), y = Number(r.case_year) || null;
-  const principles = String(r.principles || '').replace(/^[\s_\-–—]+/, '').trim();
-  const refs = String(r.legislation_refs || '').trim(), topics = String(r.topics || '').trim();
+  const principles = unbrand(String(r.principles || '').replace(/^[\s_\-–—]+/, ''));
+  const refs = unbrand(r.legislation_refs), topics = unbrand(r.topics, { topic: true });
   const date = /^\d{4}-\d{2}-\d{2}$/.test(r.decision_date || '') ? r.decision_date : '';
-  const body = [String(r.title || '').trim(), refs && 'التشريعات المستشهد بها: ' + refs, topics && 'الموضوعات: ' + topics, principles && 'المبادئ:\n' + principles].filter(Boolean).join('\n\n');
+  const body = [unbrand(r.title), refs && 'التشريعات المستشهد بها: ' + refs, topics && 'الموضوعات: ' + topics, principles && 'المبادئ:\n' + principles].filter(Boolean).join('\n\n');
   const head = [court.replace(/الاردنية/, 'الأردنية'), no && y ? `رقم ${no}/${y}` : '', r.panel ? `(${r.panel})` : '', date ? 'تاريخ ' + date : ''].filter(Boolean).join(' ');
   return {
     src: 'JO_CASSATION', country: 'JO', kind: 'ruling', ext_id: 'adaleh-' + (r.item_id ?? r.id), title: clip(head + (topics ? ' — ' + topics : ''), 200), year: y, number: no,
-    court: 'محكمة التمييز الأردنية', case_no: no && y ? `${no}/${y}` : '', date, ltype: branchOf(court), subject: [r.subject, topics].filter(Boolean).join(' › '), status: '', status_code: '',
-    url: r.source_url || '', file_url: '', body, cites: citesOf(refs),
-    meta: { origin: 'منشورات مركز عدالة للمعلومات القانونية — adaleh.info', court_full: court, panel: r.panel || '', principles: Number(r.principles_count) || 0 }
+    court: 'محكمة التمييز الأردنية', case_no: no && y ? `${no}/${y}` : '', date, ltype: branchOf(court), subject: [unbrand(r.subject), topics].filter((v, i, a) => v && a.indexOf(v) === i).join(' › '), status: '', status_code: '',
+    url: '', file_url: '', body, cites: citesOf(refs),
+    meta: { court_full: court, panel: r.panel || '', principles: Number(r.principles_count) || 0 }
   };
 }
 
@@ -44,4 +55,4 @@ if (require.main === module) {
   fs.writeFileSync(OUT, out.map(d => JSON.stringify(d)).join('\n') + '\n');
   console.log(JSON.stringify({ in: rows.length, out: out.length, withText: out.filter(d => d.body.length > 200).length, cites: out.reduce((a, d) => a + d.cites.length, 0) }));
 }
-module.exports = { convert, citesOf };
+module.exports = { convert, citesOf, unbrand };

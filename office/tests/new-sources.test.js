@@ -54,3 +54,10 @@ test('الإضافة بالدمج (--merge) لا تحذف ولا تكرر، وا
   const s = await m.search({ q: 'تعديل طريقة دفع الاجرة', src: 'JO_CASSATION' }); assert.strictEqual(s.total, 2);
   const c = await m.search({ q: 'تنازع الاختصاص', src: 'EG_CONSTITUTIONAL' }); assert.strictEqual(c.total, 1); assert.strictEqual(c.results[0].source, 'مصر · الدستورية العليا');
 });
+
+test('عدالة: تُزال إشارات جهة النشر من النص والموضوعات والرابط، ولا تُمس كلمة «العدالة» في المبادئ', () => {
+  const d = JO.convert({ ...joRow, topics: 'منشورات عدالة ايجارات', principles: '1. تقتضي العدالة تصحيحه. (تمييز حقوق رقم 1046 / 87 / منشورات عدالة ايجارات). 2. (تمييز حقوق رقم 6467/ 2018 / عدالة تجارية).' });
+  assert.ok(!/منشورات عدالة|مركز عدالة|adaleh|\/ عدالة/.test(JSON.stringify(d)), JSON.stringify(d).match(/.{20}عدالة.{20}/g));
+  assert.ok(d.body.includes('تقتضي العدالة تصحيحه') && d.body.includes('/ 87 / ايجارات)') && d.body.includes('/ 2018 / تجارية)'));
+  assert.strictEqual(d.url, ''); assert.ok(d.title.endsWith('— ايجارات'));
+});
