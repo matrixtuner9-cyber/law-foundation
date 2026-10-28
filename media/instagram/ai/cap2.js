@@ -1,0 +1,27 @@
+const { chromium } = require('playwright');
+const B='http://localhost:8099', OUT=process.env.OUT||'/home/claude/ig/ai/el/'; require('fs').mkdirSync(OUT,{recursive:true});
+(async()=>{
+ const b=await chromium.launch(); const ctx=await b.newContext({viewport:{width:+(process.env.VW||1700),height:1000},deviceScaleFactor:2,locale:'ar'});
+ const p=await ctx.newPage();
+ await p.request.post(B+'/api/auth/login',{data:{username:'demo',password:'Demo-Pass-2026!'}});
+ await p.goto(B+'/'); await p.waitForTimeout(2500);
+ await p.evaluate(()=>{const h=[...document.querySelectorAll('*')].find(x=>x.textContent.trim()==='ما يحتاج انتباهك');let n=h;while(n&&getComputedStyle(n).position!=='fixed')n=n.parentElement;const btn=n&&n.querySelector('button');if(btn)btn.click()});
+ await p.waitForTimeout(500);
+ await p.click('[data-act="openCase"][data-v="k1"]'); await p.waitForTimeout(1500);
+ await p.screenshot({path:OUT+'case-hub.png'});
+ await p.click('[data-act="caseTab"][data-v="misbar"]'); await p.waitForTimeout(2500);
+ await p.screenshot({path:OUT+'case-misbar.png'});
+ await p.addStyleTag({content:'*{scroll-behavior:auto!important}'}); await p.evaluate(()=>{for(const el of document.querySelectorAll('body *')){const cs=getComputedStyle(el);if(cs.position==='sticky'||(cs.position==='fixed'&&el.getBoundingClientRect().top<200))el.style.visibility='hidden'}});
+ const el=async(sel,n,i=0)=>{const es=await p.$$(sel); if(!es[i]){console.log('miss',n);return} await es[i].scrollIntoViewIfNeeded(); await p.waitForTimeout(300); await es[i].screenshot({path:OUT+n+'.png'}); console.log('ok',n)};
+ await el('.mbc-head','head'); await el('.mbc-now','now'); await el('.mbc-subs','subs');
+ const sub=async v=>{await p.click(`[data-act="mbcSub"][data-v="${v}"]`); await p.waitForTimeout(1200)};
+ await el('.mbc-f','nextcard');
+ await sub('facts'); await el('.mbc-mhead','facthead'); await el('.mbc-tl','timeline'); await el('.mbc-cx','contra');
+ await sub('brain'); await el('.mbc-f','gap');
+ await sub('mizan'); await el('.mbc-mizan','mizan'); await el('.mbc-col.pro','mzpro'); await el('.mbc-col.con','mzcon');
+ await sub('draft'); await el('.mbc-dts','drafttiles'); await el('.mbc-draft','draft');
+ await sub('docs'); await el('#mbcBox .mbc-tbl','docs');
+ await sub('log'); await el('.mbc-tbl','log');
+ await sub('next'); await p.click('[data-act="mbcSub"][data-v="next"]');
+ await b.close();
+})();

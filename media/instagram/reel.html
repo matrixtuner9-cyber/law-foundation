@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:Cairo;src:url(assets/cairo-arabic.woff2) format('woff2');font-weight:200 1000}
+@font-face{font-family:Cairo;src:url(assets/cairo-latin.woff2) format('woff2');font-weight:200 1000;unicode-range:U+0000-00FF}
+@font-face{font-family:Plex;src:url(assets/IBMPlexSansArabic_400Regular.ttf);font-weight:400}
+@font-face{font-family:Plex;src:url(assets/IBMPlexSansArabic_600SemiBold.ttf);font-weight:600}
+*{box-sizing:border-box;margin:0}
+html,body{width:1080px;height:1920px;overflow:hidden;background:#0b1b2b}
+#stage{position:relative;width:1080px;height:1920px;overflow:hidden;color:#fff;font-family:Plex,sans-serif;background:radial-gradient(110% 70% at 50% 20%,#1d3b5c 0%,#0b1b2b 55%,#050d16 100%)}
+.l{position:absolute;opacity:0;will-change:transform,opacity}
+.h{font-family:Cairo;font-weight:900;font-size:96px;line-height:1.2;text-align:center;width:100%;left:0;padding:0 70px}
+.h em{font-style:normal;color:#f3d58a}
+.p{font-size:44px;line-height:1.6;color:#d5dde8;text-align:center;width:100%;left:0;padding:0 90px}
+.shot{border-radius:26px;overflow:hidden;box-shadow:0 50px 110px rgba(0,0,0,.6),0 0 0 3px rgba(243,213,138,.35);background:#fff}
+.shot img{display:block;width:100%}
+.glow{width:1300px;height:1300px;border-radius:50%;background:radial-gradient(circle,rgba(243,213,138,.22),transparent 60%);left:-110px;top:300px}
+.logo{width:300px;height:300px;border-radius:70px;left:390px;top:640px;box-shadow:0 40px 100px rgba(0,0,0,.6)}
+.cta{left:50%;font-family:Cairo;font-weight:900;font-size:62px;color:#0b1b2b;background:linear-gradient(135deg,#f3d58a,#c99a40);padding:30px 70px;border-radius:999px;direction:ltr;white-space:nowrap;box-shadow:0 26px 60px rgba(226,188,106,.4)}
+.chip{font-size:42px;color:#f3d58a;border:3px solid rgba(243,213,138,.5);border-radius:999px;padding:14px 38px;white-space:nowrap;font-weight:600;left:50%}
+.num{left:50%;text-align:center;width:900px;margin-left:-450px}
+.num b{display:block;font-family:Cairo;font-weight:900;font-size:150px;color:#f3d58a;line-height:1.05;direction:ltr}
+.num span{font-size:48px;color:#e3e9f1}
+.bar{height:44px;background:#e9e2d2;display:flex;gap:11px;align-items:center;padding:0 20px;direction:ltr}
+.bar i{width:16px;height:16px;border-radius:50%;background:#d26a5c}.bar i+i{background:#e0b14f}.bar i+i+i{background:#6aa86a}
+.brand{left:0;width:100%;top:120px;display:flex;justify-content:center;align-items:center;gap:22px}
+.brand img{width:92px;height:92px;border-radius:22px}.brand b{font-family:Cairo;font-weight:900;font-size:56px;color:#f3d58a}
+.prog{left:70px;right:70px;top:60px;height:6px;background:rgba(255,255,255,.12);border-radius:3px;opacity:1}
+.prog i{display:block;height:100%;width:0;background:#f3d58a;border-radius:3px}
+.shield{left:340px;top:560px;width:400px;height:400px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle,rgba(243,213,138,.3),rgba(243,213,138,.03) 70%);border:3px solid rgba(243,213,138,.6)}
+.cloud{left:390px;top:1040px;width:300px;height:300px}
+
+.bub{font-family:Cairo;font-weight:800;font-size:58px;background:#fff;color:#0b1b2b;padding:22px 44px;border-radius:44px;white-space:nowrap;box-shadow:0 20px 50px rgba(0,0,0,.4)}
+.ring{left:390px;top:620px;width:300px;height:300px;border-radius:50%;background:radial-gradient(circle,#f3d58a,#c99a40);display:grid;place-items:center;font-size:150px;box-shadow:0 0 0 30px rgba(243,213,138,.18),0 0 0 70px rgba(243,213,138,.08)}
+.ico{width:260px;height:260px;border-radius:60px;display:grid;place-items:center;font-size:130px;background:rgba(255,255,255,.07);border:3px solid rgba(243,213,138,.35)}
+.lbl{font-family:Cairo;font-weight:800;font-size:44px;color:#e3e9f1;text-align:center;width:360px}
+.redlbl{color:#ff8b7a}
+.phone{width:620px;height:1260px;border-radius:90px;background:#0b0f14;padding:22px;box-shadow:0 60px 120px rgba(0,0,0,.6),0 0 0 4px rgba(243,213,138,.4)}
+.scr{width:100%;height:100%;border-radius:70px;overflow:hidden;background:linear-gradient(180deg,#f7f2e7,#efe5cf);color:#13261f;position:relative;font-family:Plex}
+.notch{position:absolute;top:18px;left:50%;transform:translateX(-50%);width:180px;height:46px;background:#0b0f14;border-radius:26px;z-index:2}
+.ph{background:linear-gradient(135deg,#1d5a45,#0e3326);color:#fff;padding:100px 40px 36px}
+.ph small{color:#cfe3d9;font-size:28px}.ph b{display:block;font-family:Cairo;font-size:44px;font-weight:800;margin-top:6px}
+.card{background:#fff;border-radius:30px;margin:22px 26px;padding:26px 30px;box-shadow:0 8px 24px rgba(20,40,30,.08)}
+.card .k{font-size:26px;color:#7c8a83}.card .v{font-family:Cairo;font-weight:800;font-size:38px;color:#123d2f;margin-top:4px}
+.card .s{font-size:28px;color:#4b5b54;margin-top:6px;line-height:1.5}
+.badge{display:inline-block;background:#e9f3ee;color:#1d5a45;border-radius:999px;padding:4px 18px;font-size:24px;margin-top:10px}
+.notif{width:900px;background:rgba(255,255,255,.97);color:#13261f;border-radius:36px;padding:28px 34px;box-shadow:0 40px 90px rgba(0,0,0,.5);display:flex;gap:24px;align-items:center}
+.notif img{width:90px;height:90px;border-radius:22px}.notif b{font-family:Cairo;font-size:36px;display:block}.notif span{font-size:32px;color:#45524c}
+.tog{width:860px;display:flex;justify-content:space-between;align-items:center;background:rgba(255,255,255,.07);border:2px solid rgba(243,213,138,.3);border-radius:30px;padding:26px 36px;font-size:42px;font-weight:600}
+.sw{width:110px;height:60px;border-radius:30px;background:#2f8f5b;position:relative}.sw::after{content:'';position:absolute;top:6px;left:6px;width:48px;height:48px;border-radius:50%;background:#fff}
+.sw.off{background:#55606e}.sw.off::after{left:56px}
+.res{width:880px;display:flex;align-items:center;gap:34px;background:rgba(255,255,255,.07);border:2px solid rgba(243,213,138,.35);border-radius:36px;padding:34px 40px}
+.res .i{font-size:90px}.res b{font-family:Cairo;font-weight:900;font-size:62px;color:#f3d58a}
+.cap{left:0;width:100%;text-align:center;font-family:Cairo;font-weight:800;font-size:52px;line-height:1.35;padding:0 80px;color:#fff}
+.cap em{font-style:normal;color:#f3d58a}
+.win{border-radius:28px;overflow:hidden;box-shadow:0 50px 110px rgba(0,0,0,.6),0 0 0 3px rgba(243,213,138,.4);background:#fbf7ee}
+.win img{display:block;width:100%;will-change:transform}
+.tag{font-family:Cairo;font-weight:800;font-size:40px;color:#0b1b2b;background:linear-gradient(135deg,#f3d58a,#c99a40);border-radius:999px;padding:12px 34px;white-space:nowrap}
+.dcard{width:940px;display:flex;align-items:center;gap:28px;background:#fbf7ee;color:#13261f;border-radius:30px;padding:26px 34px;box-shadow:0 30px 70px rgba(0,0,0,.45)}
+.dcard .di{font-size:70px}.dcard b{font-family:Cairo;font-size:42px;display:block}.dcard span{font-size:32px;color:#2f7a52;font-weight:600}
+.red{font-family:Cairo;font-weight:800;font-size:54px;direction:rtl;background:rgba(255,255,255,.08);border:2px solid rgba(243,213,138,.35);border-radius:28px;padding:22px 40px;width:900px;text-align:center}
+.red s{text-decoration:none;color:#ff9c8a}.red em{font-style:normal;color:#f3d58a}
+.btnx{font-family:Cairo;font-weight:900;font-size:64px;border-radius:30px;padding:26px 70px;white-space:nowrap}
+.chg{width:940px;background:#fff4dc;color:#4a3608;border-radius:30px;padding:30px 36px;box-shadow:0 30px 70px rgba(0,0,0,.45);border:3px solid #e2b85a}
+.chg b{font-family:Cairo;font-size:42px;display:block}.chg span{display:block;font-size:34px;margin-top:8px}.chg i{display:inline-block;margin-top:18px;font-style:normal;font-family:Cairo;font-weight:800;font-size:36px;color:#fff;background:#0b1b2b;border-radius:18px;padding:12px 30px}
+.paper{width:560px;height:760px;background:#fbf7ee;border-radius:18px;box-shadow:0 40px 90px rgba(0,0,0,.55);padding:50px 48px;color:#0b1b2b;font-family:Cairo}
+.paper h4{font-size:40px;text-align:center;margin-bottom:24px}.paper i{display:block;height:14px;border-radius:7px;background:#d9cfb9;margin:20px 0}.paper b{display:block;font-size:26px;color:#9a7b2c;margin-top:26px}
+.big{font-family:Cairo;font-weight:900;color:#f3d58a;text-align:center;width:100%;left:0;line-height:1}
+.optc{width:900px;display:flex;align-items:center;gap:26px;background:rgba(255,255,255,.07);border:3px solid rgba(243,213,138,.35);border-radius:30px;padding:28px 36px;font-size:44px;font-weight:600}
+.optc .rd{width:46px;height:46px;border-radius:50%;border:5px solid #f3d58a;flex:none}.optc.on .rd{background:radial-gradient(circle,#f3d58a 45%,transparent 50%)}
+.pill2{font-family:Cairo;font-weight:800;font-size:46px;color:#0b1b2b;background:#fbf7ee;border-radius:24px;padding:18px 40px;white-space:nowrap}
+.av{width:300px;text-align:center}
+.av .c{width:200px;height:200px;margin:0 auto;border-radius:50%;display:grid;place-items:center;font-family:Cairo;font-weight:900;font-size:96px;transition:none}
+.av b{display:block;font-family:Cairo;font-size:44px;margin-top:14px}.av small{display:block;font-size:30px;color:#c3cfdb;margin-top:4px}
+.av.a .c{background:linear-gradient(135deg,#f3d58a,#c99a40);color:#0b1b2b}.av.b .c{background:linear-gradient(135deg,#7d8794,#4b5563);color:#fff}
+.sub{left:60px;width:960px;border-radius:36px;padding:30px 40px;font-family:Cairo;font-weight:700;font-size:46px;line-height:1.45;text-align:center}
+.sub.a{background:#fbf7ee;color:#0b1b2b;box-shadow:0 0 0 4px #f3d58a,0 30px 70px rgba(0,0,0,.45)}.sub.b{background:#2b3442;color:#fff;box-shadow:0 0 0 3px #6b7685,0 30px 70px rgba(0,0,0,.45)}
+.emo{font-size:240px;text-align:center;width:100%;left:0;line-height:1}
+.wave{display:flex;gap:8px;justify-content:center;height:60px;align-items:center}.wave i{width:10px;border-radius:5px;background:#f3d58a;display:block}
+.wa{display:flex;align-items:center;gap:22px;background:linear-gradient(135deg,#2fd06b,#1a9e4b)!important;color:#fff!important;width:680px;justify-content:center;box-shadow:0 26px 60px rgba(37,211,102,.35)!important}
+.wa svg{width:70px;height:70px;flex:none}
+</style></head><body><div id="stage"></div>
+<script>
+/* محرّك بسيط: كل عنصر له ظهور [in,out] وحركة؛ render(t) يرسم الإطار عند الثانية t بدقة (لا يعتمد على الوقت الحقيقي) */
+const S=document.getElementById('stage');
+const clamp=(x,a=0,b=1)=>Math.max(a,Math.min(b,x)), ease=x=>1-Math.pow(1-clamp(x),3), inout=x=>{x=clamp(x);return x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2};
+const EL=[];
+function add(html,cls,style,anim){const d=document.createElement('div');d.className='l '+cls;d.innerHTML=html;Object.assign(d.style,style||{});S.appendChild(d);EL.push({d,...anim});return d}
+/* anim: {a:start,b:end,fi:fade-in secs,fo:fade-out secs,from:{x,y,s,r},to:{x,y,s,r},drift:{x,y,s} (طوال الظهور)} */
+function render(t){
+  for(const e of EL){const fi=e.fi??.5,fo=e.fo??.4;
+    let o=1; if(t<e.a||t>e.b) o=0; else { o=Math.min(ease((t-e.a)/fi), e.b>=999?1:ease((e.b-t)/fo)) }
+    const k=ease((t-e.a)/(e.mv??0.8)), f=e.from||{}, to=e.to||{}, dr=e.drift||{}, q=clamp((t-e.a)/Math.max(.01,(e.b>=999?10:e.b-e.a)));
+    const v=(n,d)=> (f[n]??d)+((to[n]??d)-(f[n]??d))*k + (dr[n]||0)*q;
+    e.d.style.opacity=o; e.d.style.transform=`translate(${v('x',0)}px,${v('y',0)}px) scale(${v('s',1)}) rotate(${v('r',0)}deg)`;
+    if(e.on) e.on(t,e.d);
+  }
+  const P=document.querySelector('.prog i'); if(P) P.style.width=(100*clamp(t/window.DUR))+'%';
+}
+const R=new URLSearchParams(location.search).get('r')||'intro';
+const A='assets/';
+if(R==='intro'){ window.DUR=21.6;
+  add('<i></i>','prog',{},{a:0,b:999,fi:.01});
+  add('','glow',{},{a:0,b:999,fi:1.5,drift:{s:.15}});
+  add('ملفّاتُ القضايا<br><em>في الدفاتر</em>','h',{top:'420px'},{a:.05,b:6.5,fi:.35,from:{y:40},to:{y:0}});
+  add('والمواعيد<br><em>في الذاكرة</em>','h',{top:'800px'},{a:2.4,b:6.5,fi:.35,from:{y:40},to:{y:0}});
+  add('والمراجع<br><em>في مكتبة بعيدة؟</em>','h',{top:'1180px'},{a:4.15,b:6.5,fi:.35,from:{y:40},to:{y:0}});
+  add(`<img src="${A}icon.png"><b>المِسْبار</b>`,'brand',{},{a:6.6,b:999});
+  add('مكتب المحاماة كله<br><em>في مكان واحد</em>','h',{top:'300px'},{a:6.7,b:11.6,from:{y:50},to:{y:0}});
+  add(`<div class="bar"><i></i><i></i><i></i></div><img src="${A}dash.png">`,'shot',{width:'1500px',left:'-210px',top:'760px'},{a:7.0,b:11.6,mv:1,from:{y:300,s:.9,r:-3},to:{y:0,s:1,r:-2},drift:{x:160}});
+  add('تنبيه قبل كل<br><em>جلسة ومهلة</em>','h',{top:'260px'},{a:11.7,b:14.75,from:{y:50},to:{y:0}});
+  add(`<img src="${A}attention.png" style="width:2620px;max-width:none;margin-right:-1820px">`,'shot',{width:'800px',height:'1100px',left:'140px',top:'640px',background:'#0b1b2b',borderRadius:'38px'},{a:11.9,b:14.75,mv:1,from:{y:260,s:.92},to:{y:0,s:1},drift:{y:-60}});
+  add('القضية كاملة<br><em>بنظرة واحدة</em>','h',{top:'260px'},{a:14.8,b:18.55,from:{y:50},to:{y:0}});
+  add(`<div class="bar"><i></i><i></i><i></i></div><img src="${A}case.png">`,'shot',{width:'1600px',left:'-60px',top:'720px'},{a:15.0,b:18.55,mv:1,from:{y:280,s:.9,r:2},to:{y:0,s:1,r:1},drift:{x:-220}});
+  add(`<img src="${A}icon.png" style="width:100%;border-radius:60px">`,'logo',{width:'240px',height:'240px',left:'420px',top:'420px'},{a:18.6,b:999,from:{s:.7},to:{s:1}});
+  add('جرّب المِسْبار<br><em>بنفسك</em>','h',{top:'760px'},{a:18.7,b:999,from:{y:40},to:{y:0}});
+  add(`<svg viewBox="0 0 32 32" fill="#fff"><path d="M16 3C9 3 3.3 8.6 3.3 15.6c0 2.4.7 4.7 1.9 6.7L3 29l6.9-2.1c1.9 1 4 1.6 6.1 1.6 7 0 12.7-5.6 12.7-12.6S23 3 16 3zm0 23.1c-1.9 0-3.8-.5-5.4-1.5l-.4-.2-4.1 1.2 1.2-4-.3-.4c-1.1-1.7-1.7-3.6-1.7-5.6C5.3 9.8 10.1 5 16 5s10.7 4.8 10.7 10.6S21.9 26.1 16 26.1zm5.9-7.9c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.6-1.6-1-.9-1.6-1.9-1.8-2.2-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.4.3-.6.1-.2 0-.4 0-.6l-1-2.4c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.2 1.4 3.5c.2.2 2.4 3.6 5.8 5 .8.3 1.4.5 1.9.7.8.3 1.5.2 2.1.1.6-.1 1.9-.8 2.2-1.5.3-.7.3-1.4.2-1.5-.1-.2-.3-.3-.6-.4z"/></svg><span>0568717122</span>`,'cta wa',{top:'1120px',marginLeft:'-340px'},{a:19.3,b:999,from:{s:.8},to:{s:1}});
+  add('للتواصل واطلب عرضاً مباشراً لمكتبك','p',{top:'1310px'},{a:19.7,b:999,from:{y:20},to:{y:0}});
+}
+if(R==='brain'){ window.DUR=19.9;
+  add('<i></i>','prog',{},{a:0,b:999,fi:.01});
+  add('','glow',{},{a:0,b:999,fi:1.5,drift:{s:.12}});
+  add(`<img src="${A}icon.png"><b>عقل المسبار</b>`,'brand',{},{a:.05,b:999});
+  add('هل تُرسل قضايا موكليك<br><em>إلى الإنترنت؟</em>','h',{top:'640px'},{a:.1,b:3.4,fi:.35,from:{y:50},to:{y:0}});
+  add('<svg width="200" height="200" viewBox="0 0 24 24" fill="none" stroke="#f3d58a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 3v6c0 5-3.4 9.3-8 11-4.6-1.7-8-6-8-11V5l8-3z"/><rect x="8.5" y="10.5" width="7" height="6" rx="1.2"/><path d="M10 10.5V9a2 2 0 0 1 4 0v1.5"/></svg>','shield',{top:'420px'},{a:3.5,b:999,from:{s:.6,r:-10},to:{s:1,r:0}});
+  add('ذكاء قانوني<br><em>لا يغادر مكتبك</em>','h',{top:'900px'},{a:3.6,b:999,from:{y:50},to:{y:0}});
+  add('يعمل على جهاز المكتب نفسه — دون إنترنت','p',{top:'1180px'},{a:4.7,b:999,from:{y:30},to:{y:0}});
+  const chips=[['يستخرج المواد والأحكام',8.9,11.4],['يحسب مهل الطعن',11.42,13.3],['يشرّح الحكم',13.32,14.85]];
+  chips.forEach(([c,a,b])=>add(c,'chip',{top:'1330px'},{a,b,fi:.3,fo:.25,from:{x:-260,y:0,s:.9},to:{x:-260,y:0,s:1}}));
+  EL.slice(-3).forEach(e=>{e.d.style.marginLeft='0';e.on=(t,d)=>{d.style.transform+=` translateX(${d.offsetWidth/2-260}px)`}});
+  add('قضاياك وأسرار موكليك<br>تبقى عندك','p',{top:'1480px',color:'#fff',fontWeight:'600'},{a:14.9,b:999,from:{y:20},to:{y:0}});
+  add('والتحليل الأعمق «الواعي» اختياري وبإذنك لكل قضية','p',{top:'1680px',fontSize:'34px',color:'#9fb0c4'},{a:15.8,b:999,from:{y:20},to:{y:0}});
+}
+if(R==='nums'){ window.DUR=22.4;
+  add('<i></i>','prog',{},{a:0,b:999,fi:.01});
+  add('','glow',{},{a:0,b:999,fi:1.5,drift:{s:.12}});
+  add(`<img src="${A}icon.png"><b>المِسْبار</b>`,'brand',{},{a:.05,b:999});
+  add('مكتبة قانونية<br><em>على جهازك</em>','h',{top:'330px'},{a:.05,b:999,fi:.35,from:{y:40},to:{y:0}});
+  const N=[[11150,'حكماً فلسطينياً',4.1,7.6],[2149,'تشريعاً فلسطينياً بحالة سريانها',7.7,11.7],[13284,'قراراً لمحكمة التمييز الأردنية',11.75,14.55],[7951,'حكماً مصرياً: النقض والدستورية العليا',14.6,18.2]];
+  N.forEach(([n,l,a,b])=>{
+    add(`<b>0</b><span>${l}</span>`,'num',{top:'820px'},{a,b,fi:.3,fo:.3,from:{y:60},to:{y:0},on:(t,d)=>{d.querySelector('b').textContent=Math.round(n*inout((t-a)/1.4)).toLocaleString('en-US')}});
+  });
+  add('الفلسطيني أولاً، والعربي للمقارنة','p',{top:'1180px',color:'#f3d58a',fontWeight:'600'},{a:18.25,b:999,from:{y:30},to:{y:0}});
+  add('نصوص كاملة لا ملخصات —<br>تبحث فيها حتى دون إنترنت','p',{top:'800px'},{a:18.3,b:999,from:{y:30},to:{y:0}});
+}
+
+if(R==='explain'){
+  const B=(new URLSearchParams(location.search).get('b')||'0,10.28,18.75,31.8,36.14,42.89,53.71,59.64,67.18,71.0').split(',').map(Number);
+  window.DUR=B[B.length-1]+1.2; const sc=i=>[B[i],B[i+1]], E=window.DUR;
+  add('<i></i>','prog',{},{a:0,b:999,fi:.01});
+  add('','glow',{},{a:0,b:999,fi:1.5,drift:{s:.2}});
+  /* 1 الموكل يتصل */
+  let [a,b]=sc(0);
+  add('📞','ring',{},{a:a+.2,b,from:{s:.6},to:{s:1},on:(t,d)=>{d.style.transform+=` rotate(${Math.sin(t*28)*9*(Math.sin(t*3)>0?1:0)}deg)`}});
+  add('للمرّة الثالثة <em>هذا الأسبوع</em>','cap',{top:'360px'},{a:a+.4,b,from:{y:30},to:{y:0}});
+  add('متى الجلسة؟','bub',{left:'140px',top:'1060px'},{a:a+(b-a)*.55,b,fi:.3,from:{s:.6,y:30},to:{s:1,y:0}});
+  add('ماذا حصل؟','bub',{left:'520px',top:'1240px'},{a:a+(b-a)*.75,b,fi:.3,from:{s:.6,y:30},to:{s:1,y:0}});
+  /* 2 الفوضى */
+  [a,b]=sc(1);
+  const items=[['📂','ملفّات في الأدراج',''],['🗓️','مواعيد في الذاكرة',''],['⏳','مهلة طعن قد تفوت','redlbl']];
+  items.forEach(([ic,l,c],i)=>{const t0=a+.3+i*(b-a-1)/3;
+    add(ic,'ico',{left:'410px',top:(420+i*440)+'px'},{a:t0,b,fi:.35,from:{s:.5,r:-12},to:{s:1,r:0}});
+    add(l,'lbl '+c,{left:'360px',top:(700+i*440)+'px',width:'360px'},{a:t0+.2,b,fi:.35,from:{y:20},to:{y:0}});});
+  /* 3 لهذا بنينا المسبار */
+  [a,b]=sc(2);
+  add(`<img src="${A}icon.png" style="width:100%;border-radius:60px">`,'logo',{width:'220px',height:'220px',left:'430px',top:'230px'},{a:a+.1,b,from:{s:.7},to:{s:1}});
+  add('لهذا بنينا <em>المِسبار</em>','cap',{top:'500px',fontSize:'76px'},{a:a+.4,b,from:{y:30},to:{y:0}});
+  add('لمكتب المحاماة الفلسطيني','cap',{top:'620px',fontSize:'46px',color:'#d5dde8',fontWeight:'600'},{a:a+1.2,b,from:{y:20},to:{y:0}});
+  add(`<div class="bar"><i></i><i></i><i></i></div><img src="${A}dash.png">`,'shot',{width:'1300px',left:'-110px',top:'770px'},{a:a+1.6,b,mv:1.2,from:{y:300,s:.9,r:-3},to:{y:0,s:1,r:-2},drift:{x:160}});
+  ['القضايا','الجلسات والمهل','المستندات','المراجع القانونية'].forEach((c,i)=>add(c,'chip',{top:(1640+Math.floor(i/2)*120)+'px',left:(i%2?120:560)+'px'},{a:a+3+i*1.4,b,fi:.3,from:{s:.7},to:{s:1}}));
+  /* 4 ميثاق */
+  [a,b]=sc(3);
+  add(`<img src="${A}mithaq-icon.png" style="width:100%;border-radius:70px">`,'logo',{width:'340px',height:'340px',left:'370px',top:'560px'},{a:a,b:b+.3,from:{s:.5,r:-8},to:{s:1,r:0}});
+  add('ومعه تطبيق <em>ميثاق</em><br>للموكّل','cap',{top:'1000px',fontSize:'78px'},{a:a+.4,b:b+.3,from:{y:30},to:{y:0}});
+  /* 5 هاتف الموكل */
+  [a,b]=sc(4);
+  const phone=`<div class="scr"><div class="notch"></div><div class="ph"><small>مرحباً</small><b>أحمد يوسف</b></div>
+    <div class="card" id="c1"><div class="k">الجلسة القادمة</div><div class="v">الأحد 9 نوفمبر</div><div class="s">محكمة صلح نابلس · 9:30 صباحاً</div></div>
+    <div class="card" id="c2"><div class="k">ما جرى في الجلسة السابقة</div><div class="s">قُدّمت البينات، وأُجّلت للمرافعة.</div></div>
+    <div class="card" id="c3"><div class="k">مطلوب منك</div><div class="s">كشوف الأجور لآخر سنة</div><span class="badge">أرسل من هاتفك</span></div></div>`;
+  add(phone,'phone',{left:'230px',top:'470px'},{a:a,b:sc(5)[1],mv:1,from:{y:400},to:{y:0},on:(t,d)=>{const ph=(t-a)/(b-a);['c1','c2','c3'].forEach((id,i)=>{const el=d.querySelector('#'+id);el.style.outline=(ph>i*.3&&ph<i*.3+.36)?'4px solid #c99a40':'none'})}});
+  add('من هاتفه <em>يعرف أين وصلت قضيته</em>','cap',{top:'230px',fontSize:'56px'},{a:a+.3,b,from:{y:20},to:{y:0}});
+  /* 6 إشعار + إرسال مستند */
+  [a,b]=sc(5);
+  add(`<img src="${A}mithaq-icon.png"><div><b>ميثاق · الآن</b><span>حُدّدت جلستك القادمة: الأحد 9 نوفمبر</span></div>`,'notif',{left:'90px',top:'230px'},{a:a+.2,b,from:{y:-200},to:{y:0}});
+  add(`<img src="${A}icon.png"><div><b>المِسبار · ملف 2214/2026</b><span>وصل من الموكّل: كشوف الأجور.pdf</span></div>`,'notif',{left:'90px',top:'1660px'},{a:a+(b-a)*.5,b,from:{y:200},to:{y:0}});
+  /* 7 أنت تحدد */
+  [a,b]=sc(6);
+  add('أنت تحدّد <em>ما يُشارَك</em>','cap',{top:'300px',fontSize:'72px'},{a:a+.1,b,from:{y:30},to:{y:0}});
+  [['موعد الجلسات',''],['ما جرى في الجلسة',''],['المستندات المطلوبة',''],['ملاحظات المكتب الداخلية','off']].forEach(([l,o],i)=>add(`<span>${l}</span><span class="sw ${o}"></span>`,'tog',{left:'110px',top:(560+i*170)+'px'},{a:a+.4+i*.5,b,fi:.3,from:{x:120},to:{x:0}}));
+  add('وكل شيء <em>موثّق في الملف</em>','cap',{top:'1340px'},{a:a+(b-a)*.55,b,from:{y:20},to:{y:0}});
+  /* 8 النتيجة */
+  [a,b]=sc(7);
+  add('النتيجة','cap',{top:'330px',fontSize:'84px',color:'#f3d58a'},{a:a+.1,b});
+  [['📉','اتصالات أقلّ'],['🤝','موكّل مطمئن'],['⚖️','وقت أكثر للقضية']].forEach(([i,l],k)=>add(`<span class="i">${i}</span><b>${l}</b>`,'res',{left:'100px',top:(620+k*300)+'px'},{a:a+.6+k*(b-a-1)/3,b,fi:.35,from:{x:-160},to:{x:0}}));
+  /* 9 الخاتمة */
+  [a,b]=sc(8);
+  add(`<img src="${A}icon.png" style="width:100%;border-radius:56px">`,'logo',{width:'230px',height:'230px',left:'560px',top:'470px'},{a:a,b:999,from:{s:.6},to:{s:1}});
+  add(`<img src="${A}mithaq-icon.png" style="width:100%;border-radius:56px">`,'logo',{width:'230px',height:'230px',left:'290px',top:'470px'},{a:a+.3,b:999,from:{s:.6},to:{s:1}});
+  add('المِسبار <em>وميثاق</em>','h',{top:'800px'},{a:a+.4,b:999,from:{y:30},to:{y:0}});
+  add(`<svg viewBox="0 0 32 32" fill="#fff"><path d="M16 3C9 3 3.3 8.6 3.3 15.6c0 2.4.7 4.7 1.9 6.7L3 29l6.9-2.1c1.9 1 4 1.6 6.1 1.6 7 0 12.7-5.6 12.7-12.6S23 3 16 3zm0 23.1c-1.9 0-3.8-.5-5.4-1.5l-.4-.2-4.1 1.2 1.2-4-.3-.4c-1.1-1.7-1.7-3.6-1.7-5.6C5.3 9.8 10.1 5 16 5s10.7 4.8 10.7 10.6S21.9 26.1 16 26.1zm5.9-7.9c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.6-1.6-1-.9-1.6-1.9-1.8-2.2-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.4.3-.6.1-.2 0-.4 0-.6l-1-2.4c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.2 1.4 3.5c.2.2 2.4 3.6 5.8 5 .8.3 1.4.5 1.9.7.8.3 1.5.2 2.1.1.6-.1 1.9-.8 2.2-1.5.3-.7.3-1.4.2-1.5-.1-.2-.3-.3-.6-.4z"/></svg><span>0568717122</span>`,'cta wa',{top:'1060px',marginLeft:'-340px'},{a:a+.9,b:999,from:{s:.8},to:{s:1}});
+  add('تواصل معنا واتساب','p',{top:'1260px'},{a:a+1.2,b:999,from:{y:20},to:{y:0}});
+}
+
+if(R==='ai'){
+  const B=(new URLSearchParams(location.search).get('b')||'0,6,14,22,34,43,51,59,73,81,91,100,106,110').split(',').map(Number);
+  window.DUR=B[B.length-1]+1.2; const sc=i=>[B[i],B[i+1]];
+  add('<i></i>','prog',{},{a:0,b:999,fi:.01});
+  add('','glow',{},{a:0,b:999,fi:1.5,drift:{s:.2}});
+  add(`<img src="${A}icon.png"><b>المِسْبار</b>`,'brand',{top:'110px'},{a:0,b:999,fi:.4});
+  /* نافذة لقطة مع تمرير عمودي اختياري */
+  const win=(src,{w=1000,left,top,h,a,b,pan=0,p0=.15,p1=.9,from={y:140,s:.95}})=>{left=left??(1080-w)/2;
+    return add(`<img src="${A}${src}">`,'win',{width:w+'px',left:left+'px',top:top+'px',height:h?h+'px':'auto'},{a,b,mv:.9,from,to:{y:0,s:1},
+      on:pan?(t,d)=>{const q=inout(((t-a)/(b-a)-p0)/(p1-p0));d.firstChild.style.transform=`translateY(${-pan*q}px)`}:null})};
+  const cap=(html,top,a,b,fs)=>add(html,'cap',{top:top+'px',fontSize:(fs||64)+'px'},{a,b,from:{y:30},to:{y:0}});
+  let a,b;
+  /* 1 كل الأدوات تبدأ من ملف القضية */
+  [a,b]=sc(0);
+  cap('كل أدوات الذكاء تبدأ من<br><em>ملفّ القضية</em>',260,a+.1,b,72);
+  win('ai-casehead.png',{top:620,a:a+.6,b});
+  ['قراءة المستندات','خريطة الوقائع','ميزان الحجج','الصياغة'].forEach((c,i)=>add(c,'chip',{top:(1420+Math.floor(i/2)*120)+'px',left:(i%2?130:560)+'px'},{a:a+1.6+i*.6,b,fi:.3,from:{s:.7},to:{s:1}}));
+  /* 2 تبويب المسبار */
+  [a,b]=sc(1);
+  cap('تبويب <em>المِسبار</em><br>داخل كل قضية',260,a+.1,b,72);
+  win('ai-head.png',{top:640,a:a+.4,b});
+  win('ai-subs.png',{top:960,a:a+1.4,b});
+  add('عقل القضية مربوط بها <em>برقمها 1187/2025</em><br>لا نسخة منفصلة عنها','cap',{top:'1340px',fontSize:'46px',fontWeight:'600'},{a:a+(b-a)*.55,b,from:{y:20},to:{y:0}});
+  /* 3 قراءة المستندات */
+  [a,b]=sc(2);
+  cap('يقرأ المستندات<br><em>على جهاز المكتب</em>',260,a+.1,b,72);
+  [['📄','لائحة الدعوى','نص PDF · ✓ قُرئ'],['🧾','فواتير التوريد (14 فاتورة)','صفحات ممسوحة · تعرّف على النص ✓'],['📝','محضر جلسة 8/9/2026','نص PDF · ✓ قُرئ']].forEach(([i,t,v],k)=>add(`<span class="di">${i}</span><div><b>${t}</b><span>${v}</span></div>`,'dcard',{left:'70px',top:(640+k*230)+'px'},{a:a+.6+k*(b-a-1.5)/3,b,fi:.35,from:{x:160},to:{x:0}}));
+  ['PDF','صور ممسوحة','Word'].forEach((c,i)=>add(c,'chip',{top:'1420px',left:(720-i*300)+'px',direction:'ltr'},{a:a+(b-a)*.42+i*.5,b,fi:.3,from:{s:.7},to:{s:1}}));
+  /* 4 خريطة الوقائع */
+  [a,b]=sc(3);
+  cap('خريطة <em>الوقائع</em>',220,a+.1,b,80);
+  win('ai-facthead.png',{top:400,a:a+.4,b:a+(b-a)*.77});
+  win('ai-timeline.png',{top:700,h:960,a:a+.9,b:a+(b-a)*.77,pan:880,p0:.2,p1:.95});
+  add('مثبتة · بلا دليل · متنازع عليها','cap',{top:'1720px',fontSize:'46px',color:'#f3d58a'},{a:a+(b-a)*.35,b:a+(b-a)*.77,from:{y:20},to:{y:0}});
+  win('ai-contra.png',{top:620,a:a+(b-a)*.78,b,from:{y:200,s:.9}});
+  add('⚡ ويكشف <em>التعارض</em> بين الأقوال والمستندات','cap',{top:'1300px',fontSize:'50px'},{a:a+(b-a)*.8,b,from:{y:20},to:{y:0}});
+  /* 5 الربط بالنصوص */
+  [a,b]=sc(4);
+  cap('كل مسألة <em>بنصّها</em>',220,a+.1,b,80);
+  win('ai-gap.png',{top:420,a:a+.4,b});
+  add('القوانين الفلسطينية الحاكمة','tag',{left:'50%',top:'1260px',marginLeft:'-300px'},{a:a+(b-a)*.29,b,fi:.3,from:{s:.7},to:{s:1}});
+  add('ثم الأحكام ذات الصلة','tag',{left:'50%',top:'1380px',marginLeft:'-230px'},{a:a+(b-a)*.56,b,fi:.3,from:{s:.7},to:{s:1}});
+  add('من قاعدة القانون المدمجة على جهاز المكتب','cap',{top:'1520px',fontSize:'44px',fontWeight:'600',color:'#d5dde8'},{a:a+(b-a)*.76,b,from:{y:20},to:{y:0}});
+  /* 6 ميزان الحجج */
+  [a,b]=sc(5);
+  cap('ميزان <em>الحجج</em>',220,a+.1,b,80);
+  win('ai-mzpro.png',{w:470,left:560,top:400,h:1300,a:a+.4,b,pan:700,p0:.2,p1:.95});
+  win('ai-mzcon.png',{w:470,left:50,top:400,h:1300,a:a+1,b,pan:700,p0:.25,p1:.95});
+  /* 7 المسبار يوصي الآن */
+  [a,b]=sc(6);
+  cap('<em>المِسبار يوصي الآن</em>',220,a+.1,b,74);
+  win('ai-now.png',{top:420,a:a+.4,b});
+  win('ai-nextcard.png',{top:830,h:960,a:a+1.6,b,pan:420,p0:.25,p1:.9});
+  /* 8 الصياغة */
+  [a,b]=sc(7);
+  cap('يكتب <em>الأوراق</em><br>من عقل القضية نفسه',220,a+.1,b,68);
+  win('ai-drafttiles.png',{top:560,a:a+.4,b:a+(b-a)*.45});
+  win('ai-draft.png',{top:560,h:1180,a:a+(b-a)*.46,b,pan:900,p0:.12,p1:.92,from:{y:200,s:.92}});
+  add('وما لا يعرفه يتركه <em>[..]</em> لتكمله','cap',{top:'1780px',fontSize:'46px'},{a:a+(b-a)*.78,b,from:{y:20},to:{y:0}});
+  /* 9 كشف التغيّر */
+  [a,b]=sc(8);
+  cap('ينبّهك <em>لما تغيّر</em>',240,a+.1,b,80);
+  add(`<b>🔄 تغيّر في القضية منذ آخر تحليل</b><span>محضر جلسة جديد · مستند جديد: كشف حساب.pdf</span><i>تحديث عقل القضية</i>`,'chg',{left:'70px',top:'640px'},{a:a+.5,b,from:{y:160},to:{y:0}});
+  add('بضغطة واحدة','cap',{top:'1180px',fontSize:'56px',color:'#f3d58a'},{a:a+(b-a)*.6,b,from:{y:20},to:{y:0}});
+  /* 10 الخصوصية */
+  [a,b]=sc(9);
+  cap('لا تحليل <em>قبل تفعيلك</em><br>لهذه القضية بالذات',220,a+.1,b,66);
+  win('ai-head.png',{top:560,a:a+.4,b});
+  const R1=add('<s>هوية 4010•••</s> ← <em>[هوية-1]</em>','red',{left:'90px',top:'900px'},{a:a+(b-a)*.45,b,fi:.35,from:{x:120},to:{x:0}});
+  add('<s>هاتف 059•••</s> ← <em>[هاتف-1]</em>','red',{left:'90px',top:'1060px'},{a:a+(b-a)*.55,b,fi:.35,from:{x:120},to:{x:0}});
+  win('ai-log.png',{top:1260,a:a+(b-a)*.78,b});
+  add('كل إرسال <em>مسجّل</em>','cap',{top:'1500px',fontSize:'50px'},{a:a+(b-a)*.82,b,from:{y:20},to:{y:0}});
+  /* 11 القرار للمحامي */
+  [a,b]=sc(10);
+  cap('كل نتيجة <em>تنتظر قرارك</em>',260,a+.1,b,70);
+  add('اعتماد','btnx',{left:'580px',top:'700px',background:'#0b1b2b',color:'#fff',border:'4px solid #f3d58a'},{a:a+(b-a)*.42,b,fi:.3,from:{s:.6},to:{s:1}});
+  add('رفض','btnx',{left:'180px',top:'700px',background:'#fbf7ee',color:'#0b1b2b'},{a:a+(b-a)*.54,b,fi:.3,from:{s:.6},to:{s:1}});
+  add('القرار <em>دائماً للمحامي</em>','h',{top:'1080px',fontSize:'84px'},{a:a+(b-a)*.68,b,from:{y:30},to:{y:0}});
+  add('ويُحفظ من قرّر ومتى','p',{top:'1320px'},{a:a+(b-a)*.8,b,from:{y:20},to:{y:0}});
+  /* 12 الخاتمة */
+  [a,b]=sc(11);
+  add(`<img src="${A}icon.png" style="width:100%;border-radius:60px">`,'logo',{width:'260px',height:'260px',left:'410px',top:'470px'},{a:a,b:999,from:{s:.6},to:{s:1}});
+  add('المِسبار','h',{top:'790px',color:'#f3d58a'},{a:a+.3,b:999,from:{y:30},to:{y:0}});
+  add('ذكاءٌ <em>يعرف قضيّتك</em>','cap',{top:'940px',fontSize:'66px'},{a:a+.6,b:999,from:{y:20},to:{y:0}});
+  add(`<svg viewBox="0 0 32 32" fill="#fff"><path d="M16 3C9 3 3.3 8.6 3.3 15.6c0 2.4.7 4.7 1.9 6.7L3 29l6.9-2.1c1.9 1 4 1.6 6.1 1.6 7 0 12.7-5.6 12.7-12.6S23 3 16 3zm0 23.1c-1.9 0-3.8-.5-5.4-1.5l-.4-.2-4.1 1.2 1.2-4-.3-.4c-1.1-1.7-1.7-3.6-1.7-5.6C5.3 9.8 10.1 5 16 5s10.7 4.8 10.7 10.6S21.9 26.1 16 26.1zm5.9-7.9c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.6-1.6-1-.9-1.6-1.9-1.8-2.2-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.4.3-.6.1-.2 0-.4 0-.6l-1-2.4c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.2 1.4 3.5c.2.2 2.4 3.6 5.8 5 .8.3 1.4.5 1.9.7.8.3 1.5.2 2.1.1.6-.1 1.9-.8 2.2-1.5.3-.7.3-1.4.2-1.5-.1-.2-.3-.3-.6-.4z"/></svg><span>0568717122</span>`,'cta wa',{top:'1150px',marginLeft:'-340px'},{a:a+1,b:999,from:{s:.8},to:{s:1}});
+}
+
+if(R==='sale'){
+  const B=(new URLSearchParams(location.search).get('b')||'0,6.18,9.22,11.74,19.14,27.86,36.86,42.7,46.74,52.14,55.12').split(',').map(Number);
+  window.DUR=B[B.length-1]+2.2; const sc=i=>[B[i],B[i+1]];
+  add('<i></i>','prog',{},{a:0,b:999,fi:.01});
+  add('','glow',{},{a:0,b:999,fi:1.5,drift:{s:.2}});
+  const cap=(html,top,a,b,fs,ex)=>add(html,'cap',{top:top+'px',fontSize:(fs||64)+'px',...(ex||{})},{a,b,from:{y:30},to:{y:0}});
+  let a,b;
+  /* 1 الساعات الضائعة */
+  [a,b]=sc(0);
+  add('<svg width="300" height="300" viewBox="0 0 100 100"><circle cx="50" cy="50" r="44" fill="none" stroke="#f3d58a" stroke-width="4"/><line id="hh" x1="50" y1="50" x2="50" y2="26" stroke="#fff" stroke-width="5" stroke-linecap="round"/><line id="mh" x1="50" y1="50" x2="50" y2="14" stroke="#f3d58a" stroke-width="3" stroke-linecap="round"/><circle cx="50" cy="50" r="4" fill="#f3d58a"/></svg>','l',{left:'390px',top:'560px'},{a:a+.1,b,from:{s:.6},to:{s:1},on:(t,d)=>{d.querySelector('#mh').setAttribute('transform',`rotate(${t*360} 50 50)`);d.querySelector('#hh').setAttribute('transform',`rotate(${t*30} 50 50)`)}});
+  cap('قدّيش ساعة <em>ضيّعت</em><br>هالأسبوع؟',260,a+.1,b,80);
+  add('وين الملف؟','bub',{left:'520px',top:'1000px'},{a:a+2.1,b,fi:.3,from:{s:.6,y:30},to:{s:1,y:0}});
+  add('إيمتى الجلسة؟','bub',{left:'170px',top:'1190px'},{a:a+5.3,b,fi:.3,from:{s:.6,y:30},to:{s:1,y:0}});
+  /* 2 المهلة */
+  [a,b]=sc(1);
+  add('⏳','ring',{background:'radial-gradient(circle,#ff8b7a,#b8432f)',boxShadow:'0 0 0 30px rgba(255,120,100,.18),0 0 0 70px rgba(255,120,100,.08)'},{a:a,b,from:{s:.6,r:-20},to:{s:1,r:0}});
+  cap('مهلة ممكن<br><em style="color:#ff9c8a">تروح عليك؟</em>',1080,a+.3,b,84);
+  /* 3 تخيّل */
+  [a,b]=sc(2);
+  cap('تخيّل مكتبك…',640,a+.1,b,90);
+  cap('<em>وكل إشي بمكانه</em>',820,a+1.2,b,90);
+  /* 4 المسبار */
+  [a,b]=sc(3);
+  add(`<img src="${A}icon.png"><b>المِسْبار</b>`,'brand',{top:'200px'},{a:a,b,from:{s:.8},to:{s:1}});
+  add(`<div class="bar"><i></i><i></i><i></i></div><img src="${A}dash.png">`,'shot',{width:'1300px',left:'-110px',top:'420px'},{a:a+.4,b,mv:1.1,from:{y:300,s:.9,r:-3},to:{y:0,s:1,r:-2},drift:{x:150}});
+  [['قضاياك',1.1],['جلساتك',1.7],['مُهَلك',2.5],['مستنداتك',3.1]].forEach(([c,d],i)=>add(c,'chip',{top:(1260+Math.floor(i/2)*120)+'px',left:(i%2?150:580)+'px'},{a:a+d,b,fi:.3,from:{s:.7},to:{s:1}}));
+  add(`<img src="${A}icon.png"><div><b>المِسبار · تذكير</b><span>جلسة غداً الساعة 10:00 — محكمة بداية نابلس</span></div>`,'notif',{left:'90px',top:'1560px'},{a:a+5.6,b,from:{y:200},to:{y:0}});
+  /* 5 المكتبة القانونية */
+  [a,b]=sc(4);
+  cap('مكتبة قانونية <em>على جهازك</em>',260,a+.1,b,70);
+  [[11150,'حكماً فلسطينياً',a+2.9],[2149,'تشريعاً فلسطينياً',a+4.85]].forEach(([n,l,t0],i)=>add(`<b>0</b><span>${l}</span>`,'num',{top:(560+i*400)+'px'},{a:t0,b,fi:.35,from:{y:60},to:{y:0},on:(t,d)=>{d.querySelector('b').textContent=Math.round(n*inout((t-t0)/1.4)).toLocaleString('en-US')}}));
+  cap('حتى <em>بدون إنترنت</em>',1420,a+(b-a)*.8,b,60);
+  /* 6 العقل القانوني */
+  [a,b]=sc(5);
+  cap('عقل قانوني<br><em>بيقرا ملف القضية</em>',220,a+.1,b,70);
+  add(`<img src="${A}ai-now.png">`,'win',{width:'1000px',left:'40px',top:'560px'},{a:a+.6,b,mv:.9,from:{y:140,s:.95},to:{y:0,s:1}});
+  [['بيكشف الثغرات',2.35],['الخطوة الجاية',3.6],['بيساعدك تصيغ لوايحك',5.55]].forEach(([c,d],i)=>add('✓ '+c,'cap',{top:(1010+i*120)+'px',fontSize:'52px',color:'#f3d58a'},{a:a+d,b,fi:.3,from:{x:80},to:{x:0}}));
+  add('والقرار <em>دايماً إلك</em>','h',{top:'1460px',fontSize:'84px'},{a:a+(b-a)*.8,b,from:{y:30},to:{y:0}});
+  /* 7 ميثاق */
+  [a,b]=sc(6);
+  const phone=`<div class="scr"><div class="notch"></div><div class="ph"><small>مرحباً</small><b>أحمد يوسف</b></div>
+    <div class="card"><div class="k">الجلسة القادمة</div><div class="v">الأحد 9 نوفمبر</div><div class="s">محكمة صلح نابلس · 9:30 صباحاً</div></div>
+    <div class="card"><div class="k">ما جرى في الجلسة السابقة</div><div class="s">قُدّمت البينات، وأُجّلت للمرافعة.</div></div></div>`;
+  add(phone,'phone',{left:'460px',top:'470px',transform:'scale(.85)'},{a:a,b,mv:1,from:{y:400,s:.85},to:{y:0,s:.85}});
+  add(`<img src="${A}mithaq-icon.png" style="width:100%;border-radius:40px">`,'logo',{width:'170px',height:'170px',left:'150px',top:'470px'},{a:a+.2,b,from:{s:.5},to:{s:1}});
+  cap('موكّلك بيتابع<br>من <em>ميثاق</em>',230,a+.1,b,64,{width:'480px',left:'40px',padding:'0'});
+  add('<span class="i" style="font-size:60px">📉</span><b style="font-size:44px">مكالمات أقل</b>','res',{left:'40px',top:'760px',width:'440px',padding:'24px 26px',gap:'18px'},{a:a+3.2,b,fi:.35,from:{x:-160},to:{x:0}});
+  add('<span class="i" style="font-size:60px">🤝</span><b style="font-size:44px">ثقة أكبر</b>','res',{left:'40px',top:'960px',width:'440px',padding:'24px 26px',gap:'18px'},{a:a+4.6,b,fi:.35,from:{x:-160},to:{x:0}});
+  /* 8 فلسطيني على جهازك */
+  [a,b]=sc(7);
+  cap('معمول لمكتب<br><em>المحاماة الفلسطيني</em>',400,a+.1,b,78);
+  add('<svg width="200" height="200" viewBox="0 0 24 24" fill="none" stroke="#f3d58a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>','shield',{top:'880px'},{a:a+2.2,b,from:{s:.6},to:{s:1}});
+  cap('بيشتغل <em>على جهاز مكتبك</em>',1340,a+2.4,b,58);
+  /* 9 الدعوة */
+  [a,b]=sc(8);
+  cap('لا تستنّى مهلة<br><em style="color:#ff9c8a">كمان تروح عليك</em>',300,a+.1,b,76);
+  add('جرّب المِسبار اليوم','h',{top:'760px',fontSize:'88px',color:'#f3d58a'},{a:a+2.2,b,from:{y:30},to:{y:0}});
+  add(`<svg viewBox="0 0 32 32" fill="#fff"><path d="M16 3C9 3 3.3 8.6 3.3 15.6c0 2.4.7 4.7 1.9 6.7L3 29l6.9-2.1c1.9 1 4 1.6 6.1 1.6 7 0 12.7-5.6 12.7-12.6S23 3 16 3zm0 23.1c-1.9 0-3.8-.5-5.4-1.5l-.4-.2-4.1 1.2 1.2-4-.3-.4c-1.1-1.7-1.7-3.6-1.7-5.6C5.3 9.8 10.1 5 16 5s10.7 4.8 10.7 10.6S21.9 26.1 16 26.1zm5.9-7.9c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.6-1.6-1-.9-1.6-1.9-1.8-2.2-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.4.3-.6.1-.2 0-.4 0-.6l-1-2.4c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.2 1.4 3.5c.2.2 2.4 3.6 5.8 5 .8.3 1.4.5 1.9.7.8.3 1.5.2 2.1.1.6-.1 1.9-.8 2.2-1.5.3-.7.3-1.4.2-1.5-.1-.2-.3-.3-.6-.4z"/></svg><span>0568717122</span>`,'cta wa',{top:'1000px',marginLeft:'-340px'},{a:a+2.6,b,from:{s:.8},to:{s:1}});
+  cap('واطلب <em>عرض مباشر</em> لمكتبك',1240,a+3.55,b,58);
+  /* 10 الخاتمة */
+  [a,b]=sc(9);
+  add(`<img src="${A}icon.png" style="width:100%;border-radius:60px">`,'logo',{width:'280px',height:'280px',left:'400px',top:'480px'},{a:a,b:999,from:{s:.6},to:{s:1}});
+  add('المِسبار','h',{top:'810px',color:'#f3d58a'},{a:a+.2,b:999,from:{y:30},to:{y:0}});
+  add('مكتبك، <em>زي ما لازم يكون</em>','cap',{top:'960px',fontSize:'66px'},{a:a+.8,b:999,from:{y:20},to:{y:0}});
+  add(`<svg viewBox="0 0 32 32" fill="#fff"><path d="M16 3C9 3 3.3 8.6 3.3 15.6c0 2.4.7 4.7 1.9 6.7L3 29l6.9-2.1c1.9 1 4 1.6 6.1 1.6 7 0 12.7-5.6 12.7-12.6S23 3 16 3zm0 23.1c-1.9 0-3.8-.5-5.4-1.5l-.4-.2-4.1 1.2 1.2-4-.3-.4c-1.1-1.7-1.7-3.6-1.7-5.6C5.3 9.8 10.1 5 16 5s10.7 4.8 10.7 10.6S21.9 26.1 16 26.1zm5.9-7.9c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.6-1.6-1-.9-1.6-1.9-1.8-2.2-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.4.3-.6.1-.2 0-.4 0-.6l-1-2.4c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.2 1.4 3.5c.2.2 2.4 3.6 5.8 5 .8.3 1.4.5 1.9.7.8.3 1.5.2 2.1.1.6-.1 1.9-.8 2.2-1.5.3-.7.3-1.4.2-1.5-.1-.2-.3-.3-.6-.4z"/></svg><span>0568717122</span>`,'cta wa',{top:'1180px',marginLeft:'-340px'},{a:a+1.4,b:999,from:{s:.8},to:{s:1}});
+}
+
+const winA=(src,o)=>{const {w=1000,top,h,a,b,pan=0,p0=.15,p1=.9}=o;const left=o.left??(1080-w)/2;
+  return add(`<img src="${A}${src}">`,'win',{width:w+'px',left:left+'px',top:top+'px',height:h?h+'px':'auto'},{a,b,mv:.9,from:o.from||{y:140,s:.95},to:{y:0,s:1},
+    on:pan?(t,d)=>{const q=inout(((t-a)/(b-a)-p0)/(p1-p0));d.firstChild.style.transform=`translateY(${-pan*q}px)`}:null})};
+const capA=(html,top,a,b,fs,ex)=>add(html,'cap',{top:top+'px',fontSize:(fs||64)+'px',...(ex||{})},{a,b,from:{y:30},to:{y:0}});
+if(R==='rebut'){ window.DUR=42.2;
+  add('<i></i>','prog',{},{a:0,b:999,fi:.01}); add('','glow',{},{a:0,b:999,fi:1.5,drift:{s:.2}});
+  capA('وصلتك <em>لائحة الخصم</em>؟',240,0,3.5,80);
+  add('<h4>لائحة دعوى</h4><i></i><i style="width:80%"></i><b>البند 1</b><i></i><i style="width:70%"></i><b>البند 2</b><i></i><i style="width:85%"></i><b>البند 3</b><i style="width:60%"></i>','paper',{left:'260px',top:'520px'},{a:.2,b:3.5,from:{y:200,r:-6},to:{y:0,r:-3}});
+  add('بند بند؟','bub',{left:'600px',top:'1380px'},{a:2.5,b:3.5,fi:.25,from:{s:.6},to:{s:1}});
+  capA('ارفعها على <em>المِسبار</em>',240,3.6,9.2,76);
+  winA('rb-drop.png',{top:520,a:3.8,b:9.2});
+  [['صورة',5.1],['PDF',5.8],['Word',6.75],['🎙️ صوتك',7.8]].forEach(([c,t0],i)=>add(c,'chip',{top:(900+Math.floor(i/2)*130)+'px',left:(i%2?150:580)+'px',direction:'ltr'},{a:t0,b:9.2,fi:.3,from:{s:.7},to:{s:1}}));
+  capA('أولاً: <em>الدفوع الشكلية</em>',240,9.25,13.5,76);
+  winA('rb-rbs0.png',{top:640,a:9.4,b:13.5});
+  ['الخصومة','الاختصاص'].forEach((c,i)=>add(c,'chip',{top:'1060px',left:(i?220:600)+'px'},{a:i?12.4:11.85,b:13.5,fi:.3,from:{s:.7},to:{s:1}}));
+  capA('ورد على <em>كل بند</em>',200,13.55,20.4,76);
+  capA('🔎 وشو ناقصك <em>من بيّنات</em>',200,20.45,23.55,64);
+  winA('rb-rbs1.png',{top:380,h:1260,a:13.7,b:23.55,pan:640,p0:.12,p1:.75});
+  [['تسليم','#2f8f5b',15.7],['إنكار','#c0473a',16.3],['تسليم جزئي','#c99a40',17.2]].forEach(([c,col,t0],i)=>add(c,'pill2',{left:(720-i*290)+'px',top:'1700px',background:col,color:'#fff'},{a:t0,b:20.4,fi:.25,from:{s:.6},to:{s:1}}));
+  capA('وكل <em>مطلب</em> بآخر اللائحة',220,23.6,26.1,70);
+  winA('rb-rbs2.png',{top:600,a:23.7,b:26.1});
+  capA('وبضغطة…',260,26.2,31.8,76);
+  add('لائحة جوابية كاملة ←','pill2',{left:'50%',top:'560px',marginLeft:'-330px',fontSize:'60px',background:'linear-gradient(135deg,#f3d58a,#c99a40)'},{a:26.9,b:31.8,fi:.3,from:{s:.6},to:{s:1}});
+  winA('rb-rbfoot.png',{top:820,a:27.2,b:31.8});
+  capA('بتراجعها،<br><em>وبتعتمدها إنت</em>',1080,29.5,31.8,70);
+  capA('وكل هاد <em>بإذنك</em>',240,31.85,35.9,76);
+  winA('ai-head.png',{top:560,a:32,b:35.9});
+  capA('بعد ما تفعّل التحليل<br>لهاي القضية',900,33.7,35.9,56,{color:'#d5dde8',fontWeight:'600'});
+  add(`<img src="${A}icon.png" style="width:100%;border-radius:60px">`,'logo',{width:'260px',height:'260px',left:'410px',top:'470px'},{a:35.9,b:999,from:{s:.6},to:{s:1}});
+  add('المِسبار','h',{top:'790px',color:'#f3d58a'},{a:36.1,b:999,from:{y:30},to:{y:0}});
+  add('وقتك للمرافعة،<br><em>مش للنسخ والترتيب</em>','cap',{top:'960px',fontSize:'60px'},{a:36.9,b:999,from:{y:20},to:{y:0}});
+  add(`<svg viewBox="0 0 32 32" fill="#fff"><path d="M16 3C9 3 3.3 8.6 3.3 15.6c0 2.4.7 4.7 1.9 6.7L3 29l6.9-2.1c1.9 1 4 1.6 6.1 1.6 7 0 12.7-5.6 12.7-12.6S23 3 16 3zm0 23.1c-1.9 0-3.8-.5-5.4-1.5l-.4-.2-4.1 1.2 1.2-4-.3-.4c-1.1-1.7-1.7-3.6-1.7-5.6C5.3 9.8 10.1 5 16 5s10.7 4.8 10.7 10.6S21.9 26.1 16 26.1zm5.9-7.9c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.6-1.6-1-.9-1.6-1.9-1.8-2.2-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.4.3-.6.1-.2 0-.4 0-.6l-1-2.4c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.2 1.4 3.5c.2.2 2.4 3.6 5.8 5 .8.3 1.4.5 1.9.7.8.3 1.5.2 2.1.1.6-.1 1.9-.8 2.2-1.5.3-.7.3-1.4.2-1.5-.1-.2-.3-.3-.6-.4z"/></svg><span>0568717122</span>`,'cta wa',{top:'1240px',marginLeft:'-340px'},{a:38,b:999,from:{s:.8},to:{s:1}});
+}
+if(R==='deadline'){ window.DUR=37.8;
+  add('<i></i>','prog',{},{a:0,b:999,fi:.01}); add('','glow',{},{a:0,b:999,fi:1.5,drift:{s:.2}});
+  add('⚖️','ring',{},{a:0,b:2.9,from:{s:.6,r:-25},to:{s:1,r:0}});
+  capA('الحكم <em>صدر</em>…',300,0,2.9,90);
+  capA('وبلّشت الساعة <em style="color:#ff9c8a">تعِد</em>',1080,1.1,2.9,70);
+  add('30','big',{top:'420px',fontSize:'420px'},{a:2.95,b:8.25,from:{s:.6},to:{s:1}});
+  capA('يوم للاستئناف',880,3.4,8.25,72);
+  capA('من أي يوم <em>بتبلّش؟</em>',1160,5,8.25,62);
+  capA('وإيمتى <em style="color:#ff9c8a">آخر يوم؟</em>',1300,6.45,8.25,62);
+  capA('بالمِسبار',220,8.3,14.9,80);
+  add('تاريخ الحكم: 30/9/2026','pill2',{left:'50%',top:'440px',marginLeft:'-330px'},{a:9.2,b:14.9,fi:.3,from:{s:.7},to:{s:1}});
+  const o1=add('<span class="rd"></span>من اليوم التالي لصدور الحكم','optc',{left:'90px',top:'680px'},{a:11.5,b:14.9,fi:.3,from:{x:120},to:{x:0},on:(t,d)=>d.classList.toggle('on',t<13.2)});
+  add('<span class="rd"></span>من تاريخ التبليغ (للمتخلّف)','optc',{left:'90px',top:'860px'},{a:13.2,b:14.9,fi:.3,from:{x:120},to:{x:0},on:(t,d)=>d.classList.toggle('on',t>=13.6)});
+  capA('بيحسب <em>آخر موعد</em><br>مع المادة القانونية',220,14.95,20.25,70);
+  winA('dl-card.png',{top:620,a:15.1,b:20.25});
+  capA('وبيحطّه <em>مهلة بملف القضية</em>',1180,18.2,20.25,54);
+  capA('صادف <em>جمعة</em>؟',240,20.3,24.4,80);
+  winA('dl-prev.png',{top:560,a:20.5,b:24.4});
+  capA('بينبّهك تتأكد<br>من امتداد المدة',1100,22.2,24.4,58,{color:'#f3d58a'});
+  capA('وبيبلّغ موكّلك<br>على <em>ميثاق</em>',220,24.45,29.2,72);
+  add(`<img src="${A}mithaq-icon.png"><div><b>ميثاق · الآن</b><span>صدر الحكم في قضيتك 1490/2024. آخر موعد للطعن بالاستئناف: الجمعة 30/10/2026</span></div>`,'notif',{left:'90px',top:'560px'},{a:24.9,b:29.2,from:{y:-200},to:{y:0}});
+  winA('dl-log.png',{top:900,a:26,b:29.2});
+  capA('كل صباح، <em>قدّامك</em>',260,29.3,32.95,76);
+  add('⏳ متبقّي يومين','pill2',{left:'50%',top:'700px',marginLeft:'-330px',fontSize:'84px',background:'#c0473a',color:'#fff',padding:'30px 60px'},{a:31.6,b:32.95,fi:.25,from:{s:.6},to:{s:1}});
+  add(`<img src="${A}icon.png" style="width:100%;border-radius:60px">`,'logo',{width:'260px',height:'260px',left:'410px',top:'470px'},{a:33,b:999,from:{s:.6},to:{s:1}});
+  add('المِسبار','h',{top:'790px',color:'#f3d58a'},{a:33.2,b:999,from:{y:30},to:{y:0}});
+  add('ولا مهلة <em>بتروح عليك</em>','cap',{top:'960px',fontSize:'64px'},{a:34,b:999,from:{y:20},to:{y:0}});
+  add(`<svg viewBox="0 0 32 32" fill="#fff"><path d="M16 3C9 3 3.3 8.6 3.3 15.6c0 2.4.7 4.7 1.9 6.7L3 29l6.9-2.1c1.9 1 4 1.6 6.1 1.6 7 0 12.7-5.6 12.7-12.6S23 3 16 3zm0 23.1c-1.9 0-3.8-.5-5.4-1.5l-.4-.2-4.1 1.2 1.2-4-.3-.4c-1.1-1.7-1.7-3.6-1.7-5.6C5.3 9.8 10.1 5 16 5s10.7 4.8 10.7 10.6S21.9 26.1 16 26.1zm5.9-7.9c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.6-1.6-1-.9-1.6-1.9-1.8-2.2-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.4.3-.6.1-.2 0-.4 0-.6l-1-2.4c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.2 1.4 3.5c.2.2 2.4 3.6 5.8 5 .8.3 1.4.5 1.9.7.8.3 1.5.2 2.1.1.6-.1 1.9-.8 2.2-1.5.3-.7.3-1.4.2-1.5-.1-.2-.3-.3-.6-.4z"/></svg><span>0568717122</span>`,'cta wa',{top:'1180px',marginLeft:'-340px'},{a:35,b:999,from:{s:.8},to:{s:1}});
+}
+const TL=[{"sp": "B", "i": 0, "src": [0, 5.24], "t0": 0.4, "t1": 5.64, "text": "يا زلمة، مبارح كانت عندي مهلة استئناف، وما انتبهت إلا آخر يوم!"}, {"sp": "A", "i": 0, "src": [0, 2.44], "t0": 5.99, "t1": 8.43, "text": "ليش؟ ما في حدا بيذكّرك؟"}, {"sp": "B", "i": 1, "src": [5.24, 12.36], "t0": 8.78, "t1": 15.9, "text": "مين بدّه يذكّرني؟ دفتر المواعيد؟ والموكّلين كل ساعة بيتّصلوا: إيمتى الجلسة؟ شو صار؟"}, {"sp": "A", "i": 1, "src": [2.44, 10.74], "t0": 16.25, "t1": 24.55, "text": "أنا من يوم ما صرت أشتغل عالمِسبار، كل صبح بفتحه، بلاقي قدّامي شو متأخّر، وشو عندي اليوم وبكرا."}, {"sp": "B", "i": 2, "src": [12.36, 16.12], "t0": 24.9, "t1": 28.66, "text": "طب وحساب المهل؟ أنا كل مرة بعِد على أصابعي."}, {"sp": "A", "i": 2, "src": [10.84, 17.62], "t0": 29.01, "t1": 35.79, "text": "بسجّل تاريخ الحكم، وهو بيحسب آخر يوم للطعن، مع المادة، وبيحطها مهلة بالملف."}, {"sp": "B", "i": 3, "src": [16.12, 17.46], "t0": 36.14, "t1": 37.48, "text": "والموكّلين؟"}, {"sp": "A", "i": 3, "src": [17.8, 27.38], "t0": 37.83, "t1": 47.41, "text": "عندهم تطبيق ميثاق. بيشوفوا موعد الجلسة وشو صار فيها، وبيبعتولي المستندات من موبايلاتهم. المكالمات قلّت كتير."}, {"sp": "B", "i": 4, "src": [17.46, 20.18], "t0": 47.76, "t1": 50.48, "text": "طيب، وإذا بدّي أدوّر على حكم أو مادة؟"}, {"sp": "A", "i": 4, "src": [27.64, 34.18], "t0": 50.83, "t1": 57.37, "text": "فيه مكتبة فيها أكتر من إحدَعشر ألف حكم فلسطيني، وبدوّر فيها حتى بدون إنترنت."}, {"sp": "B", "i": 5, "src": [20.18, 23.18], "t0": 57.72, "t1": 60.72, "text": "يعني إنت مرتاح، وأنا عايش بين الدفاتر؟"}, {"sp": "A", "i": 5, "src": [34.28, 37.34], "t0": 61.07, "t1": 64.13, "text": "جرّبه. في نسخة تجريبية، وبعدين احكيلي."}, {"sp": "B", "i": 6, "src": [23.18, 24.8], "t0": 64.48, "t1": 66.1, "text": "خلص، ابعتلي الرابط!"}];
+
+if(R==='dialog'){ const E=TL[TL.length-1].t1+.45; window.DUR=E+4.2;
+  add('<i></i>','prog',{},{a:0,b:999,fi:.01}); add('','glow',{},{a:0,b:999,fi:1.5,drift:{s:.2}});
+  const avB=add('<div class="c">خ</div><b>خلود</b><small>📒 بتشتغل بالدفاتر</small><div class="wave"></div>','av b',{left:'620px',top:'110px'},{a:0,b:E,fi:.4});
+  const avA=add('<div class="c">أ</div><b>أحمد</b><small>⚖️ بيشتغل بالمِسبار</small><div class="wave"></div>','av a',{left:'160px',top:'110px'},{a:.2,b:E,fi:.4});
+  [avA,avB].forEach(d=>{const w=d.querySelector('.wave');for(let i=0;i<9;i++){const x=document.createElement('i');w.appendChild(x)}});
+  const spk=t=>{const x=TL.find(x=>t>=x.t0&&t<=x.t1);return x?x.sp:''};
+  EL.find(e=>e.d===avA).on=(t,d)=>{const on=spk(t)==='A';d.querySelector('.c').style.boxShadow=on?'0 0 0 10px rgba(243,213,138,.35),0 0 60px rgba(243,213,138,.6)':'none';d.style.opacity=Math.min(+d.style.opacity, on?1:.55);d.querySelectorAll('.wave i').forEach((x,i)=>x.style.height=on?(14+40*Math.abs(Math.sin(t*9+i*1.3)))+'px':'6px')};
+  EL.find(e=>e.d===avB).on=(t,d)=>{const on=spk(t)==='B';d.querySelector('.c').style.boxShadow=on?'0 0 0 10px rgba(160,170,185,.35)':'none';d.style.opacity=Math.min(+d.style.opacity, on?1:.55);d.querySelectorAll('.wave i').forEach((x,i)=>{x.style.background='#aab4c2';x.style.height=on?(14+40*Math.abs(Math.sin(t*10+i*1.1)))+'px':'6px'})};
+  TL.forEach(x=>add(x.text,'sub '+x.sp.toLowerCase(),{top:'520px'},{a:x.t0-.05,b:x.t1+.25,fi:.2,fo:.2,from:{y:20,s:.97},to:{y:0,s:1}}));
+  const T=(sp,i)=>TL.find(x=>x.sp===sp&&x.i===i);
+  const vis=(sp,i,html,cls,st,an)=>{const x=T(sp,i);return add(html,cls,st,{a:x.t0+.2,b:x.t1+.3,...(an||{from:{s:.7},to:{s:1}})})};
+  vis('B',0,'⏳','emo',{top:'1050px'});
+  vis('A',0,'🤔','emo',{top:'1050px'});
+  vis('B',1,'📒','emo',{top:'980px'});
+  {const x=T('B',1); add('إيمتى الجلسة؟','bub',{left:'120px',top:'1360px'},{a:x.t0+2,b:x.t1+.3,fi:.25,from:{s:.6},to:{s:1}}); add('شو صار؟','bub',{left:'600px',top:'1520px'},{a:x.t0+3,b:x.t1+.3,fi:.25,from:{s:.6},to:{s:1}}); add('📞','emo',{top:'1600px',fontSize:'140px'},{a:x.t0+1.6,b:x.t1+.3,fi:.2,on:(t,d)=>{d.style.transform+=` rotate(${Math.sin(t*30)*10}deg)`}})}
+  {const x=T('A',1); add(`<img src="${A}dl-drawer.png">`,'win',{width:'760px',left:'160px',top:'900px'},{a:x.t0+.6,b:x.t1+.3,mv:.9,from:{y:140,s:.95},to:{y:0,s:1}})}
+  {const x=T('B',2); add('✋','emo',{top:'1000px'},{a:x.t0+.2,b:x.t1+.3}); ['1','2','3','…؟'].forEach((n,i)=>add(n,'big',{top:'1330px',fontSize:'110px',left:(800-i*230)+'px',width:'200px'},{a:x.t0+1.6+i*.45,b:x.t1+.3,fi:.15,from:{s:.5},to:{s:1}}))}
+  {const x=T('A',2); add(`<img src="${A}dl-card.png">`,'win',{width:'1000px',left:'40px',top:'960px'},{a:x.t0+.8,b:x.t1+.3,mv:.9,from:{y:140,s:.95},to:{y:0,s:1}})}
+  vis('B',3,'📞📞','emo',{top:'1050px',fontSize:'180px'});
+  {const x=T('A',3);
+   add(`<img src="${A}mithaq-icon.png"><div><b>ميثاق · الآن</b><span>حُدّدت جلستك القادمة: الأحد 9 نوفمبر</span></div>`,'notif',{left:'90px',top:'900px'},{a:x.t0+.6,b:x.t1+.3,from:{y:-160},to:{y:0}});
+   add(`<img src="${A}icon.png"><div><b>المِسبار · ملف 2214/2026</b><span>وصل من الموكّل: كشوف الأجور.pdf</span></div>`,'notif',{left:'90px',top:'1120px'},{a:x.t0+4.7,b:x.t1+.3,from:{y:160},to:{y:0}});
+   add('<span class="i">📉</span><b>المكالمات قلّت</b>','res',{left:'100px',top:'1400px'},{a:x.t0+7.4,b:x.t1+.3,fi:.3,from:{x:-160},to:{x:0}})}
+  vis('B',4,'📚','emo',{top:'1050px'});
+  {const x=T('A',4); add('<b>0</b><span>حكماً فلسطينياً</span>','num',{top:'960px'},{a:x.t0+1.3,b:x.t1+.3,fi:.3,from:{y:60},to:{y:0},on:(t,d)=>{d.querySelector('b').textContent=Math.round(11150*inout((t-x.t0-1.3)/1.4)).toLocaleString('en-US')}}); add('حتى <em>بدون إنترنت</em>','cap',{top:'1320px',fontSize:'60px'},{a:x.t0+5.2,b:x.t1+.3,from:{y:20},to:{y:0}})}
+  vis('B',5,'📒📒📒','emo',{top:'1050px',fontSize:'170px'});
+  {const x=T('A',5); add(`<svg viewBox="0 0 32 32" fill="#fff"><path d="M16 3C9 3 3.3 8.6 3.3 15.6c0 2.4.7 4.7 1.9 6.7L3 29l6.9-2.1c1.9 1 4 1.6 6.1 1.6 7 0 12.7-5.6 12.7-12.6S23 3 16 3zm0 23.1c-1.9 0-3.8-.5-5.4-1.5l-.4-.2-4.1 1.2 1.2-4-.3-.4c-1.1-1.7-1.7-3.6-1.7-5.6C5.3 9.8 10.1 5 16 5s10.7 4.8 10.7 10.6S21.9 26.1 16 26.1zm5.9-7.9c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.6-1.6-1-.9-1.6-1.9-1.8-2.2-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.4.3-.6.1-.2 0-.4 0-.6l-1-2.4c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.2 1.4 3.5c.2.2 2.4 3.6 5.8 5 .8.3 1.4.5 1.9.7.8.3 1.5.2 2.1.1.6-.1 1.9-.8 2.2-1.5.3-.7.3-1.4.2-1.5-.1-.2-.3-.3-.6-.4z"/></svg><span>0568717122</span>`,'cta wa',{top:'1050px',marginLeft:'-340px'},{a:x.t0+1.4,b:x.t1+.3,from:{s:.8},to:{s:1}}); add('للتواصل واتساب','p',{top:'1250px'},{a:x.t0+1.7,b:x.t1+.3,from:{y:20},to:{y:0}})}
+  vis('B',6,'📲','emo',{top:'1050px'});
+  add(`<img src="${A}icon.png" style="width:100%;border-radius:60px">`,'logo',{width:'260px',height:'260px',left:'410px',top:'520px'},{a:E,b:999,from:{s:.6},to:{s:1}});
+  add('المِسبار','h',{top:'840px',color:'#f3d58a'},{a:E+.2,b:999,from:{y:30},to:{y:0}});
+  add('خلّيك <em>زي أحمد</em> 😉','cap',{top:'1000px',fontSize:'66px'},{a:E+.7,b:999,from:{y:20},to:{y:0}});
+  add(`<svg viewBox="0 0 32 32" fill="#fff"><path d="M16 3C9 3 3.3 8.6 3.3 15.6c0 2.4.7 4.7 1.9 6.7L3 29l6.9-2.1c1.9 1 4 1.6 6.1 1.6 7 0 12.7-5.6 12.7-12.6S23 3 16 3zm0 23.1c-1.9 0-3.8-.5-5.4-1.5l-.4-.2-4.1 1.2 1.2-4-.3-.4c-1.1-1.7-1.7-3.6-1.7-5.6C5.3 9.8 10.1 5 16 5s10.7 4.8 10.7 10.6S21.9 26.1 16 26.1zm5.9-7.9c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.6-1.6-1-.9-1.6-1.9-1.8-2.2-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.4.3-.6.1-.2 0-.4 0-.6l-1-2.4c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.2 1.4 3.5c.2.2 2.4 3.6 5.8 5 .8.3 1.4.5 1.9.7.8.3 1.5.2 2.1.1.6-.1 1.9-.8 2.2-1.5.3-.7.3-1.4.2-1.5-.1-.2-.3-.3-.6-.4z"/></svg><span>0568717122</span>`,'cta wa',{top:'1200px',marginLeft:'-340px'},{a:E+1.3,b:999,from:{s:.8},to:{s:1}});
+}
+
+window.render=render; render(0);
+</script></body></html>
