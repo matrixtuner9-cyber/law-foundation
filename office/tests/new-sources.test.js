@@ -135,3 +135,31 @@ test('إثراء التشريعات الأردنية من LawCodex: الرقم �
   const meta = JSON.parse(r.meta); assert.strictEqual(meta.origin, 'lob.gov.jo'); assert.strictEqual(meta.amended_by.length, 2);
   assert.strictEqual(d.prepare("SELECT count(*) n FROM fts WHERE fts MATCH ?").get(M.norm('اثناء الوظيفه')).n, 1, 'الفهرس محدَّث'); assert.strictEqual(d.prepare("SELECT count(*) n FROM fts WHERE fts MATCH ?").get(M.norm('تاريخ نشره')).n, 1, 'النص في الفهرس مرة واحدة'); d.exec("INSERT INTO fts(fts) VALUES('integrity-check')");
 });
+
+test('تشريعات مصر من LawCodex: الجديد فقط بعلامة «كما صدر»، والموجود بالرقم والسنة لا يُكرر، والدستور يُستبدل في مكانه', () => {
+  const E = require('../tools/eg-lawcodex-build');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'eglc-')), ar = path.join(dir, 'ar');
+  for (const p of ['laws/1937', 'laws/1957', 'constitution']) fs.mkdirSync(path.join(ar, p), { recursive: true });
+  const law = (t, id, y) => `---\ntitle: "${t}"\nidentifier: "${id}"\ntype: law\npublished: ${y}-07-13\ngazette: "الوقائع المصرية"\nstatus: unknown\n---\n\n# ${t}\n\nباسم الأمة\n\n###### مادة ١\n\nيرخص لوزير الصناعة فى التعاقد ${'مع الشركة العامة للبترول '.repeat(10)}\n`;
+  fs.writeFileSync(path.join(ar, 'laws/1937/law-1937-58.md'), law('قانون العقوبات رقم ٥٨ لسنة ١٩٣٧', 'قانون رقم ٥٨ لسنة ١٩٣٧', 1937));
+  fs.writeFileSync(path.join(ar, 'laws/1957/law-1957-149.md'), law('قانون رقم ١٤٩ لسنة ١٩٥٧ بالترخيص لوزير الصناعة', 'قانون رقم ١٤٩ لسنة ١٩٥٧', 1957));
+  fs.writeFileSync(path.join(ar, 'constitution/constitution-2014.md'), `---\ntitle: "دستور جمهورية مصر العربية"\nidentifier: "Constitution 2014 (amended 2019)"\ntype: constitution\ndate: 2014-01-18\nlast_amended: 2019-04-23\n---\n\n# دستور جمهورية مصر العربية\n\n##### المادة 248\n\nيختص مجلس الشيوخ ${'بدراسة واقتراح ما يراه كفيلاً بتوسيد دعائم الديمقراطية '.repeat(5)}\n`);
+  const f = path.join(dir, 'li.db'), d = new DatabaseSync(f);
+  d.exec(`CREATE TABLE docs(id INTEGER PRIMARY KEY, src TEXT NOT NULL, country TEXT, kind TEXT, ext_id TEXT, title TEXT, year INTEGER, number TEXT, court TEXT, case_no TEXT, date TEXT,
+    ltype TEXT, subject TEXT, status TEXT, status_code TEXT, url TEXT, file_url TEXT, body TEXT, has_text INTEGER, cites TEXT, meta TEXT, UNIQUE(src, ext_id));
+    CREATE VIRTUAL TABLE fts USING fts5(title, body, content='', tokenize='unicode61 remove_diacritics 2');`);
+  const old = 'نص الدستور القديم '.repeat(20);
+  d.prepare("INSERT INTO docs(id,src,country,kind,ext_id,title,year,number,body,has_text,cites,meta,case_no,subject) VALUES(3,'EG_LEGISLATION','EG','law','w1','قانون العقوبات رقم 58 لسنة 1937',1937,'','نص',1,'[]','{}','',''),(4,'EG_LEGISLATION','EG','law','w2','دستور جمهورية مصر العربية (2014) - ويكي مصدر',2014,'',?,1,'[]','{}','','')").run(old);
+  d.prepare('INSERT INTO fts(rowid,title,body) VALUES(4,?,?)').run(M.norm('دستور جمهورية مصر العربية (2014) - ويكي مصدر  '), M.norm(old)); d.close();
+  const out = path.join(dir, 'eg.jsonl');
+  const r = JSON.parse(execFileSync(process.execPath, [path.join(__dirname, '..', 'tools', 'eg-lawcodex-build.js'), '--db', f, '--dir', ar, '--out', out, '--apply'], { encoding: 'utf8' }).trim().split('\n').pop());
+  assert.strictEqual(r.new, 1); assert.strictEqual(r.skippedExisting, 1); assert.strictEqual(r.constitution.id, 4);
+  const doc = JSON.parse(fs.readFileSync(out, 'utf8').trim());
+  assert.strictEqual(doc.number, '149'); assert.strictEqual(doc.year, 1957); assert.strictEqual(doc.date, '1957-07-13'); assert.ok(/كما صدر/.test(doc.meta.note));
+  assert.ok(doc.body.startsWith('باسم الأمة') && doc.body.includes('مادة ١\n\nيرخص') && !/#/.test(doc.body), 'النص حرفياً بلا علامات Markdown');
+  const c = new DatabaseSync(f).prepare('SELECT title, status_code, body FROM docs WHERE id=4').get();
+  assert.strictEqual(c.title, 'دستور جمهورية مصر العربية'); assert.strictEqual(c.status_code, 'in_force'); assert.ok(c.body.includes('يختص مجلس الشيوخ'));
+  const d2 = new DatabaseSync(f); d2.exec("INSERT INTO fts(fts) VALUES('integrity-check')");
+  assert.strictEqual(d2.prepare('SELECT count(*) n FROM fts WHERE fts MATCH ?').get('"مجلس" AND "' + M.norm('الشيوخ') + '"').n, 1);
+  assert.strictEqual(d2.prepare('SELECT count(*) n FROM fts WHERE fts MATCH ?').get('"القديم"').n, 0, 'النص القديم خرج من الفهرس');
+});
