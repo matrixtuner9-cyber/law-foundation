@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8">
+<style>
+@font-face{font-family:Cairo;src:url(assets/cairo-arabic.woff2) format('woff2');font-weight:200 1000}
+@font-face{font-family:Cairo;src:url(assets/cairo-latin.woff2) format('woff2');font-weight:200 1000;unicode-range:U+0000-00FF}
+@font-face{font-family:Plex;src:url(assets/IBMPlexSansArabic_400Regular.ttf);font-weight:400}
+@font-face{font-family:Plex;src:url(assets/IBMPlexSansArabic_600SemiBold.ttf);font-weight:600}
+@font-face{font-family:Plex;src:url(assets/IBMPlexSansArabic_700Bold.ttf);font-weight:700}
+:root{--navy:#0b1b2b;--navy2:#152d47;--gold:#e2bc6a;--gold2:#f3d58a;--cream:#f6efe1;--green:#123d2f;--mute:#9fb0c4}
+*{box-sizing:border-box;margin:0}
+body{background:#333;font-family:Plex,sans-serif}
+.post{width:1080px;height:1350px;position:relative;overflow:hidden;color:#fff;background:radial-gradient(120% 80% at 50% 0%,#1d3b5c 0%,var(--navy) 55%,#060f19 100%);margin:0 0 40px}
+.post.cream{background:radial-gradient(120% 80% at 50% 0%,#fffaf0 0%,var(--cream) 60%,#eadfc6 100%);color:var(--navy)}
+.post.green{background:radial-gradient(120% 80% at 50% 0%,#1d5a45 0%,var(--green) 55%,#07201a 100%)}
+.grain::after{content:'';position:absolute;inset:0;background:repeating-linear-gradient(45deg,rgba(255,255,255,.012) 0 2px,transparent 2px 6px);pointer-events:none}
+.brand{position:absolute;top:56px;right:64px;display:flex;align-items:center;gap:18px}
+.brand img{width:74px;height:74px;border-radius:18px}
+.brand b{font-family:Cairo;font-weight:800;font-size:38px;color:var(--gold2);line-height:1}
+.brand small{display:block;font-size:20px;color:var(--mute);margin-top:6px}
+.cream .brand small{color:#7a6c50}
+.tag{position:absolute;top:70px;left:64px;font-family:Cairo;font-weight:700;font-size:22px;color:var(--navy);background:var(--gold);padding:8px 22px;border-radius:999px}
+h1{font-family:Cairo;font-weight:900;font-size:76px;line-height:1.18;letter-spacing:-.5px}
+h1 em{font-style:normal;color:var(--gold2)}
+.cream h1 em{color:#a8771c}
+.lead{font-size:33px;line-height:1.65;color:#d5dde8;font-weight:400}
+.cream .lead{color:#3a4658}
+.txt{position:absolute;right:72px;left:72px;top:190px}
+.shot{position:absolute;border-radius:22px;overflow:hidden;box-shadow:0 40px 90px rgba(0,0,0,.55),0 0 0 2px rgba(243,213,138,.35);background:#fff}
+.shot img{display:block;width:100%}
+.bar{height:34px;background:#e9e2d2;display:flex;gap:9px;align-items:center;padding:0 16px;direction:ltr}
+.bar i{width:13px;height:13px;border-radius:50%;background:#d26a5c}.bar i+i{background:#e0b14f}.bar i+i+i{background:#6aa86a}
+.foot{position:absolute;bottom:54px;right:72px;left:72px;display:flex;justify-content:space-between;align-items:center;font-size:26px;color:var(--mute)}
+.cream .foot{color:#7a6c50}
+.foot b{color:var(--gold2);font-family:Cairo;font-weight:800;direction:ltr}
+.cream .foot b{color:#a8771c}
+.pill{display:inline-flex;align-items:center;gap:12px;border:2px solid rgba(243,213,138,.45);border-radius:999px;padding:10px 26px;font-size:28px;color:var(--gold2);font-weight:600}
+.cream .pill{border-color:#c9a65a;color:#8a6014}
+.chips{display:flex;flex-wrap:wrap;gap:14px;margin-top:34px}
+.glow{position:absolute;width:900px;height:900px;border-radius:50%;background:radial-gradient(circle,rgba(243,213,138,.20),transparent 62%);left:90px;top:330px}
+.list{margin-top:40px;display:grid;gap:22px}
+.li{display:flex;gap:24px;align-items:flex-start;background:rgba(255,255,255,.05);border:1px solid rgba(243,213,138,.22);border-radius:24px;padding:26px 30px}
+.li .ic{flex:0 0 66px;height:66px;border-radius:18px;background:linear-gradient(135deg,var(--gold2),#b98a35);display:grid;place-items:center;font-size:36px;color:var(--navy)}
+.li b{font-family:Cairo;font-weight:800;font-size:36px;display:block;line-height:1.3}
+.li span{font-size:27px;color:#c4cfdc;line-height:1.55}
+.nums{display:grid;grid-template-columns:1fr 1fr;gap:22px;margin-top:46px}
+.num{background:rgba(255,255,255,.06);border:1px solid rgba(243,213,138,.25);border-radius:26px;padding:28px 30px}
+.num b{display:block;font-family:Cairo;font-weight:900;font-size:74px;color:var(--gold2);line-height:1.05;direction:ltr;text-align:right}
+.num span{font-size:27px;color:#d5dde8;line-height:1.45}
+.num.ps{background:linear-gradient(135deg,rgba(243,213,138,.22),rgba(243,213,138,.06));border-color:rgba(243,213,138,.6)}
+.phone{position:absolute;width:430px;height:880px;border-radius:66px;background:#0b0f14;padding:16px;box-shadow:0 50px 100px rgba(0,0,0,.6),0 0 0 3px rgba(243,213,138,.35)}
+.scr{width:100%;height:100%;border-radius:52px;overflow:hidden;background:linear-gradient(180deg,#f7f2e7,#efe5cf);color:#13261f;position:relative;font-size:22px}
+.notch{position:absolute;top:14px;left:50%;transform:translateX(-50%);width:130px;height:34px;background:#0b0f14;border-radius:20px;z-index:2}
+.ph{background:linear-gradient(135deg,#1d5a45,#0e3326);color:#fff;padding:70px 28px 26px}
+.ph small{color:#cfe3d9;font-size:19px}.ph b{display:block;font-family:Cairo;font-size:30px;font-weight:800;margin-top:4px}
+.card{background:#fff;border-radius:22px;margin:16px 18px;padding:18px 20px;box-shadow:0 6px 18px rgba(20,40,30,.08)}
+.card .k{font-size:18px;color:#7c8a83}.card .v{font-family:Cairo;font-weight:800;font-size:27px;color:#123d2f;margin-top:2px}
+.card .s{font-size:19px;color:#4b5b54;margin-top:4px;line-height:1.5}
+.badge{display:inline-block;background:#e9f3ee;color:#1d5a45;border-radius:999px;padding:3px 14px;font-size:17px;margin-top:8px}
+.notif{position:absolute;left:-60px;top:150px;width:560px;background:rgba(255,255,255,.96);color:#13261f;border-radius:26px;padding:20px 24px;box-shadow:0 30px 70px rgba(0,0,0,.45);display:flex;gap:16px;align-items:center;z-index:3}
+.notif img{width:58px;height:58px;border-radius:14px}
+.notif b{font-family:Cairo;font-size:24px;display:block}.notif span{font-size:21px;color:#45524c}
+.lock{width:260px;height:260px;border-radius:50%;margin:60px auto 0;display:grid;place-items:center;background:radial-gradient(circle,rgba(243,213,138,.28),rgba(243,213,138,.04) 70%);border:2px solid rgba(243,213,138,.55);position:relative}
+.ring{position:absolute;inset:-34px;border-radius:50%;border:2px dashed rgba(243,213,138,.3)}
+.center{text-align:center}
+.cta{display:inline-block;margin-top:44px;background:linear-gradient(135deg,var(--gold2),#c99a40);color:var(--navy);font-family:Cairo;font-weight:900;font-size:44px;padding:22px 54px;border-radius:999px;direction:ltr;box-shadow:0 20px 50px rgba(226,188,106,.35)}
+.quote{font-family:Cairo;font-weight:800;font-size:58px;line-height:1.35}
+.x{color:#ff8b7a;text-decoration:line-through;text-decoration-thickness:4px;opacity:.85}
+.col{position:absolute;inset:170px 72px 70px;display:flex;flex-direction:column;gap:22px}
+.time{align-self:flex-start;font-family:Cairo;font-weight:900;font-size:40px;color:var(--navy);background:var(--gold2);border-radius:999px;padding:6px 28px;direction:rtl}
+.col h1{font-size:70px}
+.bad,.good{border-radius:26px;padding:22px 28px;display:flex;flex-direction:column;gap:14px}
+.bad{background:rgba(255,120,100,.08);border:1.5px solid rgba(255,139,122,.45)}
+.good{background:linear-gradient(135deg,rgba(243,213,138,.16),rgba(243,213,138,.05));border:2px solid rgba(243,213,138,.7);flex:1;min-height:0}
+.lbl{font-family:Cairo;font-weight:900;font-size:30px}
+.bad .lbl{color:#ff9d8f}.good .lbl{color:var(--gold2)}
+.bad p,.good p{font-size:32px;line-height:1.5;color:#e3e9f1}
+.bad p{color:#c9ced6}
+.pic{flex:1;min-height:0;border-radius:18px;overflow:hidden;background:#fff;box-shadow:0 20px 50px rgba(0,0,0,.45)}
+.pic img{width:100%;display:block}
+.two{display:flex;gap:24px;margin-top:40px}
+.two div{flex:1;text-align:center;font-family:Cairo;font-weight:900;font-size:44px;border-radius:30px;padding:40px 0}
+</style></head><body>
+<!-- كاروسيل «يوم محامي: بالدفاتر وبالمِسبار»: 7 شرائح. يُرسم بـ node render-day.js -->
+<section class="post grain" id="d01">
+  <div class="brand"><img src="assets/icon.png"><div><b>المِسْبار</b><small>يوم محامي</small></div></div>
+  <div class="swipe" style="position:absolute;top:70px;left:64px;font-family:Cairo;font-weight:800;font-size:26px;color:var(--navy);background:var(--gold);padding:8px 24px;border-radius:999px">اسحب ←</div>
+  <div class="glow" style="top:420px"></div>
+  <div class="txt" style="top:330px"><h1 style="font-size:96px">يومك كمحامي…<br><em>بطريقتين</em> ☀️</h1>
+    <p class="lead" style="margin-top:26px">نفس اليوم، نفس القضايا. الفرق بالطريقة.</p>
+    <div class="two"><div class="bad" style="font-size:44px;color:#ff9d8f">❌ بالدفاتر</div><div class="good" style="font-size:44px;color:var(--gold2)">✅ بالمِسبار</div></div></div>
+</section>
+<section class="post grain" id="d02">
+  <div class="brand"><img src="assets/icon.png"><div><b>المِسْبار</b><small>يوم محامي</small></div></div>
+  <div class="col"><div class="time">8:00 الصبح ☕</div><h1>شو عندي اليوم؟</h1>
+    <div class="bad"><span class="lbl">❌ بالدفاتر</span><p>بتقلّب الدفتر والمفكرة والواتساب لتجمّع مواعيد اليوم.</p></div>
+    <div class="good"><span class="lbl">✅ بالمِسبار</span><p>بتفتح المِسبار: جلسات اليوم، والمهل القريبة، وشو متأخّر، بشاشة وحدة.</p><div class="pic"><img src="assets/attention.png"></div></div></div>
+</section>
+<section class="post grain" id="d03">
+  <div class="brand"><img src="assets/icon.png"><div><b>المِسْبار</b><small>يوم محامي</small></div></div>
+  <div class="col"><div class="time">10:00 بالمحكمة ⚖️</div><h1>شو صار بالجلسة الماضية؟</h1>
+    <div class="bad"><span class="lbl">❌ بالدفاتر</span><p>الملف بالمكتب، والذاكرة مش دايماً بتسعف.</p></div>
+    <div class="good"><span class="lbl">✅ بالمِسبار</span><p>محضر الجلسة الماضية مسجّل بالملف: شو صار، وشو المطلوب اليوم.</p><div class="pic"><img src="assets/s-hreport-m.png"></div></div></div>
+</section>
+<section class="post grain" id="d04">
+  <div class="brand"><img src="assets/icon.png"><div><b>المِسْبار</b><small>يوم محامي</small></div></div>
+  <div class="col"><div class="time">12:00 الظهر 📞</div><h1>«شو صار بقضيتي؟»</h1>
+    <div class="bad"><span class="lbl">❌ بالدفاتر</span><p>تالت اتصال من نفس الموكّل هالأسبوع.</p></div>
+    <div class="good"><span class="lbl">✅ بالمِسبار</span><p>وصله إشعار على «ميثاق» بشو صار بالجلسة، قبل ما يسأل.</p><div style="flex:1;display:flex;align-items:center;justify-content:center"><div class="notif" style="position:static;width:100%"><img src="assets/mithaq-icon.png"><div><b>ميثاق · الآن</b><span>ما جرى في جلستك: سُمع الشهود وتأجلت للبيّنات</span></div></div></div></div></div>
+</section>
+<section class="post grain" id="d05">
+  <div class="brand"><img src="assets/icon.png"><div><b>المِسْبار</b><small>يوم محامي</small></div></div>
+  <div class="col"><div class="time">2:00 الظهر 📚</div><h1>بدي حكم بهالموضوع</h1>
+    <div class="bad"><span class="lbl">❌ بالدفاتر</span><p>مجلدات، وتصوير، وساعة تدوير.</p></div>
+    <div class="good"><span class="lbl">✅ بالمِسبار</span><p>بتكتب الكلمة بعقل القانون وبتلاقي الحكم، حتى بدون إنترنت.</p><div class="pic"><img src="assets/lawlib.png"></div></div></div>
+</section>
+<section class="post grain" id="d06">
+  <div class="brand"><img src="assets/icon.png"><div><b>المِسْبار</b><small>يوم محامي</small></div></div>
+  <div class="col"><div class="time">6:00 المسا 🌙</div><h1>في مهلة نسيتها؟ 😰</h1>
+    <div class="bad"><span class="lbl">❌ بالدفاتر</span><p>بتتذكّرها وإنت مروّح… أو بعد ما تفوت.</p></div>
+    <div class="good"><span class="lbl">✅ بالمِسبار</span><p>المِسبار نبّهك من الصبح، والمهلة محسوبة مع سندها القانوني.</p><div class="pic" style="flex:0 0 auto"><img src="assets/dl-card.png"></div><div class="pic" style="flex:1;min-height:0"><img src="assets/dl-prev.png"></div></div></div>
+</section>
+<section class="post grain" id="d07">
+  <div class="brand"><img src="assets/icon.png"><div><b>المِسْبار</b><small>نظام مكاتب المحاماة</small></div></div>
+  <div class="glow" style="top:200px"></div>
+  <div class="txt center" style="top:300px">
+    <img src="assets/icon.png" style="width:220px;border-radius:50px;box-shadow:0 0 0 4px rgba(243,213,138,.6)">
+    <h1 style="margin-top:50px;font-size:96px">أي يوم<br><em>بدك؟</em></h1>
+    <p class="lead" style="margin-top:22px">المِسبار: مكتبك كله بنظام واحد.</p>
+    <div class="cta">واتساب 0568717122</div>
+    <p class="lead" style="margin-top:30px;font-size:28px;color:var(--mute)">📲 كبسة من الرابط بالبايو</p></div>
+</section>
+</body></html>
