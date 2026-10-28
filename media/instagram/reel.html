@@ -79,6 +79,16 @@ html,body{width:1080px;height:1920px;overflow:hidden;background:#0b1b2b}
 .wave{display:flex;gap:8px;justify-content:center;height:60px;align-items:center}.wave i{width:10px;border-radius:5px;background:#f3d58a;display:block}
 .wa{display:flex;align-items:center;gap:22px;background:linear-gradient(135deg,#2fd06b,#1a9e4b)!important;color:#fff!important;width:680px;justify-content:center;box-shadow:0 26px 60px rgba(37,211,102,.35)!important}
 .wa svg{width:70px;height:70px;flex:none}
+.pan{border-radius:28px;overflow:hidden;box-shadow:0 50px 110px rgba(0,0,0,.6),0 0 0 3px rgba(243,213,138,.4);background:#fbf7ee}
+.pan img{position:absolute;top:0;right:0;height:100%;width:auto;max-width:none;will-change:transform}
+.chap{left:0;width:100%;top:150px;text-align:center;font-family:Cairo;font-weight:800;font-size:34px;color:#f3d58a;letter-spacing:1px}
+.tlist{left:80px;width:920px;display:flex;flex-wrap:wrap;gap:16px;justify-content:center}
+.tlist span{font-size:38px;color:#f3d58a;border:3px solid rgba(243,213,138,.5);border-radius:999px;padding:10px 30px;font-weight:600;background:rgba(11,27,43,.6)}
+.stp{left:70px;width:940px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.stp div{display:flex;align-items:center;gap:14px;background:rgba(255,255,255,.06);border:2px solid rgba(243,213,138,.25);border-radius:22px;padding:14px 18px;font-size:32px;font-weight:600;color:#d5dde8}
+.stp div b{font-family:Cairo;font-size:30px;color:#0b1b2b;background:#f3d58a;border-radius:50%;width:52px;height:52px;display:grid;place-items:center;flex:none}
+.stp div.on{border-color:#f3d58a;background:rgba(243,213,138,.16);color:#fff}
+.aib{font-family:Cairo;font-weight:800;font-size:36px;color:#0b1b2b;background:linear-gradient(135deg,#f3d58a,#c99a40);border-radius:18px;padding:10px 26px;white-space:nowrap}
 </style></head><body><div id="stage"></div>
 <script>
 /* محرّك بسيط: كل عنصر له ظهور [in,out] وحركة؛ render(t) يرسم الإطار عند الثانية t بدقة (لا يعتمد على الوقت الحقيقي) */
@@ -452,6 +462,67 @@ if(R==='dialog'){ const E=TL[TL.length-1].t1+.45; window.DUR=E+4.2;
   add('المِسبار','h',{top:'840px',color:'#f3d58a'},{a:E+.2,b:999,from:{y:30},to:{y:0}});
   add('خلّيك <em>زي أحمد</em> 😉','cap',{top:'1000px',fontSize:'66px'},{a:E+.7,b:999,from:{y:20},to:{y:0}});
   add(`<svg viewBox="0 0 32 32" fill="#fff"><path d="M16 3C9 3 3.3 8.6 3.3 15.6c0 2.4.7 4.7 1.9 6.7L3 29l6.9-2.1c1.9 1 4 1.6 6.1 1.6 7 0 12.7-5.6 12.7-12.6S23 3 16 3zm0 23.1c-1.9 0-3.8-.5-5.4-1.5l-.4-.2-4.1 1.2 1.2-4-.3-.4c-1.1-1.7-1.7-3.6-1.7-5.6C5.3 9.8 10.1 5 16 5s10.7 4.8 10.7 10.6S21.9 26.1 16 26.1zm5.9-7.9c-.3-.2-1.9-.9-2.2-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.6-1.6-1-.9-1.6-1.9-1.8-2.2-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.4.3-.6.1-.2 0-.4 0-.6l-1-2.4c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.2 1.4 3.5c.2.2 2.4 3.6 5.8 5 .8.3 1.4.5 1.9.7.8.3 1.5.2 2.1.1.6-.1 1.9-.8 2.2-1.5.3-.7.3-1.4.2-1.5-.1-.2-.3-.3-.6-.4z"/></svg><span>0568717122</span>`,'cta wa',{top:'1200px',marginLeft:'-340px'},{a:E+1.3,b:999,from:{s:.8},to:{s:1}});
+}
+
+if(R==='tour'){
+  const B=(new URLSearchParams(location.search).get('b')||'0,5,15,25,35,42,52,63,72,81,88,95,102,110').split(',').map(Number);
+  window.DUR=B[B.length-1]+2.4; const sc=i=>[B[i],B[i+1]];
+  add('<i></i>','prog',{},{a:0,b:999,fi:.01}); add('','glow',{},{a:0,b:999,fi:1.5,drift:{s:.2}});
+  const panW=(src,a,b,top=470,h=1180,dir=1)=>add(`<img src="${A}${src}">`,'pan',{left:'40px',width:'1000px',top:top+'px',height:h+'px'},{a,b,mv:.8,from:{y:120,s:.96},to:{y:0,s:1},
+    on:(t,d)=>{const im=d.firstChild;const W=im.offsetWidth;const q=inout((t-a)/(b-a));const max=Math.max(0,W-1000);im.style.transform=`translateX(${dir>0?q*max:(1-q)*max}px)`}});
+  const ttl=(n,txt,a,b)=>{add(n,'chap',{},{a,b,fi:.3});add(txt,'cap',{top:'215px',fontSize:'62px'},{a:a+.1,b,from:{y:24},to:{y:0}})};
+  const tags=(arr,a,b,top=1690)=>add(arr.map(x=>`<span>${x}</span>`).join(''),'tlist',{top:top+'px'},{a:a+1,b,fi:.4,from:{y:40},to:{y:0}});
+  let a,b;
+  [a,b]=sc(0); add(`<img src="${A}icon.png" style="width:100%;border-radius:60px">`,'logo',{width:'260px',height:'260px',left:'410px',top:'560px'},{a,b,from:{s:.6},to:{s:1}});
+  add('جولة كاملة في <em>المِسبار</em>','h',{top:'900px',fontSize:'84px'},{a:a+.3,b,from:{y:30},to:{y:0}});
+  add('مكتب محاماة فلسطيني… بنظام واحد','p',{top:'1120px'},{a:a+1,b,from:{y:20},to:{y:0}});
+  [a,b]=sc(1); ttl('1 · الرئيسية','كل صباح، <em>بنظرة واحدة</em>',a,b); panW('t-dash.png',a+.3,a+(b-a)*.55); add(`<img src="${A}attention.png" style="width:2620px;max-width:none;margin-right:-1820px">`,'shot',{width:'800px',height:'1100px',left:'140px',top:'500px',background:'#0b1b2b',borderRadius:'38px'},{a:a+(b-a)*.56,b,mv:.8,from:{y:200,s:.92},to:{y:0,s:1}}); tags(['القضايا النشطة','الجلسات','أقرب المهل','ما يحتاج انتباهك'],a,b);
+  [a,b]=sc(2); ttl('2 · الموكّلون والقضايا','ملف لكل موكّل <em>ولكل قضية</em>',a,b); panW('t-clients.png',a+.3,a+(b-a)*.5); panW('t-opps.png',a+(b-a)*.5,b,470,1180,-1); tags(['الأطراف والمحكمة','رقم ميزان','الأتعاب','تعارض المصالح'],a,b);
+  [a,b]=sc(3); ttl('3 · سير القضية','خطوة <em>بخطوة</em>',a,b); panW('t-case-study.png',a+.3,a+(b-a)*.35); panW('t-case-hearings.png',a+(b-a)*.35,a+(b-a)*.68,470,1180,-1); panW('t-case-c360.png',a+(b-a)*.68,b); tags(['الدراسة والقرار','الجلسات ومحاضرها','الأحكام والطعن','ملف 360°'],a,b);
+  [a,b]=sc(4); ttl('4 · المواعيد والمهل','ولا مهلة <em>بتروح عليك</em>',a,b); panW('t-agenda.png',a+.3,a+(b-a)*.55); add(`<img src="${A}dl-card.png">`,'win',{width:'1000px',left:'40px',top:'800px'},{a:a+(b-a)*.56,b,mv:.8,from:{y:140,s:.95},to:{y:0,s:1}}); tags(['حساب مدد الطعن','تنبيه قبل الموعد'],a,b,1400);
+  [a,b]=sc(5); ttl('5 · عقل المِسبار','داخل <em>كل قضية</em>',a,b); add(`<img src="${A}ai-now.png">`,'win',{width:'1000px',left:'40px',top:'470px'},{a:a+.3,b,mv:.8,from:{y:140,s:.95},to:{y:0,s:1}}); add(`<img src="${A}ai-timeline.png">`,'win',{width:'1000px',left:'40px',top:'900px',height:'760px'},{a:a+(b-a)*.25,b,mv:.8,from:{y:140,s:.95},to:{y:0,s:1}}); tags(['خريطة الوقائع','الثغرات','ميزان الحجج','الخطوة الجاية','الصياغة'],a,b,1700);
+  [a,b]=sc(6); ttl('6 · عقل القانون','مكتبة قانونية <em>على جهازك</em>',a,b); panW('t-misbar.png',a+.3,a+(b-a)*.5);
+   [[11150,'حكماً فلسطينياً',.52],[2149,'تشريعاً فلسطينياً',.7]].forEach(([n,l,f],i)=>{const t0=a+(b-a)*f;add(`<b>0</b><span>${l}</span>`,'num',{top:(560+i*380)+'px'},{a:t0,b,fi:.3,from:{y:60},to:{y:0},on:(t,d)=>{d.querySelector('b').textContent=Math.round(n*inout((t-t0)/1.3)).toLocaleString('en-US')}})});
+   add('+ أحكام أردنية ومصرية للمقارنة · بدون إنترنت','cap',{top:'1400px',fontSize:'44px',color:'#d5dde8',fontWeight:'600'},{a:a+(b-a)*.82,b,from:{y:20},to:{y:0}});
+  [a,b]=sc(7); ttl('7 · الحاسبات والنماذج','احسب <em>واكتب</em> أسرع',a,b); add(`<div class="bar"><i></i><i></i><i></i></div><img src="${A}calc.png">`,'shot',{width:'1300px',left:'-110px',top:'470px'},{a:a+.3,b:a+(b-a)*.55,mv:1,from:{y:250,s:.9,r:-2},to:{y:0,s:1,r:-1},drift:{x:120}}); add(`<div class="bar"><i></i><i></i><i></i></div><img src="${A}lawlib.png">`,'shot',{width:'1300px',left:'-110px',top:'470px'},{a:a+(b-a)*.55,b,mv:1,from:{y:250,s:.9,r:2},to:{y:0,s:1,r:1},drift:{x:-120}}); tags(['الحقوق العمالية','حوادث السير','الرسوم والفائدة','مئات العقود والنماذج'],a,b,1450);
+  [a,b]=sc(8); ttl('8 · ميثاق والمراسلات','موكّلك <em>معك</em>',a,b); panW('t-portal.png',a+.3,a+(b-a)*.5); panW('t-chats.png',a+(b-a)*.5,b,470,1180,-1); tags(['الجلسات وما جرى','المستندات','كل رسالة بقضيتها'],a,b);
+  [a,b]=sc(9); ttl('9 · الربط مع ميزان','قضاياك من ميزان <em>لمكتبك</em>',a,b); panW('t-mizan.png',a+.3,b); tags(['استيراد الجلسات والقرارات','مطابقة مع ملفات المكتب'],a,b);
+  [a,b]=sc(10); ttl('10 · المالية','الأتعاب <em>بالقرش</em>',a,b); panW('t-finance.png',a+.3,b); tags(['الأتعاب','الدفعات وسندات القبض','المصاريف','التسويات والأقساط'],a,b);
+  [a,b]=sc(11); ttl('11 · الأمان','صلاحيات <em>وسجل تدقيق</em>',a,b); panW('t-users.png',a+.3,a+(b-a)*.5); panW('t-audit.png',a+(b-a)*.5,b,470,1180,-1); tags(['صلاحيات لكل موظف','كل حركة مسجّلة','بياناتك على جهاز مكتبك'],a,b);
+  [a,b]=sc(12); add(`<img src="${A}icon.png" style="width:100%;border-radius:60px">`,'logo',{width:'260px',height:'260px',left:'410px',top:'420px'},{a,b:999,from:{s:.6},to:{s:1}});
+  add('المِسبار','h',{top:'740px',color:'#f3d58a'},{a:a+.2,b:999,from:{y:30},to:{y:0}});
+  add('مكتبك كله <em>بنظام واحد</em>','cap',{top:'900px',fontSize:'64px'},{a:a+.6,b:999,from:{y:20},to:{y:0}});
+  add(`<svg viewBox="0 0 32 32" fill="#fff"><path d="M16 3C9 3 3.3 8.6 3.3 15.6c0 2.4.7 4.7 1.9 6.7L3 29l6.9-2.1c1.9 1 4 1.6 6.1 1.6 7 0 12.7-5.6 12.7-12.6S23 3 16 3zm0 23.1c-1.9 0-3.8-.5-5.4-1.5l-.4-.2-4.1 1.2 1.2-4-.3-.4c-1.1-1.7-1.7-3.6-1.7-5.6C5.3 9.8 10.1 5 16 5s10.7 4.8 10.7 10.6S21.9 26.1 16 26.1z"/></svg><span>0568717122</span>`,'cta wa',{top:'1100px',marginLeft:'-340px'},{a:a+1.2,b:999,from:{s:.8},to:{s:1}});
+  add('اطلب عرضاً مباشراً لمكتبك','p',{top:'1290px'},{a:a+1.6,b:999,from:{y:20},to:{y:0}});
+}
+
+if(R==='flow'){
+  const B=(new URLSearchParams(location.search).get('b')||'0,7,12,16,23,30,40,50,58,67,79,88,95').split(',').map(Number);
+  window.DUR=B[B.length-1]+2.4; const sc=i=>[B[i],B[i+1]];
+  add('<i></i>','prog',{},{a:0,b:999,fi:.01}); add('','glow',{},{a:0,b:999,fi:1.5,drift:{s:.2}});
+  const W=(src,a,b,top=520,w=1000,h)=>add(`<img src="${A}${src}">`,'win',{width:w+'px',left:((1080-w)/2)+'px',top:top+'px',...(h?{height:h+'px'}:{})},{a,b,mv:.8,from:{y:140,s:.95},to:{y:0,s:1}});
+  const P=(src,a,b,top=520,h=1100)=>add(`<img src="${A}${src}">`,'pan',{left:'40px',width:'1000px',top:top+'px',height:h+'px'},{a,b,mv:.8,from:{y:120,s:.96},to:{y:0,s:1},on:(t,d)=>{const im=d.firstChild;const max=Math.max(0,im.offsetWidth-1000);im.style.transform=`translateX(${inout((t-a)/(b-a))*max}px)`}});
+  const T=(n,txt,a,b,ai)=>{add('الخطوة '+n,'chap',{},{a,b,fi:.3});add(txt,'cap',{top:'215px',fontSize:'64px'},{a:a+.1,b,from:{y:24},to:{y:0}});if(ai)add('✨ '+ai,'aib',{left:'50%',top:'340px',transform:'translateX(-50%)'},{a:a+.6,b,fi:.3,on:(t,d)=>{d.style.transform+=' translateX(-50%)'}})};
+  const STEPS=['الاستقبال الأولي','فحص التعارض','الدراسة الأولية','الأتعاب والوكالة','فتح الملف','جمع البيّنات','التحليل والاستراتيجية','إعداد الأوراق','التقديم والمتابعة','الحكم وما بعده','الإغلاق والأرشفة'];
+  let a,b;
+  [a,b]=sc(0); add(`<img src="${A}icon.png" style="width:100%;border-radius:60px">`,'logo',{width:'240px',height:'240px',left:'420px',top:'420px'},{a,b,from:{s:.6},to:{s:1}});
+  add('من <em>موكّل جديد</em><br>لحد <em>قرار المحكمة</em>','h',{top:'740px',fontSize:'86px'},{a:a+.3,b,from:{y:30},to:{y:0}});
+  add('والمِسبار معك بكل خطوة','p',{top:'1020px'},{a:a+1.2,b,from:{y:20},to:{y:0}});
+  [a,b]=sc(1); add('<em>11</em> خطوة واضحة','cap',{top:'220px',fontSize:'76px'},{a,b,from:{y:24},to:{y:0}});
+  add(STEPS.map((x,i)=>`<div id="st${i}"><b>${i+1}</b>${x}</div>`).join(''),'stp',{top:'420px'},{a:a+.3,b,from:{y:60},to:{y:0},on:(t,d)=>{STEPS.forEach((x,i)=>d.querySelector('#st'+i).classList.toggle('on',t>a+.6+i*.35))}});
+  [a,b]=sc(2); T(1,'الاستقبال <em>الأولي</em>',a,b); P('t-clients.png',a+.3,b);
+  [a,b]=sc(3); T(2,'فحص <em>التعارض</em>',a,b,'المِسبار يدوّر في كل ملفاتك'); W('s-conflict-m.png',a+.4,b,560);
+  [a,b]=sc(4); T(3,'الدراسة <em>الأولية</em>',a,b,'عقل القانون'); P('t-case-study.png',a+.3,a+(b-a)*.5); add(`<div class="bar"><i></i><i></i><i></i></div><img src="${A}misbar.png">`,'shot',{width:'1300px',left:'-110px',top:'560px'},{a:a+(b-a)*.5,b,mv:1,from:{y:250,s:.9,r:-2},to:{y:0,s:1,r:-1},drift:{x:120}});
+  [a,b]=sc(5); T('4 و5','الأتعاب والوكالة<br><em>وفتح الملف</em>',a,b); W('s-fees-m.png',a+.4,a+(b-a)*.55,520,900); W('s-file-m.png',a+(b-a)*.55,b,600);
+  [a,b]=sc(6); T(6,'جمع <em>البيّنات</em>',a,b,'خريطة الوقائع'); W('ai-facthead.png',a+.4,b,500); add(`<img src="${A}ai-timeline.png">`,'win',{width:'1000px',left:'40px',top:'780px',height:'900px'},{a:a+1,b,mv:.8,from:{y:140,s:.95},to:{y:0,s:1},on:(t,d)=>{d.firstChild.style.transform=`translateY(${-700*inout((t-a-2)/(b-a-3))}px)`}});
+  [a,b]=sc(7); T(7,'التحليل <em>والاستراتيجية</em>',a,b,'ميزان الحجج والثغرات'); add(`<img src="${A}ai-mzpro.png">`,'win',{width:'470px',left:'560px',top:'470px',height:'1250px'},{a:a+.4,b,mv:.8,from:{y:140},to:{y:0},on:(t,d)=>{d.firstChild.style.transform=`translateY(${-650*inout((t-a-1)/(b-a-1.5))}px)`}}); add(`<img src="${A}ai-mzcon.png">`,'win',{width:'470px',left:'50px',top:'470px',height:'1250px'},{a:a+.9,b,mv:.8,from:{y:140},to:{y:0},on:(t,d)=>{d.firstChild.style.transform=`translateY(${-650*inout((t-a-1.5)/(b-a-1.5))}px)`}});
+  [a,b]=sc(8); T(8,'إعداد <em>الأوراق</em>',a,b,'صياغة من عقل القضية'); W('ai-drafttiles.png',a+.4,a+(b-a)*.4,500); add(`<img src="${A}ai-draft.png">`,'win',{width:'1000px',left:'40px',top:'500px',height:'1200px'},{a:a+(b-a)*.4,b,mv:.8,from:{y:180,s:.93},to:{y:0,s:1},on:(t,d)=>{d.firstChild.style.transform=`translateY(${-800*inout((t-a-(b-a)*.45)/((b-a)*.5))}px)`}});
+  [a,b]=sc(9); T(9,'التقديم <em>والمتابعة</em>',a,b,'المِسبار يوصي الآن'); W('s-hreport-m.png',a+.4,a+(b-a)*.5,470,860); add(`<img src="${A}mithaq-icon.png"><div><b>ميثاق · الآن</b><span>ما جرى في جلستك: سُمع الشهود وتأجلت للبينات</span></div>`,'notif',{left:'90px',top:'1450px'},{a:a+(b-a)*.35,b:a+(b-a)*.5,from:{y:160},to:{y:0}}); W('ai-now.png',a+(b-a)*.52,b,600);
+  [a,b]=sc(10); T(10,'صدر <em>الحكم</em>',a,b,'حساب آخر موعد للطعن'); W('dl-card.png',a+.4,b,520); W('dl-prev.png',a+(b-a)*.45,b,880,900); add(`<img src="${A}mithaq-icon.png"><div><b>ميثاق · الآن</b><span>صدر الحكم في قضيتك. آخر موعد للطعن: الجمعة 30/10/2026</span></div>`,'notif',{left:'90px',top:'1360px'},{a:a+(b-a)*.6,b,from:{y:160},to:{y:0}});
+  [a,b]=sc(11); add(`<img src="${A}icon.png" style="width:100%;border-radius:60px">`,'logo',{width:'260px',height:'260px',left:'410px',top:'420px'},{a,b:999,from:{s:.6},to:{s:1}});
+  add('المِسبار','h',{top:'740px',color:'#f3d58a'},{a:a+.2,b:999,from:{y:30},to:{y:0}});
+  add('من أول موكّل،<br><em>لآخر قرار</em>','cap',{top:'890px',fontSize:'64px'},{a:a+.6,b:999,from:{y:20},to:{y:0}});
+  add(`<svg viewBox="0 0 32 32" fill="#fff"><path d="M16 3C9 3 3.3 8.6 3.3 15.6c0 2.4.7 4.7 1.9 6.7L3 29l6.9-2.1c1.9 1 4 1.6 6.1 1.6 7 0 12.7-5.6 12.7-12.6S23 3 16 3z"/></svg><span>0568717122</span>`,'cta wa',{top:'1150px',marginLeft:'-340px'},{a:a+1.2,b:999,from:{s:.8},to:{s:1}});
 }
 
 window.render=render; render(0);
