@@ -226,7 +226,7 @@ function createLocal({ misbar, now = () => new Date() } = {}) {
   function rankArticles(arts, terms, n = 3) {
     if (!terms.length) return [];
     const seen = new Set(), DEF = /^(?:لغايات|التعاريف|تعاريف|يسمى هذا|يعمل بهذا|على جميع الجهات|يلغى|يُلغى)/;
-    return arts.filter(a => !a.repealed && !seen.has(a.n) && seen.add(a.n)).map(a => { const t = ' ' + norm(a.text) + ' '; const hit = terms.filter(w => t.includes(' ' + w) || t.includes(w + ' ')); return { a, hit, s: hit.reduce((x, w) => x + Math.min(w.length, 7), 0) * (DEF.test(flat(a.text).trim()) || a.n === '1' ? 0.4 : 1) } })
+    return arts.filter(a => !a.repealed && !seen.has(a.n) && seen.add(a.n)).map(a => { const t = ' ' + norm(a.text) + ' '; const hit = terms.filter(w => w.length <= 3 ? t.includes(' ' + w + ' ') : t.includes(' ' + w) || t.includes(w + ' ')); return { a, hit, s: hit.reduce((x, w) => x + Math.min(w.length, 7), 0) * (DEF.test(flat(a.text).trim()) || a.n === '1' ? 0.4 : 1) } })
       .filter(x => x.hit.length >= Math.min(2, terms.length)).sort((a, b) => b.s - a.s).slice(0, n).map(x => ({ n: x.a.n, label: x.a.label, text: x.a.text, why: 'تطابقت فيها: ' + x.hit.slice(0, 5).join('، ') }));
   }
 
