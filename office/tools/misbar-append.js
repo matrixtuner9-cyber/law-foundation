@@ -3,24 +3,28 @@
 // الاستعمال: node tools/misbar-append.js --db <mithaq-lawindex.db> --jsonl <docs.jsonl> --src EG_CASSATION [--sql <d1.sql>] [--replace]
 //   --sql: يكتب ملف SQL بالأرقام نفسها لاستيراده في D1 (السحابة) على دفعات، بالتقسيم نفسه للنصوص الطويلة.
 //   --replace: يحذف مستندات المصدر السابقة (وصفوف الفهرس) قبل الإضافة؛ بدونها يرفض إن كان المصدر موجوداً.
+//   --merge: يضيف إلى مصدر موجود دون حذف شيء، ويتخطى المستندات الموجودة سلفاً (بالمعرّف ext_id) فتبقى أرقامها كما هي.
 'use strict';
 const fs = require('fs'), { DatabaseSync } = require('node:sqlite');
 const { norm, scrub, CHUNK, CHUNK_BASE } = require('../lib/misbar');
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d };
 const has = k => process.argv.includes('--' + k);
-const DB = arg('db'), JL = arg('jsonl'), SRC = arg('src'), SQL = arg('sql', ''), REPLACE = has('replace');
+const DB = arg('db'), JL = arg('jsonl'), SRC = arg('src'), SQL = arg('sql', ''), REPLACE = has('replace'), MERGE = has('merge');
+if (REPLACE && MERGE) { console.error('--replace و--merge لا يجتمعان'); process.exit(2) }
 if (!DB || !JL || !SRC) { console.error('الاستعمال: --db <قاعدة> --jsonl <ملف> --src <المصدر> [--sql out.sql] [--replace]'); process.exit(2) }
 
 const clean = s => String(s ?? '').replace(/\r/g, '').replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
-const docs = fs.readFileSync(JL, 'utf8').split('\n').filter(l => l.trim()).map(l => JSON.parse(l)).filter(d => d.src === SRC);
+let docs = fs.readFileSync(JL, 'utf8').split('\n').filter(l => l.trim()).map(l => JSON.parse(l)).filter(d => d.src === SRC);
 if (!docs.length) { console.error('لا مستندات للمصدر', SRC); process.exit(3) }
 const ftsTitle = d => norm((d.title || '') + ' ' + (d.case_no || '') + ' ' + (d.subject || ''));
 
 const db = new DatabaseSync(DB);
-const old = db.prepare('SELECT id,ext_id,title,case_no,subject,body FROM docs WHERE src=?').all(SRC);
+let old = db.prepare('SELECT id,ext_id,title,case_no,subject,body FROM docs WHERE src=?').all(SRC);
+let skipped = 0;
+if (MERGE) { const have = new Set(old.map(r => String(r.ext_id))); const n0 = docs.length; docs = docs.filter(d => !have.has(String(d.ext_id))); skipped = n0 - docs.length; old = [] }
 /* عند الاستبدال يحتفظ المستند نفسه (ext_id) برقمه السابق حتى تبقى المراجع المربوطة به صحيحة */
 const keep = new Map(old.map(r => [String(r.ext_id), r.id]));
-if (old.length && !REPLACE) { console.error(`المصدر ${SRC} موجود (${old.length} مستند). استعمل --replace لاستبداله.`); process.exit(4) }
+if (old.length && !REPLACE && !MERGE) { console.error(`المصدر ${SRC} موجود (${old.length} مستند). استعمل --replace لاستبداله.`); process.exit(4) }
 const qSql = v => v === null || v === undefined ? 'NULL' : typeof v === 'number' || typeof v === 'bigint' ? String(v) : "'" + String(v).replace(/'/g, "''") + "'";
 const sqlOut = SQL ? fs.openSync(SQL, 'w') : null;
 const W = s => sqlOut && fs.writeSync(sqlOut, s + '\n');
@@ -64,4 +68,4 @@ W(`INSERT OR REPLACE INTO meta(k,v) VALUES('version',${qSql(version)});`);
 W(`INSERT OR REPLACE INTO meta(k,v) VALUES('built',${qSql(new Date().toISOString())});`);
 if (sqlOut) fs.closeSync(sqlOut);
 db.close();
-console.log(JSON.stringify({ src: SRC, removed: old.length, added: docs.length, ids: [first, maxId], total, version, chunked, sql: SQL || null }));
+console.log(JSON.stringify({ src: SRC, mode: MERGE ? 'merge' : REPLACE ? 'replace' : 'new', removed: old.length, skipped, added: docs.length, ids: [first, maxId], total, version, chunked, sql: SQL || null }));

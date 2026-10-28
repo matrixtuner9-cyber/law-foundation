@@ -1,0 +1,47 @@
+// تحويل أحكام التمييز الأردنية من «منشورات مركز عدالة» (jo_adaleh.jsonl من سكربت jo_adaleh_cassation) إلى مستندات مِسْبار.
+// تُضاف إلى المصدر نفسه JO_CASSATION («الأردن · تمييز») بصيغة misbar-append --merge.
+// الاستعمال: node tools/jo-adaleh-build.js --in "E:\maqam\محاكم التمييز\data\jo_adaleh.jsonl" --out jo_adaleh_docs.jsonl
+// النص القانوني يُنقل حرفياً: المبادئ كاملة كما هي، والتشريعات المستشهد بها كاملة. لا تلخيص ولا اقتطاع.
+'use strict';
+const fs = require('fs');
+const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d };
+
+const clip = (s, n) => { s = String(s || '').replace(/\s+/g, ' ').trim(); return s.length > n ? s.slice(0, n - 1) + '…' : s };
+/* «المادة 13 من قانون … لسنة 1982 المادة 826 من …» → قائمة مراجع، بصيغة «المادة رقم 13 من …» التي يقرؤها المسبار المحلي */
+function citesOf(refs) {
+  const out = [], seen = new Set();
+  for (const part of String(refs || '').split(/\s(?=(?:المادة|المادتين|المواد|الفقرة|البند)\s)/)) {
+    const t = part.replace(/\s+/g, ' ').trim(); if (!t) continue;
+    const m = /^المادة\s+(\d+)\s+من\s+(.+)$/.exec(t);
+    const title = m ? `المادة رقم ${m[1]} من ${m[2].trim()}` : t;
+    if (!seen.has(title)) { seen.add(title); out.push({ title, text: '' }) }
+  }
+  return out;
+}
+const branchOf = court => /جزائي/.test(court) ? 'جزائي' : /اداري|إداري/.test(court) ? 'إداري' : /حقوقي/.test(court) ? 'حقوقي' : '';
+
+function convert(r) {
+  const court = String(r.court || '').trim(), no = String(r.case_number || '').trim(), y = Number(r.case_year) || null;
+  const principles = String(r.principles || '').replace(/^[\s_\-–—]+/, '').trim();
+  const refs = String(r.legislation_refs || '').trim(), topics = String(r.topics || '').trim();
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(r.decision_date || '') ? r.decision_date : '';
+  const body = [String(r.title || '').trim(), refs && 'التشريعات المستشهد بها: ' + refs, topics && 'الموضوعات: ' + topics, principles && 'المبادئ:\n' + principles].filter(Boolean).join('\n\n');
+  const head = [court.replace(/^محكمة\s+/, '').replace(/الاردنية/, 'الأردنية'), no && y ? `رقم ${no}/${y}` : '', r.panel ? `(${r.panel})` : '', date ? 'تاريخ ' + date : ''].filter(Boolean).join(' ');
+  return {
+    src: 'JO_CASSATION', country: 'JO', kind: 'ruling', ext_id: 'adaleh-' + (r.item_id ?? r.id), title: clip(head + (topics ? ' — ' + topics : ''), 200), year: y, number: no,
+    court: 'محكمة التمييز الأردنية', case_no: no && y ? `${no}/${y}` : '', date, ltype: branchOf(court), subject: [r.subject, topics].filter(Boolean).join(' › '), status: '', status_code: '',
+    url: r.source_url || '', file_url: '', body, cites: citesOf(refs),
+    meta: { origin: 'منشورات مركز عدالة للمعلومات القانونية — adaleh.info', court_full: court, panel: r.panel || '', principles: Number(r.principles_count) || 0 }
+  };
+}
+
+if (require.main === module) {
+  const IN = arg('in'), OUT = arg('out', 'jo_adaleh_docs.jsonl');
+  if (!IN) { console.error('الاستعمال: --in jo_adaleh.jsonl --out docs.jsonl'); process.exit(2) }
+  const rows = fs.readFileSync(IN, 'utf8').split('\n').filter(l => l.trim()).map(l => { try { return JSON.parse(l) } catch { return null } }).filter(Boolean);
+  const seen = new Set(), out = [];
+  for (const r of rows) { const d = convert(r); if (seen.has(d.ext_id)) continue; seen.add(d.ext_id); out.push(d) }
+  fs.writeFileSync(OUT, out.map(d => JSON.stringify(d)).join('\n') + '\n');
+  console.log(JSON.stringify({ in: rows.length, out: out.length, withText: out.filter(d => d.body.length > 200).length, cites: out.reduce((a, d) => a + d.cites.length, 0) }));
+}
+module.exports = { convert, citesOf };

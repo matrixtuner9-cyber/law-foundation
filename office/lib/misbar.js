@@ -11,6 +11,7 @@ const SOURCES = {
   JO_CASSATION: { label: 'الأردن · تمييز', country: 'JO', kind: 'ruling' },
   EG_LEGISLATION: { label: 'مصر · تشريعات', country: 'EG', kind: 'law' },
   EG_CASSATION: { label: 'مصر · نقض', country: 'EG', kind: 'ruling' },
+  EG_CONSTITUTIONAL: { label: 'مصر · الدستورية العليا', country: 'EG', kind: 'ruling' },
 };
 const STATUS = { in_force: 'ساري', partial: 'ساري في الضفة الغربية', suspended: 'موقوف النفاذ', repealed: 'ملغى / غير ساري' };
 const SORTS = ['relevance', 'year_desc', 'year_asc', 'date_desc'];

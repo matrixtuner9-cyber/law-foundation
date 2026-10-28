@@ -8,7 +8,7 @@
 if(typeof V==='undefined'||typeof NAV==='undefined')return;
 const e=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const can2=w=>!!(window.MQ&&MQ.user&&({admin:{write:1,manage:1},lawyer:{write:1}}[MQ.user.role]||{})[w]);
-const SRC=[['','كل المصادر — كل الدول'],['PS_JUDGMENT','فلسطين · أحكام'],['PS_LEGISLATION','فلسطين · تشريعات'],['JO_LEGISLATION','الأردن · تشريعات'],['JO_CASSATION','الأردن · تمييز'],['EG_LEGISLATION','مصر · تشريعات'],['EG_CASSATION','مصر · نقض']];
+const SRC=[['','كل المصادر — كل الدول'],['PS_JUDGMENT','فلسطين · أحكام'],['PS_LEGISLATION','فلسطين · تشريعات'],['JO_LEGISLATION','الأردن · تشريعات'],['JO_CASSATION','الأردن · تمييز'],['EG_LEGISLATION','مصر · تشريعات'],['EG_CASSATION','مصر · نقض'],['EG_CONSTITUTIONAL','مصر · الدستورية العليا']];
 const COURTS=['','محكمة النقض','محكمة استئناف رام الله','محكمة استئناف القدس','محكمة العدل العليا','المحكمة الدستورية العليا','محكمة جرائم الفساد','محكمة التمييز الأردنية'];
 const STATUS=[['','كل الحالات'],['in_force','ساري'],['partial','ساري في الضفة الغربية فقط'],['suspended','موقوف النفاذ'],['repealed','ملغى / غير ساري']];
 /* أدوات المحامي: كل أداة تفتح «مِسْبار» بالنمط المناسب، ومراجعه من قاعدة المسبار */

@@ -114,6 +114,21 @@ const cap = (arr) => LIMIT ? arr.slice(0, LIMIT) : arr;
   log('EG_CASSATION', rows.length);
 }
 
+/* 7) التمييز الأردني من منشورات مركز عدالة: «محاكم التمييز/data/jo_adaleh.jsonl» — المبادئ والتشريعات حرفياً، في المصدر نفسه JO_CASSATION */
+{
+  const { convert } = require('./jo-adaleh-build');
+  const rows = cap(jsonl(P('محاكم التمييز', 'data', 'jo_adaleh.jsonl')));
+  for (const r of rows) add(convert(r));
+  log('JO_CASSATION (عدالة)', rows.length);
+}
+/* 8) المحكمة الدستورية العليا المصرية: eg-scc-v1/data/eg_scc_rules.jsonl — النص الكامل حرفياً */
+{
+  const { convert } = require('./eg-scc-build');
+  const rows = cap(jsonl(P('eg-scc-v1', 'data', 'eg_scc_rules.jsonl')));
+  for (const r of rows) add(convert(r));
+  log('EG_CONSTITUTIONAL', rows.length);
+}
+
 /* الكتابة */
 if (fs.existsSync(OUT)) fs.unlinkSync(OUT);
 const db = new DatabaseSync(OUT);
