@@ -64,7 +64,10 @@ test('الخادم المقفل: قبل التفعيل لا صفحة ولا API 
     let st; for (let i = 0; i < 60; i++) { try { const r = await fetch(B + '/api/license/status'); if (r.ok) { st = await r.json(); break } } catch (e) {} await new Promise(r => setTimeout(r, 200)) }
     assert.equal(st.ok, false); assert.match(st.fp, /^[A-Z2-9]{4}(-[A-Z2-9]{4}){4}$/);
     const home = await fetch(B + '/', { redirect: 'manual' }); assert.equal(home.status, 302); assert.equal(home.headers.get('location'), '/activate');
-    for (const p of ['/api/health', '/api/auth/status', '/api/admin/bootstrap', '/api/portal/login', '/login.html', '/app.js']) {
+    /* تطبيق سطح المكتب يحتاج health وedition ليفتح نافذة التفعيل؛ لا بيانات فيهما */
+    const h = await fetch(B + '/api/health'); assert.equal(h.status, 200); assert.equal((await h.json()).license, false);
+    const ed = await (await fetch(B + '/api/edition')).json(); assert.ok(ed.dataId && ed.id); assert.equal(ed.license, false);
+    for (const p of ['/api/auth/status', '/api/admin/bootstrap', '/api/portal/login', '/login.html', '/app.js']) {
       const r = await fetch(B + p, { redirect: 'manual' }); assert.ok([302, 403].includes(r.status), p + ' ' + r.status);
     }
     assert.match(await (await fetch(B + '/activate')).text(), /تفعيل المِسْبار/); assert.equal((await fetch(B + '/misbar-banner.webp')).status, 200, 'الشعار يظهر قبل التفعيل');

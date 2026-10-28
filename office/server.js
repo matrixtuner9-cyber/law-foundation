@@ -905,6 +905,10 @@ $('go').onclick=()=>send('/api/license/activate',{code:$('code').value},$('go'))
 /* قبل التفعيل: لا شيء سوى شاشة التفعيل وحالتها */
 async function gateLicense(req, res, u) {
   const p = u.pathname, st = license.status(), sec = { 'Cache-Control': 'no-store', 'X-Frame-Options': 'DENY' };
+  /* تطبيق سطح المكتب يتأكد أن الخادم يعمل (health) وأنه خادمه هو (edition) قبل فتح النافذة؛ بدونهما تتعذّر شاشة التفعيل نفسها
+     فيظهر «تعذّر تشغيل خادم المكتب». لا يكشفان بيانات: حالة التشغيل وهوية النسخة وبصمة مجلد البيانات فقط */
+  if (p === '/api/health') { res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', ...sec }); return res.end(JSON.stringify({ ok: true, license: false, at: stamp() })) }
+  if (p === '/api/edition') { res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', ...sec }); return res.end(JSON.stringify({ ...ED.pub(), dataId: DATA_ID, license: false })) }
   if (p === '/misbar-banner.webp' && req.method === 'GET') return sendFile(req, res, path.join(ROOT, 'misbar-banner.webp'));
   if (p === '/api/license/status' && req.method === 'GET') { res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', ...sec }); const pl = (License.verify(license.code() || (() => { try { return fs.readFileSync(path.join(DATA, 'license.revoked'), 'utf8') } catch (e) { return '' } })(), { fp: st.fp, now: new Date(0) }).payload) || {}; return res.end(JSON.stringify({ ok: st.ok, fp: st.fp, error: st.error || '', expired: !!st.expired, note: license.note(), slug: pl.slug || '', device: require('os').hostname(), offline: !!ED.offline })) }
   if (p === '/api/license/online' && req.method === 'POST') {
