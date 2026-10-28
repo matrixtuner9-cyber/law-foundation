@@ -5,13 +5,13 @@
 const fs = require('fs'), { DatabaseSync } = require('node:sqlite');
 const { norm, CHUNK } = require('../lib/misbar');
 const { unbrandLines, BRAND_RX } = require('./jo-adaleh-build');
-const { cleanBody, cleanTitle } = require('./jo-ads-clean');
+const { cleanBody, cleanTitle, cleanJunk, HTML_JUNK } = require('./jo-ads-clean');
 /* أحكام منقولة من مدوّنات مكاتب المحاماة: تُنظَّف من الإعلانات أيضاً (بيانات التواصل وقائمة المقالات الأخرى وعبارات الدعاية في العنوان) */
 const ADS = /العبادي|alabbadi|bit\.ly|By mohammad|Read More|Section Title|عقاركو/i;
 const isAd = r => /^abbadi-/.test(r.ext_id || '') || ADS.test(r.body) || ADS.test(r.title);
 const RX = { test: s => BRAND_RX.test(s) };
 const fixer = r => { const ad = isAd(r); return {
-  title: ad ? cleanTitle(unbrandLines(r.title)) : unbrandLines(r.title), subject: unbrandLines(r.subject), body: ad ? cleanBody(unbrandLines(r.body)) : unbrandLines(r.body) } };
+  title: ad ? cleanTitle(unbrandLines(r.title)) : unbrandLines(r.title), subject: unbrandLines(r.subject), body: cleanJunk(ad ? cleanBody(unbrandLines(r.body)) : unbrandLines(r.body)) } };
 const arg = (k, d) => { const i = process.argv.indexOf('--' + k); return i > 0 ? process.argv[i + 1] : d };
 const DB = arg('db'), SRC = arg('src', 'JO_CASSATION'), SQL = arg('sql', ''), DRY = process.argv.includes('--dry');
 if (!DB) { console.error('الاستعمال: --db <قاعدة> [--src JO_CASSATION] [--sql out.sql] [--dry]'); process.exit(2) }
@@ -20,7 +20,7 @@ const ftsTitle = d => norm((d.title || '') + ' ' + (d.case_no || '') + ' ' + (d.
 const q = v => v == null ? 'NULL' : "'" + String(v).replace(/'/g, "''") + "'";
 
 const db = new DatabaseSync(DB, { readOnly: DRY });
-const rows = db.prepare('SELECT id,ext_id,title,case_no,subject,body FROM docs WHERE src=?').all(SRC).filter(r => RX.test(r.title) || RX.test(r.subject) || RX.test(r.body) || isAd(r))
+const rows = db.prepare('SELECT id,ext_id,title,case_no,subject,body FROM docs WHERE src=?').all(SRC).filter(r => RX.test(r.title) || RX.test(r.subject) || RX.test(r.body) || isAd(r) || /<div|<\/?span|<p\b/i.test(r.body))
   .filter(r => { const n = fixer(r); return n.title !== r.title || n.subject !== (r.subject ?? '') || n.body !== r.body });
 const out = SQL ? fs.openSync(SQL, 'w') : null, skipped = [];
 if (!DRY) db.exec('BEGIN');
