@@ -24,14 +24,18 @@ body{width:1080px;height:1920px;overflow:hidden;background:#050d16;font-family:P
 .phone img{width:100%;display:block}
 .wa{display:inline-flex;align-items:center;gap:18px;background:linear-gradient(135deg,#2fd06b,#1a9e4b);color:#fff;font-family:Cairo;font-weight:900;font-size:50px;padding:18px 44px;border-radius:999px;direction:ltr;box-shadow:0 20px 50px rgba(37,211,102,.35)}
 .wa svg{width:60px;height:60px}
+.bx{position:absolute;white-space:nowrap;padding:18px 28px;border-radius:22px;background:rgba(8,18,30,.86);border:3px solid #f3d58a;box-shadow:0 18px 40px rgba(0,0,0,.45);font-family:Cairo;font-weight:800;font-size:38px;line-height:1.35;color:#fff}
+.bx em{font-style:normal;color:#f3d58a}.bx small{display:block;font-family:Plex;font-weight:500;font-size:28px;color:#d5dde8;margin-top:4px}
+.lst{position:absolute;display:flex;flex-direction:column;gap:10px}
+.lst div{white-space:nowrap;background:rgba(8,18,30,.86);border:2px solid rgba(243,213,138,.6);border-radius:18px;padding:8px 20px;font-size:28px;font-weight:700}
+.lst div::before{content:'✔ ';color:#f3d58a}
 </style></head><body>
 
 <!-- 1: المحامي والموكّل -->
 <div class="pn" style="top:14px;height:420px">
   <div class="bg" style="background-image:url(p1.jpg);background-position:center 20%"></div>
   <div class="shade" style="background:linear-gradient(0deg,rgba(5,13,22,.55),transparent 45%)"></div>
-  <div class="bub w tr" style="bottom:30px;right:24px;font-size:30px;padding:16px 24px">أستاذ، كيف بقدر أتابع<br>قضيتي من تلفوني؟</div>
-  <div class="bub g tl" style="bottom:30px;left:24px;font-size:30px;padding:16px 24px">مع بوابة <em>«ميثاق»</em> بتتابع جلساتك<br>ومستنداتك، وبتحكي معي مباشرة.</div>
+  <div class="bx" style="bottom:28px;right:24px">موكّلك بيتابع قضيته <em>من تلفونه</em><small>جلساته، ومستنداته، ورسائله مع مكتبك</small></div>
 </div>
 
 <!-- 2: الشاشة -->
@@ -39,15 +43,14 @@ body{width:1080px;height:1920px;overflow:hidden;background:#050d16;font-family:P
   <div class="bg" style="background-image:url(p2.jpg);background-position:left center"></div>
   <div class="shade" style="background:linear-gradient(270deg,rgba(5,13,22,.75),transparent 70%)"></div>
   <div class="scr" style="right:44px;top:34px;width:520px;height:320px"><img src="scr.png"></div>
-  <div class="chip" style="left:26px;bottom:128px">مكتبة قانونية على جهازك</div>
-  <div class="bub w tl" style="left:24px;bottom:22px;font-size:30px;padding:16px 24px">+11,000 حكم فلسطيني<br>حتى بدون إنترنت</div>
+  <div class="bx" style="left:24px;bottom:26px">مكتبة قانونية <em>على جهازك</em><small>+11,000 حكم فلسطيني · حتى بدون إنترنت</small></div>
 </div>
 
 <!-- 3: عقل المِسبار -->
 <div class="pn" style="top:860px;height:420px">
   <div class="bg" style="background:radial-gradient(90% 120% at 80% 30%,#1d3b5c,#0b1b2b 60%,#050d16)"></div>
   <div class="bg" style="left:0;right:auto;width:420px;background-image:url(k.jpg);background-position:center 18%;-webkit-mask-image:linear-gradient(270deg,transparent,#000 35%)"></div>
-  <div class="bub g tl" style="left:24px;bottom:28px;font-size:30px;padding:16px 24px">وعقل المِسبار…<br><em>شو بيميّزه؟</em></div>
+  <div class="bx" style="left:24px;bottom:26px;font-size:44px">عقل <em>المِسبار</em><small>ذكاء قانوني لمكتبك</small></div>
   <div class="feat" style="top:34px">
     <div><b>⚖</b>بيربط كل مسألة بالمادة والأحكام</div>
     <div><b>✂</b>بيشرّح الحكم ويحدد نقاط الطعن</div>
@@ -60,8 +63,7 @@ body{width:1080px;height:1920px;overflow:hidden;background:#050d16;font-family:P
 <div class="pn" style="top:1298px;height:330px">
   <div class="bg" style="background-image:url(p1.jpg);filter:blur(6px) brightness(.45);transform:scale(1.1)"></div>
   <div class="phone" style="left:40px;top:24px;transform:rotate(-6deg)"><img src="m-phone.png"></div>
-  <div class="bub w tr" style="top:28px;right:30px;font-size:32px">يعني بقدر أتابع جلساتي<br>ومستنداتي من التطبيق؟</div>
-  <div class="bub g tr" style="bottom:34px;right:30px;font-size:32px">أكيد، وكل إشي بيوصل<br>على <em>ملف قضيتك</em>… بأمان.</div>
+  <div class="bx" style="top:24px;right:28px">بوابة <em>«ميثاق»</em> للموكّل</div><div class="lst" style="top:108px;right:28px"><div>جلساته وشو صار فيها</div><div>المستندات رايحة جاية</div><div>وإنت بتحدد شو بيشوف</div></div>
 </div>
 
 <!-- 5: العلامة -->
