@@ -13,6 +13,7 @@ function ranked(b) {
   const out = [];
   for (const c of b.citations || []) if (c.found) out.push({ kind: 'article', lawId: c.lawId, n: c.article });
   for (const l of b.laws || []) for (const a of l.articles || []) out.push({ kind: 'article', lawId: l.lawId, n: a.n });
+  for (const d of b.deadlines || []) if (!out.some(x => x.lawId === d.lawId && x.n === d.article)) out.push({ kind: 'article', lawId: d.lawId, n: d.article });
   for (const r of b.rulings || []) out.push({ kind: 'ruling', case_no: r.case_no, id: r.id });
   return out;
 }

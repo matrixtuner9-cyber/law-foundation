@@ -305,12 +305,30 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
   }
 
   /* المواد الأقرب لنص المستخدم داخل تشريع: تطابق الكلمات الثقيلة، والمادة الملغاة لا تُقترح */
+  /* ترتيب مواد التشريع (على نهج BM25F): عنوان المادة أثقل من متنها، والكلمة النادرة في القانون أثقل من الشائعة فيه،
+     والمادة الطويلة لا تتقدم لمجرد طولها؛ وعبارة «خلال … يوماً» تُعدّ ميعاداً */
   function rankArticles(arts, terms, n = 3) {
     if (!terms.length) return [];
     const seen = new Set(), DEF = /^(?:لغايات|التعاريف|تعاريف|يسمى هذا|يعمل بهذا|على جميع الجهات|يلغى|يُلغى)/;
-    return arts.filter(a => !a.repealed && !seen.has(a.n) && seen.add(a.n)).map(a => { const t = ' ' + norm(a.text) + ' '; const hit = terms.filter(w => w.length <= 3 ? t.includes(' ' + w + ' ') : t.includes(' ' + w) || t.includes(w + ' ')); return { a, hit, s: hit.reduce((x, w) => x + Math.min(w.length, 7), 0) * (DEF.test(flat(a.text).trim()) || a.n === '1' ? 0.4 : 1) } })
-      .filter(x => x.hit.length >= Math.min(2, terms.length)).sort((a, b) => b.s - a.s).slice(0, n).map(x => ({ n: x.a.n, label: x.a.label, text: x.a.text, why: 'تطابقت فيها: ' + x.hit.slice(0, 5).join('، ') }));
+    const live = arts.filter(a => !a.repealed && !seen.has(a.n) && seen.add(a.n));
+    const has = (t, w) => w.length <= 3 ? t.includes(' ' + w + ' ') : t.includes(' ' + w) || t.includes(w + ' ');
+    const docs = live.map(a => {
+      const body = flat(a.text).replace(/^(?:\s*\d+\s*-\s*)?(?:عدلت|عُدلت|ألغيت|الغيت|أضيفت)[\s\S]*?وتعديلاته\s*/, '');
+      let t = ' ' + norm(body) + ' ';
+      if (/خلال\s+\S+(?:\s+عشر)?\s+(?:يوم|يوما|ايام|اسبوع|شهر|اشهر|سنه|سنتين)/.test(t) || /(?:يوما|ايام|اشهر|سنتين)\s/.test(t)) t += ' ميعاد مده ';
+      const head = ' ' + norm(body.split(/\s\d+\s*-|\s[أا]-\s/)[0].slice(0, 90)) + ' ';
+      return { a, t, head, len: t.split(' ').length };
+    });
+    const N = docs.length || 1, avg = docs.reduce((x, d) => x + d.len, 0) / N;
+    const idf = new Map(terms.map(w => { const df = docs.filter(d => has(d.t, w)).length; return [w, Math.log(1 + (N - df + 0.5) / (df + 0.5))] }));
+    return docs.map(d => {
+      const hit = terms.filter(w => has(d.t, w)), hh = terms.filter(w => has(d.head, w));
+      const norm1 = 0.25 + 0.75 * d.len / avg;
+      const s = hit.reduce((x, w) => x + idf.get(w) * 2.2 / (1 + 1.2 * norm1), 0) + hh.reduce((x, w) => x + idf.get(w) * 2, 0);
+      return { a: d.a, hit, s: s * (DEF.test(flat(d.a.text).trim()) || d.a.n === '1' ? 0.4 : 1) };
+    }).filter(x => x.hit.length >= Math.min(2, terms.length)).sort((a, b) => b.s - a.s).slice(0, n).map(x => ({ n: x.a.n, label: x.a.label, text: x.a.text, why: 'تطابقت فيها: ' + x.hit.slice(0, 5).join('، ') }));
   }
+
 
   async function cited(cs) {
     const out = [];
