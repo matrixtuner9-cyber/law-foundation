@@ -130,9 +130,12 @@ const cap = (arr) => LIMIT ? arr.slice(0, LIMIT) : arr;
 }
 
 /* إزالة إشارات جهة النشر (منشورات عدالة) من أحكام التمييز الأردنية القادمة من المصادر الأخرى أيضاً */
-{ const { unbrandLines, BRAND_RX } = require('./jo-adaleh-build'); let n = 0;
-  for (const d of docs) if (d.src === 'JO_CASSATION' && (BRAND_RX.test(d.body) || BRAND_RX.test(d.title))) { d.body = unbrandLines(d.body); d.title = unbrandLines(d.title); n++ }
-  log('JO_CASSATION إزالة إشارات النشر', n) }
+{ const { unbrandLines, BRAND_RX } = require('./jo-adaleh-build'), { cleanBody, cleanTitle } = require('./jo-ads-clean'); let n = 0;
+  const ADS = /العبادي|alabbadi|bit\.ly|By mohammad|Read More|Section Title|عقاركو/i;
+  for (const d of docs) if (d.src === 'JO_CASSATION') { const ad = /^abbadi-/.test(d.ext_id) || ADS.test(d.body) || ADS.test(d.title);
+    if (!ad && !BRAND_RX.test(d.body) && !BRAND_RX.test(d.title)) continue;
+    d.body = unbrandLines(d.body); d.title = unbrandLines(d.title); if (ad) { d.body = cleanBody(d.body); d.title = cleanTitle(d.title); d.has_text = d.body.length > 200 ? 1 : 0 } n++ }
+  log('JO_CASSATION تنظيف إشارات النشر والإعلانات', n) }
 
 /* الكتابة */
 if (fs.existsSync(OUT)) fs.unlinkSync(OUT);
