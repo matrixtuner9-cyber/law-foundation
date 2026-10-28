@@ -87,3 +87,11 @@ test('dissect: الهيئة والأطراف والوكلاء والحكم ال�
   assert.strictEqual((await loc.dissect({ id: 999 })).status, 404);
   const t = await loc.dissect({ text: RULING }); assert.strictEqual(t.status, 200); assert.strictEqual(t.body.case_no, '419/2014');
 });
+
+test('analyze: المواد التي استندت إليها الأحكام المعروضة تُضاف إلى تشريعها بنصها وعدد الأحكام', async () => {
+  const loc = L.createLocal({ misbar: mkdb() });
+  const r = await loc.analyze({ text: 'العامل فُصل فصلاً تعسفياً ويطالب صاحب العمل بمكافأة نهاية الخدمة' });
+  const law = r.body.laws.find(l => l.title.startsWith('قانون العمل'));
+  const a = law.articles.find(x => x.n === '45');
+  assert.ok(a, JSON.stringify(law.articles.map(x => x.n))); assert.match(a.why, /^استند إليها حكم واحد/); assert.strictEqual(a.text, L.splitArticles(LAW)[2].text);
+});
