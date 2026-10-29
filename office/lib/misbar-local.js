@@ -172,6 +172,33 @@ const NEGQ = [
 ];
 function rewriteNeg(text) { let t = String(text || ''); for (const [rx, to] of NEGQ) t = t.replace(rx, to); return t }
 
+/* ── لغة الموكّل: عبارات عامية تُترجم إلى المصطلح القانوني الذي تُكتب به النصوص، فيُبحث بالاثنين معاً.
+   تُضاف إلى ما يُبحث به فقط، ويُعرض للمحامي ما فُهم من سؤاله. الأنماط على نص مطبّع (ا/ه/ي، دون تشكيل) ── */
+const LAY = [
+  [/ورقه (?:دفع|بنكيه)|حسابي (?:فارغ|فاضي)|ما في (?:رصيد|مصاري)|ما فيه رصيد|رجع (?:الشيك|من البنك)|ارتجع/, 'شيك بدون رصيد'],
+  [/طردني|طردوني|طردتني|فصلني|فصلوني|استغنوا عني|استغني عني|انهوا خدمتي|انهي خدمتي|مشوني من الشغل|وقفوني عن الشغل/, 'فصل العامل فصلاً تعسفياً تعويض'],
+  [/سنوات (?:خدمتي|الخدمه|شغلي|عملي)|عن خدمتي|تعويض نهايه|حقوقي (?:من|عند) (?:الشركه|صاحب العمل|المشغل)/, 'مكافأة نهاية الخدمة'],
+  [/(?:الشغل|شغلي|المشغل|الوظيفه|وظيفتي|المصنع|الورشه|صاحب الشركه|مدير الشركه)/, 'العامل صاحب العمل'],
+  [/اصبت (?:اثناء|خلال|في|وانا في) (?:عملي|العمل|الشغل|المصنع|الورشه)|انصبت في الشغل|اصابتي في (?:العمل|الشغل)/, 'إصابة العمل'],
+  [/(?:اترك|تركت|ترك) (?:عملي|الشغل|شغلي|الوظيفه|وظيفتي)|يسيء معاملتي|يهينني|يضربني|يشتمني/, 'ترك العامل العمل بعد إشعار صاحب العمل'],
+  [/(?:الساكن|المستاجر|الساكنه|اللي ساكن)|ما (?:بيدفع|يدفع) (?:الايجار|الاجره)|لا يدفع (?:الايجار|الاجره)|اطلعه من (?:الشقه|البيت|المحل)|اخراجه/, 'إخلاء المأجور المستأجر'],
+  [/المحكمه الادني|محكمه (?:صغيره|اصغر)|قيمه المطالبه|المبلغ اللي تنظره|حد (?:محكمه )?الصلح/, 'الاختصاص القيمي محكمة الصلح'],
+  [/(?:وانا|وهو|وكنت|كنت|وموكلي) (?:غايب|غائب)|غايب عن (?:الجلسه|المحكمه)|دون حضوري|بدون حضوري|ما حضرت|لم احضر/, 'حكم غيابي اعتراض المحكوم عليه غيابياً'],
+  [/المحكمه الاعلي|اعلي محكمه|اكبر محكمه|محكمه النقض/, 'الطعن بالنقض'],
+  [/المرحله الثانيه|الدرجه الثانيه|محكمه الاستيناف|استانف|استينافه|استئنافه/, 'الاستئناف'],
+  [/(?:اعترض|الاعتراض|اطعن|الطعن) (?:عليه|علي الحكم|في الحكم)|مده الاعتراض|اعترض امام/, 'ميعاد الطعن'],
+  [/كم (?:يوم|يوما|المده|مده|شهر|وقت)|ما المده|ما هي المده|المده المتاحه|كم معي وقت|لدي (?:مده|وقت)/, 'ميعاد مدة'],
+  [/من اي يوم|من متي (?:تبدا|تحسب)|تبدا (?:المده|مده)|متي (?:تبدا|يبدا) (?:المده|العد)/, 'يبدأ ميعاد الطعن من تاريخ'],
+  [/(?:يسكن|ساكن|مقيم|يقيم) (?:في )?مدينه|مدينه (?:اخري|ثانيه)|(?:وين|اين|في اي (?:مدينه|محكمه)) ارفع/, 'الاختصاص المحلي موطن المدعى عليه'],
+  [/متاخرا|متاخر|بعد (?:انتهاء|فوات) (?:المده|الميعاد)|فاتت (?:المده|المهله)|تاخرت (?:في|عن)/, 'بعد الميعاد رد الطعن شكلاً'],
+  [/حكم جزايي|قضيه جزاييه|القضيه الجزاييه|جنحه|جنايه|حكم بالحبس|حبسوه|انحبس/, 'الدعوى الجزائية'],
+  [/(?:يتوقف|توقف|يوقف|وقف) (?:تنفيذ|التنفيذ)|(?:يوقف|يوقفوا) الحكم/, 'وقف التنفيذ'],
+  [/(?:جاري|جارنا|الجار|شريكي|شريكنا) باع|الارض الملاصقه|الملاصقه لارضي|ملاصق(?:ه)? لارضي|دون ان يعرض علي الشراء|احق بالشراء/, 'الشفعة حق الشفعة'],
+  [/(?:سايق|سائق|يسوق|ساق) (?:تكسي|تاكسي|عمومي|باص|عموميه)|سياره (?:عموميه|اجره|تكسي)|تكسي/, 'مركبة عمومية رخصة سياقة'],
+];
+const lnorm = s => ' ' + flat(s).replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/ئ/g, 'ي').replace(/ؤ/g, 'و').replace(/[^ء-ي0-9]+/g, ' ').replace(/\s+/g, ' ') + ' ';
+function layTerms(text) { const t = lnorm(text), add = []; for (const [rx, to] of LAY) if (rx.test(t) && !t.includes(' ' + lnorm(to).trim() + ' ')) add.push(to); return [...new Set(add)] }
+
 /* ── العقوبة: إن سأل المستخدم عن العقوبة تُستخرج جمل العقوبة من نص المادة حرفياً، مع أنواعها ومقاديرها كما وردت ── */
 const PEN_Q = /عقوب|عقاب|يعاقب|يعاقَب|الجزاء|جزاء|حبس|سجن|غرام|[اأ]شغال|[اإ]عدام|كم سن[ةه]|كم سنوات|ما حكم|العقوبه/;
 const PEN_W = new Set(['عقوبه', 'العقوبه', 'عقوبات', 'العقوبات', 'يعاقب', 'عقاب', 'العقاب', 'جزاء', 'الجزاء', 'حبس', 'الحبس', 'سجن', 'السجن', 'غرامه', 'الغرامه', 'اشغال', 'الاشغال', 'اعدام', 'الاعدام', 'حكم', 'سنه', 'سنوات']);
@@ -266,7 +293,7 @@ const RULES = [
 const CIVIL_TOPICS = new Set(['notice', 'jurisdiction', 'appeal', 'evidence', 'tort', 'accident', 'labour', 'rent', 'exec', 'cheque', 'companies', 'contract', 'limitation', 'urgent', 'arbitration', 'land', 'fees', 'consumer']);
 const CRIM_TOPICS = new Set(['crimproc', 'penal', 'cyber', 'drugs', 'juvenile', 'trafficcrime']);
 
-function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
+function createLocal({ misbar, now = () => new Date(), kv = null, sem = null } = {}) {
   /* ── تعليم المسبار: تقييمات طاقم المكتب وقاموسه، محفوظة في بيانات المكتب على الجهاز ── */
   const FB = 'mbl:fb', DICT = 'mbl:dict';
   const mem = new Map(), store = kv || { get: (k, d) => mem.has(k) ? mem.get(k) : d, set: (k, v) => mem.set(k, v) };
@@ -408,7 +435,7 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
     const src = String(text || '').slice(0, 200000);
     if (src.replace(/\s/g, '').length < 10) return { status: 400, body: { error: 'اكتب السؤال أو الوقائع (10 أحرف على الأقل).' } };
     const t0 = Date.now();
-    const srcN = rewriteNeg(src), synAdd = expand(srcN), srch = synAdd.length ? srcN + '\n' + synAdd.join('\n') : srcN;
+    const srcN = rewriteNeg(src), synAdd = expand(srcN), layAdd = layTerms(srcN), plus = [...synAdd, ...layAdd], srch = plus.length ? srcN + '\n' + plus.join('\n') : srcN;
     const cs = citations(src), tp = topics(srch), kt = keyterms(srch), ds = dates(src);
     const law = await cited(cs);
     /* كلمات البحث: كلمات الموضوعات الدالّة أولاً ثم الأثقل في النص، دون كلمات أسماء التشريعات المذكورة (تملأ النتائج بكل حكم ذكر القانون) */
@@ -429,6 +456,32 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
       /* سؤال العقوبة: أعلى ثلاث مواد، ثم ما بعدها إن كان فيه نص عقوبة */
       const arts = (penQ ? rk.filter((a, i) => i < 3 || penaltyOf(a.text)) : rk).slice(0, penQ ? 5 : 3).filter(a => !law.some(c => c.lawId === L.id && c.article === a.n));
       related.push({ lawId: L.id, title: L.title, status: L.status, topic: (tp.find(t => t.laws.includes(k)) || {}).label || '', articles: arts });
+    }
+    /* ── البحث الدلالي (إن توفّر نموذجه على الجهاز): أقرب المواد في المعنى تُدمج مع ترتيب البحث النصي بترتيب تبادلي (RRF).
+       يرفع المادة التي يتفق عليها الطريقان، ويضيف حتى أربع مواد قريبة المعنى لم يجدها البحث النصي (مادتين لكل تشريع، وتشريعين جديدين على الأكثر) ── */
+    let semUsed = null;
+    if (sem && src.length <= 1500) {
+      let hits = []; try { hits = await sem.search(srcN, { k: 30, getDoc }) } catch { hits = [] }
+      if (hits.length) {
+        const key = (l, n) => l + ':' + n, baseL = [...new Set([...law.filter(c => c.found).map(c => key(c.lawId, c.article)), ...related.flatMap(L => L.articles.map(a => key(L.lawId, a.n)))])];
+        const fused = new Map(); [baseL, hits.map(h => key(h.lawId, h.n))].forEach(l => l.forEach((k, i) => fused.set(k, (fused.get(k) || 0) + 1 / (60 + i + 1))));
+        const order = [...fused].sort((x, y) => y[1] - x[1]).map(x => x[0]), rank = new Map(order.map((k, i) => [k, i]));
+        let added = 0, newLaws = 0; const perLaw = new Map();
+        for (const k of order.slice(0, 10)) {
+          if (baseL.includes(k) || added >= 4) continue;
+          const h = hits.find(x => key(x.lawId, x.n) === k); if (!h || law.some(c => c.lawId === h.lawId && c.article === h.n)) continue;
+          if ((perLaw.get(h.lawId) || 0) >= 2) continue;
+          let Lr = related.find(r => r.lawId === h.lawId);
+          if (!Lr) { if (newLaws >= 2) continue; const d = await getDoc(h.lawId); if (!d) continue; Lr = { lawId: h.lawId, title: d.title, status: d.status || '', topic: 'قريب في المعنى من السؤال', articles: [] }; related.push(Lr); newLaws++ }
+          const a = (await articlesOf(h.lawId)).find(x => x.n === h.n); if (!a || a.repealed) continue;
+          Lr.articles.push({ n: a.n, label: a.label, text: a.text, why: 'قريبة في معناها من السؤال (بحث دلالي على الجهاز)', sem: true });
+          perLaw.set(h.lawId, (perLaw.get(h.lawId) || 0) + 1); added++;
+        }
+        const rk = (l, n) => rank.has(key(l, n)) ? rank.get(key(l, n)) : 1e9;
+        for (const L of related) { L.articles.sort((x, y) => rk(L.lawId, x.n) - rk(L.lawId, y.n)); for (const a of L.articles) if (!a.sem && hits.some(h => h.lawId === L.lawId && h.n === a.n)) { a.why = 'أكّدها البحث الدلالي · ' + a.why; a.semAgree = true } }
+        related.sort((x, y) => Math.min(...x.articles.map(a => rk(x.lawId, a.n)), 1e9) - Math.min(...y.articles.map(a => rk(y.lawId, a.n)), 1e9));
+        semUsed = { added, agreed: related.reduce((n, L) => n + L.articles.filter(a => a.semAgree).length, 0) };
+      }
     }
     /* استعلامات الأحكام: الكلمات الدالّة، ثم كل موضوع، ثم كل مادة مذكورة (الأحكام التي ورد فيها رقمها مع اسم قانونها) */
     const Q = [], q6 = terms.slice(0, 6);
@@ -483,7 +536,7 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
     const rel = x => { const t = ' ' + norm((x.title || '') + ' ' + (x.excerpt || '')) + ' '; return topicW.some(w => t.includes(' ' + w)) || terms.filter(w => t.includes(' ' + w)).length >= 2 };
     const cmp = cq.length ? [...(await rulings(cq, 'JO_CASSATION', 8, 6)).filter(rel).slice(0, 3), ...(await rulings(cq, 'EG_CASSATION', 8, 6)).filter(rel).slice(0, 3)] : [];
     /* ── ما تعلّمه المسبار من المكتب ── */
-    const qw = [...new Set([...terms, ...wordsOf(src)])].slice(0, 24), V = verdicts(qw), learned = { hidden: 0, boosted: 0, pinned: 0, synonyms: synAdd };
+    const qw = [...new Set([...terms, ...wordsOf(src)])].slice(0, 24), V = verdicts(qw), learned = { hidden: 0, boosted: 0, pinned: 0, synonyms: synAdd, lay: layAdd, sem: semUsed };
     const vOf = k => V.get(k);
     /* مواد ثبّتها المكتب لهذا الموضوع: كل كلمات العبارة موجودة في السؤال */
     for (const p of dict().pins) {
@@ -898,4 +951,4 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
   return { analyze, dissect, gaps, handle, resolveLaw };
 }
 
-module.exports = { penaltyOf, PEN_Q, rewriteNeg, createLocal, amendNotes, RULES, citations, dates, amounts, caseNos, topics, keyterms, splitArticles, matchLaw, LAWS, TOPICS };
+module.exports = { layTerms, LAY, penaltyOf, PEN_Q, rewriteNeg, createLocal, amendNotes, RULES, citations, dates, amounts, caseNos, topics, keyterms, splitArticles, matchLaw, LAWS, TOPICS };

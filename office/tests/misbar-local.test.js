@@ -205,3 +205,29 @@ test('التعلّم: ربط بقضية بوزن مضاعف، «مخالف» ل�
   assert.strictEqual((await loc.handle('learned-reset', {})).status, 400, 'إعادة الضبط تتطلب تأكيداً');
   assert.strictEqual((await loc.handle('learned-reset', { confirm: 'reset' })).body.removed, 1);
 });
+test('لغة الموكّل: عبارات عامية تُترجم إلى المصطلح القانوني ويُعرض ما فُهم، ولا يُضاف ما ورد بنصه', async () => {
+  assert.ok(L.layTerms('كتبت ورقة دفع على البنك وحسابي فارغ').includes('شيك بدون رصيد'));
+  assert.ok(L.layTerms('طردني صاحب العمل دون سبب').some(x => /فصل/.test(x)));
+  assert.ok(L.layTerms('حُكم علي وأنا غائب عن الجلسة').some(x => /غيابي/.test(x)));
+  assert.deepStrictEqual(L.layTerms('عقد بيع سيارة'), []);
+  const loc = L.createLocal({ misbar: mkdb() });
+  const r = await loc.analyze({ text: 'طردوني من الشغل بعد ثماني سنوات، ماذا أستحق؟' });
+  assert.strictEqual(r.status, 200);
+  assert.ok(r.body.learned.lay.length >= 1);
+  assert.ok(r.body.laws.some(l => /العمل/.test(l.title)), 'وُجد قانون العمل من الصياغة العامية');
+});
+test('البحث الدلالي: يُدمج مع النصي (RRF)، يضيف مادة قريبة المعنى موسومة، ويؤكد المشتركة، ويتعطّل دون أثر إن فشل', async () => {
+  const misbar = mkdb(), base = L.createLocal({ misbar }), lab = await base.resolveLaw('labour');
+  const fake = { search: async () => [{ lawId: lab.id, n: '47', s: 0.9 }, { lawId: lab.id, n: '45', s: 0.8 }] };
+  const q = 'كيف تحسب مكافأة نهاية الخدمة للعامل؟';
+  const r0 = await base.analyze({ text: q }), r1 = await L.createLocal({ misbar, sem: fake }).analyze({ text: q });
+  const arts = b => b.laws.find(l => l.lawId === lab.id).articles;
+  assert.ok(!arts(r0.body).some(a => a.n === '47') || arts(r0.body).some(a => a.n === '47' && !a.sem));
+  const a1 = arts(r1.body);
+  assert.ok(a1.some(a => a.n === '45' && a.semAgree), 'المادة المشتركة تُؤكَّد');
+  assert.ok(r1.body.learned.sem && (r1.body.learned.sem.added + r1.body.learned.sem.agreed) >= 1);
+  const bad = { search: async () => { throw new Error('x') } }, r2 = await L.createLocal({ misbar, sem: bad }).analyze({ text: q });
+  assert.deepStrictEqual(arts(r2.body).map(a => a.n), arts(r0.body).map(a => a.n));
+  const S = require('../lib/misbar-sem'), off = S.createSem({ dir: path.join(os.tmpdir(), 'no-such-sem') });
+  assert.strictEqual(off.available(), false); assert.deepStrictEqual(await off.search('x'), []);
+});
