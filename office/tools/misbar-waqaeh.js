@@ -22,7 +22,10 @@ const LTYPE = { qb: 'قرار بقانون', law: 'قانون', reg: 'نظام',
 const numYear = t => { const m = /رقم\s*(\d+)\s*لسنه\s*(\d{4})/.exec(t); return m ? { no: m[1], year: Number(m[2]) } : null };
 const keyOf = t => { const n = nz(t), y = numYear(n); return y ? KIND(n) + ':' + y.no + ':' + y.year : null };
 const words = t => new Set(nz(t).split(' ').filter(w => w.length > 2 && !/^\d+$/.test(w)));
-const sim = (a, b) => { const A = words(a), B = words(b); if (!A.size || !B.size) return 0; let s = 0; for (const w of A) if (B.has(w)) s++; return s / Math.min(A.size, B.size) };
+/* تشابه موضوع العنوان فقط: تُستبعد ألفاظ النوع والجهة والرقم والسنة (الرقم والسنة في المفتاح أصلاً) حتى لا يتطابق قراران مختلفان بالرقم نفسه */
+const GEN = new Set(['قرار', 'قرارات', 'بقانون', 'قانون', 'نظام', 'تعليمات', 'مرسوم', 'رئاسي', 'رقم', 'لسنه', 'بشان', 'مجلس', 'الوزراء', 'وزير', 'وزاري', 'رييس', 'السلطه', 'الوطنيه', 'الفلسطينيه', 'دوله', 'فلسطين', 'تعديل', 'بتعديل', 'بعض', 'احكام', 'وتعديلاته']);
+const subj = t => new Set([...words(t)].filter(w => !GEN.has(w)));
+const sim = (a, b) => { const A = subj(a), B = subj(b); if (!A.size || !B.size) return 0; let s = 0; for (const w of A) if (B.has(w)) s++; return s / Math.min(A.size, B.size) };
 
 /* قراءة ملف: رأس المقتفي ثم النص */
 function parse(p, y, issueDir) {
@@ -57,13 +60,15 @@ function match(x) {
   const cands = ex.length > 1 ? ex : (byK.get(keyOf(x.title)) || []);
   if (!cands.length) return { r: null };
   /* أكثر من مرشح، أو مرشح بالرقم فقط: يرجح من يشابه العنوان وتطابق سنته */
-  const sc = cands.map(r => ({ r, s: sim(x.title, r.title) + (Number(r.year) === x.year ? 0.2 : 0) + (r.date && r.date === x.date ? 0.5 : 0) })).sort((a, b) => b.s - a.s);
-  if (sc[0].s >= 0.75 && (sc.length === 1 || sc[0].s - sc[1].s >= 0.25)) return { r: sc[0].r, how: ex.length > 1 ? 'title+date' : 'number', s: +sc[0].s.toFixed(2) };
+  /* عنوان الملف بلا موضوع («قرار رقم (163) لسنة 1994»): يُقارن موضوع المرشح بأول النص */
+  const xt = subj(x.title).size ? x.title : x.body.slice(0, 400);
+  const sc = cands.map(r => ({ r, s: sim(xt, r.title) + (r.date && r.date === x.date ? 0.5 : 0) })).sort((a, b) => b.s - a.s);
+  if (sc[0].s >= 0.6 && (sc.length === 1 || sc[0].s - sc[1].s >= 0.25)) return { r: sc[0].r, how: ex.length > 1 ? 'title+date' : 'number', s: +sc[0].s.toFixed(2) };
   /* المرشحون الأعلى نسخ مكررة في القاعدة للتشريع نفسه (العنوان المطبّع واحد): يُربط العدد بها كلها، ويُملأ نص أقدمها رقماً */
-  const top = sc.filter(c => c.s >= 0.75 && sc[0].s - c.s < 0.25);
-  if (top.length > 1 && new Set(top.map(c => nz(c.r.title))).size === 1 && sim(x.title, top[0].r.title) >= 0.75) { const all = top.map(c => c.r).sort((a, b) => a.id - b.id); return { r: all[0], dupes: all.slice(1), how: 'dupes' } }
+  const top = sc.filter(c => c.s >= 0.6 && sc[0].s - c.s < 0.25);
+  if (top.length > 1 && new Set(top.map(c => nz(c.r.title))).size === 1 && sim(xt, top[0].r.title) >= 0.6) { const all = top.map(c => c.r).sort((a, b) => a.id - b.id); return { r: all[0], dupes: all.slice(1), how: 'dupes' } }
   /* لا مرشح يشبه العنوان (نوع آخر يحمل الرقم والسنة نفسيهما، مثل قرار وزير مقابل قرار مجلس الوزراء): تشريع مختلف يُضاف */
-  if (sc[0].s < 0.75 && !ex.length) return { r: null, distinct: true };
+  if (sc[0].s < 0.6 && !ex.length) return { r: null, distinct: true };
   return { r: null, unsure: sc.slice(0, 3).map(c => ({ id: c.r.id, title: c.r.title, s: +c.s.toFixed(2) })) };
 }
 

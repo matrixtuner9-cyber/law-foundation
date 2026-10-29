@@ -13,8 +13,9 @@ function mkdb(dir) {
     ['قانون المرور رقم (5) لسنة 2000م', 2000, '5', 'المادة (1)\n' + 'نص كامل من مصدر آخر '.repeat(20), '{}'],
     ['قرار بقانون رقم (3) لسنة 2020م بشأن تعديل قانون المرور', 2020, '3', '', '{}'],
     ['قانون الكهرباء رقم (13) لسنة 2009م', 2009, '13', 'نص مستخرج من PDF '.repeat(20), '{"text_src":"pdf"}'],
-    ['قرار رقم (4) لسنة 1994 بشأن أ', 1994, '4', '', '{}'],
-    ['قرار رقم (4) لسنة 1994 بشأن ب', 1994, '4', '', '{}'],
+    ['قرار رقم (4) لسنة 1994 بشأن تشكيل لجنة الأسعار', 1994, '4', '', '{}'],
+    ['قرار رقم (4) لسنة 1994 بشأن تشكيل لجنة الأجور', 1994, '4', '', '{}'],
+    ['تعليمات رقم (2) لسنة 2012م بشأن تعيين شركات التأمين', 2012, '2', '', '{}'],
   ];
   for (const [t, y, n, b, m] of rows) { const x = ins.run('PS_LEGISLATION', 'PS', 'law', 'x' + n + y, t, y, n, '', 'قانون', '', '', b, '[]', b.length > 200 ? 1 : 0, '', '', m); d.prepare('INSERT INTO fts(rowid,title,body) VALUES(?,?,?)').run(Number(x.lastInsertRowid), M.norm(t), M.norm(b)) }
   d.close(); return f;
@@ -27,17 +28,19 @@ test('misbar-waqaeh: يملأ ويحسّن ويضيف دون تغيير الأر
   file(T, 2020, 'issue_165', 17272, 'قرار بقانون رقم (3) لسنة 2020م بشأن تعديل قانون المرور رقم (5) لسنة 2000م وتعديلاته', B(1));
   file(T, 2000, 'issue_33', 1, 'قانون المرور رقم (5) لسنة 2000م', B(2), 'العدد ثلاثة وثلاثون ( 30-06-2000)');
   file(T, 2009, 'issue_80', 2, 'قانون الكهرباء رقم (13) لسنة 2009م', B(3), 'العدد ( 01-01-2009)');
-  file(T, 1994, 'special_42mm', 3, 'قرار رقم (4) لسنة 1994', B(4), '( 05-05-1994)');
+  file(T, 1994, 'special_42mm', 3, 'قرار رقم (4) لسنة 1994 بشأن تشكيل لجنة', B(4), '( 05-05-1994)');
+  file(T, 2012, 'issue_95', 9, 'تعليمات رقم (2) لسنة 2012م بشأن الفوائد والعمولات المعلقة', B(6), '( 01-02-2012)');
   file(T, 2020, 'issue_165', 17273, 'قرار بقانون رقم (4) لسنة 2020م بشأن مكافآت', B(5));
   const out = JSON.parse(execFileSync(process.execPath, [path.join(__dirname, '../tools/misbar-waqaeh.js'), '--db', db, '--dir', T, '--report', path.join(dir, 'r.json')]).toString().trim().split('\n').pop());
-  assert.deepStrictEqual([out.filled, out.gazetteOnly, out.replacedPdf, out.unsure, out.added], [1, 1, 1, 1, 1]);
+  assert.deepStrictEqual([out.filled, out.gazetteOnly, out.replacedPdf, out.unsure, out.added], [1, 1, 1, 1, 2]);
   const m = M.createMisbar(M.openFile(db));
   const d2 = await m.doc(2); assert.match(d2.body, /نص الوقائع رقم 1/); assert.strictEqual(d2.meta.gazette_number, '165'); assert.strictEqual(d2.meta.gazette_date, '2020-03-19'); assert.strictEqual(d2.meta.text_src, 'waqaeh');
   const d1 = await m.doc(1); assert.match(d1.body, /مصدر آخر/, 'النص الكامل من مصدر آخر لا يُمس'); assert.strictEqual(d1.meta.gazette_number, '33');
   const d3 = await m.doc(3); assert.match(d3.body, /نص الوقائع رقم 3/);
-  const d6 = await m.doc(6); assert.strictEqual(d6.ext_id, 'mq17273'); assert.strictEqual(d6.number, '4');
+  const d6 = await m.doc(6); assert.strictEqual(d6.body, '', 'تعليمات أخرى بالرقم والسنة نفسيهما لا تُكتب فوقها'); assert.ok(!d6.meta.gazette_number);
+  const nw = (await m.search({ number: '4', src: 'PS_LEGISLATION', year: 2020 })).results.map(r => r.id); assert.ok(nw.length >= 1);
   assert.strictEqual((await m.search({ q: 'الوقائع', src: 'PS_LEGISLATION' })).total >= 3, true, 'النصوص الجديدة مفهرسة');
-  const g = await m.search({ gazette: '165', src: 'PS_LEGISLATION' }); assert.deepStrictEqual(g.results.map(r => r.id).sort(), [2, 6]);
+  const g = await m.search({ gazette: '165', src: 'PS_LEGISLATION' }); assert.strictEqual(g.results.length, 2); assert.ok(g.results.some(r => r.id === 2));
   const r = JSON.parse(fs.readFileSync(path.join(dir, 'r.json'), 'utf8')); assert.strictEqual(r.unsure[0].candidates.length, 2);
   const again = JSON.parse(execFileSync(process.execPath, [path.join(__dirname, '../tools/misbar-waqaeh.js'), '--db', db, '--dir', T]).toString().trim().split('\n').pop());
   assert.strictEqual(again.added, 0, 'التشغيل الثاني لا يكرّر');
