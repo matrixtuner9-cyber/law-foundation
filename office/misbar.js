@@ -227,7 +227,7 @@ function readForm(){const g=id=>document.getElementById(id);if(!g('mbQ'))return;
  if(k==='law'){MB.number=v('mbNum');MB.ltype=v('mbLtype');MB.status=v('mbStatus');MB.year_from=v('mbY1');MB.year_to=v('mbY2')}else if(k==='ruling'){MB.court=v('mbCourt');MB.case_no=v('mbCase');MB.ltype=v('mbLtype');MB.date_from=v('mbD1');MB.date_to=v('mbD2')}else{MB.year_from=v('mbY1');MB.year_to=v('mbY2')}}
 
 /* ── الأفعال ── */
-document.addEventListener('submit',ev=>{if(ev.target.id!=='mbForm')return;ev.preventDefault();ev.stopImmediatePropagation();run(1)},true);
+document.addEventListener('submit',ev=>{if(ev.target.id!=='mbForm')return;ev.preventDefault();ev.stopImmediatePropagation();MB.gazette='';run(1)},true);
 document.addEventListener('change',ev=>{if(S.view!=='misbar')return;
  if(ev.target.id==='mbSrcSel'){const was=kindOf();readForm();MB.kind='';MB.country=MB.src?MB.src.slice(0,2):'';document.querySelectorAll('.mb-flag').forEach(b=>b.classList.toggle('on',b.dataset.v===MB.country));if(!MB.src){mbRender();if(hasQuery())run(1);return}if(kindOf()!==was){mbRender();if(hasQuery())run(1);return}}
  if(['mbSrcSel','mbCourt','mbStatus','mbText','mbSort','mbLtype','mbD1','mbD2'].includes(ev.target.id)&&MB.data){run(1)}});
