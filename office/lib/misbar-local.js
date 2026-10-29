@@ -53,7 +53,8 @@ const TOPICS = [
   { id: 'appeal', label: 'الطعن ومواعيده', w: ['استئناف', 'الاستئناف', 'استئنافه', 'المستأنف', 'نقض', 'الطعن', 'رد الدعوى', 'رد الاستئناف', 'ميعاد الطعن', 'مدة الطعن', 'لائحة الاستئناف', 'لائحة الطعن', 'اعتراض الغير', 'إعادة المحاكمة'], laws: ['usul'], q: 'ميعاد الطعن رد الطعن شكلا' },
   { id: 'evidence', label: 'الإثبات والبينات', w: ['بينة', 'البينات', 'شاهد', 'الشهود', 'شهادة', 'اليمين', 'إقرار', 'الإقرار', 'خبرة', 'خبير', 'سند عادي', 'سند رسمي', 'إنكار التوقيع', 'الادعاء بالتزوير', 'قرينة'], laws: ['bayyinat'], q: 'عبء الاثبات البينة الشخصية' },
   { id: 'tort', label: 'التعويض عن الضرر', w: ['تعويض', 'ضرر', 'الضرر', 'إهمال', 'الإهمال', 'مسؤولية تقصيرية', 'مخالفة مدنية', 'عطل وضرر'], laws: ['tort'], q: 'التعويض عن الضرر الاهمال' },
-  { id: 'accident', label: 'حوادث الطرق والتأمين', w: ['حادث سير', 'حادث طرق', 'مركبة', 'سيارة', 'شركة التأمين', 'تأمين إلزامي', 'صندوق تعويض مصابي', 'مصاب', 'إصابة جسدية', 'عجز'], laws: ['insurance', 'traffic'], q: 'تعويض مصابي حوادث الطرق شركة التامين' },
+  { id: 'accident', label: 'حوادث الطرق والتأمين', w: ['حادث سير', 'حادث طرق', 'مركبة', 'سيارة', 'شركة التأمين', 'تأمين إلزامي', 'صندوق تعويض مصابي', 'مصاب', 'إصابة جسدية', 'عجز', 'دهس', 'الدهس', 'سائق', 'السائق'], laws: ['insurance', 'traffic'], q: 'تعويض مصابي حوادث الطرق شركة التامين' },
+  { id: 'trafficcrime', label: 'جرائم السير', w: ['دهس', 'الدهس', 'دون رخصة', 'بدون رخصة', 'بلا رخصة', 'رخصة قيادة', 'رخصة سياقة', 'لا يحمل رخصة', 'لا يملك رخصة', 'تحت تأثير', 'السرعة الزائدة', 'سرعة زائدة', 'هرب من مكان الحادث', 'عدم مراعاة القوانين والأنظمة'], laws: ['traffic', 'penal'], q: 'حادث سير التسبب بالوفاة قلة احتراز رخصة' },
   { id: 'labour', label: 'العمل والعمال', w: ['عامل', 'العامل', 'العمال', 'فصل تعسفي', 'فصلاً تعسفياً', 'فصله تعسفياً', 'تعسفياً', 'تعسفي', 'فُصل', 'فصله', 'استقالة', 'راتب', 'رواتب', 'صاحب العمل', 'مكافأة نهاية الخدمة', 'نهاية الخدمة', 'فصل تعسفي', 'الفصل التعسفي', 'أجور', 'الأجر', 'بدل إشعار', 'إجازة سنوية', 'ساعات العمل', 'إصابة عمل'], laws: ['labour'], q: 'مكافاة نهاية الخدمة الفصل التعسفي' },
   { id: 'rent', label: 'الإيجار والإخلاء', w: ['مستأجر', 'المستأجر', 'المأجور', 'مأجور', 'بدل الإيجار', 'الأجرة', 'إخلاء', 'الإخلاء', 'عقد إيجار', 'إيجار', 'المؤجر'], laws: ['rent'], q: 'اخلاء الماجور عدم دفع الاجرة' },
   { id: 'exec', label: 'التنفيذ', w: ['تنفيذ', 'دائرة التنفيذ', 'قاضي التنفيذ', 'حجز', 'الحجز', 'حبس المدين', 'سند تنفيذي', 'إخطار تنفيذي', 'ملف تنفيذي'], laws: ['exec'], q: 'دائرة التنفيذ حبس المدين' },
@@ -64,7 +65,7 @@ const TOPICS = [
   { id: 'urgent', label: 'القضاء المستعجل والطلبات', w: ['مستعجل', 'المستعجلة', 'قاضي الأمور المستعجلة', 'وقف التنفيذ', 'حجز تحفظي', 'منع سفر', 'طلب مستعجل'], laws: ['usul'], q: 'قاضي الامور المستعجلة الضرر المحدق' },
   { id: 'arbitration', label: 'التحكيم', w: ['تحكيم', 'التحكيم', 'محكم', 'قرار التحكيم', 'شرط التحكيم'], laws: ['arbitration'], q: 'قرار التحكيم بطلان' },
   { id: 'crimproc', label: 'الإجراءات الجزائية', w: ['شكوى جزائية', 'الشكوى', 'شكوى', 'دعوى جزائية', 'الحق الشخصي', 'المدعي بالحق الشخصي', 'توقيف', 'التوقيف', 'الكفالة', 'النيابة العامة', 'النيابة', 'التحقيق', 'لائحة اتهام', 'القبض', 'التفتيش', 'إخلاء سبيل', 'متهم', 'المتهم', 'المشتكي'], laws: ['crimproc'], q: 'بطلان اجراءات التفتيش التوقيف' },
-  { id: 'penal', label: 'الجرائم والعقوبات', w: ['جريمة', 'الجريمة', 'جنحة', 'جناية', 'سرقة', 'احتيال', 'إيذاء', 'قتل', 'تزوير', 'إساءة الأمانة', 'التسبب بالوفاة', 'سبب موت', 'قلة احتراز', 'الذم', 'القدح', 'تهديد', 'الشروع', 'عقوبة', 'العقوبة', 'يعاقب', 'الحبس', 'السجن', 'الغرامة', 'إدانة'], laws: ['penal'], q: 'اركان الجريمة القصد الجرمي' },
+  { id: 'penal', label: 'الجرائم والعقوبات', w: ['جريمة', 'الجريمة', 'جنحة', 'جناية', 'سرقة', 'احتيال', 'إيذاء', 'قتل', 'تزوير', 'إساءة الأمانة', 'التسبب بالوفاة', 'سبب موت', 'قلة احتراز', 'أدى إلى وفاة', 'أدت إلى وفاة', 'أفضى إلى الوفاة', 'أفضى إلى موت', 'تسبب بوفاة', 'التسبب بوفاة', 'وفاته', 'دهس', 'الذم', 'القدح', 'تهديد', 'الشروع', 'عقوبة', 'العقوبة', 'يعاقب', 'الحبس', 'السجن', 'الغرامة', 'إدانة'], laws: ['penal'], q: 'اركان الجريمة القصد الجرمي' },
   { id: 'personal', label: 'الأحوال الشخصية', w: ['طلاق', 'الطلاق', 'نفقة', 'النفقة', 'حضانة', 'الحضانة', 'مهر', 'المهر', 'زواج', 'الزواج', 'إرث', 'تركة', 'التركة', 'الورثة', 'حصر إرث'], laws: ['personal'], q: 'النفقة الحضانة' },
   { id: 'land', label: 'الأراضي والملكية العقارية', w: ['أرض', 'الأرض', 'قطعة', 'حوض', 'طابو', 'تسجيل الأراضي', 'تسوية', 'إزالة الشيوع', 'الشيوع', 'منع معارضة', 'إفراز', 'وكالة دورية', 'سند تسجيل', 'حيازة'], laws: ['ottomanland', 'landsettle'], q: 'منع معارضة في منفعة ارض' },
   { id: 'fees', label: 'الرسوم القضائية', w: ['رسوم', 'الرسوم', 'رسم الدعوى', 'تقدير الرسم'], laws: ['fees'], q: 'رسوم الدعوى' },
@@ -263,7 +264,7 @@ const RULES = [
   { id: 'labour-injury', group: 'labour', label: 'سقوط حق المصاب في التعويض عن إصابة العمل', law: 'labour', art: '124', must: 'انقضاء سنتين', days: 730, years: 2 },
 ];
 const CIVIL_TOPICS = new Set(['notice', 'jurisdiction', 'appeal', 'evidence', 'tort', 'accident', 'labour', 'rent', 'exec', 'cheque', 'companies', 'contract', 'limitation', 'urgent', 'arbitration', 'land', 'fees', 'consumer']);
-const CRIM_TOPICS = new Set(['crimproc', 'penal', 'cyber', 'drugs', 'juvenile']);
+const CRIM_TOPICS = new Set(['crimproc', 'penal', 'cyber', 'drugs', 'juvenile', 'trafficcrime']);
 
 function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
   /* ── تعليم المسبار: تقييمات طاقم المكتب وقاموسه، محفوظة في بيانات المكتب على الجهاز ── */
@@ -388,6 +389,20 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
     return uniq.slice(0, 60).map((d, i) => ({ date: d.date, ctx: d.ctx, times: d.times, sincePrev: i ? D(uniq[i - 1].date, d.date) : null, fromToday: D(d.date, today) }));
   }
 
+  /* ── خريطة القضية: جمل من الأحكام نفسها (حرفياً) تذكر الأركان أو الشروط، وجمل تذكر الدفوع؛ تُعرض كما وردت مع حكمها، لا استنتاجاً ── */
+  const REQ_RX = /(?:أركان|اركان|عناصر|يشترط|يُشترط|تشترط|شروط|يتعين لقيام|لقيام (?:جريمة|جنحة|جناية|المسؤولية|الدعوى))/;
+  const DEF_RX = /(?:الدفع ب|دفع ب|انتفاء|انعدام|سقوط (?:الحق|الدعوى)|عدم (?:قبول|مسؤولية|توافر)|قوة قاهرة|القوة القاهرة|خطأ المضرور|مشاركة المضرور|مساهمة المصاب|التقادم|حسن النية|سوء النية|الإكراه|الدفاع الشرعي)/;
+  function mapFrom(d, r, terms, REQ, DEF) {
+    const sents = String(d.body || '').replace(/\r/g, '').split(/(?<=[.؛؟!])\s+|\n+/).map(x => x.replace(/\s+/g, ' ').trim()).filter(x => x.length >= 40 && x.length <= 600);
+    const rel = x => { const t = ' ' + norm(x) + ' '; return terms.filter(w => t.includes(' ' + w) || t.includes(w + ' ')).length };
+    const ref = { id: d.id, title: d.title, court: d.court, case_no: d.case_no, date: d.date || d.year };
+    let nr = 0, nd = 0;
+    for (const x of sents) {
+      const f = flat(x);
+      if (nr < 2 && REQ_RX.test(f) && rel(x) >= 1 && !REQ.some(q => q.text === x)) { REQ.push({ text: x, ...ref }); nr++; continue }
+      if (nd < 2 && DEF_RX.test(f) && rel(x) >= 1 && !DEF.some(q => q.text === x)) { DEF.push({ text: x, ...ref }); nd++ }
+    }
+  }
   async function analyze({ text = '', title = '', region = '', eventDate = '' } = {}) {
     const src = String(text || '').slice(0, 200000);
     if (src.replace(/\s/g, '').length < 10) return { status: 400, body: { error: 'اكتب السؤال أو الوقائع (10 أحرف على الأقل).' } };
@@ -419,6 +434,7 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
     const artQ = [];
     for (const c of law.filter(x => x.found).slice(0, 4)) { const lw = norm(c.lawTitle).split(' ').filter(w => w.length >= 3 && !/\d/.test(w) && !['قانون', 'لسنه', 'رقم', 'بشان', 'فلسطيني', 'قرار', 'بقانون'].includes(w)).slice(0, 2); const q = { q: '"ماده ' + c.article + '" ' + lw.join(' '), label: 'ورد فيه ' + c.label + ' من ' + c.lawTitle, w: 1.6, mode: 'all', art: c.article, lw }; Q.push(q); artQ.push(q) }
     let ps = await rulings(Q, 'PS_JUDGMENT', 10, 12);
+    const REQ = [], DEF = [];
     /* مقتطف من صلب الحكم لا من ترويسته، والتحقق من ورود المادة فعلاً بجانب اسم قانونها */
     const out = [];
     for (const r of ps) {
@@ -431,7 +447,8 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
       if (!why.length) continue;
       /* الحكم نفسه منشور أحياناً بأكثر من رقم (استئنافان متقابلان): يكفي ظهوره مرة */
       const ex = bestPassage(d.body, terms) || r.excerpt; if (out.some(o => o.title === r.title || (ex && o.excerpt === ex))) continue;
-      out.push({ ...r, why, excerpt: ex, cites: (d.cites || []).slice(0, 8).map(c => c.title) });
+      out.push({ ...r, why, excerpt: ex, cites: (d.cites || []).slice(0, 8).map(c => c.title), outcome: structure(d.body).result });
+      mapFrom(d, r, terms, REQ, DEF);
       if (out.length >= 8) break;
     }
     ps = out;
@@ -523,8 +540,8 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
       }
     }
     /* خانات العقوبة: من المواد المذكورة في النص ثم مواد التشريعات المعنية؛ والمادة التي تحيل عقوبتها إلى مادة أخرى من القانون نفسه تُعرض معها */
-    const penalties = [];
-    if (penQ) {
+    const penalties = [], penShow = penQ || groups.has('crim');
+    if (penShow) {
       const cand = [...law.filter(c => c.found).map(c => ({ lawId: c.lawId, lawTitle: c.lawTitle, n: c.article, label: c.label, text: c.text, from: 'cite' })),
         ...related.flatMap(L => L.articles.map(a => ({ lawId: L.lawId, lawTitle: L.title, n: a.n, label: a.label, text: a.text, from: 'law' })))];
       for (const c of cand) {
@@ -540,7 +557,7 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
     return { status: 200, body: {
       title: clip(title, 160), at: now().toISOString(), ms: Date.now() - t0, offline: true,
       topics: tp.map(({ q, laws, ...t }) => t), keyterms: { terms, phrases: kt.phrases },
-      citations: law, laws: related, penQ, penalties, rulings: ps, comparative: cmp2, learned, qterms: qw, ctx, timeRule, deadlines, countRule, jurisdiction,
+      citations: law, laws: related, penQ, penShow, penalties, rulings: ps, requisites: REQ.slice(0, 8), defenses: DEF.slice(0, 8), outcomes: (() => { const c = {}; for (const x of ps) for (const o of x.outcome || []) c[o] = (c[o] || 0) + 1; return Object.entries(c).sort((a, b) => b[1] - a[1]).map(([label, n]) => ({ label, n })) })(), comparative: cmp2, learned, qterms: qw, ctx, timeRule, deadlines, countRule, jurisdiction,
       timeline: timeline(ds), amounts: am.slice(0, 40), amountTotals: total, caseNos: cn.slice(0, 30),
       notice: 'نتائج بحث آلي من القاعدة المحلية دون إنترنت: النصوص منقولة حرفياً، والمدد والمبالغ محسوبة من النص المُدخل. لا يتضمن رأياً قانونياً؛ راجع كل نتيجة قبل الاعتماد عليها.',
     } };
