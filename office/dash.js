@@ -242,7 +242,17 @@ function hero(){
  const nm=String(OFFICE.name||'').replace(/\s+للمحاماة.*$/,' للمحاماة');
  return `<section class="banner reveal" aria-label="لافتة المكتب"><div class="bn-txt"><h1>${esc(nm)}</h1><p>${esc(slogan)}</p></div></section>${kpis()}`}
 
-V.dash=()=>`${hero()}
+/* تنبيه التشريعات: مادة أو قانون مربوط بقضية عُدّل أو أُلغي بعد ربطه (من المسبار المحلي، مرة في الجلسة) */
+let lawAlertsAsked=false;
+function lawAlertCard(){
+ const A0=window.MQ_mbAlerts&&window.MQ_mbAlerts();
+ if(!A0){if(!lawAlertsAsked&&window.MQ_mbAlertsLoad&&(typeof cases!=='undefined'?cases:[]).some(k=>Array.isArray(k.lawRefs)&&k.lawRefs.length)){lawAlertsAsked=true;Promise.resolve(window.MQ_mbAlertsLoad(false)).then(()=>{const a=window.MQ_mbAlerts();if(a&&a.alerts.length&&S.view==='dash')render()})}return ''}
+ if(!A0.alerts.length)return '';
+ const ids=[...new Set(A0.alerts.map(a=>a.caseId))];
+ return `<section class="lawalert reveal" aria-label="تنبيهات التشريع"><b>🔔 ${A0.alerts.length===1?'مرجع واحد':A0.alerts.length+' مراجع'} في ${ids.length===1?'قضية واحدة':ids.length+' قضايا'} عُدّل أو أُلغي بعد ربطه</b><span>${A0.alerts.slice(0,3).map(a=>esc((a.art?'م '+a.art+' · ':'')+String(a.title).slice(0,60))).join(' · ')}</span><button class="btn sm" data-act="dashLawAlerts">عرض التنبيهات</button></section>`}
+A.dashLawAlerts=()=>{if(window.MQ_mbLocal){window.MQ_mbLocal();setTimeout(()=>{A.mbLocMode&&A.mbLocMode('ref')},150)}};
+
+V.dash=()=>`${hero()}${lawAlertCard()}
  <div class="dgrid">
   <div class="dcol a">${clientsCard()}</div>
   <div class="dcol b"><section class="card reveal" style="animation-delay:.15s">${hdr(KI.files,'الملفات والقضايا','cases')}<div id="caseTbl">${caseTable()}</div></section></div>

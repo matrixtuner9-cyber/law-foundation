@@ -670,6 +670,65 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
     } };
   }
 
+
+  /* ── تنبيهات التشريع على مراجع القضايا: مادة مربوطة بقضية عُدّلت أو أُلغيت بعد ربطها، أو صدر تعديل لقانونها بعد الربط ── */
+  async function refAlerts(b) {
+    const refs = (Array.isArray(b.refs) ? b.refs : []).slice(0, 600), out = [], lawAm = new Map();
+    for (const r of refs) {
+      const id = Number(r.docId) || 0; if (!id) continue; const at = String(r.at || '').slice(0, 10), ay = Number(at.slice(0, 4)) || 0;
+      const d = await getDoc(id); if (!d || d.kind === 'ruling') continue;
+      const items = [];
+      if (r.art) { const a = (await articlesOf(id)).find(x => x.n === String(r.art)); if (a) { const v = await validity(id, a.text, { eventDate: at, lawLevel: false }); for (const f of v.flags) if (f.level === 'warn' || f.level === 'bad') items.push({ level: f.level, text: f.text.replace('بعد الواقعة', 'بعد ربطها بالقضية').replace('قبل الواقعة', 'قبل ربطها'), instId: f.note && f.note.instId || null }) } }
+      if (d.status_code === 'repealed' || /ملغ/.test(d.status || '')) items.push({ level: 'bad', text: 'التشريع ملغى حسب القاعدة' });
+      /* تعديلات القانون كله الصادرة بعد الربط (بعنوانها: «بتعديل <القانون>») */
+      if (!lawAm.has(id)) {
+        const core = norm(d.title).replace(/م$/, '').replace(/^(?:ال)?/, ''), found = [];
+        if (typeof misbar.byTitle === 'function') for (const x of await misbar.byTitle('تعديل ' + d.title, 'PS_LEGISLATION', 60)) { const t = norm(x.title); if (x.id !== id && /تعديل|معدل/.test(t) && t.includes(core.slice(0, Math.min(core.length, 60)))) found.push({ id: x.id, title: x.title, year: Number(x.year) || 0 }) }
+        lawAm.set(id, found.sort((a, b) => b.year - a.year));
+      }
+      for (const x of lawAm.get(id)) if (ay && x.year > ay) items.push({ level: 'warn', text: 'صدر بعد ربطه بالقضية: ' + x.title, instId: x.id });
+      if (items.length) out.push({ key: r.key || '', caseId: r.caseId || '', docId: id, art: r.art || '', title: d.title, at, items: items.slice(0, 6) });
+    }
+    return { status: 200, body: { alerts: out, checked: refs.length } };
+  }
+  /* ── أرقام نافذة: قيم يحسب بها المحامي، كل منها بنص مصدرها حرفياً من القاعدة؛ وما ليس له مصدر تشريعي يحدده المكتب ── */
+  const VALS = 'mbl:vals';
+  const REFV = [
+    { key: 'minwage', label: 'الحد الأدنى للأجور', kind: 'cabinet', no: '4', year: '2021', art: '1', pick: [[/\(\s*([\d,.]+)\s*\)[^.\n]{0,40}شهري/, 'شهرياً', 'شيكل'], [/\(\s*([\d,.]+)\s*\)[^.\n]{0,40}يومي/, 'يومياً لعمال المياومة', 'شيكل'], [/ساع[ةه][^\n]*?\(\s*([\d,.]+)\s*\)/, 'للساعة', 'شيكل']] },
+    { key: 'courtfees', label: 'جدول رسوم المحاكم النظامية (آخر تعديل)', kind: 'cabinet', no: '6', year: '2023' },
+    { key: 'courtfeeslaw', label: 'قانون رسوم المحاكم النظامية', kind: 'law', no: '1', year: '2003' },
+    { key: 'interest', label: 'الفائدة القانونية', kind: 'law', title: 'قانون معدل الفائدة القانوني' },
+    { key: 'appealjur', label: 'الاختصاص المكاني لمحاكم الاستئناف', kind: 'cabinet', no: '1', year: '2021', group: 'courts' },
+    { key: 'courts', label: 'تشكيل المحاكم النظامية', kind: 'decree', no: '39', year: '2020', group: 'courts' },
+    { key: 'notary', label: 'الكاتب العدل', kind: 'law', no: '11', year: '1952', group: 'courts' },
+  ];
+  async function refValues() {
+    const out = [];
+    for (const R of REFV) {
+      let hit = null;
+      if (R.title && typeof misbar.byTitle === 'function') hit = (await misbar.byTitle(R.title, 'PS_LEGISLATION', 10))[0] || null;
+      else if (typeof misbar.byNumber === 'function') { const xs = await misbar.byNumber(R.kind === 'cabinet' ? '' : R.kind, R.no, R.year); hit = xs.find(x => R.kind !== 'cabinet' || /مجلس الوزراء/.test(x.title)) || null }
+      if (!hit) { out.push({ ...R, pick: undefined, missing: true }); continue }
+      const d = await getDoc(hit.id), arts = d ? splitArticles(d.body) : [], a = R.art ? arts.find(x => x.n === R.art) : null;
+      const text = a ? a.text : '', values = [];
+      for (const [rx, unit, cur] of R.pick || []) { const m = rx.exec(flat(text)); if (m) values.push({ value: m[1], unit, currency: cur }) }
+      out.push({ key: R.key, label: R.label, group: R.group || 'values', docId: hit.id, title: hit.title, status: hit.status || '', hasText: !!(d && d.body && d.body.length > 50), art: a ? a.label : '', text, values });
+    }
+    const v = store.get(VALS, null) || {};
+    return { status: 200, body: { items: out, office: { fxJod: v.fxJod || '', fxUsd: v.fxUsd || '', fxDate: v.fxDate || '', interest: v.interest || '', barFees: v.barFees || '', by: v.by || '', at: v.at || '' } } };
+  }
+  /* بحث في نصوص المحاكم عن بلدة أو منطقة: الأسطر التي ورد فيها الاسم كما هي */
+  async function courtFind(b) {
+    const q = norm(String(b.q || '')).trim(); if (q.length < 2) return { status: 400, body: { error: 'اكتب اسم البلدة أو المنطقة.' } };
+    const hits = [];
+    for (const R of REFV.filter(r => r.group === 'courts')) {
+      const xs = typeof misbar.byNumber === 'function' ? await misbar.byNumber(R.kind === 'cabinet' ? '' : R.kind, R.no, R.year) : []; const x = xs[0]; if (!x) continue;
+      const d = await getDoc(x.id); if (!d || !d.body) continue;
+      for (const a of splitArticles(d.body)) { if (norm(a.text).includes(q)) hits.push({ docId: x.id, title: x.title, art: a.label, text: a.text }) }
+    }
+    return { status: 200, body: { q: b.q, hits: hits.slice(0, 30) } };
+  }
+
   async function handle(action, b, me, audit) {
     try {
       if (action === 'analyze') { const r = await analyze(b); audit && audit({ user_id: me && me.id, user_name: me && me.name, action: 'misbar.local.analyze', entity: 'misbar', detail: { chars: String(b.text || '').length, laws: r.body.citations ? r.body.citations.length : 0 } }); return r }
@@ -677,6 +736,13 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
       if (action === 'gaps') { const r = await gaps(b); audit && audit({ user_id: me && me.id, user_name: me && me.name, action: 'misbar.local.gaps', entity: 'misbar', detail: { chars: String(b.text || '').length, missed: r.body.missed ? r.body.missed.length : 0 } }); return r }
       const who = { user_id: me && me.id, user_name: me && me.name };
       if (action === 'dict') return { status: 200, body: dict() };
+      if (action === 'refalerts') return await refAlerts(b);
+      if (action === 'refvalues') return await refValues();
+      if (action === 'courtfind') return await courtFind(b);
+      if (action === 'vals-save') {
+        const v = { fxJod: clip(b.fxJod, 20), fxUsd: clip(b.fxUsd, 20), fxDate: clip(b.fxDate, 10), interest: clip(b.interest, 20), barFees: clip(b.barFees, 4000), by: me && me.name, at: now().toISOString() };
+        store.set(VALS, v); audit && audit({ ...who, action: 'misbar.local.vals', entity: 'misbar', detail: { fxJod: v.fxJod, interest: v.interest } }); return await refValues();
+      }
       if (action === 'feedback') {
         const key = String(b.key || ''); if (!/^(?:R:\d+|A:\d+:\d+(?: مكرر\S*)?)$/.test(key)) return { status: 400, body: { error: 'نتيجة غير معروفة.' } };
         const vote = Number(b.vote), terms = wordsOf((Array.isArray(b.terms) ? b.terms : []).join(' ')).slice(0, 24);
