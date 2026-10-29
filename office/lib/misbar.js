@@ -185,7 +185,7 @@ function createMisbar(db, { audit } = {}) {
   }
   /* أعداد الوقائع الفلسطينية (الجريدة الرسمية) كما رُبطت بها التشريعات: العدد، تاريخه، وعدد ما نُشر فيه */
   async function gazettes() {
-    const rows = await all("SELECT json_extract(meta,'$.gazette_number') g, MIN(json_extract(meta,'$.gazette_date')) d, COUNT(*) n FROM docs WHERE src='PS_LEGISLATION' AND json_extract(meta,'$.gazette_number') IS NOT NULL GROUP BY g");
+    const rows = await all("SELECT json_extract(meta,'$.gazette_number') g, MIN(json_extract(meta,'$.gazette_date')) d, COUNT(*) n FROM docs WHERE src='PS_LEGISLATION' AND json_extract(meta,'$.gazette_name') IS NOT NULL AND json_extract(meta,'$.gazette_number') IS NOT NULL GROUP BY g");
     const num = g => { const m = /(\d+)/.exec(g); return m ? Number(m[1]) : 0 };
     return rows.map(r => ({ g: String(r.g), date: r.d || '', year: Number(String(r.d || '').slice(0, 4)) || null, n: Number(r.n), special: /ممتاز/.test(String(r.g)) })).sort((a, b) => (b.date || '').localeCompare(a.date || '') || num(b.g) - num(a.g));
   }
