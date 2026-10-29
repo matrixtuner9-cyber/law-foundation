@@ -186,3 +186,22 @@ test('افحص ملف القضية: مسائل من الوقائع، بحث لك
   assert.ok(r.laws.some(l => l.articles.some(a => a.n === '45')), 'المواد مجمّعة');
   assert.ok(/لم يجد المسبار/.test(r.notice) || Array.isArray(r.inspect.notFound));
 });
+test('التعلّم: ربط بقضية بوزن مضاعف، «مخالف» لا يُخفي ولا يرفع ويظهر في الرأي المعارض، والحذف وإعادة الضبط', async () => {
+  const store = new Map(), kv = { get: (k, d) => store.has(k) ? store.get(k) : d, set: (k, v) => store.set(k, v) };
+  const loc = L.createLocal({ misbar: mkdb(), kv });
+  const q = 'العامل فُصل فصلاً تعسفياً ويطالب صاحب العمل بمكافأة نهاية الخدمة';
+  const r0 = (await loc.analyze({ text: q })).body; const rid = r0.rulings[0] && r0.rulings[0].id; assert.ok(rid, 'حكم في النتائج');
+  const terms = r0.qterms, me = { id: 'u1', name: 'م' };
+  await loc.handle('feedback', { key: 'R:' + rid, vote: 2, terms, title: 't' }, me);
+  let r1 = (await loc.analyze({ text: q })).body; const x = r1.rulings.find(y => y.id === rid);
+  assert.ok(x && x.contra === 1, 'المخالف لا يُخفى ويُعلَّم'); assert.ok(r1.opposing.contra.some(y => y.id === rid), 'يظهر في الرأي المعارض');
+  await loc.handle('feedback', { key: 'A:1:45', vote: 1, terms, title: 'م45', src: 'link', ref: 'k1|r1' }, me);
+  const lr = (await loc.handle('learned', {})).body; assert.strictEqual(lr.items.length, 2); assert.ok(lr.items.some(i => i.src === 'link'));
+  await loc.handle('feedback', { key: 'A:1:45', vote: 0, terms, src: 'link', ref: 'k1|r1' }, me);
+  assert.strictEqual((await loc.handle('learned', {})).body.items.length, 1, 'إزالة الربط تلغي التعلّم');
+  const it = (await loc.handle('learned', {})).body.items[0]; await loc.handle('learned-del', { key: it.key, at: it.at }, me);
+  assert.strictEqual((await loc.handle('learned', {})).body.items.length, 0);
+  await loc.handle('feedback', { key: 'R:' + rid, vote: -1, terms }, me);
+  assert.strictEqual((await loc.handle('learned-reset', {})).status, 400, 'إعادة الضبط تتطلب تأكيداً');
+  assert.strictEqual((await loc.handle('learned-reset', { confirm: 'reset' })).body.removed, 1);
+});

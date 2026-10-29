@@ -45,7 +45,8 @@ function linkRef(list,caseIds,ref,{by='',at=''}={}){
  for(const id of caseIds){const k=list.find(x=>x.id===id);if(!k)continue;k.lawRefs=k.lawRefs||[];
   if(k.lawRefs.some(x=>keyOf(x)===key)){out.skipped.push(id);continue}
   k.refSeq=Math.max(Number(k.refSeq)||0,...k.lawRefs.map(x=>Number(x.n)||0))+1;
-  k.lawRefs.push({...ref,id:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),n:k.refSeq,code:refCode(ref),by,at});
+  const nr={...ref,id:'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),n:k.refSeq,code:refCode(ref),by,at};k.lawRefs.push(nr);
+  if(typeof root.MQ_mbLearnLink==='function')try{root.MQ_mbLearnLink(k,nr,1)}catch(_){}
   out.added.push(id)}
  return out}
 /* مرجع من مستند المسبار (تشريع كامل، أو مادة، أو مقطع، أو حكم) */
@@ -168,7 +169,7 @@ A.crToggle=v=>{CR.open.has(v)?CR.open.delete(v):CR.open.add(v);render()};
 const find=v=>{const [kid,rid]=String(v).split('|');const k=allCases().find(x=>x.id===kid);return {k,r:k&&(Array.isArray(k.lawRefs)?k.lawRefs:[]).find(x=>x.id===rid)}};
 A.crCopy=v=>{const {r}=find(v);if(!r)return;const t=citation(r)+(r.text?'\n«'+r.text+'»':'');navigator.clipboard.writeText(t).then(()=>toast('نُسخ الاستشهاد مع النص'))};
 A.crCopyAll=v=>{const k=allCases().find(x=>x.id===v);if(!k)return;const t=(Array.isArray(k.lawRefs)?k.lawRefs:[]).slice().sort((a,b)=>a.n-b.n).map(r=>`(${r.n}) ${citation(r)}`).join('\n');navigator.clipboard.writeText(t).then(()=>toast('نُسخت قائمة المراجع'))};
-A.crDel=v=>{const {k,r}=find(v);if(!r||!confirm('إزالة «'+(r.code||'')+'» من مراجع هذه القضية؟'))return;k.lawRefs=k.lawRefs.filter(x=>x.id!==r.id);save();render()};
+A.crDel=v=>{const {k,r}=find(v);if(!r||!confirm('إزالة «'+(r.code||'')+'» من مراجع هذه القضية؟'))return;k.lawRefs=k.lawRefs.filter(x=>x.id!==r.id);if(typeof root.MQ_mbLearnLink==='function')try{root.MQ_mbLearnLink(k,r,0)}catch(_){}save();render()};
 A.crMore=v=>{const {k,r}=find(v);if(!r)return;const {id,n,code,by,at,...ref}=r;openLink(ref,'')};
 A.crEdit=v=>{const {k,r}=find(v);if(!r)return;
  doc.getElementById('modal').innerHTML=`<div class="modal-bg" data-act="close"><div class="modal" role="dialog"><div class="head"><h1 style="font-size:20px">تعديل المرجع (${r.n}) ${E(r.code||'')}</h1><button class="btn sm" data-act="close">إغلاق</button></div>

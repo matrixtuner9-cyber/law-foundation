@@ -779,7 +779,8 @@ async function api(req, res, u) {
     /* المسبار المحلي: يعمل دون إنترنت حتى في وضع عدم الاتصال، من القاعدة المحلية وحدها */
     if (a.startsWith('local/') && M === 'POST') {
       /* تعليم المسبار (تقييم النتائج وقاموس المكتب) لمن يعمل على القضايا */
-      if (['local/feedback', 'local/dict-save'].includes(a) && !need('cases')) return;
+      if (['local/feedback', 'local/dict-save', 'local/learned-del'].includes(a) && !need('cases')) return;
+      if (a === 'local/learned-reset' && !need('manage')) return;
       const b = await jbody(req, 4 * 1024 * 1024); let inp = b;
       if (b.k) { const c = await caseBrain.handle('plain', 'GET', { k: String(b.k) }, null, me, w => auth.can(me, w === 'write' ? 'ai' : w), who); if (c.status !== 200) return json(res, c.status, c.body); inp = { text: c.body.text, title: c.body.title, caseInfo: c.body, region: b.region, eventDate: b.eventDate } }
       const r = await misbarLocal.handle(a.slice(6), inp, me, audit); if (r.status === 200 && inp.caseInfo) r.body.caseInfo = { docs: inp.caseInfo.docs, read: inp.caseInfo.read, unread: inp.caseInfo.unread, titles: inp.caseInfo.titles }; return json(res, r.status, r.body);

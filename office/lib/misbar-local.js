@@ -276,7 +276,8 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
   /* سؤالان متشابهان: نصف كلمات الأقصر منهما على الأقل مشتركة */
   const similar = (a, b) => { const A = new Set(a), sh = b.filter(w => A.has(w)).length; return sh >= 1 && sh / Math.min(a.length, b.length) >= 0.5 };
   /* حصيلة تقييمات النتيجة في الأسئلة المشابهة: موجب يرفعها، سالب يخفيها */
-  function verdicts(terms) { const out = new Map(); for (const f of fbs()) if (similar(terms, f.terms || [])) { const v = out.get(f.key) || { sum: 0, up: 0, down: 0, f }; v.sum += f.vote; f.vote > 0 ? v.up++ : v.down++; out.set(f.key, v) } return out }
+  /* التقييم: 1 مهم، -1 غير مرتبط، 2 مخالف يستحق الدراسة (لا يُخفى ولا يُرفع: يُعرض في «الرأي المعارض»)؛ ربط مرجع بقضية تقييم «مهم» بوزن مضاعف */
+  function verdicts(terms) { const out = new Map(); for (const f of fbs()) if (similar(terms, f.terms || [])) { const v = out.get(f.key) || { sum: 0, up: 0, down: 0, contra: 0, linked: 0, f }; if (f.vote === 2) v.contra++; else { const w = f.src === 'link' ? 2 : 1; v.sum += f.vote * w; f.vote > 0 ? v.up++ : v.down++; if (f.src === 'link') v.linked++ } out.set(f.key, v) } return out }
   /* مرادفات القاموس: إن ورد أحد الطرفين في النص يُضاف الآخر إلى ما يُبحث به (لا إلى النص المعروض) */
   function expand(text) { const n = ' ' + norm(text) + ' ', add = []; for (const x of dict().syn) { const a = norm(x.a), b = norm(x.b); if (a && b) { if (n.includes(' ' + a + ' ') && !n.includes(' ' + b + ' ')) add.push(x.b); else if (n.includes(' ' + b + ' ') && !n.includes(' ' + a + ' ')) add.push(x.a) } } return add }
   if (!misbar) throw new Error('misbar required');
@@ -504,6 +505,7 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
     /* حكم قيّمه المكتب مفيداً لسؤال مشابه ولم يظهر هذه المرة: يُضاف */
     for (const [k, v] of V) { if (!k.startsWith('R:') || v.sum <= 0 || ps.some(r => 'R:' + r.id === k)) continue; const d = await getDoc(Number(k.slice(2))); if (!d || d.src !== 'PS_JUDGMENT') continue;
       ps.push({ id: d.id, title: d.title, court: d.court, case_no: d.case_no, date: d.date || d.year, source: d.source, primary: d.primary, excerpt: bestPassage(d.body, terms), cites: (d.cites || []).slice(0, 8).map(c => c.title), why: [`قيّمه المكتب مفيداً (${v.up}) لسؤال مشابه`], liked: v.up }); learned.boosted++ }
+    for (const r of ps) { const v = vOf('R:' + r.id); if (v && v.contra) r.contra = v.contra; if (v && v.linked) r.linked = v.linked }
     ps.sort((a, b) => (b.liked ? 1 : 0) - (a.liked ? 1 : 0));
     const cmp2 = cmp.filter(r => { const v = vOf('R:' + r.id); if (v && v.sum < 0) { learned.hidden++; return false } return true });
     /* ── فحص السريان والاختصاص ── */
@@ -555,12 +557,17 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
         penalties.push({ lawId: c.lawId, lawTitle: c.lawTitle, n: c.n, label: c.label, from: c.from, clauses: P.clauses, kinds: P.kinds, measures: P.measures, refs });
       }
     }
+    /* «الرأي المعارض»: أحكام طبّقت المادة نفسها وانتهت إلى نتائج مختلفة، وما وسمه المكتب «مخالفاً يستحق الدراسة» — لا تقدير فيه، تصنيف المنطوق آلي */
+    const OUTC = o => /قُبل الطعن|نُقض|أُلغي|البراءة/.test(o) ? 'for' : /رُدّ الطعن|رُدّ الطلب|عدم القبول|الإدانة/.test(o) ? 'against' : '';
+    const byArt = new Map();
+    for (const r of ps) { const side = [...new Set((r.outcome || []).map(OUTC).filter(Boolean))]; if (side.length !== 1) continue; for (const c of r.cites || []) { const m = /^المادة رقم (\d+) من (.+)$/.exec(c); if (!m) continue; const k = c; if (!byArt.has(k)) byArt.set(k, { cite: c, for: [], against: [] }); byArt.get(k)[side[0]].push({ id: r.id, case_no: r.case_no, court: r.court, date: r.date, outcome: (r.outcome || []).join('، ') }) } }
+    const opposing = { split: [...byArt.values()].filter(x => x.for.length && x.against.length).slice(0, 6), contra: ps.filter(r => r.contra).map(r => ({ id: r.id, title: r.title, case_no: r.case_no, court: r.court, date: r.date, excerpt: r.excerpt, contra: r.contra })) };
     const am = amounts(src), cn = caseNos(src);
     const total = am.reduce((a, x) => { a[x.currency] = (a[x.currency] || 0) + x.value; return a }, {});
     return { status: 200, body: {
       title: clip(title, 160), at: now().toISOString(), ms: Date.now() - t0, offline: true,
       topics: tp.map(({ q, laws, aw, ...t }) => t), keyterms: { terms, phrases: kt.phrases },
-      citations: law, laws: related, penQ, penShow, penalties, rulings: ps, requisites: REQ.slice(0, 8), defenses: DEF.slice(0, 8), outcomes: (() => { const c = {}; for (const x of ps) for (const o of x.outcome || []) c[o] = (c[o] || 0) + 1; return Object.entries(c).sort((a, b) => b[1] - a[1]).map(([label, n]) => ({ label, n })) })(), comparative: cmp2, learned, qterms: qw, ctx, timeRule, deadlines, countRule, jurisdiction,
+      citations: law, laws: related, penQ, penShow, penalties, rulings: ps, requisites: REQ.slice(0, 8), defenses: DEF.slice(0, 8), opposing, outcomes: (() => { const c = {}; for (const x of ps) for (const o of x.outcome || []) c[o] = (c[o] || 0) + 1; return Object.entries(c).sort((a, b) => b[1] - a[1]).map(([label, n]) => ({ label, n })) })(), comparative: cmp2, learned, qterms: qw, ctx, timeRule, deadlines, countRule, jurisdiction,
       timeline: timeline(ds), amounts: am.slice(0, 40), amountTotals: total, caseNos: cn.slice(0, 30),
       notice: 'نتائج بحث آلي من القاعدة المحلية دون إنترنت: النصوص منقولة حرفياً، والمدد والمبالغ محسوبة من النص المُدخل. لا يتضمن رأياً قانونياً؛ راجع كل نتيجة قبل الاعتماد عليها.',
     } };
@@ -794,7 +801,7 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
     const questions = sents.filter(x => /[؟?]\s*$/.test(x) || /^(?:هل|ما|كم|متى|من|أين|كيف)\s/.test(x)).slice(0, 10);
     log.push({ step: 'استخراج', text: issues.length ? `استُخرجت ${issues.length} مسألة: ${issues.map(i => i.label).join('، ')}${questions.length ? ` — و${questions.length} سؤال في النص` : ''}` : 'لم يُتعرَّف على موضوع قانوني من كلمات النص؛ سيُبحث بالنص كله' });
     /* 3) البحث لكل مسألة مع إعادة محدودة */
-    const runs = [], merged = { laws: [], rulings: [], comparative: [], penalties: [], requisites: [], defenses: [], deadlines: [], citations: [], outcomes: {} };
+    const runs = [], merged = { opposing: { split: [], contra: [] }, laws: [], rulings: [], comparative: [], penalties: [], requisites: [], defenses: [], deadlines: [], citations: [], outcomes: {} };
     const key = (L, a) => L.lawId + ':' + a.n;
     const absorb = (r, iss) => {
       for (const L of r.laws || []) { let M = merged.laws.find(x => x.lawId === L.lawId); if (!M) { M = { ...L, articles: [] }; merged.laws.push(M) } for (const a of L.articles || []) if (!M.articles.some(x => x.n === a.n)) M.articles.push({ ...a, issue: iss && iss.label }) }
@@ -805,6 +812,8 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
       for (const x of r.requisites || []) if (!merged.requisites.some(y => y.text === x.text)) merged.requisites.push(x);
       for (const x of r.defenses || []) if (!merged.defenses.some(y => y.text === x.text)) merged.defenses.push(x);
       for (const x of r.deadlines || []) if (!merged.deadlines.some(y => y.id === x.id)) merged.deadlines.push(x);
+      for (const x of (r.opposing || {}).split || []) if (!merged.opposing.split.some(y => y.cite === x.cite)) merged.opposing.split.push(x);
+      for (const x of (r.opposing || {}).contra || []) if (!merged.opposing.contra.some(y => y.id === x.id)) merged.opposing.contra.push(x);
       return (r.laws || []).some(L => (L.articles || []).length) || (r.rulings || []).length > 0;
     };
     let base = null;
@@ -838,7 +847,7 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
     const notFound = targets.filter(i => !i.found).map(i => i.label);
     const r = { ...(base || {}), title: b.title || 'فحص ملف القضية', ms: Date.now() - t0, offline: true,
       topics: tp.map(({ q, laws, aw, ...t }) => t), laws: merged.laws, citations: merged.citations, rulings: merged.rulings, comparative: merged.comparative.slice(0, 6), penalties: merged.penalties, penShow: merged.penalties.length > 0,
-      requisites: merged.requisites.slice(0, 8), defenses: merged.defenses.slice(0, 8), deadlines: merged.deadlines, outcomes: Object.entries(merged.outcomes).sort((a, b) => b[1] - a[1]).map(([label, n]) => ({ label, n })),
+      requisites: merged.requisites.slice(0, 8), defenses: merged.defenses.slice(0, 8), opposing: merged.opposing, deadlines: merged.deadlines, outcomes: Object.entries(merged.outcomes).sort((a, b) => b[1] - a[1]).map(([label, n]) => ({ label, n })),
       inspect: { log, issues: targets.map(i => ({ id: i.id, label: i.label, facts: i.facts, attempts: i.attempts, found: i.found, laws: i.laws || [], rulings: i.rulings || 0 })), questions, evidence, notFound, runs },
       notice: 'فحص آلي من القاعدة المحلية دون إنترنت ودون نموذج لغوي: المسائل مستخرجة من كلمات الوقائع، والمراجع منقولة حرفياً، وقائمة الأدلة قائمة تحقق عامة للموضوع لا نص قانوني. حيث لم يجد المسبار مراجع قال ذلك ولم يكتب بديلاً. القرار للمحامي.' };
     return { status: 200, body: r };
@@ -852,6 +861,9 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
       if (action === 'gaps') { const r = await gaps(b); audit && audit({ user_id: me && me.id, user_name: me && me.name, action: 'misbar.local.gaps', entity: 'misbar', detail: { chars: String(b.text || '').length, missed: r.body.missed ? r.body.missed.length : 0 } }); return r }
       const who = { user_id: me && me.id, user_name: me && me.name };
       if (action === 'dict') return { status: 200, body: dict() };
+      if (action === 'learned') return { status: 200, body: { items: fbs().map((f, i) => ({ i, key: f.key, vote: f.vote, src: f.src || 'vote', terms: f.terms || [], title: f.title || '', by: f.byName || '', at: f.at || '', ref: f.ref || '' })).reverse(), dict: dict() } };
+      if (action === 'learned-del') { const at = String(b.at || ''), key = String(b.key || ''); const all = fbs().filter(f => !(f.key === key && f.at === at)); store.set(FB, all); audit && audit({ ...who, action: 'misbar.local.unlearn', entity: 'misbar', detail: { key } }); return { status: 200, body: { ok: true, count: all.length } } }
+      if (action === 'learned-reset') { if (b.confirm !== 'reset') return { status: 400, body: { error: 'تأكيد مطلوب.' } }; const n = fbs().length; store.set(FB, []); audit && audit({ ...who, action: 'misbar.local.reset', entity: 'misbar', detail: { removed: n } }); return { status: 200, body: { ok: true, removed: n } } }
       if (action === 'refalerts') return await refAlerts(b);
       if (action === 'refvalues') return await refValues();
       if (action === 'courtfind') return await courtFind(b);
@@ -864,8 +876,9 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
         const vote = Number(b.vote), terms = wordsOf((Array.isArray(b.terms) ? b.terms : []).join(' ')).slice(0, 24);
         if (!terms.length) return { status: 400, body: { error: 'لا كلمات للسؤال.' } };
         /* تقييم الشخص نفسه للنتيجة نفسها في سؤال مشابه يُستبدل، و0 يلغيه */
-        const all = fbs().filter(f => !(f.key === key && f.by === (me && me.id) && similar(terms, f.terms || [])));
-        if (vote === 1 || vote === -1) all.push({ key, vote, terms, title: clip(b.title, 200), by: me && me.id, byName: me && me.name, at: now().toISOString() });
+        const src = b.src === 'link' ? 'link' : 'vote', ref = clip(b.ref, 80);
+        const all = fbs().filter(f => !(f.key === key && (f.src || 'vote') === src && (src === 'link' ? f.ref === ref : f.by === (me && me.id) && similar(terms, f.terms || []))));
+        if (vote === 1 || vote === -1 || vote === 2) all.push({ key, vote, terms, title: clip(b.title, 200), by: me && me.id, byName: me && me.name, at: now().toISOString(), src, ...(ref ? { ref } : {}) });
         store.set(FB, all.slice(-3000)); audit && audit({ ...who, action: 'misbar.local.feedback', entity: 'misbar', detail: { key, vote } });
         return { status: 200, body: { ok: true, count: all.length } };
       }
