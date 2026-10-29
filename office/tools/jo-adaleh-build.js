@@ -22,7 +22,8 @@ function citesOf(refs) {
    الإزالة فقط حين تأتي بعد «منشورات» أو «مركز» أو بعد شرطة مائلة في إسناد القرار، أو في أول حقل الموضوعات */
 function unbrand(s, { topic = false } = {}) {
   let t = String(s || '');
-  t = t.replace(/(?:https?:\/\/)?(?:www\.)?adaleh\.info\S*/gi, '');
+  /* الرابط بصيغه كلها، ومنها صيغة Markdown المزخرفة «++**[https://adaleh.info](…)**++» */
+  t = t.replace(/[+*_~]*\[?\s*(?:https?:\/\/)?(?:www\.)?adaleh\.info[^\]\s)]*(?:\s*\])?(?:\([^)]*\))?[+*_~]*/gi, '');
   t = t.replace(/(?:منش\S{3,5}\s+)?مركز\s+عدالة(?:\s+للمعلومات\s+القانونية)?\s*[\/—–-]?\s*/g, '');
   t = t.replace(/منش\S{1,3}ات\s+عدالة\s*\/?\s*/g, '');
   t = t.replace(/(\/\s*)عدالة\s+(?=[\u0621-\u064A])/g, '$1');
@@ -31,7 +32,8 @@ function unbrand(s, { topic = false } = {}) {
 }
 /* للنصوص الطويلة القائمة: تنظيف الأسطر التي فيها الإشارة فقط، فتبقى بقية النص بمسافاته وأسطره كما هي */
 const BRAND_RX = /منش\S{1,3}ات\s+(?:مركز\s+)?عدالة|مركز\s+عدالة|adaleh\.info/i;
-const unbrandLines = s => String(s ?? '').split('\n').map(l => BRAND_RX.test(l) ? unbrand(l) : l).join('\n');
+/* السطر الذي لم يبقَ منه بعد إزالة الإشارة إلا زخرفة أو ترقيم يُحذف كله */
+const unbrandLines = s => String(s ?? '').split('\n').flatMap(l => { if (!BRAND_RX.test(l)) return [l]; const u = unbrand(l); return /^[\s+*_~\[\]()،,.:\/-]*$/.test(u) ? [] : [u] }).join('\n');
 const branchOf = court => /جزائي/.test(court) ? 'جزائي' : /اداري|إداري/.test(court) ? 'إداري' : /حقوقي/.test(court) ? 'حقوقي' : '';
 
 function convert(r) {
