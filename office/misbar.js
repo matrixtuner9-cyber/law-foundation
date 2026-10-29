@@ -222,7 +222,7 @@ A.mbPage=v=>run(Number(v)||1);
 A.mbKind=v=>{readForm();const was=kindOf();MB.kind=v==='law'||v==='ruling'?v:'';if(MB.src&&MB.kind&&(MB.kind==='ruling')!==/JUDGMENT|CASSATION/.test(MB.src))MB.src='';
  if(kindOf()!==was)Object.assign(MB,{number:'',ltype:'',status:'',court:'',case_no:'',date_from:'',date_to:''});MB.view='search';mbRender();if(hasQuery())run(1)};
 A.mbCountry=v=>{readForm();MB.country=MB.country===v?'':v;if(MB.country&&MB.src&&!MB.src.startsWith(MB.country+'_'))MB.src='';MB.view='search';mbRender();document.querySelectorAll('.mb-flag').forEach(b=>b.classList.toggle('on',b.dataset.v===MB.country));if(hasQuery())run(1);else{MB.data=null;paint()}};
-A.mbGz=v=>{Object.assign(MB,{gazette:String(v||''),q:'',kind:'',number:'',ltype:'',status:'',court:'',case_no:'',date_from:'',date_to:'',year_from:'',year_to:'',src:'PS_LEGISLATION',has_text:'',sort:'relevance',view:'search'});mbRender();run(1)};
+A.mbGz=v=>{Object.assign(MB,{gazette:String(v||''),q:'',kind:'',number:'',ltype:'',status:'',court:'',case_no:'',date_from:'',date_to:'',year_from:'',year_to:'',src:'PS_LEGISLATION',has_text:'',sort:'relevance',view:'search',doc:null,open:null,docBusy:false});paintReader();mbRender();run(1).then(()=>{const r=document.getElementById('mbRes');if(r)r.scrollIntoView({block:'start',behavior:'smooth'})})};
 A.mbGzOff=()=>{MB.gazette='';if(hasQuery())run(1);else{MB.data=null;mbRender()}};
 A.mbClear=()=>{Object.assign(MB,{gazette:'',q:'',kind:'',number:'',ltype:'',date_from:'',date_to:'',country:'',src:'',year_from:'',year_to:'',court:'',case_no:'',status:'',has_text:'',sort:'relevance',data:null,err:'',open:null,doc:null});mbRender()};
 A.mbOpen=async v=>{const id=Number(v);if(!id)return;MB.open=id;MB.docBusy=true;MB.doc=null;
