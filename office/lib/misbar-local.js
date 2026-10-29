@@ -157,7 +157,7 @@ function topics(text) {
     const hits = t.wn.filter(w => n.includes(' ' + w + ' ') || (w.includes(' ') && n.includes(w)));
     if (!hits.length) continue;
     const cnt = hits.reduce((a, w) => a + (n.split(' ' + w + ' ').length - 1 || 1), 0);
-    out.push({ id: t.id, label: t.label, hits: t.w.filter(w => hits.includes(norm(w))).slice(0, 6), score: hits.length * 2 + Math.min(cnt, 10), laws: t.laws, q: t.q });
+    out.push({ id: t.id, label: t.label, hits: t.w.filter(w => hits.includes(norm(w))).slice(0, 6), score: hits.length * 2 + Math.min(cnt, 10), laws: t.laws, q: t.q, aw: t.aw || [] });
   }
   out.sort((a, b) => b.score - a.score);
   /* موضوع بكلمة دالّة واحدة عابرة (مثل «شركة» في اسم صاحب العمل) لا يُعرض إلا إن كان الوحيد */
