@@ -457,30 +457,27 @@ function createLocal({ misbar, now = () => new Date(), kv = null, sem = null } =
       const arts = (penQ ? rk.filter((a, i) => i < 3 || penaltyOf(a.text)) : rk).slice(0, penQ ? 5 : 3).filter(a => !law.some(c => c.lawId === L.id && c.article === a.n));
       related.push({ lawId: L.id, title: L.title, status: L.status, topic: (tp.find(t => t.laws.includes(k)) || {}).label || '', articles: arts });
     }
-    /* ── البحث الدلالي (إن توفّر نموذجه على الجهاز): أقرب المواد في المعنى تُدمج مع ترتيب البحث النصي بترتيب تبادلي (RRF).
-       يرفع المادة التي يتفق عليها الطريقان، ويضيف حتى أربع مواد قريبة المعنى لم يجدها البحث النصي (مادتين لكل تشريع، وتشريعين جديدين على الأكثر) ── */
-    let semUsed = null;
+    /* ── البحث الدلالي (إن توفّر نموذجه على الجهاز): أقرب المواد في المعنى. لا يُستعمل وحده:
+       (1) هنا: إن لم يجد البحث النصي مادتين على الأقل تُضاف حتى أربع مواد قريبة المعنى موسومة (مادتان لكل تشريع، وتشريعان جديدان على الأكثر)؛
+       (2) في آخر التحليل: يُعاد ترتيب المواد المعروضة بدمج ترتيبها مع ترتيب المعنى (RRF) داخل تشريعاتها فقط، دون تقديم ما ثبّته المكتب أو قيّمه ── */
+    let semUsed = null, semHits = [];
+    const skey = (l, n) => l + ':' + n;
     if (sem && src.length <= 1500) {
-      let hits = []; try { hits = await sem.search(srcN, { k: 30, getDoc }) } catch { hits = [] }
-      if (hits.length) {
-        const key = (l, n) => l + ':' + n, baseL = [...new Set([...law.filter(c => c.found).map(c => key(c.lawId, c.article)), ...related.flatMap(L => L.articles.map(a => key(L.lawId, a.n)))])];
-        const fused = new Map(); [baseL, hits.map(h => key(h.lawId, h.n))].forEach(l => l.forEach((k, i) => fused.set(k, (fused.get(k) || 0) + 1 / (60 + i + 1))));
-        const order = [...fused].sort((x, y) => y[1] - x[1]).map(x => x[0]), rank = new Map(order.map((k, i) => [k, i]));
-        let added = 0, newLaws = 0; const perLaw = new Map();
-        for (const k of order.slice(0, 10)) {
-          if (baseL.includes(k) || added >= 4) continue;
-          const h = hits.find(x => key(x.lawId, x.n) === k); if (!h || law.some(c => c.lawId === h.lawId && c.article === h.n)) continue;
+      try { semHits = await sem.search(srcN, { k: 30, getDoc }) } catch { semHits = [] }
+      const baseN = law.filter(c => c.found).length + related.reduce((n, L) => n + L.articles.length, 0);
+      if (semHits.length) semUsed = { added: 0, agreed: 0 };
+      if (semHits.length && baseN < 2) {
+        let newLaws = 0; const perLaw = new Map();
+        for (const h of semHits.slice(0, 10)) {
+          if (semUsed.added >= 4) break;
+          if (law.some(c => c.lawId === h.lawId && c.article === h.n) || related.some(L => L.lawId === h.lawId && L.articles.some(a => a.n === h.n))) continue;
           if ((perLaw.get(h.lawId) || 0) >= 2) continue;
           let Lr = related.find(r => r.lawId === h.lawId);
           if (!Lr) { if (newLaws >= 2) continue; const d = await getDoc(h.lawId); if (!d) continue; Lr = { lawId: h.lawId, title: d.title, status: d.status || '', topic: 'قريب في المعنى من السؤال', articles: [] }; related.push(Lr); newLaws++ }
           const a = (await articlesOf(h.lawId)).find(x => x.n === h.n); if (!a || a.repealed) continue;
           Lr.articles.push({ n: a.n, label: a.label, text: a.text, why: 'قريبة في معناها من السؤال (بحث دلالي على الجهاز)', sem: true });
-          perLaw.set(h.lawId, (perLaw.get(h.lawId) || 0) + 1); added++;
+          perLaw.set(h.lawId, (perLaw.get(h.lawId) || 0) + 1); semUsed.added++;
         }
-        const rk = (l, n) => rank.has(key(l, n)) ? rank.get(key(l, n)) : 1e9;
-        for (const L of related) { L.articles.sort((x, y) => rk(L.lawId, x.n) - rk(L.lawId, y.n)); for (const a of L.articles) if (!a.sem && hits.some(h => h.lawId === L.lawId && h.n === a.n)) { a.why = 'أكّدها البحث الدلالي · ' + a.why; a.semAgree = true } }
-        related.sort((x, y) => Math.min(...x.articles.map(a => rk(x.lawId, a.n)), 1e9) - Math.min(...y.articles.map(a => rk(y.lawId, a.n)), 1e9));
-        semUsed = { added, agreed: related.reduce((n, L) => n + L.articles.filter(a => a.semAgree).length, 0) };
       }
     }
     /* استعلامات الأحكام: الكلمات الدالّة، ثم كل موضوع، ثم كل مادة مذكورة (الأحكام التي ورد فيها رقمها مع اسم قانونها) */
@@ -560,6 +557,16 @@ function createLocal({ misbar, now = () => new Date(), kv = null, sem = null } =
       ps.push({ id: d.id, title: d.title, court: d.court, case_no: d.case_no, date: d.date || d.year, source: d.source, primary: d.primary, excerpt: bestPassage(d.body, terms), cites: (d.cites || []).slice(0, 8).map(c => c.title), why: [`قيّمه المكتب مفيداً (${v.up}) لسؤال مشابه`], liked: v.up }); learned.boosted++ }
     for (const r of ps) { const v = vOf('R:' + r.id); if (v && v.contra) r.contra = v.contra; if (v && v.linked) r.linked = v.linked }
     ps.sort((a, b) => (b.liked ? 1 : 0) - (a.liked ? 1 : 0));
+    /* (2) إعادة الترتيب بالمعنى: ترتيب المواد الحالي (بعد ما استندت إليه الأحكام وتقييمات المكتب) مدموجاً مع ترتيب المعنى داخل التشريعات المعروضة */
+    if (semHits.length) {
+      const here = new Set(related.map(L => L.lawId)), baseL = related.flatMap(L => L.articles.map(a => skey(L.lawId, a.n)));
+      const semL = semHits.filter(h => here.has(h.lawId)).map(h => skey(h.lawId, h.n)), fz = new Map();
+      [baseL, semL].forEach(l => l.forEach((k, i) => fz.set(k, (fz.get(k) || 0) + 1 / (60 + i + 1))));
+      const rk = (l, n) => -(fz.get(skey(l, n)) || 0), top = a => (a.pinned ? 2 : 0) + (a.liked ? 1 : 0);
+      for (const L of related) { L.articles.sort((x, y) => top(y) - top(x) || rk(L.lawId, x.n) - rk(L.lawId, y.n)); for (const a of L.articles) if (!a.sem && semL.includes(skey(L.lawId, a.n))) { a.why = 'أكّدها البحث الدلالي · ' + a.why; a.semAgree = true; semUsed.agreed++ } }
+      const best = L => Math.min(...L.articles.map(a => rk(L.lawId, a.n)), 0), pin = L => L.articles.some(a => a.pinned) ? 1 : 0;
+      related.sort((x, y) => pin(y) - pin(x) || best(x) - best(y));
+    }
     const cmp2 = cmp.filter(r => { const v = vOf('R:' + r.id); if (v && v.sum < 0) { learned.hidden++; return false } return true });
     /* ── فحص السريان والاختصاص ── */
     const evs = dates(src), evUser = /^\d{4}-\d{2}-\d{2}$/.test(String(eventDate)) ? String(eventDate) : '';
