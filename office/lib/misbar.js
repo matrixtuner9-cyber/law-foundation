@@ -34,7 +34,7 @@ function ftsQuery(q, mode = 'all') {
   const raw = String(q ?? '').slice(0, 300), parts = [];
   raw.replace(/"([^"]{2,120})"/g, (_, ph) => { const n = norm(ph); if (n) parts.push('"' + n + '"'); return ' ' });
   const rest = raw.replace(/"[^"]*"/g, ' ');
-  for (const w of norm(rest).split(' ')) if (w && !STOP.has(w) && (w.length > 1 || /\d/.test(w))) parts.push('"' + w + '"' + (w.length >= 3 && !/^\d+$/.test(w) ? '*' : ''));
+  for (const w of norm(rest).split(' ')) if (w && !STOP.has(w) && (w.length > 1 || /\d/.test(w))) parts.push('"' + w + '"' + (w.length >= 3 && (!/^\d+$/.test(w) || w.length === 4) ? '*' : ''));
   const uniq = [...new Set(parts)].slice(0, 16);
   return uniq.length ? uniq.join(mode === 'any' ? ' OR ' : ' AND ') : '';
 }
@@ -107,8 +107,17 @@ function createMisbar(db, { audit } = {}) {
     /* الترتيب بالصلة: bm25 مع وزن أكبر للعنوان، ثم الفلسطيني أولاً */
     const order = sort === 'relevance' && fq ? 'f.rk + (CASE d.country WHEN \'PS\' THEN -2.0 ELSE 0 END)' : sort === 'year_asc' ? 'd.year ASC, d.id' : sort === 'date_desc' ? "COALESCE(NULLIF(d.date,''), d.year || '-00-00') DESC, d.id DESC" : 'd.year DESC, d.id DESC';
     const [cnt] = await all(`SELECT COUNT(DISTINCT d.id) n FROM ${from}${W}`, ...args);
-    const total = Number(cnt?.n || 0);
+    let total = Number(cnt?.n || 0);
     const rows = total ? await all(`SELECT ${COLS}, substr(d.body,1,20000) body FROM ${sort === 'relevance' && fq ? fromRank : from}${W} ORDER BY ${order} LIMIT ? OFFSET ?`, ...args, per, (page - 1) * per) : [];
+    /* عنوان التشريع بنوعه ورقمه وسنته («قانون السلطة القضائية رقم 1 لسنة 2002»): التشريع نفسه أولاً، وإن لم تطابقه كل كلمات البحث في الفهرس */
+    const tm = fq && page === 1 && sort === 'relevance' ? /^(.*?)\s*رقم\s*[(\[]?\s*(\d+)\s*[)\]]?\s*لسن[ةه]\s*(\d{4})/.exec(String(q).replace(/[ًٌٍَُِّْـ]/g, '')) : null;
+    if (tm) {
+      const head = norm(tm[1]).split(' ').filter(x => x.length > 2), rx = new RegExp('رقم\\s*[(\\[]?\\s*' + tm[2] + '\\s*[)\\]]?\\s*لسن[ةه]\\s*' + tm[3]);
+      let ex = []; try { ex = await all(`SELECT ${COLS}, substr(d.body,1,20000) body FROM docs d WHERE ${(w.length ? w.join(' AND ') + ' AND ' : '')}d.title LIKE ? AND d.title LIKE ? LIMIT 80`, ...a, '%' + tm[2] + '%', '%' + tm[3] + '%') } catch { ex = [] }
+      ex = ex.filter(r => { const t = scrub(r.title).replace(/[ًٌٍَُِّْـ]/g, ''), m = rx.exec(t); if (!m) return false; const before = ' ' + norm(t.slice(0, m.index)) + ' '; return head.length && head.every(x => before.includes(' ' + x + ' ') || before.includes(' ' + x)) }).slice(0, 3);
+      for (const r of ex.reverse()) { const i = rows.findIndex(x => Number(x.id) === Number(r.id)); if (i >= 0) rows.splice(i, 1); else total++; rows.unshift(r) }
+      if (rows.length > per) rows.length = per;
+    }
     const facets = {};
     if (total && f.facets !== '0') {
       for (const r of await all(`SELECT d.src k, COUNT(DISTINCT d.id) n FROM ${from}${W} GROUP BY d.src`, ...args)) (facets.src ||= {})[r.k] = Number(r.n);

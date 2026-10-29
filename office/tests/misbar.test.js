@@ -10,7 +10,7 @@ test('norm: تشكيل وهمزات وتاء مربوطة وأرقام هندي�
   assert.strictEqual(M.norm('في'), 'في'); // الكلمات القصيرة لا تُقصّ
 });
 test('ftsQuery: كلمات ببادئة، عبارة بين تنصيص كما هي، وإهمال كلمات الوقف، وأي بدل كل', () => {
-  assert.strictEqual(M.ftsQuery('بالشيك المرتجع في 2019'), '"شيك"* AND "مرتجع"* AND "2019"');
+  assert.strictEqual(M.ftsQuery('بالشيك المرتجع في 2019'), '"شيك"* AND "مرتجع"* AND "2019"*');
   assert.strictEqual(M.ftsQuery('"عدم كفاية الرصيد" شيك'), '"عدم كفايه رصيد" AND "شيك"*');
   assert.strictEqual(M.ftsQuery('شيك مرتجع', 'any'), '"شيك"* OR "مرتجع"*');
   assert.strictEqual(M.ftsQuery('   '), '');
