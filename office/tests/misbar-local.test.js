@@ -174,3 +174,15 @@ test('العقوبة: جمل العقوبة حرفياً مع أنواعها و�
   assert.strictEqual(L.penaltyOf('لغايات تطبيق أحكام هذا القانون يكون للكلمات المعاني المخصصة لها.'), null);
   assert.ok(L.PEN_Q.test('ما عقوبة القتل غير العمد')); assert.ok(!L.PEN_Q.test('القتل غير العمد تشريعات وقرارات'));
 });
+test('افحص ملف القضية: مسائل من الوقائع، بحث لكل مسألة، أدلة مقابل المستندات، وتصريح بما لم يوجد', async () => {
+  const loc = L.createLocal({ misbar: mkdb() });
+  const r = (await loc.handle('inspect', { text: 'فصل صاحب العمل الموكل العامل بتاريخ 3/2/2024 فصلاً تعسفياً ولم يدفع مكافأة نهاية الخدمة.\nهل يستحق التعويض؟', caseInfo: { docs: 2, read: 1, unread: [], titles: ['عقد العمل الموقع', 'صورة الهوية'] } })).body;
+  assert.ok(r.inspect && r.inspect.log.length >= 5, 'سجل الدورة');
+  assert.ok(r.inspect.issues.some(i => i.id === 'labour' && i.found), 'مسألة العمل وُجدت لها مراجع');
+  assert.ok(r.inspect.issues.find(i => i.id === 'labour').facts.some(f => /فصلاً تعسفياً/.test(f)), 'جملة الوقائع حرفياً');
+  assert.deepStrictEqual(r.inspect.questions, ['هل يستحق التعويض؟']);
+  const ev = r.inspect.evidence; assert.ok(ev.find(x => x.label === 'عقد العمل' && x.status === 'doc'), 'عقد العمل مرفق');
+  assert.ok(ev.find(x => /الرواتب/.test(x.label) && x.status === 'missing'), 'كشوف الرواتب ناقصة');
+  assert.ok(r.laws.some(l => l.articles.some(a => a.n === '45')), 'المواد مجمّعة');
+  assert.ok(/لم يجد المسبار/.test(r.notice) || Array.isArray(r.inspect.notFound));
+});

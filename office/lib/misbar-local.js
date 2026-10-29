@@ -754,10 +754,100 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
     return { status: 200, body: { q: b.q, hits: hits.slice(0, 30) } };
   }
 
+
+  /* ── «افحص ملف القضية»: دورة محدودة شبه مستقلة دون نموذج لغوي ──
+     1) يقرأ وقائع القضية ومستنداتها  2) يستخرج المسائل (كل موضوع مع جمله الدالّة حرفياً) وأسئلة المحامي
+     3) يبحث لكل مسألة، ويعيد البحث بكلمات الموضوع إن لم يجد (حد محاولتين)  4) يفحص السريان والمواعيد (داخل analyze)
+     5) يقارن مستندات القضية بقائمة أدلة الموضوع  6) يجمع كل شيء في نتيجة واحدة ويقول «لم أجد» حيث لم يجد. لا يكتب رأياً. */
+  const EVID = {
+    accident: ['المخطط المروري (كروكي الحادث)', 'ضبط الشرطة / تقرير الحادث', 'تقرير الخبير الفني للمركبة', 'التقرير الطبي أو تقرير الطب الشرعي', 'شهادة الوفاة (إن وُجدت وفاة)', 'إفادات الشهود', 'وثيقة التأمين', 'رخصة القيادة ورخصة المركبة'],
+    trafficcrime: ['المخطط المروري (كروكي الحادث)', 'ضبط الشرطة / تقرير الحادث', 'تقرير الخبير الفني للمركبة', 'تقرير الطب الشرعي', 'إفادات الشهود', 'رخصة القيادة ورخصة المركبة', 'لائحة الاتهام أو قرار النيابة'],
+    labour: ['عقد العمل', 'كشوف الرواتب أو قسائم الأجر', 'كتاب إنهاء الخدمة أو الفصل', 'إثبات مدة الخدمة', 'سجل الحضور والإجازات', 'الإنذار أو الإشعار'],
+    cheque: ['صورة الشيك (وجهاً وظهراً)', 'إشعار الرجوع من البنك', 'كشف الحساب', 'الإنذار العدلي'],
+    rent: ['عقد الإيجار', 'إيصالات الأجرة', 'الإنذار العدلي أو إخطار الإخلاء', 'سند ملكية العقار أو ما يثبت صفة المؤجر'],
+    contract: ['العقد', 'المراسلات بين الطرفين', 'الإنذار العدلي', 'إثبات الدفع أو التنفيذ'],
+    tort: ['تقرير الخبرة بتقدير الضرر', 'الفواتير والمستندات المالية', 'التقارير الطبية', 'إفادات الشهود'],
+    penal: ['ضبط الشرطة', 'إفادات الشهود', 'التقرير الطبي', 'تقرير الأدلة الجنائية', 'لائحة الاتهام'],
+    crimproc: ['ضبط الشرطة', 'قرار النيابة', 'محضر التبليغ', 'لائحة الاتهام'],
+    land: ['سند التسجيل (الطابو)', 'مخطط الأرض', 'كشف الحدود', 'عقد البيع أو حجة الوكالة'],
+    personal: ['عقد الزواج', 'شهادة الولادة', 'حجة حصر الإرث', 'شهادة الوفاة'],
+    exec: ['السند التنفيذي', 'محضر التبليغ', 'كشف الذمة', 'قرار دائرة التنفيذ'],
+    companies: ['عقد التأسيس والنظام', 'شهادة التسجيل', 'محاضر الاجتماعات', 'الميزانيات'],
+    notary: ['الوكالة العدلية', 'ما يثبت استمرار الوكالة أو عزلها'],
+  };
+  const EVK = { 'المخطط المروري (كروكي الحادث)': ['مخطط', 'كروكي'], 'ضبط الشرطة / تقرير الحادث': ['ضبط', 'الشرطة', 'تقرير الحادث'], 'تقرير الخبير الفني للمركبة': ['خبير', 'خبرة', 'فني'], 'التقرير الطبي أو تقرير الطب الشرعي': ['طبي', 'الطب الشرعي', 'تشريح'], 'تقرير الطب الشرعي': ['الطب الشرعي', 'تشريح', 'طبي'], 'شهادة الوفاة (إن وُجدت وفاة)': ['شهادة وفاة', 'الوفاة'], 'إفادات الشهود': ['إفادة', 'افادة', 'شاهد', 'شهود'], 'وثيقة التأمين': ['تأمين', 'بوليصة', 'وثيقة'], 'رخصة القيادة ورخصة المركبة': ['رخصة'], 'لائحة الاتهام أو قرار النيابة': ['اتهام', 'النيابة'], 'عقد العمل': ['عقد'], 'كشوف الرواتب أو قسائم الأجر': ['راتب', 'رواتب', 'أجر', 'قسيمة'], 'كتاب إنهاء الخدمة أو الفصل': ['إنهاء', 'فصل', 'انهاء'], 'إثبات مدة الخدمة': ['خدمة', 'خبرة'], 'سجل الحضور والإجازات': ['حضور', 'إجازة', 'دوام'], 'الإنذار أو الإشعار': ['إنذار', 'انذار', 'إشعار'], 'صورة الشيك (وجهاً وظهراً)': ['شيك'], 'إشعار الرجوع من البنك': ['رجوع', 'مرتجع', 'البنك'], 'كشف الحساب': ['كشف حساب', 'كشف'], 'الإنذار العدلي': ['إنذار', 'انذار', 'عدلي'], 'عقد الإيجار': ['إيجار', 'ايجار', 'عقد'], 'إيصالات الأجرة': ['إيصال', 'ايصال', 'أجرة'], 'الإنذار العدلي أو إخطار الإخلاء': ['إنذار', 'انذار', 'إخلاء'], 'سند ملكية العقار أو ما يثبت صفة المؤجر': ['ملكية', 'طابو', 'سند'], 'العقد': ['عقد', 'اتفاقية'], 'المراسلات بين الطرفين': ['مراسلة', 'رسالة', 'كتاب'], 'إثبات الدفع أو التنفيذ': ['دفع', 'وصل', 'حوالة'], 'تقرير الخبرة بتقدير الضرر': ['خبرة', 'خبير', 'تقدير'], 'الفواتير والمستندات المالية': ['فاتورة', 'فواتير'], 'التقارير الطبية': ['طبي', 'تقرير طبي'], 'ضبط الشرطة': ['ضبط', 'الشرطة'], 'التقرير الطبي': ['طبي'], 'تقرير الأدلة الجنائية': ['أدلة', 'ادلة', 'بصمات', 'مختبر'], 'لائحة الاتهام': ['اتهام'], 'قرار النيابة': ['النيابة'], 'محضر التبليغ': ['تبليغ', 'محضر'], 'سند التسجيل (الطابو)': ['طابو', 'تسجيل', 'سند'], 'مخطط الأرض': ['مخطط', 'خارطة'], 'كشف الحدود': ['حدود', 'كشف'], 'عقد البيع أو حجة الوكالة': ['بيع', 'وكالة'], 'عقد الزواج': ['زواج', 'قران'], 'شهادة الولادة': ['ولادة', 'ميلاد'], 'حجة حصر الإرث': ['حصر', 'إرث', 'ارث', 'وراثة'], 'شهادة الوفاة': ['وفاة'], 'السند التنفيذي': ['سند', 'تنفيذي'], 'كشف الذمة': ['ذمة'], 'قرار دائرة التنفيذ': ['التنفيذ'], 'عقد التأسيس والنظام': ['تأسيس', 'نظام'], 'شهادة التسجيل': ['تسجيل'], 'محاضر الاجتماعات': ['محضر', 'اجتماع'], 'الميزانيات': ['ميزانية', 'مالية'], 'الوكالة العدلية': ['وكالة'], 'ما يثبت استمرار الوكالة أو عزلها': ['عزل', 'وكالة'] };
+  const SENT = t => String(t || '').replace(/\r/g, '').split(/(?<=[.؛؟!])\s+|\n+/).map(x => x.replace(/\s+/g, ' ').trim()).filter(x => x.length >= 12);
+  async function inspect(b) {
+    const t0 = Date.now(), src = String(b.text || '').slice(0, 200000);
+    if (src.replace(/\s/g, '').length < 15) return { status: 400, body: { error: 'لا وقائع تُفحص: اكتب وقائع القضية أو اقرأ مستنداتها أولاً.' } };
+    const log = [], ci = b.caseInfo || {};
+    /* 1) القراءة */
+    const facts = src.split(/\n==== مستند:/)[0], sents = SENT(src);
+    log.push({ step: 'قراءة', text: `قُرئت الوقائع${ci.docs != null ? ` و${ci.read || 0} من ${ci.docs} مستنداً` : ''} (${sents.length} جملة)` });
+    /* 2) المسائل: لكل موضوع الجمل التي ذكرته حرفياً؛ وأسئلة المحامي */
+    const tp = topics(rewriteNeg(src)).slice(0, 5), issues = [];
+    for (const t of tp) {
+      const hits = t.hits.map(norm), qs = sents.filter(x => { const n = ' ' + norm(x) + ' '; return hits.some(h => n.includes(' ' + h + ' ') || (h.includes(' ') && n.includes(h))) }).slice(0, 6);
+      issues.push({ id: t.id, label: t.label, hits: t.hits, facts: qs, attempts: 0, found: false });
+    }
+    const questions = sents.filter(x => /[؟?]\s*$/.test(x) || /^(?:هل|ما|كم|متى|من|أين|كيف)\s/.test(x)).slice(0, 10);
+    log.push({ step: 'استخراج', text: issues.length ? `استُخرجت ${issues.length} مسألة: ${issues.map(i => i.label).join('، ')}${questions.length ? ` — و${questions.length} سؤال في النص` : ''}` : 'لم يُتعرَّف على موضوع قانوني من كلمات النص؛ سيُبحث بالنص كله' });
+    /* 3) البحث لكل مسألة مع إعادة محدودة */
+    const runs = [], merged = { laws: [], rulings: [], comparative: [], penalties: [], requisites: [], defenses: [], deadlines: [], citations: [], outcomes: {} };
+    const key = (L, a) => L.lawId + ':' + a.n;
+    const absorb = (r, iss) => {
+      for (const L of r.laws || []) { let M = merged.laws.find(x => x.lawId === L.lawId); if (!M) { M = { ...L, articles: [] }; merged.laws.push(M) } for (const a of L.articles || []) if (!M.articles.some(x => x.n === a.n)) M.articles.push({ ...a, issue: iss && iss.label }) }
+      for (const c of r.citations || []) if (!merged.citations.some(x => x.lawId === c.lawId && x.article === c.article)) merged.citations.push(c);
+      for (const x of r.rulings || []) if (!merged.rulings.some(y => y.id === x.id)) { merged.rulings.push({ ...x, issue: iss && iss.label }); for (const o of x.outcome || []) merged.outcomes[o] = (merged.outcomes[o] || 0) + 1 }
+      for (const x of r.comparative || []) if (!merged.comparative.some(y => y.id === x.id)) merged.comparative.push(x);
+      for (const x of r.penalties || []) if (!merged.penalties.some(y => y.lawId === x.lawId && y.n === x.n)) merged.penalties.push(x);
+      for (const x of r.requisites || []) if (!merged.requisites.some(y => y.text === x.text)) merged.requisites.push(x);
+      for (const x of r.defenses || []) if (!merged.defenses.some(y => y.text === x.text)) merged.defenses.push(x);
+      for (const x of r.deadlines || []) if (!merged.deadlines.some(y => y.id === x.id)) merged.deadlines.push(x);
+      return (r.laws || []).some(L => (L.articles || []).length) || (r.rulings || []).length > 0;
+    };
+    let base = null;
+    const targets = issues.length ? issues : [{ id: 'all', label: 'النص كله', facts: [], hits: [], attempts: 0, found: false }];
+    for (const iss of targets) {
+      let text = iss.id === 'all' ? src : (iss.facts.join('\n') || src.slice(0, 4000));
+      for (let k = 0; k < 2 && !iss.found; k++) {
+        iss.attempts++;
+        const r = (await analyze({ text, title: iss.label, region: b.region, eventDate: b.eventDate })).body;
+        if (!base) base = r;
+        iss.found = absorb(r, iss); iss.laws = (r.laws || []).map(L => ({ title: L.title, n: (L.articles || []).map(a => a.n) })); iss.rulings = (r.rulings || []).length;
+        runs.push({ issue: iss.label, attempt: iss.attempts, found: iss.found, ms: r.ms });
+        if (!iss.found) { const T = TOPICS.find(t => t.id === iss.id); text = (iss.facts.join('\n') || '') + '\n' + (T ? T.q + ' ' + T.w.slice(0, 6).join(' ') : src.slice(0, 2000)) }
+      }
+    }
+    log.push({ step: 'بحث', text: `${runs.length} عملية بحث${runs.filter(x => x.attempt > 1).length ? `، منها ${runs.filter(x => x.attempt > 1).length} إعادة بحث بكلمات الموضوع` : ''}؛ وُجدت مراجع لـ${targets.filter(i => i.found).length} من ${targets.length} مسألة` });
+    /* 4) الفحص: السريان والتعديل داخل analyze؛ هنا يُحصى */
+    const flagged = merged.laws.flatMap(L => L.articles.filter(a => a.valid && a.valid.flags.some(f => f.level !== 'info'))).length + merged.citations.filter(c => c.valid && c.valid.flags.some(f => f.level !== 'info')).length;
+    log.push({ step: 'تمحيص', text: `فُحص سريان ${merged.laws.reduce((s, L) => s + L.articles.length, 0) + merged.citations.length} مادة${flagged ? `؛ ${flagged} منها عليها تنبيه تعديل أو إلغاء أو سريان` : '؛ لا تنبيهات'}، و${merged.deadlines.length} ميعاد` });
+    /* 5) الأدلة: قائمة الموضوع مقابل مستندات القضية (بعناوينها ونصوصها) */
+    const titles = (ci.titles || []).map(x => norm(x)), body = norm(src);
+    const evidence = [];
+    for (const iss of issues) for (const item of EVID[iss.id] || []) {
+      if (evidence.some(x => x.label === item)) continue;
+      const kws = (EVK[item] || []).map(norm);
+      const inTitle = titles.find(t => kws.some(k => t.includes(k))), inText = !inTitle && kws.some(k => body.includes(' ' + k)) ;
+      evidence.push({ label: item, issue: iss.label, status: inTitle ? 'doc' : inText ? 'text' : 'missing', doc: inTitle ? (ci.titles || [])[titles.indexOf(inTitle)] : '' });
+    }
+    log.push({ step: 'أدلة', text: evidence.length ? `قائمة أدلة الموضوع: ${evidence.filter(x => x.status === 'doc').length} مرفقة، ${evidence.filter(x => x.status === 'text').length} مذكورة في النص دون مرفق، ${evidence.filter(x => x.status === 'missing').length} غير موجودة` : 'لا قائمة أدلة لهذا الموضوع' });
+    /* 6) النتيجة: مسائل بلا مراجع تُذكر صراحة */
+    const notFound = targets.filter(i => !i.found).map(i => i.label);
+    const r = { ...(base || {}), title: b.title || 'فحص ملف القضية', ms: Date.now() - t0, offline: true,
+      topics: tp.map(({ q, laws, aw, ...t }) => t), laws: merged.laws, citations: merged.citations, rulings: merged.rulings, comparative: merged.comparative.slice(0, 6), penalties: merged.penalties, penShow: merged.penalties.length > 0,
+      requisites: merged.requisites.slice(0, 8), defenses: merged.defenses.slice(0, 8), deadlines: merged.deadlines, outcomes: Object.entries(merged.outcomes).sort((a, b) => b[1] - a[1]).map(([label, n]) => ({ label, n })),
+      inspect: { log, issues: targets.map(i => ({ id: i.id, label: i.label, facts: i.facts, attempts: i.attempts, found: i.found, laws: i.laws || [], rulings: i.rulings || 0 })), questions, evidence, notFound, runs },
+      notice: 'فحص آلي من القاعدة المحلية دون إنترنت ودون نموذج لغوي: المسائل مستخرجة من كلمات الوقائع، والمراجع منقولة حرفياً، وقائمة الأدلة قائمة تحقق عامة للموضوع لا نص قانوني. حيث لم يجد المسبار مراجع قال ذلك ولم يكتب بديلاً. القرار للمحامي.' };
+    return { status: 200, body: r };
+  }
+
   async function handle(action, b, me, audit) {
     try {
       if (action === 'analyze') { const r = await analyze(b); audit && audit({ user_id: me && me.id, user_name: me && me.name, action: 'misbar.local.analyze', entity: 'misbar', detail: { chars: String(b.text || '').length, laws: r.body.citations ? r.body.citations.length : 0 } }); return r }
       if (action === 'dissect') return await dissect(b);
+      if (action === 'inspect') { const r = await inspect(b); audit && audit({ user_id: me && me.id, user_name: me && me.name, action: 'misbar.local.inspect', entity: 'misbar', detail: { chars: String(b.text || '').length, issues: r.body.inspect ? r.body.inspect.issues.length : 0 } }); return r }
       if (action === 'gaps') { const r = await gaps(b); audit && audit({ user_id: me && me.id, user_name: me && me.name, action: 'misbar.local.gaps', entity: 'misbar', detail: { chars: String(b.text || '').length, missed: r.body.missed ? r.body.missed.length : 0 } }); return r }
       const who = { user_id: me && me.id, user_name: me && me.name };
       if (action === 'dict') return { status: 200, body: dict() };
