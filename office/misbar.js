@@ -29,7 +29,7 @@ const LAB={task:'search',provider:'',q:'',facts:'',doc:'',docName:'',lang:'en',c
 /* علامة الميزان المميزة: تُستعمل حيثما ذُكر مِسْبار */
 const MK='<img src="misbar-emblem.webp" alt="" class="mb-mk" width="20" height="19">';
 const LABT=[['search',MK,'عقل مِسْبار','اسأل بلغتك فيبحث بالمصطلحات القانونية ويجيب من القاعدة بالمراجع'],['legal_question','◇','السؤال القانوني','النصوص المنطبقة والمبادئ والثغرات وما يلزم إثباته'],['gaps','⌕','الثغرات والدفوع','استقصاء الثغرات والدفوع وخطة قابلة للتنفيذ'],['document','▤','تحليل المستند','الالتزامات والتناقضات والعيوب والنصوص ذات الصلة'],['appeal','⚖','أسباب الطعن','أسباب الطعن المحتملة في الحكم والمهل الواجب التحقق منها'],['contract','▣','مراجعة عقد','المخاطر والشروط المجحفة والغموض والتوصيات'],['hearing','◷','ملخص قبل الجلسة','الوقائع والطلبات والبينات والأسئلة المتوقعة'],['minutes','◉','محضر اجتماع','القرارات والمسؤوليات والمواعيد من التفريغ النصي'],['translate','⇄','الترجمة القانونية','ترجمة دقيقة تحفظ الترقيم والمصطلحات']];
-const MB={view:'search',kind:'',number:'',ltype:'',date_from:'',date_to:'',country:'',q:'',src:'',year_from:'',year_to:'',court:'',case_no:'',status:'',has_text:'',sort:'relevance',page:1,data:null,busy:false,err:'',open:null,doc:null,docBusy:false,fs:17,stats:null,statsErr:''};
+const MB={view:'search',gazette:'',kind:'',number:'',ltype:'',date_from:'',date_to:'',country:'',q:'',src:'',year_from:'',year_to:'',court:'',case_no:'',status:'',has_text:'',sort:'relevance',page:1,data:null,busy:false,err:'',open:null,doc:null,docBusy:false,fs:17,stats:null,statsErr:''};
 try{const f=Number(localStorage.getItem('mq_mb_fs'));if(f>=14&&f<=24)MB.fs=f}catch(x){}
 
 /* ── القائمة: المسبار بدل الشاشات القديمة ── */
@@ -46,8 +46,8 @@ async function call(path,p){
 }
 function params(page){const p={page:String(page||1),sort:MB.sort};if(MB.country)p.country=MB.country;if(kindOf())p.kind=kindOf();
  const k=kindOf(),keys=['q','src','has_text',...(k==='law'?['number','ltype','status','year_from','year_to']:k==='ruling'?['court','case_no','ltype','date_from','date_to']:['year_from','year_to'])];
- for(const x of keys)if(String(MB[x]||'').trim())p[x]=String(MB[x]).trim();return p}
-const hasQuery=()=>['q','kind','number','ltype','date_from','date_to','country','src','year_from','year_to','court','case_no','status'].some(k=>String(MB[k]||'').trim());
+ for(const x of keys)if(String(MB[x]||'').trim())p[x]=String(MB[x]).trim();if(MB.gazette)p.gazette=MB.gazette;return p}
+const hasQuery=()=>['q','gazette','kind','number','ltype','date_from','date_to','country','src','year_from','year_to','court','case_no','status'].some(k=>String(MB[k]||'').trim());
 async function run(page){
  readForm();if(!hasQuery()){toast('اكتب عبارة البحث أو اختر مصدراً أو رقم قضية');return}
  if(MB.busy)return;MB.busy=true;MB.err='';MB.page=page||1;paint();
@@ -119,7 +119,7 @@ function results(){
  const d=MB.data;if(!d)return `<div class="mb-empty"><b>أدخل عبارة بحث أو رقماً وسنة.</b><span>تظهر هنا الأحكام والتشريعات مع بياناتها، ويُعرض المستند الذي تختاره في القارئ بجانبها.</span></div>`;
  if(!d.total)return `<div class="mb-empty"><b>لا نتائج.</b><span>جرّب كلمات أقل أو أعم، أو أزل بعض الفلاتر.</span></div>`;
  const f=d.facets&&d.facets.src?`<div class="mb-fc">${Object.entries(d.facets.src).map(([k,n])=>`<button class="mb-chip sm ${MB.src===k?'on':''}" data-act="mbSrc" data-v="${k}">${e((SRC.find(s=>s[0]===k)||[,k])[1])} <b>${fmtN(n)}</b></button>`).join('')}</div>`:'';
- return `<div class="mb-rh"><b>نتائج البحث</b><span class="m">النتائج: ${fmtN(d.total)} — صفحة ${d.page} من ${fmtN(d.pages)}</span></div>${f}
+ return `<div class="mb-rh"><b>${MB.gazette?'الوقائع الفلسطينية — العدد '+e(MB.gazette):'نتائج البحث'}</b><span class="m">النتائج: ${fmtN(d.total)} — صفحة ${d.page} من ${fmtN(d.pages)}</span>${MB.gazette?'<button class="mb-chip sm on" data-act="mbGzOff" title="إلغاء تصفية العدد">العدد '+e(MB.gazette)+' ✕</button>':''}</div>${f}
   <ol class="mb-list">${d.results.map(r=>`<li class="${MB.open===r.id?'on':''}"><button class="mb-it" data-act="mbOpen" data-v="${r.id}">
    <div class="mb-tags">${badge(r)}${statusPill(r)}${r.has_text?'':'<span class="mb-st">النص غير متوفر</span>'}</div>
    <b class="mb-t">${hl(cleanT(r.title),MB.q)}</b>
@@ -139,7 +139,9 @@ function reader(){
  const m=d.meta||{};
  return `<div class="mb-doc-h"><div class="mb-tags">${badge(d)}${statusPill(d)}</div><h2>${e(cleanT(d.title))}</h2>
   <div class="mb-meta">${[d.court,d.case_no&&('رقم '+d.case_no),d.date||d.year,d.ltype,d.subject].filter(Boolean).map(e).join(' · ')}</div>
-  ${d.kind==='law'&&(d.number||m.gazette_number||m.last_amended||m.in_force_from)?`<div class="mb-meta">${[d.number&&('رقم '+d.number+(d.year?' لسنة '+d.year:'')),d.date&&('نُشر '+d.date),m.gazette_number&&('الجريدة الرسمية عدد '+m.gazette_number+(m.gazette_page?' ص '+m.gazette_page:'')),m.in_force_from&&('يُعمل به من '+m.in_force_from),m.last_amended&&('آخر تعديل '+m.last_amended+((m.amended_by||[]).length?' ('+m.amended_by.length+' تشريعاً معدِّلاً)':''))].filter(Boolean).map(e).join(' · ')}</div>`:''}
+  ${d.kind==='law'&&(d.number||m.gazette_number||m.last_amended||m.in_force_from)?`<div class="mb-meta">${[d.number&&('رقم '+d.number+(d.year?' لسنة '+d.year:'')),d.date&&('نُشر '+d.date),m.gazette_number&&!m.gazette_name&&('الجريدة الرسمية عدد '+m.gazette_number+(m.gazette_page?' ص '+m.gazette_page:'')),m.in_force_from&&('يُعمل به من '+m.in_force_from),m.last_amended&&('آخر تعديل '+m.last_amended+((m.amended_by||[]).length?' ('+m.amended_by.length+' تشريعاً معدِّلاً)':''))].filter(Boolean).map(e).join(' · ')}</div>`:''}
+  ${m.gazette_name?`<div class="mb-meta mb-gz">📰 منشور في ${e(m.gazette_name)} — العدد ${e(m.gazette_number)}${m.gazette_date?' بتاريخ '+e(m.gazette_date):''} <button class="btn sm ghost" data-act="mbGz" data-v="${e(m.gazette_number)}">كل ما نُشر في هذا العدد</button></div>`:''}
+  ${m.text_src==='waqaeh'?`<div class="mb-cmp mb-pdfsrc">ⓘ النص من الوقائع الفلسطينية عبر «المقتفي» (معهد الحقوق، جامعة بيرزيت). للتحقق الرسمي يُرجع إلى العدد المطبوع من الجريدة الرسمية.</div>`:''}
   ${m.text_src==='pdf'?`<div class="mb-cmp mb-pdfsrc">ⓘ النص مستخرج آلياً من ملف PDF المنشور للجريدة الرسمية (${e(m.text_at||'')})؛ قد يختلف ترتيب بعض الأرقام والتواريخ عن الأصل، فقابل ما تقتبسه بالأصل المنشور قبل اعتماده.</div>`:''}
   ${d.primary?'':`<div class="mb-cmp">مرجع ${d.country==='JO'?'أردني':'مصري'} للمقارنة والاستئناس، وليس ملزماً أمام المحاكم الفلسطينية.${m.note?' '+e(m.note):''}</div>`}
   ${d.body?`<div class="mb-find" role="search"><span class="mb-find-i" aria-hidden="true">⌕</span><input id="mbFind" type="search" placeholder="ابحث في نص ${d.kind==='law'?'التشريع':'الحكم'}… (Enter للتالي)" aria-label="البحث في النص" autocomplete="off"><span class="mb-find-n" id="mbFindN"></span><button type="button" class="btn sm" data-act="mbFindStep" data-v="-1" aria-label="السابق">▲</button><button type="button" class="btn sm" data-act="mbFindStep" data-v="1" aria-label="التالي">▼</button></div>`:''}
@@ -221,7 +223,9 @@ A.mbPage=v=>run(Number(v)||1);
 A.mbKind=v=>{readForm();const was=kindOf();MB.kind=v==='law'||v==='ruling'?v:'';if(MB.src&&MB.kind&&(MB.kind==='ruling')!==/JUDGMENT|CASSATION/.test(MB.src))MB.src='';
  if(kindOf()!==was)Object.assign(MB,{number:'',ltype:'',status:'',court:'',case_no:'',date_from:'',date_to:''});MB.view='search';mbRender();if(hasQuery())run(1)};
 A.mbCountry=v=>{readForm();MB.country=MB.country===v?'':v;if(MB.country&&MB.src&&!MB.src.startsWith(MB.country+'_'))MB.src='';MB.view='search';mbRender();document.querySelectorAll('.mb-flag').forEach(b=>b.classList.toggle('on',b.dataset.v===MB.country));if(hasQuery())run(1);else{MB.data=null;paint()}};
-A.mbClear=()=>{Object.assign(MB,{q:'',kind:'',number:'',ltype:'',date_from:'',date_to:'',country:'',src:'',year_from:'',year_to:'',court:'',case_no:'',status:'',has_text:'',sort:'relevance',data:null,err:'',open:null,doc:null});mbRender()};
+A.mbGz=v=>{Object.assign(MB,{gazette:String(v||''),q:'',kind:'',number:'',ltype:'',status:'',court:'',case_no:'',date_from:'',date_to:'',year_from:'',year_to:'',src:'PS_LEGISLATION',has_text:'',sort:'relevance',view:'search'});mbRender();run(1)};
+A.mbGzOff=()=>{MB.gazette='';if(hasQuery())run(1);else{MB.data=null;mbRender()}};
+A.mbClear=()=>{Object.assign(MB,{gazette:'',q:'',kind:'',number:'',ltype:'',date_from:'',date_to:'',country:'',src:'',year_from:'',year_to:'',court:'',case_no:'',status:'',has_text:'',sort:'relevance',data:null,err:'',open:null,doc:null});mbRender()};
 A.mbOpen=async v=>{const id=Number(v);if(!id)return;MB.open=id;MB.docBusy=true;MB.doc=null;
  document.querySelectorAll('.mb-list li').forEach(li=>li.classList.toggle('on',li.querySelector('[data-v="'+id+'"]')!=null));
  paintReader();

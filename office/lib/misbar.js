@@ -85,6 +85,8 @@ function where(f) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(String(f.date_from || ''))) { w.push("d.date>=?"); a.push(f.date_from) }
   if (/^\d{4}-\d{2}-\d{2}$/.test(String(f.date_to || ''))) { w.push("d.date<>'' AND d.date<=?"); a.push(f.date_to) }
   if (f.url && /^https?:\/\//.test(String(f.url))) { w.push('d.url=?'); a.push(clip(f.url, 400)) }
+  /* عدد من الوقائع الفلسطينية (الجريدة الرسمية): «165» أو «ممتاز 42» — كل ما نُشر فيه */
+  if (f.gazette && /^[\u0621-\u064A0-9 ()]{1,24}$/.test(String(f.gazette).trim())) { w.push("json_extract(d.meta,'$.gazette_number')=?"); a.push(String(f.gazette).trim()) }
   return { w, a };
 }
 
