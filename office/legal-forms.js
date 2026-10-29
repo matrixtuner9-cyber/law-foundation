@@ -1,0 +1,261 @@
+/* ── النماذج القانونية الفلسطينية: مكتبة موسّعة مبنية على النصوص التي تنظّمها ──
+   كل نموذج يعلن المواد التي تحكمه (law + arts)، فتُجلب من قاعدة المسبار المحلية بنصها الحرفي كما هي، دون تلخيص،
+   لأن البيانات الإلزامية للورقة القضائية مصدرها النص نفسه (مثل المادة 52 من قانون الأصول لبيانات لائحة الدعوى).
+   • تُملأ بيانات القضية تلقائياً، وما ينقص من ملف القضية يُعلَّم «[ناقص: …]» ويُعدّ في قائمة ظاهرة، فلا يُطبع فراغ صامت.
+   • النماذج ذات الميعاد (الطعون، الجواب، الاعتراض…) تحسب آخر يوم من تاريخ الحكم أو التبليغ بحسب المادة، وتضيفه لمواعيد القضية.
+   • «اقتراح السند من المسبار» يحلّل القضية على الجهاز ويعرض المواد والأحكام ليختار المحامي منها ما يُدرج في الأسانيد.
+   كلها مسودات للمراجعة: لا تُشارك في بوابة الموكل ما دامت غير معتمدة (القاعدة في ready-templates-palestine.js). */
+(function(){
+'use strict';
+if(typeof TPL==='undefined'||typeof V==='undefined')return;
+const h=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* التشريعات: جزء مميز من العنوان كما في القاعدة (يُختار القانون الأصلي، أطول النصوص المطابقة) */
+const L={
+ CPC:['أصول المحاكمات المدنية والتجارية رقم (2) لسنة 2001','قانون أصول المحاكمات المدنية والتجارية رقم (2) لسنة 2001 وتعديلاته'],
+ CRP:['الإجراءات الجزائية رقم (3) لسنة 2001','قانون الإجراءات الجزائية رقم (3) لسنة 2001 وتعديلاته'],
+ EXE:['قانون التنفيذ رقم (23) لسنة 2005','قانون التنفيذ رقم (23) لسنة 2005 وتعديلاته'],
+ LAB:['قانون العمل الفلسطيني رقم (7) لسنة 2000','قانون العمل الفلسطيني رقم (7) لسنة 2000'],
+ LND:['قانون المالكين والمستأجرين قانون رقم (62) لسنة 1953','قانون المالكين والمستأجرين رقم (62) لسنة 1953 وتعديلاته'],
+ SHP:['أصول المحاكمات الشرعية رقم (31) لسنة 1959','قانون أصول المحاكمات الشرعية رقم (31) لسنة 1959'],
+ PST:['قانون الأحوال الشخصية لسنة 1976','قانون الأحوال الشخصية لسنة 1976 (المطبّق في الضفة الغربية)'],
+ ADV:['بشأن تنظيم مهنة المحاماة','قانون تنظيم مهنة المحاماة رقم (3) لسنة 1999'],
+ NOT:['قانون الكاتب العدل رقم (11) لسنة 1952','قانون الكاتب العدل رقم (11) لسنة 1952']
+};
+const R=(k,...arts)=>({law:L[k][0],title:L[k][1],arts:arts.map(String)});
+
+/* بيانات القضية المستعملة في النماذج: ما ينقص منها يظهر للمحامي باسمه */
+const CTXL={client:'اسم الموكّل',clientId:'رقم هوية الموكّل',clientAddr:'عنوان الموكّل',clientJob:'مهنة الموكّل',opp:'اسم الخصم',oppAddr:'عنوان الخصم',oppJob:'مهنة الخصم',court:'المحكمة',no:'رقم الدعوى',subject:'موضوع الدعوى',amount:'قيمة الدعوى',role:'صفة الموكّل في الدعوى',lawyer:'اسم المحامي',barNo:'رقم عضوية المحامي في النقابة',officeAddr:'عنوان المكتب',city:'مدينة المكتب',hearing:'موعد الجلسة القادمة'};
+const MISS=l=>'[ناقص: '+l+']',TODO=l=>'[يُستكمل: '+l+']';
+
+/* ═══ النماذج الجديدة ═══
+   fields: [المفتاح, العنوان, القيمة الافتراضية, النوع: date | area]
+   dl: الميعاد — من حقل تاريخ، بعدد أيام من المادة المذكورة (يبدأ من اليوم التالي) */
+const F=(o)=>Object.assign({status:'draft',fields:[]},o);
+const NEW={
+ t16:F({name:'طلب مستعجل باتخاذ إجراء وقتي',category:'الطلبات القضائية',hint:'لدى قاضي الأمور المستعجلة لمن يخشى ضرراً من فوات الوقت',refs:[R('CPC',102,103,104,105,107,114)],
+  fields:[['urgent','الإجراء الوقتي المطلوب','','area'],['danger','وجه الاستعجال والضرر المحتمل من فوات الوقت','','area'],['facts','الوقائع','','area'],['docs','المستندات المرفقة','','area'],['legal','الأسانيد القانونية','','area']],
+  body:['لدى {court} الموقرة','(قاضي الأمور المستعجلة)','طلب مستعجل باتخاذ إجراء وقتي','','المستدعي: {client}، هوية رقم {clientId}، وعنوانه {clientAddr}.','وكيله: {lawyer}، {office}، {officeAddr}.','المستدعى ضده: {opp}، وعنوانه {oppAddr}.','','موضوع الطلب: {urgent}','','الوقائع:','{facts}','','وجه الاستعجال:','{danger}','','الأسانيد القانونية:','{legal}','','المستندات المرفقة:','{docs}','','الطلبات:','لما تقدم يلتمس المستدعي من عدالة المحكمة إصدار القرار المستعجل باتخاذ الإجراء الوقتي المبيّن أعلاه، دون التعرض لأصل الحق، مع استعداد المستدعي لتقديم الكفالة التي تقدّرها المحكمة.','','وكيل المستدعي','{lawyer}','التاريخ: {date}'],
+  note:'إذا صدر القرار قبل إقامة الدعوى الأصلية فيلزم المستدعي بتقديم لائحة دعواه خلال ثمانية أيام (المادة 107).'}),
+ t17:F({name:'طلب حجز تحفظي على أموال المدين',category:'الطلبات القضائية',hint:'قبل إقامة الدعوى أو عند تقديمها أو أثناء السير فيها',refs:[R('CPC',266,267,269,114,278)],
+  fields:[['debt','مقدار الدين وسببه','','area'],['assets','الأموال المطلوب حجزها (بحيازة المدين أو لدى الغير)','','area'],['fear','ما يخشى معه ضياع حق الدائن','','area'],['docs','المستندات المؤيدة للطلب','','area']],
+  body:['لدى {court} الموقرة','طلب إيقاع حجز تحفظي','','المستدعي (الدائن): {client}، هوية رقم {clientId}، وعنوانه {clientAddr}.','وكيله: {lawyer}.','المستدعى ضده (المدين): {opp}، وعنوانه {oppAddr}.','','أولاً: الدين','{debt}','','ثانياً: الأموال المطلوب حجزها','{assets}','','ثالثاً: أسباب الطلب','{fear}','','رابعاً: المستندات المؤيدة','{docs}','','الطلبات:','يلتمس المستدعي إيقاع الحجز التحفظي على الأموال المبينة أعلاه بما يكفي لوفاء الدين ورسومه ومصاريفه، ووضع إشارة الحجز في سجلات ما يخضع منها للتسجيل، مع استعداده لتقديم الكفالة التي تقررها المحكمة.','','وكيل المستدعي','{lawyer}','التاريخ: {date}'],
+  note:'إذا وقع الحجز قبل إقامة الدعوى وجب إقامتها خلال ثمانية أيام من تاريخ قرار الحجز وإلا اعتبر القرار كأن لم يكن (المادة 267).'}),
+ t18:F({name:'طلب منع سفر',category:'الطلبات القضائية',hint:'لأسباب جدية تدعو إلى الاعتقاد بأن الخصم على وشك المغادرة',refs:[R('CPC',111,102,278)],
+  fields:[['claim','الحق المطالب به','','area'],['reasons','الأسباب الجدية للاعتقاد بقرب المغادرة','','area'],['docs','المستندات المؤيدة','','area']],
+  body:['لدى {court} الموقرة','(قاضي الأمور المستعجلة)','طلب منع من السفر','','المستدعي: {client}، وعنوانه {clientAddr}، بواسطة وكيله {lawyer}.','المستدعى ضده: {opp}، وعنوانه {oppAddr}.','','الحق المطالب به:','{claim}','','الأسباب:','{reasons}','','المستندات:','{docs}','','الطلبات:','يلتمس المستدعي إصدار القرار بمنع المستدعى ضده من السفر خارج فلسطين وتعميم ذلك على الجهات المختصة، مع الاستعداد لتقديم الكفالة التي تقررها المحكمة.','','وكيل المستدعي','{lawyer}','التاريخ: {date}']}),
+ t19:F({name:'طلب إثبات حالة',category:'الطلبات القضائية',hint:'لمن يخشى ضياع معالم واقعة قبل الدعوى أو أثناءها',refs:[R('CPC',113,103)],
+  fields:[['state','الحالة أو الواقعة المطلوب إثباتها ومكانها','','area'],['risk','ما يُخشى من تغيّر معالمها','','area']],
+  body:['لدى {court} الموقرة','(قاضي الأمور المستعجلة)','طلب إثبات حالة','','المستدعي: {client}، بواسطة وكيله {lawyer}.','المستدعى ضده: {opp}، وعنوانه {oppAddr}.','','الحالة المطلوب إثباتها:','{state}','','وجه الخشية:','{risk}','','الطلبات:','يلتمس المستدعي انتداب مندوب المحكمة أو خبير للانتقال إلى المكان المبيّن وإثبات الحالة فيه، وتنظيم محضر بذلك، وتكليف المستدعى ضده بالحضور.','','وكيل المستدعي','{lawyer}','التاريخ: {date}']}),
+ t20:F({name:'لائحة اعتراض الغير',category:'الطعون',hint:'ممن لم يكن خصماً ويمس الحكم حقوقه',refs:[R('CPC',246,245,247,248)],
+  fields:[['judgment','الحكم المعترض عليه (المحكمة والرقم والتاريخ)',''],['harm','وجه مساس الحكم بحقوق المعترض','','area'],['grounds','أسباب الاعتراض','','area']],
+  body:['لدى {court} الموقرة','لائحة اعتراض الغير','','المعترض: {client}، وعنوانه {clientAddr}، بواسطة وكيله {lawyer}.','المعترض عليهم (أطراف الحكم): {opp}، وعنوانهم {oppAddr}.','','الحكم المعترض عليه: {judgment}','','وجه المساس بحقوق المعترض:','{harm}','','أسباب الاعتراض:','{grounds}','','الطلبات:','قبول الاعتراض، وتعديل الحكم المعترض عليه في حدود ما يمس حقوق المعترض، ووقف تنفيذه لحين الفصل في الاعتراض لما في مواصلة تنفيذه من ضرر جسيم، مع تضمين المعترض عليهم الرسوم والمصاريف وأتعاب المحاماة.','','وكيل المعترض','{lawyer}','التاريخ: {date}']}),
+ t21:F({name:'طلب تجديد دعوى مشطوبة',category:'الطلبات القضائية',hint:'خلال ستين يوماً من الشطب',refs:[R('CPC',88)],
+  fields:[['sdate','تاريخ قرار الشطب','','date'],['why','سبب التخلف عن الجلسة','','area']],
+  dl:{from:'sdate',days:60,art:'88',label:'آخر يوم لتقديم طلب التجديد'},
+  body:['لدى {court} الموقرة','في الدعوى رقم {no}','طلب تجديد دعوى','','المستدعي: {client} بصفته {role}، بواسطة وكيله {lawyer}.','المستدعى ضده: {opp}.','','حيث قررت المحكمة الموقرة بتاريخ {sdate} شطب الدعوى،','{why}','','وحيث قُدّم هذا الطلب ضمن المدة القانونية،','','لذلك يلتمس المستدعي تجديد الدعوى من النقطة التي وقفت عندها، وتعيين جلسة لنظرها وتبليغ الخصم موعدها.','','وكيل المستدعي','{lawyer}','التاريخ: {date}']}),
+ /* ─ الجزائي ─ */
+ t22:F({name:'شكوى جزائية إلى النيابة العامة',category:'الجزائي',hint:'إخبار بجريمة أو شكوى من المجني عليه',refs:[R('CRP',4,5,24,194)],
+  fields:[['crime','الفعل المشكو منه وتاريخه ومكانه','','area'],['harm','الضرر الواقع على المشتكي','','area'],['witness','الشهود والبينات','','area'],['civil','هل يتخذ المشتكي صفة المدعي بالحق المدني؟','نعم، ويطالب بالتعويض عن الضرر']],
+  body:['حضرة وكيل النيابة العامة المحترم','نيابة {city}','شكوى جزائية','','المشتكي: {client}، هوية رقم {clientId}، وعنوانه {clientAddr}.','وكيله: {lawyer}، {officeAddr}.','المشتكى عليه: {opp}، وعنوانه {oppAddr}.','','الوقائع:','{crime}','','الضرر:','{harm}','','البينات:','{witness}','','الادعاء بالحق المدني: {civil}.','','الطلبات:','يلتمس المشتكي إجراء التحقيق في الوقائع المبينة أعلاه، وسماع أقواله وأقوال الشهود، واتخاذ المقتضى القانوني بحق المشتكى عليه، وإحالته إلى المحكمة المختصة.','','المشتكي بواسطة وكيله','{lawyer}','التاريخ: {date}'],
+  note:'في الجرائم التي يُشترط فيها شكوى المجني عليه، يسقط الحق في تقديمها بمضي المدة المنصوص عليها في المادة 5.'}),
+ t23:F({name:'طلب إفراج بالكفالة',category:'الجزائي',hint:'قبل الإحالة أو بعدها أو بعد الحكم مع الطعن',refs:[R('CRP',130,131,132,133,138,139)],
+  fields:[['charge','التهمة المسندة وتاريخ التوقيف',''],['stage','مرحلة الدعوى (تحقيق / محاكمة / بعد الحكم مع استئناف)','تحقيق'],['reasons','أسباب الطلب','','area'],['guar','الكفالة المعروضة والمحل المختار',''] ],
+  body:['لدى {court} الموقرة','طلب إفراج بالكفالة','','المستدعي (الموقوف): {client}، هوية رقم {clientId}، وعنوانه {clientAddr}.','بواسطة وكيله: {lawyer}.','الطرف الآخر: النيابة العامة.','','التهمة: {charge}','مرحلة الدعوى: {stage}','','أسباب الطلب:','{reasons}','','يعرض المستدعي تقديم {guar}، ويتعهد بالحضور في كل مراحل الدعوى وعدم التأثير على سيرها.','','الطلبات:','الإفراج عن المستدعي بالكفالة التي تقدّرها المحكمة الموقرة، وتكليف الجهة المختصة بإخلاء سبيله ما لم يكن موقوفاً لسبب آخر.','','وكيل المستدعي','{lawyer}','التاريخ: {date}']}),
+ t24:F({name:'عريضة استئناف حكم جزائي',category:'الجزائي',hint:'بيان الحكم ورقم الدعوى والصفة والأسباب والطلبات',refs:[R('CRP',328,330,331,341)],
+  fields:[['jdate','تاريخ الحكم المستأنف','','date'],['verdict','منطوق الحكم المستأنف','','area'],['grounds','أسباب الاستئناف','','area']],
+  body:['لدى محكمة الاستئناف الموقرة','عريضة استئناف جزائي','','المستأنف: {client} بصفته {role}، بواسطة وكيله {lawyer}.','المستأنف ضده: {opp}.','','الحكم المستأنف: الحكم الصادر عن {court} في الدعوى رقم {no} بتاريخ {jdate}، القاضي بـ: {verdict}','','أسباب الاستئناف:','{grounds}','','الطلبات:','قبول الاستئناف شكلاً لتقديمه ضمن المدة القانونية، وفي الموضوع إلغاء الحكم المستأنف أو تعديله وفق ما ورد في الأسباب.','','وكيل المستأنف','{lawyer}','التاريخ: {date}'],
+  note:'ميعاد الاستئناف الجزائي كما في نص المادة 328 المعروض أدناه؛ وتمديد المدة في المادة 341.'}),
+ t25:F({name:'طلب اعتراض على حكم غيابي جزائي',category:'الجزائي',hint:'في الجنح والمخالفات خلال عشرة أيام من التبليغ',refs:[R('CRP',314,316,317,320,484)],
+  fields:[['tdate','تاريخ تبليغ الحكم الغيابي','','date'],['jdate','تاريخ الحكم الغيابي',''],['verdict','منطوق الحكم','','area'],['why','أسباب الاعتراض وسبب الغياب','','area']],
+  dl:{from:'tdate',days:10,art:'314',label:'آخر يوم للاعتراض (يضاف ميعاد مسافة الطريق)'},
+  body:['لدى {court} الموقرة','في الدعوى الجزائية رقم {no}','طلب اعتراض على حكم غيابي','','المعترض (المحكوم عليه): {client}، وعنوانه {clientAddr}، بواسطة وكيله {lawyer}.','','الحكم المعترض عليه: الحكم الغيابي الصادر بتاريخ {jdate} والمبلغ للمعترض بتاريخ {tdate}، القاضي بـ: {verdict}','','أسباب الاعتراض:','{why}','','الطلبات:','قبول الاعتراض شكلاً لتقديمه ضمن الميعاد، وتحديد جلسة لنظره، وفي الموضوع إلغاء الحكم الغيابي والسير في الدعوى وفق الأصول.','','المعترض بواسطة وكيله','{lawyer}','التاريخ: {date}']}),
+ t26:F({name:'طلب ادعاء بالحق المدني',category:'الجزائي',hint:'لمن تضرر من الجريمة أمام النيابة أو المحكمة',refs:[R('CRP',194,196,198,202)],
+  fields:[['harm','الضرر الناشئ عن الجريمة','','area'],['comp','مقدار التعويض المطالب به',''],['seat','المقر المختار في دائرة المحكمة','']],
+  body:['لدى {court} الموقرة','في الدعوى الجزائية رقم {no}','طلب ادعاء بالحق المدني','','المدعي بالحق المدني: {client}، هوية رقم {clientId}، بواسطة وكيله {lawyer}.','المدعى عليه بالحق المدني (المتهم): {opp}.','','يتخذ المستدعي صراحة صفة المدعي بالحق المدني للتعويض عن الضرر الذي لحقه من الجريمة موضوع الدعوى.','','الضرر:','{harm}','','التعويض المطالب به: {comp}','المقر المختار للتبليغ: {seat}','','الطلبات:','قبول الادعاء بالحق المدني، والحكم على المدعى عليه بالتعويض المطالب به مع الرسوم والمصاريف وأتعاب المحاماة.','','وكيل المدعي بالحق المدني','{lawyer}','التاريخ: {date}']}),
+ /* ─ التنفيذ ─ */
+ t27:F({name:'طلب تنفيذ',category:'التنفيذ',hint:'لدى دائرة التنفيذ بسند تنفيذي',refs:[R('EXE',7,8,30)],
+  fields:[['bond','السند التنفيذي (حكم / شيك / كمبيالة / سند رسمي) ورقمه وتاريخه','','area'],['due','المبلغ أو الحق المطلوب تنفيذه',''],['assets','أموال المدين المعلومة (إن وجدت)','','area']],
+  body:['لدى دائرة تنفيذ {city} الموقرة','طلب تنفيذ','','طالب التنفيذ (المحكوم له / الدائن): {client}، هوية رقم {clientId}، وعنوانه {clientAddr}.','وكيله: {lawyer}، {officeAddr}.','المنفذ ضده (المدين): {opp}، وعنوانه {oppAddr}.','','السند التنفيذي:','{bond}','','المطلوب تنفيذه: {due}','','أموال المدين المعلومة:','{assets}','','الطلبات:','قبول الطلب وتسجيله، وتبليغ المدين ورقة الإخطار، واتخاذ إجراءات التنفيذ الجبري بحقه وفق أحكام القانون حتى استيفاء المبلغ مع الرسوم والمصاريف وأتعاب المحاماة.','','وكيل طالب التنفيذ','{lawyer}','التاريخ: {date}']}),
+ t28:F({name:'طلب حبس المدين',category:'التنفيذ',hint:'بعد تبليغ الإخطار وعدم عرض التسوية أو الإخلال بها',refs:[R('EXE',155,156,157,162,163)],
+  fields:[['efile','رقم ملف التنفيذ',''],['ndate','تاريخ تبليغ المدين ورقة الإخطار','','date'],['why','امتناع المدين عن التسوية أو إخلاله بها','','area']],
+  body:['لدى قاضي التنفيذ في {city} الموقر','في ملف التنفيذ رقم {efile}','طلب حبس المدين','','طالب التنفيذ: {client}، بواسطة وكيله {lawyer}.','المدين: {opp}، وعنوانه {oppAddr}.','','حيث بُلّغ المدين ورقة الإخطار بتاريخ {ndate}،','{why}','','لذلك يلتمس طالب التنفيذ إصدار القرار بحبس المدين المدة القانونية، ما لم يسدد الدين أو يعرض تسوية تقبلها الدائرة، وفقاً لأحكام القانون.','','وكيل طالب التنفيذ','{lawyer}','التاريخ: {date}'],
+  note:'تحقّق قبل الطلب من الأشخاص المستثنين من الحبس (المادة 163) ومن الحد الأقصى لمدته (المادة 157).'}),
+ t29:F({name:'طلب حجز ما للمدين لدى الغير',category:'التنفيذ',hint:'نقود أو أموال أو ديون للمدين بيد شخص ثالث',refs:[R('EXE',70,72)],
+  fields:[['efile','رقم ملف التنفيذ',''],['third','الشخص الثالث وعنوانه',''],['what','الأموال أو الديون المطلوب حجزها','','area']],
+  body:['لدى دائرة تنفيذ {city} الموقرة','في ملف التنفيذ رقم {efile}','طلب حجز ما للمدين لدى الغير','','طالب التنفيذ: {client}، بواسطة وكيله {lawyer}.','المدين: {opp}.','الشخص الثالث: {third}.','','المطلوب حجزه:','{what}','','الطلبات:','إيقاع الحجز على ما للمدين لدى الشخص الثالث بما يكفي لوفاء الدين، وإخطاره بورقة الحجز وفق القانون، وتكليفه بالتقرير بما في ذمته.','','وكيل طالب التنفيذ','{lawyer}','التاريخ: {date}']}),
+ /* ─ العمالي ─ */
+ t30:F({name:'لائحة دعوى عمالية',category:'العمالي',hint:'مكافأة نهاية الخدمة وبدل الإشعار والفصل التعسفي والإجازات',refs:[R('CPC',52),R('LAB',4,45,46,47,74)],
+  fields:[['start','تاريخ بدء العمل',''],['end','تاريخ انتهاء العمل وطريقته',''],['wage','آخر أجر شهري',''],['job','طبيعة العمل',''],['facts','وقائع انتهاء العلاقة','','area'],['claims','الحقوق المطالب بها مفصّلة','','area'],['legal','الأسانيد القانونية','','area']],
+  body:['لدى {court} الموقرة','لائحة دعوى عمالية','','المدعي (العامل): {client}، هوية رقم {clientId}، مهنته {clientJob}، وعنوانه {clientAddr}.','وكيله: {lawyer}، {office}، {officeAddr}.','المدعى عليه (صاحب العمل): {opp}، وعنوانه {oppAddr}.','موضوع الدعوى: {subject}.','قيمة الدعوى: {amount} شيكل.','','الوقائع:','1. عمل المدعي لدى المدعى عليه بوظيفة {job} اعتباراً من {start}.','2. كان آخر أجر شهري تقاضاه المدعي {wage}.','3. انتهت علاقة العمل في {end}.','4. {facts}','','الحقوق المطالب بها:','{claims}','','الأسانيد القانونية:','{legal}','','الطلبات:','دعوة المدعى عليه للمحاكمة، وبالنتيجة الحكم بإلزامه بدفع الحقوق العمالية المبينة أعلاه بمبلغ {amount} شيكل، مع الرسوم والمصاريف وأتعاب المحاماة والفائدة القانونية.','','قائمة البينات مرفقة.','وكيل المدعي','{lawyer}','التاريخ: {date}'],
+  note:'العامل معفى من الرسوم القضائية في الدعاوى المبينة في المادة 4 من قانون العمل.'}),
+ t31:F({name:'إشعار ترك العمل مع الاحتفاظ بالحقوق',category:'العمالي',hint:'من العامل لصاحب العمل في الحالات المحددة قانوناً',refs:[R('LAB',42,46,45)],
+  fields:[['reason','الحالة القانونية التي تبرر ترك العمل','','area']],
+  body:['إشعار ترك العمل','','إلى: {opp}، {oppAddr}.','من: {client}، بواسطة وكيله {lawyer}.','','نشعركم بأن موكلنا سيترك العمل لديكم مع احتفاظه بحقوقه القانونية كافة، بما فيها مكافأة نهاية الخدمة وما يترتب له من حقوق، وذلك للسبب الآتي:','{reason}','','ونطالبكم بتسوية حقوقه وتسليمها خلال مدة معقولة من تاريخ تبلّغكم هذا الإشعار، وإلا سنضطر لاتخاذ الإجراءات القانونية.','','{city} في {date}','{lawyer}']}),
+ /* ─ الإيجارات ─ */
+ t32:F({name:'إنذار مستأجر بدفع الأجرة',category:'الإنذارات',hint:'تمهيداً لطلب الإخلاء وفق الأحوال المحددة قانوناً',refs:[R('LND',4),R('NOT',24)],
+  fields:[['prop','وصف المأجور وموقعه','','area'],['rent','الأجرة المستحقة وفتراتها',''],['days','مهلة الدفع بالأيام','15']],
+  body:['إنذار عدلي','بواسطة كاتب العدل في {city}','','المنذِر (المؤجر): {client}، بواسطة وكيله {lawyer}.','المنذَر إليه (المستأجر): {opp}، وعنوانه {oppAddr}.','','الموضوع: المأجور {prop}','','حيث إنكم تشغلون المأجور المذكور بموجب عقد إيجار، وحيث استحقت عليكم الأجرة الآتية ولم تدفعوها: {rent}،','','لذلك نُنذركم بوجوب دفع الأجرة المستحقة خلال {days} يوماً من تاريخ تبلّغكم هذا الإنذار، وإلا سيضطر المنذِر إلى إقامة دعوى إخلاء المأجور والمطالبة بالأجرة أمام المحكمة المختصة، مع تضمينكم الرسوم والمصاريف وأتعاب المحاماة.','','{city} في {date}','المنذِر بواسطة وكيله','{lawyer}']}),
+ t33:F({name:'لائحة دعوى إخلاء مأجور',category:'اللوائح والدفوع',hint:'في إحدى الحالات التي يجيز فيها القانون الإخلاء',refs:[R('LND',4),R('CPC',52)],
+  fields:[['prop','وصف المأجور وموقعه','','area'],['lease','عقد الإيجار (تاريخه ومدته والأجرة)',''],['ground','سبب الإخلاء (الحالة من المادة 4)','','area'],['notice','الإنذار وتاريخ تبليغه',''],['legal','الأسانيد القانونية','','area']],
+  body:['لدى {court} الموقرة','لائحة دعوى إخلاء مأجور','','المدعي (المؤجر): {client}، هوية رقم {clientId}، وعنوانه {clientAddr}.','وكيله: {lawyer}، {officeAddr}.','المدعى عليه (المستأجر): {opp}، وعنوانه {oppAddr}.','موضوع الدعوى: إخلاء مأجور {subject}.','قيمة الدعوى: {amount} شيكل لغايات الرسم.','','وصف المأجور:','{prop}','','الوقائع:','1. استأجر المدعى عليه المأجور المذكور بموجب {lease}.','2. {ground}','3. أُنذر المدعى عليه بموجب {notice} ولم يستجب.','','الأسانيد القانونية:','{legal}','','الطلبات:','دعوة المدعى عليه للمحاكمة، والحكم بإخلاء المأجور وتسليمه للمدعي خالياً من الشواغل، وإلزامه بالأجور المستحقة، مع الرسوم والمصاريف وأتعاب المحاماة.','','وكيل المدعي','{lawyer}','التاريخ: {date}']}),
+ /* ─ الشرعي ─ */
+ t34:F({name:'لائحة دعوى نفقة',category:'الشرعي',hint:'نفقة زوجة أو أولاد أمام المحكمة الشرعية',refs:[R('SHP',3,11),R('PST',66,67,70,73,168)],
+  fields:[['kind','نوع النفقة (زوجية / أولاد / عدة)','زوجية'],['marriage','عقد الزواج (رقمه وتاريخه والمحكمة)',''],['kids','الأولاد وأعمارهم (إن وجدوا)','','area'],['facts','وقائع الامتناع عن الإنفاق','','area'],['income','حال المدعى عليه يسراً وعسراً','','area']],
+  body:['لدى {court} الشرعية الموقرة','لائحة دعوى نفقة {kind}','','المدعية: {client}، هوية رقم {clientId}، وعنوانها {clientAddr}.','وكيلها: {lawyer}.','المدعى عليه: {opp}، مهنته {oppJob}، وعنوانه {oppAddr}.','','الادعاء:','1. المدعية زوجة المدعى عليه بموجب {marriage}.','2. الأولاد: {kids}','3. {facts}','4. حال المدعى عليه: {income}','','البينات:','عقد الزواج، وما يُقدَّم من بينات خطية وشخصية على الامتناع والحال.','','الطلبات:','الحكم بفرض نفقة {kind} على المدعى عليه بحسب حاله اعتباراً من تاريخ الطلب، وإلزامه بدفعها، وإذن المدعية بالاستدانة عند الاقتضاء، مع الرسوم والمصاريف وأتعاب المحاماة.','','وكيل المدعية','{lawyer}','التاريخ: {date}'],
+  note:'قانون الأحوال الشخصية لسنة 1976 مطبّق في الضفة الغربية؛ وفي قطاع غزة يُراجع قانون حقوق العائلة المطبّق فيه.'}),
+ t35:F({name:'لائحة دعوى حضانة أو مشاهدة',category:'الشرعي',hint:'حضانة الصغير أو حق مشاهدته',refs:[R('SHP',3,11),R('PST',154,155,157,161,162)],
+  fields:[['kids','المحضونون وأعمارهم','','area'],['req','المطلوب (حضانة / ضم / مشاهدة) ومواعيده','','area'],['facts','الوقائع ووجه مصلحة المحضون','','area']],
+  body:['لدى {court} الشرعية الموقرة','لائحة دعوى {req}','','المدعي/ة: {client}، هوية رقم {clientId}، وعنوانه {clientAddr}.','الوكيل: {lawyer}.','المدعى عليه/ا: {opp}، وعنوانه {oppAddr}.','','الادعاء:','1. المحضونون: {kids}','2. {facts}','','الطلبات:','الحكم بما ورد أعلاه بما يحقق مصلحة المحضون، وإلزام المدعى عليه بذلك، مع الرسوم والمصاريف.','','الوكيل','{lawyer}','التاريخ: {date}']}),
+ t36:F({name:'لائحة استئناف حكم شرعي',category:'الشرعي',hint:'ثلاثون يوماً من صدور الحكم الوجاهي أو تبليغ الغيابي',refs:[R('SHP',136,142,152)],
+  fields:[['jdate','تاريخ الحكم (أو تبليغه إن كان غيابياً)','','date'],['verdict','منطوق الحكم المستأنف','','area'],['grounds','أسباب الاستئناف','','area']],
+  dl:{from:'jdate',days:30,art:'136',label:'آخر يوم للاستئناف'},
+  body:['لدى محكمة الاستئناف الشرعية الموقرة','لائحة استئناف','','المستأنف: {client}، وعنوانه {clientAddr}، بواسطة وكيله {lawyer}.','المستأنف عليه: {opp}، وعنوانه {oppAddr}.','','الحكم المستأنف: الحكم الصادر عن {court} الشرعية في الدعوى رقم {no} بتاريخ {jdate}، القاضي بـ: {verdict}','','أسباب الاستئناف:','{grounds}','','الطلبات:','قبول الاستئناف شكلاً، وفي الموضوع فسخ الحكم المستأنف وإعادة الأوراق أو الحكم وفق الأسباب.','','وكيل المستأنف','{lawyer}','التاريخ: {date}']}),
+ /* ─ علاقة المكتب بالموكل ─ */
+ t37:F({name:'كتاب إطلاع الموكّل على سير القضية',category:'الاتفاقيات',hint:'تقرير دوري مكتوب للموكّل',refs:[],
+  fields:[['done','ما تم منذ آخر تقرير','','area'],['next','الإجراء القادم وما يلزم من الموكّل','','area']],
+  body:['السيد/ة {client} المحترم/ة','','الموضوع: سير الدعوى رقم {no} لدى {court} — {subject}','','تحية طيبة، وبعد،','','نعلمكم بما تم في دعواكم:','{done}','','الجلسة القادمة: {hearing}.','الإجراء القادم وما نحتاجه منكم:','{next}','','نرجو التواصل معنا لأي استيضاح.','','{lawyer}','{office}','{city} في {date}']}),
+ t38:F({name:'إشعار تنازل المحامي عن التوكيل',category:'الاتفاقيات',hint:'بكتاب موصى عليه مع الاستمرار شهراً على الأقل',refs:[R('ADV',24,21)],
+  fields:[['why','سبب التنازل (اختياري)','','area']],
+  body:['كتاب موصى عليه','','السيد/ة {client} المحترم/ة','{clientAddr}','','الموضوع: التنازل عن التوكيل في الدعوى رقم {no} لدى {court}','','نُشعركم بتنازلنا عن التوكيل في الدعوى المذكورة. {why}','','وسنستمر في إجراءات الدعوى مدة شهر على الأقل من تاريخ هذا الإشعار متى كان ذلك لازماً للدفاع عن مصالحكم، ونرجو توكيل محامٍ آخر خلال هذه المدة، ومراجعتنا لاستلام ملفكم ومستنداته.','','{lawyer}','{office}','{city} في {date}']})
+};
+Object.assign(TPL,NEW);
+
+/* ═══ الأساس والمواعيد للنماذج السابقة، بعد مطابقة أرقام المواد على نص القانون في القاعدة ═══ */
+const OLD={
+ t1:{refs:[R('CPC',61),R('ADV',9,24)]},
+ t2:{refs:[R('NOT',6,24,28)]},
+ t3:{refs:[R('CPC',52,53,56)]},
+ t4:{refs:[R('CPC',101)]},
+ t5:{refs:[R('CPC',53,120)]},
+ t6:{refs:[R('ADV',21,22,23)]},
+ t7:{refs:[R('CPC',193,205,207,208,211)],dl:{from:'jdate',days:30,art:'205',label:'آخر يوم للاستئناف (15 يوماً في المواد المستعجلة)'}},
+ t8:{refs:[R('CPC',62,63,64)],dl:{from:'tdate',days:15,art:'62',label:'آخر يوم لتقديم اللائحة الجوابية'}},
+ t9:{refs:[R('CPC',193,225,226,227,228)],dl:{from:'judgmentDate',days:40,art:'227',label:'آخر يوم للطعن بالنقض'}},
+ t10:{refs:[R('CPC',240)]},
+ t11:{refs:[R('CPC',250,251,252,253,255)],dl:{from:'fdate',days:30,art:'252',label:'آخر يوم للطعن بإعادة المحاكمة'}},
+ t12:{refs:[R('CPC',91)]},
+ t13:{refs:[R('CPC',82,83,96,99)]},
+ t14:{refs:[R('CPC',97,99,213)]},
+ t15:{refs:[R('CPC',120)]}
+};
+for(const [id,o] of Object.entries(OLD))if(TPL[id])Object.assign(TPL[id],o);
+/* حقول تاريخ للميعاد في النماذج السابقة */
+const addF=(id,f)=>{const t=TPL[id];if(t&&!t.fields.some(x=>x[0]===f[0]))t.fields.unshift(f)};
+addF('t8',['tdate','تاريخ تبليغ لائحة الدعوى','','date']);addF('t11',['fdate','تاريخ ظهور سبب إعادة المحاكمة (الغش أو المستند…)','','date']);
+for(const [id,k] of [['t7','jdate'],['t9','judgmentDate']])if(TPL[id]){const f=TPL[id].fields.find(x=>x[0]===k);if(f){f[2]='';f[3]='date'}}
+/* لائحة الدعوى الحقوقية: الأسانيد من حقل يُملأ يدوياً أو من اقتراح المسبار */
+if(TPL.t3){const i=TPL.t3.body.indexOf('[يستكملها الوكيل]');if(i>=0)TPL.t3.body[i]='{legal}';if(!TPL.t3.fields.some(x=>x[0]==='legal'))TPL.t3.fields.push(['legal','الأسانيد القانونية','','area'])}
+for(const t of Object.values(TPL)){t.basis=(t.refs||[]).length?t.refs.map(r=>r.title+' — المواد '+r.arts.join('، ')).join(' · '):(t.basis||'نموذج عمل داخلي')}
+
+/* ═══ السياق: بيانات القضية + ما ينقص منها ═══ */
+const G=(o,...k)=>{for(const x of k){const v=o&&o[x];if(v!=null&&String(v).trim()&&!/^…+$|^\.+$/.test(String(v).trim()))return String(v)}return ''};
+const base=window.tplCtx;
+let lastMiss=[],lastTodo=[];
+window.tplCtx=function(){
+ const c=base(),t=TPL[S.tpl]||{},k=K(S.tplCase)||{},cl=C(k.client)||{},op=(k.opps||[]).map(O).filter(Boolean),st=(window.MQ&&MQ.settings)||{};
+ Object.assign(c,{clientId:G(cl,'idNo','nid'),clientAddr:G(cl,'address','addr','city'),clientJob:G(cl,'job','occupation'),
+  oppAddr:op.map(o=>G(o,'address','addr','city')).filter(Boolean).join(' / '),oppJob:op.map(o=>G(o,'job','occupation')).filter(Boolean).join(' / '),
+  barNo:G(st,'barNo','lawyerBarNo')||G(OFFICE,'barNo'),officeAddr:G(st,'officeAddress','address')||G(OFFICE,'address'),
+  amount:Number(k.value)>0?Number(k.value).toLocaleString('en-US'):''});
+ const body=(t.body||[]).join('\n'),used=new Set((body.match(/\{(\w+)\}/g)||[]).map(x=>x.slice(1,-1)));
+ lastMiss=[];lastTodo=[];
+ for(const key of used){
+  const f=(t.fields||[]).find(x=>x[0]===key);
+  if(f){const v=S.tplVals[key]??f[2];if(!String(v||'').trim()||/^\[تُستكمل/.test(v)){c[key]=TODO(f[1]);lastTodo.push(f[1])}else c[key]=f[3]==='date'&&/^\d{4}-\d\d-\d\d$/.test(v)?dmy(v):v;continue}
+  if(CTXL[key]&&!G(c,key)){c[key]=MISS(CTXL[key]);lastMiss.push(CTXL[key])}
+ }
+ return c};
+
+/* ═══ الميعاد ═══ */
+const addD=(isoS,n)=>{const d=new Date(isoS+'T00:00:00');if(isNaN(d))return null;d.setDate(d.getDate()+n);return d};
+function dlInfo(){const t=TPL[S.tpl];if(!t||!t.dl)return null;const v=S.tplVals[t.dl.from]||'';if(!/^\d{4}-\d\d-\d\d$/.test(v))return {t,need:true};
+ const end=addD(v,t.dl.days);const left=Math.round((end-TODAY)/864e5);return {t,end:iso(end),left}}
+function dlHtml(){const x=dlInfo();if(!x)return '';const d=x.t.dl,f=x.t.fields.find(z=>z[0]===d.from)||[,'التاريخ'];
+ if(x.need)return `<div class="lf-dl"><b>⏱ ${h(d.label)}</b><span>أدخل «${h(f[1])}» ليُحسب الميعاد (${d.days} يوماً — المادة ${h(d.art)}).</span></div>`;
+ const cls=x.left<0?'bad':x.left<=5?'warn':'ok';
+ return `<div class="lf-dl ${cls}"><b>⏱ ${h(d.label)}: <span class="mono">${h(dmy(x.end))}</span></b><span>${x.left<0?'انقضى الميعاد منذ '+(-x.left)+' يوماً':x.left===0?'اليوم آخر يوم':'باقٍ '+x.left+' يوماً'} · ${d.days} يوماً تبدأ من اليوم التالي للتاريخ المدخل (المادة ${h(d.art)}). راجع نص المادة وأثر العطل الرسمية.</span>${x.left>=0?`<button type="button" class="btn sm" data-act="lfAddDl">أضف إلى مواعيد القضية</button>`:''}</div>`}
+A.lfAddDl=()=>{const x=dlInfo(),k=K(S.tplCase);if(!x||x.need||!k)return;if(typeof deadlines==='undefined')return toast('سجل المواعيد غير متاح');
+ const title=x.t.dl.label+' — '+x.t.name;if(deadlines.some(d=>d.k===k.id&&d.title===title&&d.due===x.end))return toast('الميعاد مسجّل سلفاً');
+ deadlines.push({k:k.id,title,due:x.end,kind:'إجرائية',src:'نموذج'});if(window.MQ&&MQ.saveState)MQ.saveState();toast('أُضيف الميعاد '+dmy(x.end)+' إلى مواعيد القضية '+k.no);if(typeof drawNav==='function')drawNav()};
+
+/* ═══ الأساس القانوني بنصه الحرفي من القاعدة ═══ */
+const BC={};
+async function loadBasis(id){const t=TPL[id];if(!t||!(t.refs||[]).length)return;if(BC[id])return;BC[id]={busy:1};
+ try{BC[id]={items:await Promise.all(t.refs.map(r=>fetch('/api/admin/misbar/articles?law='+encodeURIComponent(r.law)+'&n='+encodeURIComponent(r.arts.join(',')),{credentials:'same-origin'}).then(async x=>x.ok?x.json():{err:(await x.json().catch(()=>({}))).error||'غير متاح',title:r.title,arts:r.arts.map(n=>({n,missing:true}))})))}}
+ catch(e){BC[id]={err:'تعذّر جلب النصوص: '+e.message}}
+ const el=document.getElementById('lfBasis');if(el&&S.tpl===id)el.innerHTML=basisInner(id)}
+function basisInner(id){const t=TPL[id],b=BC[id];if(!(t.refs||[]).length)return '<p class="m">نموذج عمل داخلي لا تنظّمه مادة بعينها.</p>';
+ if(!b||b.busy)return '<p class="m">جارٍ جلب نصوص المواد من القاعدة المحلية…</p>';if(b.err)return `<p class="m">${h(b.err)}</p>`;
+ return b.items.map((L,i)=>{const r=t.refs[i];if(L.err)return `<div class="lf-law"><b>${h(r.title)}</b><p class="m">${h(L.err)} — المواد ${h(r.arts.join('، '))}. افتح القانون من «المسبار».</p></div>`;
+  return `<div class="lf-law"><div class="lf-lh"><b>${h(L.title)}</b>${L.status?`<span class="pill">${h(L.status)}</span>`:''}${A.mbRefOpen?`<button type="button" class="btn sm" data-act="mbRefOpen" data-v="${h(L.id)}">القانون كاملاً</button>`:''}</div>
+  ${L.arts.map(a=>a.missing?`<p class="m">المادة (${h(a.n)}): لم تُعثر عليها مفصولة في نص القانون بالقاعدة؛ راجعها في القانون كاملاً.</p>`:`<details class="lf-art"><summary>${h(a.label)}</summary><div>${h(a.text)}</div></details>`).join('')}</div>`}).join('')}
+
+/* ═══ اقتراح السند من المسبار (تحليل القضية على الجهاز) ═══ */
+const SG={};
+A.lfSuggest=async()=>{const k=S.tplCase;if(!k)return;SG[k]={busy:1};paint();
+ try{const r=await fetch('/api/admin/misbar/local/analyze',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({k})});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(r.status===404?'المسبار المحلي متاح في تطبيق المكتب على الجهاز':j.error||'تعذّر التحليل');
+  const arts=[];(j.citations||[]).filter(c=>c.found).forEach(c=>arts.push({t:(c.label||'المادة '+c.article)+' من '+(c.lawTitle||''),x:c.text||''}));
+  (j.laws||[]).forEach(l=>(l.articles||[]).forEach(a=>arts.push({t:a.label+' من '+l.title,x:a.text||''})));
+  const ruls=(j.rulings||[]).slice(0,10).map(x=>({t:[x.court,x.case_no&&'رقم '+x.case_no,x.date&&'تاريخ '+x.date].filter(Boolean).join(' '),x:x.title||''}));
+  SG[k]={arts:arts.slice(0,25),ruls,on:{}}}catch(e){SG[k]={err:e.message}}paint()};
+A.lfSgTog=v=>{const s=SG[S.tplCase];if(!s||!s.on)return;s.on[v]=!s.on[v]};
+A.lfSgIns=()=>{const s=SG[S.tplCase];if(!s||!s.on)return;const t=TPL[S.tpl];if(!t.fields.some(f=>f[0]==='legal'))return toast('هذا النموذج لا يحتوي حقل أسانيد');
+ const pick=[...s.arts.map((a,i)=>['a'+i,a.t]),...s.ruls.map((r,i)=>['r'+i,'حكم '+r.t])].filter(([id])=>s.on[id]).map(([,t])=>'- '+t);if(!pick.length)return toast('اختر مادة أو حكماً');
+ const cur=String(S.tplVals.legal||'').trim();S.tplVals.legal=(cur&&!/^\[/.test(cur)?cur+'\n':'')+pick.join('\n');render();toast('أُدرجت '+pick.length+' إحالة في الأسانيد؛ راجع انطباقها')};
+function sgHtml(){const t=TPL[S.tpl];if(!t.fields.some(f=>f[0]==='legal'))return '';const s=SG[S.tplCase];
+ const head=`<div class="lf-sgh"><b>⌕ اقتراح السند من المسبار</b><span class="m">يحلّل ملف القضية على الجهاز دون إنترنت ويقترح مواد وأحكاماً؛ تختار منها ما يُدرج في الأسانيد.</span><button type="button" class="btn sm" data-act="lfSuggest" ${s&&s.busy?'disabled':''}>${s&&s.busy?'جارٍ التحليل…':s?'إعادة التحليل':'اقترح'}</button></div>`;
+ if(!s||s.busy)return `<section class="lf-sg">${head}</section>`;if(s.err)return `<section class="lf-sg">${head}<p class="m">${h(s.err)}</p></section>`;
+ const row=(id,t,x)=>`<label class="lf-sgi"><input type="checkbox" data-act="lfSgTog" data-v="${id}" ${s.on[id]?'checked':''}><span><b>${h(t)}</b>${x?`<small>${h(String(x).slice(0,220))}${String(x).length>220?'…':''}</small>`:''}</span></label>`;
+ return `<section class="lf-sg">${head}${s.arts.length?`<h5>المواد</h5>${s.arts.map((a,i)=>row('a'+i,a.t,a.x)).join('')}`:''}${s.ruls.length?`<h5>الأحكام</h5>${s.ruls.map((r,i)=>row('r'+i,r.t,r.x)).join('')}`:''}${!s.arts.length&&!s.ruls.length?'<p class="m">لم يجد المسبار مواد أو أحكاماً مرتبطة؛ أضف وقائع أو مستندات للقضية.</p>':`<button type="button" class="btn sm pri" data-act="lfSgIns">إدراج المختار في الأسانيد</button>`}</section>`}
+
+/* الحفظ: تنبيه إن بقي في المسودة بيان ناقص من الملف أو حقل لم يُستكمل */
+const save0=A.saveTpl;
+A.saveTpl=function(...a){const b=tplText(false);if(/\[(ناقص|يُستكمل): /.test(b)&&!/\[تُستكمل/.test(b)&&!confirm('في المسودة بيانات ناقصة أو حقول لم تُستكمل. هل تحفظها كمسودة غير مكتملة؟'))return;return save0.apply(this,a)};
+
+/* ═══ الشاشة ═══ */
+const GROUPS=['الكل','التوكيلات','الإنذارات','اللوائح والدفوع','الطعون','الطلبات القضائية','البينات والإجراءات','الجزائي','التنفيذ','العمالي','الشرعي','الاتفاقيات'];
+let group='الكل',q='';
+A.ptCategory=v=>{group=GROUPS.includes(v)?v:'الكل';render()};
+function missHtml(){const m=[...new Set(lastMiss)],td=[...new Set(lastTodo)];if(!m.length&&!td.length)return '<div class="lf-ok">✓ كل البيانات المطلوبة في هذا النموذج مكتملة</div>';
+ return `<div class="lf-miss">${m.length?`<div><b>ناقص من ملف القضية (${m.length}):</b> ${m.map(x=>`<span class="lf-chip bad">${h(x)}</span>`).join('')}<small class="m">أكملها في بيانات القضية أو الموكّل أو الخصم أو إعدادات المكتب، أو عدّلها في النص بعد النسخ.</small></div>`:''}${td.length?`<div><b>يُستكمل في النموذج (${td.length}):</b> ${td.map(x=>`<span class="lf-chip">${h(x)}</span>`).join('')}</div>`:''}</div>`}
+function fieldHtml([key,label,def,type]){const v=S.tplVals[key]??def??'';
+ if(type==='area')return `<label class="wide">${h(label)}<textarea class="field" rows="3" id="tf_${h(key)}" data-tf="${h(key)}">${h(v)}</textarea></label>`;
+ return `<label class="${type==='date'?'':'wide'}">${h(label)}<input class="field" ${type==='date'?'type="date"':''} id="tf_${h(key)}" data-tf="${h(key)}" value="${h(v)}"></label>`}
+function paint(){const p=document.getElementById('paper');if(p)p.innerHTML=tplText(true);const m=document.getElementById('lfMiss');if(m)m.innerHTML=missHtml();const d=document.getElementById('lfDl');if(d)d.innerHTML=dlHtml();const s=document.getElementById('lfSg');if(s)s.innerHTML=sgHtml()}
+V.tpls=function(){
+ const t=TPL[S.tpl]||TPL.t1;if(!TPL[S.tpl])S.tpl='t1';
+ const nq=s=>String(s||'').replace(/[أإآ]/g,'ا').replace(/ة/g,'ه').replace(/ى/g,'ي');
+ const shown=Object.entries(TPL).filter(([,x])=>(group==='الكل'||x.category===group)&&(!q||nq(x.name+' '+x.hint).includes(nq(q))));
+ const cnt=g=>g==='الكل'?Object.keys(TPL).length:Object.values(TPL).filter(x=>x.category===g).length;
+ const paper=tplText(true);setTimeout(()=>loadBasis(S.tpl),0);
+ return `<div class="head"><div><h1>النماذج القانونية</h1><p class="sub">${Object.keys(TPL).length} نموذجاً وفق القانون الفلسطيني، تُملأ من ملف القضية، وتحت كل نموذج المواد التي تنظّمه بنصها من قاعدة المسبار</p></div><div class="toolbar"><button class="btn" data-act="nav" data-v="lawlib">المكتبة القانونية</button></div></div>
+ <div class="tpl-categories">${GROUPS.filter(g=>cnt(g)).map(g=>`<button type="button" class="chip ${g===group?'on':''}" data-act="ptCategory" data-v="${h(g)}">${h(g)} <small>${cnt(g)}</small></button>`).join('')}<input class="field lf-q" id="lfQ" placeholder="ابحث في النماذج…" value="${h(q)}"></div>
+ <div class="tplgrid"><section class="panel tpllist">${shown.map(([id,x])=>`<button class="${S.tpl===id?'on':''}" data-act="tpl" data-v="${h(id)}"><b>${h(x.name)}</b><small>${h(x.hint||'')}</small><small>${h(x.category||'')}${x.dl?' · ⏱ ميعاد':''} · مسودة للمراجعة</small></button>`).join('')||'<p class="m" style="padding:12px">لا نماذج مطابقة.</p>'}</section>
+ <div class="stack"><section class="panel"><div class="bd"><div class="note" role="note"><b>مسودة قانونية للمراجعة:</b> لا تُودَع ولا تُوقَّع تلقائياً. تحقق من النص النافذ والاختصاص والصفة والمواعيد، ولا تعتبر البيانات المأخوذة من القضية حقائق ثابتة دون مراجعتها.</div>
+ <div class="pt-source"><span>الأساس: ${h(t.basis)}</span></div>
+ <div id="lfMiss">${missHtml()}</div><div id="lfDl">${dlHtml()}</div>
+ ${t.note?`<p class="lf-note">ⓘ ${h(t.note)}</p>`:''}
+ <div class="form"><label>القضية<select class="field" id="tplCase">${cases.map(k=>`<option value="${h(k.id)}" ${S.tplCase===k.id?'selected':''}>${h(k.no)} · ${h((C(k.client)||{}).name||'')}</option>`).join('')}</select></label>
+ ${t.fields.map(fieldHtml).join('')}</div>
+ <div id="lfSg">${sgHtml()}</div>
+ <div class="toolbar" style="margin-top:12px"><button class="btn pri" data-act="saveTpl">حفظ المسودة في مستندات القضية</button><button class="btn" data-act="copyTpl">نسخ النص</button><button class="btn" data-act="print">طباعة</button><span class="m">المقاطع المظللة من ملف القضية، و«[ناقص: …]» بيان غير مسجّل فيه</span></div></div></section>
+ <div class="paper" id="paper">${paper}</div>
+ <section class="panel lf-basis"><div class="bd"><h3>الأساس القانوني بنصه</h3><p class="m">المواد كما هي في قاعدة المسبار المحلية، بما فيها إشارات التعديل؛ مرجع للتحقق من بيانات الورقة ومواعيدها.</p><div id="lfBasis">${basisInner(S.tpl)}</div></div></section></div></div>`};
+/* تحديث اللوحات مع الكتابة (bindLocal في app.js يحدّث الورقة وحدها) */
+document.addEventListener('input',ev=>{const t=ev.target;if(!t)return;if(t.dataset&&t.dataset.tf){S.tplVals[t.dataset.tf]=t.value;paint()}else if(t.id==='lfQ'){q=t.value;const pos=t.selectionStart;render();const n=document.getElementById('lfQ');if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(e){}}}});
+document.addEventListener('change',ev=>{const t=ev.target;if(t&&t.id==='tplCase'){S.tplCase=t.value;paint()}else if(t&&t.dataset&&t.dataset.tf){S.tplVals[t.dataset.tf]=t.value;paint()}});
+const css=document.createElement('style');css.textContent=`
+.lf-q{max-width:240px;margin-inline-start:auto}.tpl-categories .chip small{opacity:.6;margin-inline-start:3px}
+.lf-miss{margin:10px 0;padding:10px 12px;border:1px solid #E8C9A0;background:#FFF8EC;border-radius:10px;font-size:13px;display:grid;gap:8px}.lf-miss small{display:block;margin-top:4px}
+.lf-chip{display:inline-block;margin:2px 3px;padding:2px 9px;border-radius:999px;border:1px solid #D9C79A;background:#fff;font-size:12px}.lf-chip.bad{border-color:#D9A08F;background:#FCEEEA;color:#8a3a2a}
+.lf-ok{margin:10px 0;padding:8px 12px;border-radius:10px;background:#EAF6F2;color:#1f6b69;font-size:13px}
+.lf-dl{margin:8px 0;padding:10px 12px;border-radius:10px;border:1px solid #DCCFAE;background:#FFFCF4;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:13px}.lf-dl b{color:#0E2236}.lf-dl span{color:#6b5d40;flex:1;min-width:220px}
+.lf-dl.ok{border-color:#9ED3C8;background:#F0FAF7}.lf-dl.warn{border-color:#E9C46A;background:#FFF6DC}.lf-dl.bad{border-color:#D9A08F;background:#FCEEEA}
+.lf-note{font-size:12.5px;color:#6b5d40;background:#F7F2E6;border-radius:8px;padding:7px 10px;margin:8px 0}
+.lf-sg{margin-top:12px;border:1px dashed #D9C79A;border-radius:12px;padding:10px 12px;background:#FFFEF9}.lf-sgh{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center}.lf-sgh .m{flex:1;min-width:200px;font-size:12px}.lf-sg h5{margin:10px 0 4px;color:#8A6A25}
+.lf-sgi{display:flex!important;flex-direction:row!important;gap:8px;align-items:flex-start;padding:5px 0;border-bottom:1px dotted #EADBB4;cursor:pointer}.lf-sgi span{display:flex;flex-direction:column}.lf-sgi b{font-size:12.8px;color:#0E2236}.lf-sgi small{font-size:11.5px;color:#7a6a4c;line-height:1.6}
+.lf-basis h3{margin:0 0 4px;color:#0E2236}.lf-law{margin-top:10px;border-top:1px solid #EADBB4;padding-top:8px}.lf-lh{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.lf-lh b{color:#0E2236}
+.lf-art summary{cursor:pointer;font-weight:700;color:#8A6A25;font-size:13px;padding:4px 0}.lf-art div{white-space:pre-wrap;font-size:13px;line-height:1.9;background:#FFFCF4;border:1px solid #EADBB4;border-radius:8px;padding:8px 12px;margin:4px 0 8px}
+@media print{.lf-miss,.lf-dl,.lf-sg,.lf-basis{display:none}}`;document.head.appendChild(css);
+})();

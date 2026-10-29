@@ -211,7 +211,19 @@ function createMisbar(db, { audit } = {}) {
     const num = g => { const m = /(\d+)/.exec(g); return m ? Number(m[1]) : 0 };
     return rows.map(r => ({ g: String(r.g), date: r.d || '', year: Number(String(r.d || '').slice(0, 4)) || null, n: Number(r.n), special: /ممتاز/.test(String(r.g)) })).sort((a, b) => (b.date || '').localeCompare(a.date || '') || num(b.g) - num(a.g));
   }
-  /* واجهة HTTP موحّدة: action = search | doc | stats | verify | gazettes */
+  /* مواد بعينها من تشريع فلسطيني بنصها الحرفي كما في القاعدة (أساس النماذج القانونية):
+     law = جزء مميز من عنوان التشريع، n = أرقام المواد مفصولة بفاصلة. يُختار أطول نص يطابق العنوان (القانون الأصلي لا تعديلاته) */
+  async function articles(p) {
+    const law = String(p.law || '').trim().slice(0, 200), want = String(p.n || '').split(',').map(x => x.trim()).filter(Boolean).slice(0, 40);
+    if (law.length < 4 || !want.length) return null;
+    const [r] = await all("SELECT d.id, d.title, d.status, d.body FROM docs d WHERE d.src='PS_LEGISLATION' AND d.title LIKE ? ORDER BY length(d.body) DESC LIMIT 1", '%' + law + '%');
+    if (!r) return null;
+    const { splitArticles } = require('./misbar-local');
+    const body = scrub(await fullBody(r.id, r.body)), arts = splitArticles(body), first = new Map();
+    for (const a of arts) if (!first.has(a.n)) first.set(a.n, a);
+    return { id: r.id, title: scrub(r.title), status: STATUS[r.status] || r.status || '', arts: want.map(n => { const a = first.get(n); return a ? { n, label: a.label, text: a.text } : { n, missing: true } }) };
+  }
+  /* واجهة HTTP موحّدة: action = search | doc | stats | verify | gazettes | articles */
   async function handle(action, params, me) {
     const who = { user_id: me?.id, user_name: me?.name };
     try {
@@ -219,6 +231,7 @@ function createMisbar(db, { audit } = {}) {
       if (action === 'doc') { const d = await doc(params.id); if (!d) return { status: 404, body: { error: 'المستند غير موجود' } }; audit && audit({ ...who, action: 'misbar.doc', entity: 'misbar', entity_id: String(d.id) }); return { status: 200, body: d } }
       if (action === 'stats') return { status: 200, body: await stats() };
       if (action === 'gazettes') return { status: 200, body: { items: await gazettes() } };
+      if (action === 'articles') { const r = await articles(params); return r ? { status: 200, body: r } : { status: 404, body: { error: 'التشريع غير موجود في القاعدة' } } }
       if (action === 'verify') return { status: 200, body: await verifyQuote(params.id, params.quote) };
       return { status: 404, body: { error: 'غير موجود' } };
     } catch (e) {
@@ -228,7 +241,7 @@ function createMisbar(db, { audit } = {}) {
       throw e;
     }
   }
-  return { gazettes, search, doc, stats, excerpts, verifyQuote, byTitle, byNumber, handle };
+  return { gazettes, articles, search, doc, stats, excerpts, verifyQuote, byTitle, byNumber, handle };
 }
 
 /* بدائل بنفس واجهة البحث القديم للصياغة والمساعد: lawSearch(action, params) و rulingSearch(q, user, max) */
