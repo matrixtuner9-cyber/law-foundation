@@ -785,7 +785,8 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
     const facts = src.split(/\n==== مستند:/)[0], sents = SENT(src);
     log.push({ step: 'قراءة', text: `قُرئت الوقائع${ci.docs != null ? ` و${ci.read || 0} من ${ci.docs} مستنداً` : ''} (${sents.length} جملة)` });
     /* 2) المسائل: لكل موضوع الجمل التي ذكرته حرفياً؛ وأسئلة المحامي */
-    const tp = topics(rewriteNeg(src)).slice(0, 5), issues = [];
+    /* موضوع لم يُطابَق إلا بكلمة هي جزء من عبارة موضوع آخر («شركة» من «شركة التأمين») يُستبعد */
+    const tp0 = topics(rewriteNeg(src)), tp = tp0.filter(t => { const others = tp0.filter(o => o !== t).flatMap(o => o.hits.map(norm)).filter(h => h.includes(' ')); return !t.hits.every(h => others.some(o => o.split(' ').includes(norm(h)))) }).slice(0, 4), issues = [];
     for (const t of tp) {
       const hits = t.hits.map(norm), qs = sents.filter(x => { const n = ' ' + norm(x) + ' '; return hits.some(h => n.includes(' ' + h + ' ') || (h.includes(' ') && n.includes(h))) }).slice(0, 6);
       issues.push({ id: t.id, label: t.label, hits: t.hits, facts: qs, attempts: 0, found: false });
@@ -826,11 +827,11 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
     /* 5) الأدلة: قائمة الموضوع مقابل مستندات القضية (بعناوينها ونصوصها) */
     const titles = (ci.titles || []).map(x => norm(x)), body = norm(src);
     const evidence = [];
-    for (const iss of issues) for (const item of EVID[iss.id] || []) {
-      if (evidence.some(x => x.label === item)) continue;
+    for (const iss of issues.filter(i => i.found)) for (const item of EVID[iss.id] || []) {
       const kws = (EVK[item] || []).map(norm);
+      if (evidence.some(x => x.label === item || (x.kws.length && x.kws.join('|') === kws.join('|')) || (kws.length === 1 && x.kws.includes(kws[0])))) continue;
       const inTitle = titles.find(t => kws.some(k => t.includes(k))), inText = !inTitle && kws.some(k => body.includes(' ' + k)) ;
-      evidence.push({ label: item, issue: iss.label, status: inTitle ? 'doc' : inText ? 'text' : 'missing', doc: inTitle ? (ci.titles || [])[titles.indexOf(inTitle)] : '' });
+      evidence.push({ label: item, issue: iss.label, kws, status: inTitle ? 'doc' : inText ? 'text' : 'missing', doc: inTitle ? (ci.titles || [])[titles.indexOf(inTitle)] : '' });
     }
     log.push({ step: 'أدلة', text: evidence.length ? `قائمة أدلة الموضوع: ${evidence.filter(x => x.status === 'doc').length} مرفقة، ${evidence.filter(x => x.status === 'text').length} مذكورة في النص دون مرفق، ${evidence.filter(x => x.status === 'missing').length} غير موجودة` : 'لا قائمة أدلة لهذا الموضوع' });
     /* 6) النتيجة: مسائل بلا مراجع تُذكر صراحة */
