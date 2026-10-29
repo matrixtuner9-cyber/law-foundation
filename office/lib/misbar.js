@@ -109,10 +109,15 @@ function createMisbar(db, { audit } = {}) {
     const [cnt] = await all(`SELECT COUNT(DISTINCT d.id) n FROM ${from}${W}`, ...args);
     let total = Number(cnt?.n || 0);
     const rows = total ? await all(`SELECT ${COLS}, json_extract(d.meta,'$.articles_n') arts_n, json_extract(d.meta,'$.subject_auto.conf') subj_auto, substr(d.body,1,20000) body FROM ${sort === 'relevance' && fq ? fromRank : from}${W} ORDER BY ${order} LIMIT ? OFFSET ?`, ...args, per, (page - 1) * per) : [];
-    /* كل كلمات البحث في العنوان نفسه (لا في النص فقط): أقصر هذه العناوين أولاً — «قانون العمل» يأتي بقانون العمل لا بما ذكره */
+    /* اسم التشريع في عنوانه: كل كلمات البحث في العنوان نفسه لا في النص فقط، و«قانون الشركات» يطابق أيضاً «قرار بقانون … بشأن الشركات».
+       الترتيب: الاسم المطابق تماماً، ثم غير المعدِّل، ثم الساري، ثم الأحدث — فيأتي القانون النافذ قبل ما ذكره أو عدّله */
     if (fq && page === 1 && sort === 'relevance') {
-      let th = []; try { th = await all(`SELECT ${COLS}, json_extract(d.meta,'$.articles_n') arts_n, json_extract(d.meta,'$.subject_auto.conf') subj_auto, substr(d.body,1,20000) body FROM (SELECT DISTINCT (rowid % ${CHUNK_BASE}) fid FROM fts WHERE fts MATCH ?) f CROSS JOIN docs d ON d.id=f.fid${W} ORDER BY (CASE d.country WHEN 'PS' THEN 0 ELSE 1 END), length(d.title) LIMIT 4`, '{title} : (' + fq + ')', ...a) } catch { th = [] }
-      for (const r of th.reverse()) { const i = rows.findIndex(x => Number(x.id) === Number(r.id)); if (i >= 0) rows.splice(i, 1); rows.unshift(r) }
+      const nq = norm(q).replace(/^ال/, ''), rest = /^قانون\s+\S/.test(String(q).trim()) ? ftsQuery(String(q).trim().replace(/^قانون\s+/, ''), 'all') : '';
+      const sel = `SELECT ${COLS}, json_extract(d.meta,'$.articles_n') arts_n, json_extract(d.meta,'$.subject_auto.conf') subj_auto, substr(d.body,1,20000) body FROM (SELECT DISTINCT (rowid % ${CHUNK_BASE}) fid FROM fts WHERE fts MATCH ?) f CROSS JOIN docs d ON d.id=f.fid${W} LIMIT 40`;
+      let th = []; for (const m of [fq, rest].filter(Boolean)) { try { th.push(...await all(sel, '{title} : (' + m + ')', ...a)) } catch {} }
+      const core = t => { let c = String(t || '').replace(/[ًٌٍَُِّْـ]/g, '').replace(/\s*رقم\s*[(\[]?\s*\d+\s*[)\]]?\s*(?:لسن[ةه]|لعام)\s*\d{4}\s*م?\.?/, ' '); c = c.replace(/^\s*قرار\s*بقانون\s*(?:بشأن|بشان)\s*/, 'قانون '); return norm(c) };
+      const seen = new Set(), sc = th.filter(r => !seen.has(r.id) && seen.add(r.id)).map(r => { const c = core(r.title), t = String(r.title); return { r, s: (c === norm(q) || c === nq ? 0 : c.startsWith(norm(q)) ? 4 : 10) + (/تعديل|بتعديل|معدل|المعدل/.test(t) ? 6 : 0) + (r.status_code === 'repealed' || /ملغ/.test(r.status || '') ? 3 : 0) + (r.country === 'PS' ? 0 : 20) + c.length / 200 - (Number(r.year) || 0) / 10000 } }).sort((x, y) => x.s - y.s).slice(0, 4);
+      for (const { r } of sc.reverse()) { const i = rows.findIndex(x => Number(x.id) === Number(r.id)); if (i >= 0) rows.splice(i, 1); rows.unshift(r) }
       if (rows.length > per) rows.length = per;
     }
     /* عنوان التشريع بنوعه ورقمه وسنته («قانون السلطة القضائية رقم 1 لسنة 2002»): التشريع نفسه أولاً، وإن لم تطابقه كل كلمات البحث في الفهرس */
