@@ -410,6 +410,14 @@ svg.mb-navmk{border-radius:50%;filter:drop-shadow(0 0 3px rgb(243 213 138 / .7))
 .mb-smart{border:1px solid var(--mbG)!important;color:#8A6A25!important;background:#FBF6EA!important;white-space:nowrap}
 .mb-tabs{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}.mb-tabs button{font:inherit;font-size:13px;padding:7px 12px;border-radius:999px;border:1px solid #e4d3a6;background:#FBF6EA;color:#5a4a26;cursor:pointer}.mb-tabs button i{font-style:normal;color:#B38B49}.mb-tabs button.on{background:#0E2236;color:#F3D58A;border-color:#0E2236}
 .mb-tdesc{margin:8px 0 0;color:#7a6a4c;font-size:13px}
+.mb-lsplit{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:18px;align-items:start}.mb-lsplit>.mb-labf{min-width:0}
+.mb-lside{position:sticky;top:10px;min-width:0}.mb-lside .mbg-hd{margin-top:10px;animation:mbLsIn .45s ease-out both}.mb-lside .mbg-kpi{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+@keyframes mbLsIn{from{opacity:0;transform:translateX(-14px)}}
+.mb-lside .mbg-k{animation:mbLsIn .4s ease-out both}.mb-lside .mbg-k:nth-child(2){animation-delay:.05s}.mb-lside .mbg-k:nth-child(3){animation-delay:.1s}.mb-lside .mbg-k:nth-child(4){animation-delay:.15s}.mb-lside .mbg-k:nth-child(5){animation-delay:.2s}.mb-lside .mbg-k:nth-child(6){animation-delay:.25s}.mb-lside .mbg-k:nth-child(7){animation-delay:.3s}
+.mb-lwait{min-height:260px;display:flex;flex-direction:column;gap:6px}.mb-lgh{display:flex;flex-wrap:wrap;gap:10px;margin-top:auto;padding-top:14px}.mb-lgh span{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-size:19px;color:#F3D58A;background:rgb(201 162 74/.14);border:1px solid rgb(243 213 138/.25);animation:mbLgh 2.6s ease-in-out infinite;animation-delay:calc(var(--i)*.22s)}
+@keyframes mbLgh{0%,100%{opacity:.45;transform:none}50%{opacity:1;transform:translateY(-3px);box-shadow:0 0 14px rgb(243 213 138/.35)}}
+@media (max-width:980px){.mb-lsplit{grid-template-columns:1fr}.mb-lside{position:static}}
+@media (prefers-reduced-motion:reduce){.mb-lside .mbg-hd,.mb-lside .mbg-k,.mb-lgh span{animation:none}}
 .mb-labf{margin-top:10px}.mb-labf label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:#7a6a4c;margin-top:10px}.mb-labf textarea{line-height:1.8;resize:vertical}.mb-two2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .mb-labrow{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}.mb-consent{flex-direction:row!important;align-items:flex-start;gap:8px!important;font-size:12.5px;color:#5a4a26!important;max-width:720px}.mb-consent input{margin-top:4px}
 .mb-gzbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:6px 0 12px}.mb-gzgo{display:flex;gap:6px;align-items:center;font-size:13px}.mb-gzy{border:1px solid #e9dcb8;border-radius:12px;margin:8px 0;background:#fffdf7}.mb-gzy summary{cursor:pointer;padding:10px 14px;display:flex;gap:12px;align-items:baseline;list-style:none}.mb-gzy summary b{font-size:17px;color:#0E2236}.mb-gzy summary span{font-size:12.5px;color:#7a6a4c}.mb-gzg{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;padding:0 12px 12px}.mb-gzi{display:grid;grid-template-columns:1fr auto;gap:2px 8px;text-align:right;border:1px solid #e4d3a6;background:#FBF6EA;border-radius:10px;padding:8px 10px;cursor:pointer;font:inherit}.mb-gzi:hover{background:#0E2236;color:#F3D58A}.mb-gzi b{font-size:13.5px}.mb-gzi small{grid-column:1;font-size:11.5px;opacity:.75}.mb-gzi i{grid-row:1/3;grid-column:2;align-self:center;font-style:normal;font-weight:700;color:#8A6A25;background:#fff;border-radius:999px;padding:2px 8px;font-size:12px}.mb-gzi.sp{border-color:#b98b2c;background:#f7ecd2}.mb-gz{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.mb-prov{display:flex;gap:6px;align-items:center;font-size:12.5px;color:#7a6a4c}.mb-chip.off{opacity:.45;cursor:not-allowed}
@@ -517,6 +525,9 @@ const LOC={region:'',eventDate:'',gtext:'',mode:'research',text:'',k:'',rtext:''
 const LOCM=[['research','⌕','بحث قانوني','اكتب سؤالك أو وقائع المسألة: يستخرج المواد التي ذكرتها بنصها، ويحدد الموضوعات والتشريعات المعنية وأقرب موادها، ويجلب الأحكام الفلسطينية الأقرب ثم الأردنية والمصرية للمقارنة.'],['case','❏','تحليل قضية','اختر قضية: يقرأ ملفها ونصوص مستنداتها المقروءة على هذا الجهاز، ويرتّب التواريخ ويحسب المدد بينها، ويستخرج المبالغ والأرقام والمواد المذكورة، ثم يبحث في القاعدة كما في البحث القانوني.'],['ruling','§','تشريح حكم','افتح حكماً من القاعدة واضغط «تشريح دون إنترنت»، أو الصق نص حكم: يقسّمه إلى الهيئة والأطراف والحكم المطعون فيه وأسباب الطعن وأسباب المحكمة والمنطوق، مع نصوص المواد التي استند إليها.'],['gaps','◎','اكتشف ما فاتك','الصق مذكرتك أو لائحتك كاملة: يستخرج ما استشهدت به، ويقارنه بما استشهدت به الأحكام الفلسطينية الأقرب لموضوعك، ويعرض ما لم تذكره: مواد وأحكام ودفوع، بنصوصها، بوصفها فرصاً للفحص لا استنتاجات.'],['ref','⌗','أرقام ومحاكم وتنبيهات','قيم يحسب بها المحامي (الحد الأدنى للأجور، رسوم المحاكم، الفائدة) بنص مصدرها حرفياً، ودليل المحاكم والاختصاص المكاني من تشريعاتها، وتنبيه حين تُعدَّل مادة أو قانون ربطته بإحدى قضاياك بعد ربطه. كله من القاعدة المحلية دون إنترنت.'],['dict','✎','قاموس المكتب','علّم المسبار خبرة مكتبك: مرادفات يستعملها المحامون (فيبحث بالكلمتين معاً)، ومواد تُثبَّت لموضوع معيّن فتظهر أولاً كلما سُئل عنه. ويتعلّم أيضاً من زرّي 👍 و👎 بجانب كل نتيجة: ما قيّمه المكتب مفيداً يتقدّم في الأسئلة المشابهة، وما قيّمه غير ذي صلة يختفي.']];
 function locKeep(){const g=id=>document.getElementById(id);if(g('mbLoT'))LOC.text=g('mbLoT').value;if(g('mbLoK'))LOC.k=g('mbLoK').value;if(g('mbLoR'))LOC.rtext=g('mbLoR').value;if(g('mbLoG'))LOC.gtext=g('mbLoG').value;if(g('mbLoReg'))LOC.region=g('mbLoReg').value;if(g('mbLoEv'))LOC.eventDate=g('mbLoEv').value}
 function localView(){const M=LOCM.find(x=>x[0]===LOC.mode)||LOCM[0];
+ /* البحث والقضية: النموذج يميناً وحصيلة التحليل يساره في الأعلى */
+ const split=(LOC.mode==='research'||LOC.mode==='case')&&!(LOC.res&&(LOC.kind==='dissect'||LOC.kind==='gaps')),H={};
+ const body=LOC.res?(LOC.kind==='dissect'?locDissect(LOC.res,true):LOC.kind==='gaps'?locGaps(LOC.res,true):locResult(LOC.res,true,split?H:null)):'';
  const cs=(typeof cases!=='undefined'?cases:[]).filter(k=>!/مغلق|closed/.test(String(k.status||'')));
  if(LOC.mode==='ref')return `<section class="mb-card" id="mbLoc"><div class="mb-h"><div><h1>المسبار المحلي · دون إنترنت</h1></div></div><div class="mb-tabs">${LOCM.map(([m,ic,t])=>`<button type="button" class="${LOC.mode===m?'on':''}" data-act="mbLocMode" data-v="${m}"><i>${ic}</i> ${t}${m==='ref'&&LOC.alerts&&LOC.alerts.alerts.length?` <b class="mbr-badge">${LOC.alerts.alerts.length}</b>`:''}</button>`).join('')}</div><p class="mb-tdesc">${e(M[3])}</p>${refView()}</section>`;
  if(LOC.mode==='dict')return `<section class="mb-card" id="mbLoc"><div class="mb-h"><div><h1>المسبار المحلي · دون إنترنت</h1></div></div><div class="mb-tabs">${LOCM.map(([m,ic,t])=>`<button type="button" class="${LOC.mode===m?'on':''}" data-act="mbLocMode" data-v="${m}"><i>${ic}</i> ${t}</button>`).join('')}</div><p class="mb-tdesc">${e(M[3])}</p>${dictView()}${learnedView()}</section>`;
@@ -529,11 +540,12 @@ function localView(){const M=LOCM.find(x=>x[0]===LOC.mode)||LOCM[0];
  return `<section class="mb-card" id="mbLoc"><div class="mb-h"><div><h1>المسبار المحلي · دون إنترنت</h1><p class="m">يعمل كله على هذا الجهاز من قاعدة المسبار المحلية؛ لا يُرسل أي نص خارج الجهاز ولا يستخدم الذكاء الاصطناعي. لا يكتب رأياً من عنده: يعرض النصوص كما هي ويحسب المدد والمبالغ، ويبيّن سبب ظهور كل نتيجة.</p></div></div>
   <div class="mb-tabs">${LOCM.map(([m,ic,t])=>`<button type="button" class="${LOC.mode===m?'on':''}" data-act="mbLocMode" data-v="${m}"><i>${ic}</i> ${t}</button>`).join('')}</div>
   <p class="mb-tdesc">${e(M[3])}</p>
-  <form class="mb-labf" id="mbLocForm" autocomplete="off">${form}
+  ${split?'<div class="mb-lsplit" id="mbLocTop">':''}<form class="mb-labf" id="mbLocForm" autocomplete="off">${form}
    <div class="mb-labrow"><button class="btn mb-go" id="mbLoGo" ${LOC.busy?'disabled':''}>${LOC.busy?'جارٍ التحليل على الجهاز…':'⛁ '+(LOC.mode==='ruling'?'تشريح الحكم':LOC.mode==='gaps'?'اكتشف ما فاتك':'ابحث واستقصِ')}</button>${LOC.mode==='case'||LOC.mode==='research'?`<button type="button" class="btn mb-go mb-insp" data-act="mbLocInspect" ${LOC.busy?'disabled':''} title="دورة كاملة: استخراج المسائل، بحث لكل مسألة مع إعادة محدودة، فحص السريان والمواعيد، مقارنة الأدلة بالمستندات، ثم خريطة المسألة">⟳ ${LOC.mode==='case'?'افحص ملف القضية':'حلّل ومحّص'}</button>`:''}${LOC.busy?`<span class="m">${LOC.kind==='inspect'?'دورة الفحص تعمل على الجهاز: مسائل ← بحث ← تمحيص ← أدلة…':'يبحث في القاعدة المحلية…'}</span>`:''}</div>
   </form>
+  ${split?`<aside class="mbg mb-lside">${H.hd||`<div class="mbg-hd mb-lwait"><div class="mbg-hl"><b>${LOC.busy?'جارٍ التحليل على الجهاز…':'حصيلة التحليل المحلي'}</b><span class="m">دون إنترنت</span></div><p class="mbg-note">${LOC.busy?'تُقرأ النصوص من القاعدة المحلية الآن.':'اكتب السؤال أو الوقائع ثم «ابحث واستقصِ»؛ تظهر هنا الحصيلة: التشريعات والمواد والأحكام والمواعيد، وكلٌّ منها ينقلك إلى تفصيله.'}</p><div class="mb-lgh">${['§','¶','⚖','⇄','⌁','⏱'].map((i,n)=>`<span style="--i:${n}">${i}</span>`).join('')}</div></div>`}</aside></div>`:''}
   ${LOC.err?`<div class="mb-empty bad">${e(LOC.err)}</div>`:''}
-  ${LOC.res?(LOC.kind==='dissect'?locDissect(LOC.res,true):LOC.kind==='gaps'?locGaps(LOC.res,true):locResult(LOC.res,true)):''}</section>`}
+  ${body}</section>`}
 const locOpen=(id,t)=>`<button type="button" class="mb-ref" data-act="mbRefOpen" data-v="${id}">${e(t||'فتح النص')}</button>`;
 const locQ=t=>`<blockquote class="mb-loq">${e(t).replace(/\n/g,'<br>')}</blockquote>`;
 const dd=n=>n==null?'—':n===0?'اليوم نفسه':n<0?`بعد ${-n} يوماً`:`${n} يوماً`;
@@ -602,16 +614,19 @@ function rgEngine(spec){
  const side=(a,b)=>{const A=P[a],B=P[b];return A.x>B.x?[A.x,A.y+A.h/2,B.x+B.w,B.y+B.h/2]:[A.x+A.w,A.y+A.h/2,B.x,B.y+B.h/2]};
  const curve=(x1,y1,x2,y2)=>{const dx=Math.max(40,Math.abs(x2-x1)*.5)*(x2<x1?-1:1);return `M${x1.toFixed(1)},${y1.toFixed(1)} C${(x1+dx).toFixed(1)},${y1.toFixed(1)} ${(x2-dx).toFixed(1)},${y2.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`};
  let paths='',badges='',k=0;const done=new Set();
- const ep=(ed,d,cls,lab)=>{const id='rgE'+(k++);RG.info[id]=ed.info||{};RG.info[id].type=ed.type;return `<g class="rg-e ${ed.type} ${cls||''}" data-rge="${id}" data-rg="${ed.from} ${ed.to}"><path class="hit" d="${d}"/><path class="ln" id="${id}" d="${d}"${ed.type==="cite"||ed.type==="ok"?' pathLength="1"':''} marker-end="url(#rgM-${ed.type})"/><path class="fl" d="${d}"/>${lab?`<text dy="-5"><textPath href="#${id}" startOffset="50%" text-anchor="middle">${e(lab)}</textPath></text>`:''}</g>`};
+ let pk=0;const ep=(ed,d,cls,lab)=>{const n=k,id='rgE'+(k++);RG.info[id]=ed.info||{};RG.info[id].type=ed.type;
+  /* نبضة ضوء تسري على الخط من المصدر إلى الهدف: ذهبية للاستناد، فيروزية لما تحقّق منه المكتب، حمراء للمخالف؛ لا نبض للمقترح غير المتحقق منه */
+  const live=ed.type!=='sug'&&pk++<90,dur=(3.4+(n%5)*.45).toFixed(2),beg=(-(n*.73)%3.4).toFixed(2);
+  return `<g class="rg-e ${ed.type} ${cls||''}" style="--d:${Math.min(n*.035,1.2).toFixed(3)}s" data-rge="${id}" data-rg="${ed.from} ${ed.to}"><path class="hit" d="${d}"/><path class="ln" id="${id}" d="${d}"${ed.type==="cite"||ed.type==="ok"?' pathLength="1"':''} marker-end="url(#rgM-${ed.type})"/><path class="fl" d="${d}"/>${live?`<circle class="rg-pk" r="${cls==='trunk'?4.2:cls==='bun'?2.4:3.2}"><animateMotion dur="${dur}s" begin="${beg}s" repeatCount="indefinite" calcMode="spline" keyTimes="0;1" keySplines=".45 0 .55 1"><mpath href="#${id}"/></animateMotion></circle>`:''}${lab?`<text dy="-5"><textPath href="#${id}" startOffset="50%" text-anchor="middle">${e(lab)}</textPath></text>`:''}</g>`};
  for(const [key,idx] of Object.entries(groups)){
   const es=idx.map(i=>spec.edges[i]);
   if(es.length>=3){const [to,type]=key.split('|'),B=P[to],from0=P[es[0].from],dir=from0.x>B.x?1:-1,bx=dir>0?B.x+B.w+58:B.x-58,by=B.y+B.h/2,tx=dir>0?B.x+B.w:B.x;
    for(const ed of es){const A=P[ed.from],sx=dir>0?A.x:A.x+A.w;paths+=ep(ed,curve(sx,A.y+A.h/2,bx,by),'bun',null)}
    paths+=ep({from:es.map(x=>x.from).join(' '),to,type,info:{bundle:es.map(x=>x.info||{}),label:RGT[type][0],toTitle:B.n.title}},`M${bx},${by} L${tx},${by}`,'trunk',null);
-   badges+=`<g class="rg-bdg ${type}" transform="translate(${bx},${by})" data-rg="${es.map(x=>x.from).join(' ')} ${to}"><circle r="13"/><text dy="4">${es.length}</text></g>`;idx.forEach(i=>done.add(i))}}
+   badges+=`<g class="rg-bdg ${type}" transform="translate(${bx},${by})" data-rg="${es.map(x=>x.from).join(' ')} ${to}"><circle class="rg-ring" r="13"/><circle r="13"/><text dy="4">${es.length}</text></g>`;idx.forEach(i=>done.add(i))}}
  spec.edges.forEach((ed,i)=>{if(done.has(i)||!P[ed.from]||!P[ed.to])return;const [x1,y1,x2,y2]=side(ed.from,ed.to);paths+=ep(ed,curve(x1,y1,x2,y2),'',ed.label||RGT[ed.type][0])});
- const heads=cols.map((c,ci)=>`<div class="rg-ch" style="left:${colX(ci)}px;width:${CW}px"><i>${ci+1}</i><b>${e(c.t)}</b>${c.s?`<small>${e(c.s)}</small>`:''}</div>`).join('');
- const nodes=spec.nodes.map(n=>{const p=P[n.id];return `<div class="rg-n ${n.kind} ${n.cls||''}" data-rgn="${n.id}" style="left:${p.x}px;top:${p.y}px;width:${p.w}px;height:${p.h}px" title="${e(n.tip||n.title)}">${n.ic?`<i class="ic">${n.ic}</i>`:''}<div class="tx"><b>${e(n.title)}</b>${n.sub?`<span>${e(n.sub)}</span>`:''}</div>${n.badge?`<em>${e(n.badge)}</em>`:''}${n.go?`<button type="button" class="rg-go" data-mbgo="${n.go}" title="اذهب إلى تفصيله في اللوحة">↗</button>`:''}${n.open?`<button type="button" class="rg-go" data-act="mbRefOpen" data-v="${n.open}" title="افتح النص كاملاً">⌕</button>`:''}</div>`}).join('');
+ const heads=cols.map((c,ci)=>`<div class="rg-ch" style="--d:${(ci*.22).toFixed(2)}s;left:${colX(ci)}px;width:${CW}px"><i>${ci+1}</i><b>${e(c.t)}</b>${c.s?`<small>${e(c.s)}</small>`:''}</div>`).join('');
+ const nodes=spec.nodes.map(n=>{const p=P[n.id];const ci=n.col,ri=spec.nodes.filter(z=>z.col===ci).indexOf(n);return `<div class="rg-n ${n.kind} ${n.cls||''}" data-rgn="${n.id}" style="--d:${(ci*.22+ri*.045).toFixed(3)}s;left:${p.x}px;top:${p.y}px;width:${p.w}px;height:${p.h}px" title="${e(n.tip||n.title)}">${n.ic?`<i class="ic">${n.ic}</i>`:''}<div class="tx"><b>${e(n.title)}</b>${n.sub?`<span>${e(n.sub)}</span>`:''}</div>${n.badge?`<em>${e(n.badge)}</em>`:''}${n.go?`<button type="button" class="rg-go" data-mbgo="${n.go}" title="اذهب إلى تفصيله في اللوحة">↗</button>`:''}${n.open?`<button type="button" class="rg-go" data-act="mbRefOpen" data-v="${n.open}" title="افتح النص كاملاً">⌕</button>`:''}</div>`}).join('');
  const mk=Object.entries(RGT).map(([t,[, ,c]])=>`<marker id="rgM-${t}" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" fill="${c}"/></marker>`).join('');
  return {W,H,html:`<div class="rg-cv" style="width:${W}px;height:${H}px">${heads}<svg class="rg-s" width="${W}" height="${H}" style="width:${W}px;height:${H}px" viewBox="0 0 ${W} ${H}"><defs>${mk}<filter id="rgGlow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>${paths}${badges}</svg>${nodes}</div>`};
 }
@@ -707,6 +722,9 @@ function rgPop(w,id,ev){const I=RG.info[id],p=w.querySelector('.rg-pop');if(!I||
  document.addEventListener('pointermove',ev=>{if(!drag)return;const w=W();if(!w)return;RG.x=ev.clientX-drag.x;RG.y=ev.clientY-drag.y;rgApply(w)});
  document.addEventListener('pointerup',()=>{if(!drag)return;drag=null;const v=document.querySelector('.rg-vp.drag');if(v)v.classList.remove('drag')});
  document.addEventListener('wheel',ev=>{const vp=ev.target.closest&&ev.target.closest('.rg-vp');if(!vp||!ev.ctrlKey)return;ev.preventDefault();const w=W(),b=vp.getBoundingClientRect(),mx=ev.clientX-b.left,my=ev.clientY-b.top,z0=RG.z,z1=Math.min(2.4,Math.max(.3,z0*(ev.deltaY<0?1.12:1/1.12)));RG.x=mx-(mx-RG.x)*z1/z0;RG.y=my-(my-RG.y)*z1/z0;RG.z=z1;rgApply(w)},{passive:false});
+ /* تمرير المؤشر على عقدة يُحيي خطوطها: يسري فيها الضوء ويشتد لونها */
+ let hv=null;document.addEventListener('mouseover',ev=>{const n=ev.target.closest&&ev.target.closest('.rg [data-rgn]'),id=n?n.dataset.rgn:null;if(id===hv)return;const w=W();if(!w)return;w.querySelectorAll('.rg-e.hv,.rg-n.hv').forEach(x=>x.classList.remove('hv'));w.classList.toggle('hov',!!id);hv=id;if(!id)return;
+  w.querySelectorAll('.rg-e[data-rg]').forEach(g=>{const k=g.dataset.rg.split(' ');if(k.includes(id)){g.classList.add('hv');k.forEach(z=>{const m=w.querySelector('[data-rgn="'+z+'"]');if(m)m.classList.add('hv')})}})});
  document.addEventListener('keydown',ev=>{if(ev.key==='Escape'){const w=W();if(w){rgFocus(w,null);const p=w.querySelector('.rg-pop');if(p)p.hidden=true}}});
  const css=document.createElement('style');css.textContent=`
 .rg{--ink:#0E2236;--gold:#C9A24A;--gold2:#F3D58A;--ivory:#FBF7EC;margin:14px 0;border:1px solid #E7D6A8;border-radius:18px;background:#fff;box-shadow:0 10px 30px rgb(14 34 54/.08);overflow:hidden}
@@ -753,7 +771,22 @@ function rgPop(w,id,ev){const I=RG.info[id],p=w.querySelector('.rg-pop');if(!I||
 .rg-art summary{cursor:pointer;font-size:12px;color:#8A6A25;font-weight:700}.rg-art div{white-space:pre-wrap;font-size:12.5px;line-height:1.8;background:#FFFCF4;border:1px solid #EADBB4;border-radius:8px;padding:8px 10px;margin-top:4px;max-height:220px;overflow:auto}
 .rg-note{padding:8px 14px;margin:0;background:#FFFCF4;border-top:1px solid #EADBB4;font-size:12px}
 .rg:fullscreen{border-radius:0;display:flex;flex-direction:column}.rg:fullscreen .rg-vp{flex:1;height:auto!important}
-@media (prefers-reduced-motion:reduce){.rg.in .rg-e .ln,.rg.in .rg-n,.rg.focus .rg-e.on-f .fl{animation:none}}
+/* الحياة في المخطط: دخول متتابع عموداً بعد عمود، ونبضات ضوء تسري في الخطوط، ولمعان على العقد الرئيسة، وحلقات تنبض حول الحزم */
+.rg.in .rg-n{animation-delay:var(--d,0s)}.rg.in .rg-ch{animation:rgDown .55s ease-out both;animation-delay:var(--d,0s)}@keyframes rgDown{from{opacity:0;transform:translateY(-10px)}}
+.rg.in .rg-e .ln{animation-delay:calc(.45s + var(--d,0s))}
+.rg-pk{fill:#FFF3C9;filter:url(#rgGlow);opacity:0;pointer-events:none;transition:opacity .4s}.rg.in .rg-pk{opacity:.95;transition-delay:1.6s}.rg-e.ok .rg-pk{fill:#BFF3EE}.rg-e.opp .rg-pk{fill:#FFC9BC}
+.rg.hov .rg-e:not(.hv) .rg-pk{opacity:.18}.rg.hov .rg-e:not(.hv) .ln{opacity:.35}.rg-e.hv .ln{stroke-width:3.4;filter:url(#rgGlow)}.rg-e.hv .fl{opacity:.95;animation:rgFlow 1.1s linear infinite}.rg-e.hv text{opacity:1}.rg-e.hv .rg-pk{r:4.6}
+.rg.hov .rg-n.hv{box-shadow:0 0 0 2px rgb(201 162 74/.6),0 0 18px rgb(243 213 138/.55)}
+.rg-ring{fill:none!important;stroke:#F3D58A;stroke-width:2;animation:rgRing 2.4s ease-out infinite;filter:none!important}.rg-bdg.ok .rg-ring{stroke:#3FB3AF}.rg-bdg.opp .rg-ring{stroke:#E0705A}
+@keyframes rgRing{from{r:13;opacity:.9}to{r:26;opacity:0}}
+.rg-n.q:before,.rg-n.law:before,.rg-n.next:before,.rg-n.bk:before{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgb(255 241 194/.28) 50%,transparent 65%);background-size:250% 100%;background-position:150% 0;animation:rgShine 5.5s ease-in-out infinite;animation-delay:calc(2s + var(--d,0s));pointer-events:none}
+@keyframes rgShine{0%,55%{background-position:150% 0}100%{background-position:-60% 0}}
+.rg.in .rg-n.q{animation:rgPop .5s cubic-bezier(.2,.8,.3,1.2) both,rgBreath 3.2s ease-in-out infinite;animation-delay:var(--d,0s),1s}@keyframes rgBreath{0%,100%{box-shadow:0 0 0 4px rgb(243 213 138/.22),0 0 22px rgb(243 213 138/.35)}50%{box-shadow:0 0 0 7px rgb(243 213 138/.12),0 0 40px rgb(243 213 138/.7)}}
+.rg-ch i{animation:rgDot 2.8s ease-in-out infinite;animation-delay:var(--d,0s)}@keyframes rgDot{0%,100%{box-shadow:0 0 6px rgb(243 213 138/.5)}50%{box-shadow:0 0 16px rgb(243 213 138/1)}}
+.rg-vp{animation:rgDrift 40s linear infinite}@keyframes rgDrift{to{background-position:220px 110px,0 0}}
+.rg-tabs button.on{position:relative;overflow:hidden}.rg-tabs button.on:after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 35%,rgb(255 255 255/.35) 50%,transparent 65%);background-size:250% 100%;animation:rgShine 4s ease-in-out infinite}
+@media (prefers-reduced-motion:reduce){.rg.in .rg-e .ln,.rg.in .rg-n,.rg.focus .rg-e.on-f .fl,.rg.in .rg-n.q,.rg-n:before,.rg-ch i,.rg-vp,.rg-ring,.rg-tabs button:after,.rg.in .rg-ch{animation:none}.rg-pk{display:none}}
+@media print{.rg-pk,.rg-ring{display:none}}
 @media print{.rg-top .rg-tools,.rg-tabs{display:none}}`;document.head.appendChild(css)})();
 
 function locYears(L){
@@ -822,7 +855,7 @@ function locQuotes(r,ui){
  const req=(r.requisites||[]).length?`<section class="mbg-pnl mbq-p q" id="mbgReq"><h4><i>◈</i>ما اشترطته المحاكم <small>جمل من الأحكام نفسها تذكر الأركان أو الشروط — كما وردت</small></h4>${r.requisites.map((q,i)=>card(q,i,'q')).join('')}</section>`:'';
  const def=(r.defenses||[]).length?`<section class="mbg-pnl mbq-p d" id="mbgDef"><h4><i>⛨</i>دفوع وردت في الأحكام <small>جمل من الأحكام تذكر دفعاً أو انتفاء ركن — للفحص لا للاعتماد</small></h4>${r.defenses.map((q,i)=>card(q,i,'d')).join('')}</section>`:'';
  return req||def?`<div class="mbq-g">${req}${def}</div>`:''}
-function locBoard(r){
+function locBoard(r,H){
  const L=locLinks(r),back=L.back,ui=true;
  const goChip=(id,t,cls)=>`<button type="button" class="mbg-go ${cls||''}" data-mbgo="${id}" data-lk="${id}">${e(t)}</button>`;
  const nArt=(r.laws||[]).reduce((s,l)=>s+(l.articles||[]).length,0),cf=(r.citations||[]).filter(c=>c.found).length;
@@ -849,12 +882,15 @@ function locBoard(r){
  const cn=(r.caseNos||[]).length?`<div class="mbg-cns">${r.caseNos.map(c=>`<span class="mbg-cn"><b class="mono">${e(c.no)}</b> ${e(c.kind)}<small class="m">${e(c.ctx)}</small></span>`).join('')}</div>`:'';
  const panel=(ic,t,b,n)=>b?`<section class="mbg-pnl"><h4><i>${ic}</i>${t}${n?` <small>${n}</small>`:''}</h4>${b}</section>`:'';
  const tools=jur+tr+dls?panel('⚑','الاختصاص والمواعيد وسريان القانون',`<div class="mbg-dls">${jur}${tr}${dls}</div>${cr}${dls?'<p class="m">الحساب تقويمي تقريبي لا يُحسب فيه يوم التبليغ؛ والعطل الرسمية وبدء الميعاد يُراجع في النص.</p>':''}`):'';
- return `<section class="mb-labres mbg" id="mbLocRes">
- <header class="mbg-hd"><div class="mbg-hl"><b>${e(r.title||'حصيلة التحليل المحلي')}</b><span class="m">${r.ms!=null?(r.ms<1000?'⚡ أقل من ثانية على الجهاز':'⚡ '+(r.ms/1000).toFixed(1)+' ث على الجهاز'):''} · دون إنترنت</span></div>
+ const hd=`<header class="mbg-hd"><div class="mbg-hl"><b>${e(r.title||'حصيلة التحليل المحلي')}</b><span class="m">${r.ms!=null?(r.ms<1000?'⚡ أقل من ثانية على الجهاز':'⚡ '+(r.ms/1000).toFixed(1)+' ث على الجهاز'):''} · دون إنترنت</span></div>
   <div class="mbg-q">${(r.topics||[]).map(t=>`<span class="mbg-topic" title="${e('الكلمات: '+t.hits.join('، '))}">◉ ${e(t.label)}</span>`).join('')}${(r.keyterms&&r.keyterms.terms||[]).map(k=>`<span class="mbg-kw">${e(k)}</span>`).join('')}</div>
   <div class="mbg-kpi">${kpi.map(([ic,t,n,go,c])=>`<button type="button" class="mbg-k ${c}" data-mbgo="${go}"><i>${ic}</i><b>${n}</b><span>${t}</span></button>`).join('')}</div>
   <div class="mbg-ctx"><span>⌖ ${e(reg)}</span><span>◷ ${X.eventDate?`تاريخ الواقعة <b class="mono">${e(X.eventDate)}</b>${X.eventFrom==='text'?' (أقدم تاريخ في النص)':''}`:'تاريخ الواقعة غير محدد — لن يُفحص التعديل الزمني'}</span>${r.caseInfo?`<span>▤ قُرئ ${r.caseInfo.read} من ${r.caseInfo.docs} مستنداً${(r.caseInfo.unread||[]).length?' — لم تُقرأ: '+r.caseInfo.unread.map(e).join('، '):''}</span>`:''}${LRN.length?`<span class="lrn">✎ ${LRN.map(e).join(' · ')}</span>`:''}</div>
-  ${r.notice?`<div class="mbg-note">${e(r.notice)}</div>`:''}</header>
+  ${r.notice?`<div class="mbg-note">${e(r.notice)}</div>`:''}</header>`;
+ /* في وضع اللوحة تنتقل الحصيلة إلى جانب النموذج (H.hd) وتبقى بقية اللوحة تحته */
+ if(H)H.hd=hd;
+ return `<section class="mb-labres mbg" id="mbLocRes">
+ ${H?'':hd}
  ${locInspect(r)}
  ${locCaseMap(r)}
  ${locPen(r,true)}
@@ -870,7 +906,7 @@ function locBoard(r){
  <div class="mbg-tools" id="mbgTools">${tools}${panel('◷','التسلسل الزمني والمدد',tl,(r.timeline||[]).length)}${panel('¤','المبالغ',am)}${panel('#','أرقام دعاوى وطلبات وردت',cn)}</div>
  <div class="mb-tools"><button class="btn sm" data-act="mbLocCopy">نسخ التقرير</button><button class="btn sm" data-act="mbLocPrint">طباعة A4</button></div></section>`;
 }
-function locResult(r,ui){return ui?locBoard(r):locList(r,ui)}
+function locResult(r,ui,H){return ui?locBoard(r,H):locList(r,ui)}
 /* التتبّع: تمرير المؤشر يُبرز المرتبطات، والنقر ينقل إلى البطاقة */
 (()=>{if(window.__mbgBound)return;window.__mbgBound=1;
  const rel=id=>{const s=new Set([id]);document.querySelectorAll('.mbg [data-lk]').forEach(n=>{const k=n.dataset.lk.split(' ');if(k.length>1&&k.includes(id))k.forEach(z=>s.add(z))});return s};
@@ -1079,14 +1115,14 @@ async function locRun(){locKeep();if(LOC.busy||LOC.mode==='dict')return;LOC.fb={
  else{a='dissect';if(LOC.rid)b={id:LOC.rid};else{if(LOC.rtext.replace(/\s/g,'').length<200)return toast('الصق نص الحكم كاملاً');b={text:LOC.rtext}}}
  LOC.busy=true;LOC.err='';LOC.res=null;const box=()=>document.getElementById('mbLoc');if(box())box().outerHTML=localView();
  try{LOC.res=await locPost(a,b);LOC.kind=a}catch(x){LOC.err=x.message}
- LOC.busy=false;const el=box();if(el){el.outerHTML=localView();const rs=document.getElementById('mbLocRes');if(rs)rs.scrollIntoView({block:'start',behavior:'smooth'})}}
+ LOC.busy=false;const el=box();if(el){el.outerHTML=localView();const rs=document.getElementById('mbLocTop')||document.getElementById('mbLocRes');if(rs)rs.scrollIntoView({block:'start',behavior:'smooth'})}}
 document.addEventListener('submit',ev=>{if(ev.target.id!=='mbLocForm')return;ev.preventDefault();locRun()},true);
 document.addEventListener('change',async ev=>{if(ev.target.id==='mbLoGFile'){const f=ev.target.files[0];if(!f)return;locKeep();try{LOC.gtext=f.name.toLowerCase().endsWith('.docx')&&typeof window.MQ_docxText==='function'?await MQ_docxText(await f.arrayBuffer()):await f.text();const t=document.getElementById('mbLoG');if(t)t.value=LOC.gtext;toast('استُورد النص')}catch(x){toast(x.message)}return}if(ev.target.id!=='mbLoFile')return;const f=ev.target.files[0];if(!f)return;locKeep();if(f.size>5*1024*1024)return toast('الملف أكبر من 5 ميغابايت');
  try{const nm=f.name.toLowerCase();LOC.text=nm.endsWith('.docx')?(typeof window.MQ_docxText==='function'?await MQ_docxText(await f.arrayBuffer()):(()=>{throw new Error('قراءة docx غير متاحة هنا؛ الصق النص')})()):await f.text();const t=document.getElementById('mbLoT');if(t)t.value=LOC.text;toast('استُورد النص')}catch(x){toast(x.message)}});
 A.mbLocInspect=async()=>{locKeep();if(LOC.busy)return;LOC.fb={};let b;if(LOC.mode==='case'){if(!LOC.k)return toast('اختر القضية');b={k:LOC.k,region:LOC.region,eventDate:LOC.eventDate}}else{if(LOC.text.replace(/\s/g,'').length<15)return toast('اكتب الوقائع');b={text:LOC.text,region:LOC.region,eventDate:LOC.eventDate}}
  LOC.busy=true;LOC.err='';LOC.res=null;LOC.kind='inspect';const box=()=>document.getElementById('mbLoc');if(box())box().outerHTML=localView();
  try{LOC.res=await locPost('inspect',b);LOC.kind='inspect'}catch(x){LOC.err=x.message}
- LOC.busy=false;const el=box();if(el){el.outerHTML=localView();const rs=document.getElementById('mbLocRes');if(rs)rs.scrollIntoView({block:'start',behavior:'smooth'})}};
+ LOC.busy=false;const el=box();if(el){el.outerHTML=localView();const rs=document.getElementById('mbLocTop')||document.getElementById('mbLocRes');if(rs)rs.scrollIntoView({block:'start',behavior:'smooth'})}};
 A.mbLocCopy=()=>{const t=locText();if(t)navigator.clipboard.writeText(t).then(()=>toast('نُسخ التقرير'),()=>toast('تعذّر النسخ'))};
 A.mbLocPrint=()=>{const r=LOC.res;if(!r||!window.MQP||!MQP.B)return;MQP.open({label:'المسبار المحلي',build(){return {title:'مِسْبار — '+(LOC.kind==='dissect'?'تشريح حكم':LOC.kind==='gaps'?'اكتشف ما فاتك':'تحليل محلي'),sub:String(r.title||LOC.text||'').slice(0,120),file:'misbar-local',blocks:[{html:`<div class="mb-print">${LOC.kind==='dissect'?locDissect(r,false):LOC.kind==='gaps'?locGaps(r,false):locResult(r,false)}</div>`}]}}})};
 })();
