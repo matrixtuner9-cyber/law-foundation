@@ -678,7 +678,7 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
       const id = Number(r.docId) || 0; if (!id) continue; const at = String(r.at || '').slice(0, 10), ay = Number(at.slice(0, 4)) || 0;
       const d = await getDoc(id); if (!d || d.kind === 'ruling') continue;
       const items = [];
-      if (r.art) { const a = (await articlesOf(id)).find(x => x.n === String(r.art)); if (a) { const v = await validity(id, a.text, { eventDate: at, lawLevel: false }); for (const f of v.flags) if (f.level === 'warn' || f.level === 'bad') items.push({ level: f.level, text: f.text.replace('بعد الواقعة', 'بعد ربطها بالقضية').replace('قبل الواقعة', 'قبل ربطها'), instId: f.note && f.note.instId || null }) } }
+      if (r.art) { const a = (await articlesOf(id)).find(x => x.n === String(r.art)); if (a) { const v = await validity(id, a.text, { eventDate: at, lawLevel: false }); for (const f of v.flags) if (f.level === 'warn' || f.level === 'bad') items.push({ level: f.level, text: f.text.replace('بعد الواقعة', 'بعد ربطها بالقضية').replace('قبل الواقعة', 'قبل ربطها').replace('وقت الواقعة', 'وقت ربطها'), instId: f.note && f.note.instId || null }) } }
       if (d.status_code === 'repealed' || /ملغ/.test(d.status || '')) items.push({ level: 'bad', text: 'التشريع ملغى حسب القاعدة' });
       /* تعديلات القانون كله الصادرة بعد الربط (بعنوانها: «بتعديل <القانون>») */
       if (!lawAm.has(id)) {
@@ -694,20 +694,25 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
   /* ── أرقام نافذة: قيم يحسب بها المحامي، كل منها بنص مصدرها حرفياً من القاعدة؛ وما ليس له مصدر تشريعي يحدده المكتب ── */
   const VALS = 'mbl:vals';
   const REFV = [
-    { key: 'minwage', label: 'الحد الأدنى للأجور', kind: 'cabinet', no: '4', year: '2021', art: '1', pick: [[/\(\s*([\d,.]+)\s*\)[^.\n]{0,40}شهري/, 'شهرياً', 'شيكل'], [/\(\s*([\d,.]+)\s*\)[^.\n]{0,40}يومي/, 'يومياً لعمال المياومة', 'شيكل'], [/ساع[ةه][^\n]*?\(\s*([\d,.]+)\s*\)/, 'للساعة', 'شيكل']] },
-    { key: 'courtfees', label: 'جدول رسوم المحاكم النظامية (آخر تعديل)', kind: 'cabinet', no: '6', year: '2023' },
-    { key: 'courtfeeslaw', label: 'قانون رسوم المحاكم النظامية', kind: 'law', no: '1', year: '2003' },
+    { key: 'minwage', label: 'الحد الأدنى للأجور', kind: 'cabinet', no: '4', year: '2021', kw: 'الاجور', art: '1', pick: [[/\(\s*([\d,.]+)\s*\)[^.\n]{0,40}شهري/, 'شهرياً', 'شيكل'], [/\(\s*([\d,.]+)\s*\)[^.\n]{0,40}يومي/, 'يومياً لعمال المياومة', 'شيكل'], [/ساع[ةه][\s\S]*?قدره\s*\(\s*([\d,.]+)\s*\)/, 'للساعة', 'شيكل']] },
+    { key: 'courtfees', label: 'جدول رسوم المحاكم النظامية (آخر تعديل)', kind: 'cabinet', no: '6', year: '2023', kw: 'رسوم المحاكم' },
+    { key: 'courtfeeslaw', label: 'قانون رسوم المحاكم النظامية', kind: 'law', no: '1', year: '2003', kw: 'رسوم المحاكم' },
     { key: 'interest', label: 'الفائدة القانونية', kind: 'law', title: 'قانون معدل الفائدة القانوني' },
-    { key: 'appealjur', label: 'الاختصاص المكاني لمحاكم الاستئناف', kind: 'cabinet', no: '1', year: '2021', group: 'courts' },
-    { key: 'courts', label: 'تشكيل المحاكم النظامية', kind: 'decree', no: '39', year: '2020', group: 'courts' },
-    { key: 'notary', label: 'الكاتب العدل', kind: 'law', no: '11', year: '1952', group: 'courts' },
+    { key: 'appealjur', label: 'الاختصاص المكاني لمحاكم الاستئناف', kind: 'cabinet', no: '1', year: '2021', kw: 'الاختصاص المكاني', group: 'courts' },
+    { key: 'courts', label: 'تشكيل المحاكم النظامية', kind: 'decree', no: '39', year: '2020', kw: 'تشكيل المحاكم', group: 'courts' },
+    { key: 'notary', label: 'الكاتب العدل', kind: 'law', no: '11', year: '1952', kw: 'الكاتب العدل', group: 'courts' },
   ];
+  /* التشريع المقصود بعينه: النوع والرقم والسنة وكلمة من موضوعه («قرار مجلس الوزراء» لا «قرار رئيس مجلس الوزراء») */
+  async function refDoc(R) {
+    if (R.title) return typeof misbar.byTitle === 'function' ? (await misbar.byTitle(R.title, 'PS_LEGISLATION', 10))[0] || null : null;
+    if (typeof misbar.byNumber !== 'function') return null;
+    const xs = await misbar.byNumber(R.kind === 'cabinet' ? '' : R.kind, R.no, R.year);
+    return xs.find(x => { const t = norm(x.title); return (R.kind !== 'cabinet' || (/مجلس الوزراء/.test(t) && !/رئيس مجلس الوزراء/.test(t))) && (!R.kw || t.includes(norm(R.kw))) }) || null;
+  }
   async function refValues() {
     const out = [];
     for (const R of REFV) {
-      let hit = null;
-      if (R.title && typeof misbar.byTitle === 'function') hit = (await misbar.byTitle(R.title, 'PS_LEGISLATION', 10))[0] || null;
-      else if (typeof misbar.byNumber === 'function') { const xs = await misbar.byNumber(R.kind === 'cabinet' ? '' : R.kind, R.no, R.year); hit = xs.find(x => R.kind !== 'cabinet' || /مجلس الوزراء/.test(x.title)) || null }
+      const hit = await refDoc(R);
       if (!hit) { out.push({ ...R, pick: undefined, missing: true }); continue }
       const d = await getDoc(hit.id), arts = d ? splitArticles(d.body) : [], a = R.art ? arts.find(x => x.n === R.art) : null;
       const text = a ? a.text : '', values = [];
@@ -722,7 +727,7 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
     const q = norm(String(b.q || '')).trim(); if (q.length < 2) return { status: 400, body: { error: 'اكتب اسم البلدة أو المنطقة.' } };
     const hits = [];
     for (const R of REFV.filter(r => r.group === 'courts')) {
-      const xs = typeof misbar.byNumber === 'function' ? await misbar.byNumber(R.kind === 'cabinet' ? '' : R.kind, R.no, R.year) : []; const x = xs[0]; if (!x) continue;
+      const x = await refDoc(R); if (!x) continue;
       const d = await getDoc(x.id); if (!d || !d.body) continue;
       for (const a of splitArticles(d.body)) { if (norm(a.text).includes(q)) hits.push({ docId: x.id, title: x.title, art: a.label, text: a.text }) }
     }
