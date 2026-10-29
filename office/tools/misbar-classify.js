@@ -29,7 +29,9 @@ function guess(title) {
   const vote = new Map(); for (const [i, s] of top) { const k = lab[i].subject; vote.set(k, (vote.get(k) || 0) + s) }
   const [best, bs] = [...vote].sort((a, b) => b[1] - a[1])[0], tot = [...vote.values()].reduce((a, b) => a + b, 0), self = ws.reduce((a, w) => a + idf(w), 0);
   /* ثقة: الفائز أغلب الأصوات، وتطابقه بكلمات وازنة من العنوان */
-  const conf = bs / tot, cover = top[0][1] / self;
+  const conf = bs / tot, cover = top[0][1] / self, tw = new Set(words(lab[top[0][0]].title)), shared = ws.filter(w => tw.has(w)).length;
+  /* كلمة واحدة مشتركة («سلطة»، «ديوان»، «حماية») لا تكفي لعنوان فيه أكثر من كلمة دالّة */
+  if (ws.length > 1 && shared < 2) return null;
   return conf >= 0.55 && cover >= 0.45 ? { subject: best, conf: +conf.toFixed(2), cover: +cover.toFixed(2), like: lab[top[0][0]].title } : null;
 }
 const ft = d => norm((d.title || '') + ' ' + (d.case_no || '') + ' ' + (d.subject || ''));
