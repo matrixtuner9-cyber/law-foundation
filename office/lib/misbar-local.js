@@ -54,7 +54,7 @@ const TOPICS = [
   { id: 'evidence', label: 'الإثبات والبينات', w: ['بينة', 'البينات', 'شاهد', 'الشهود', 'شهادة', 'اليمين', 'إقرار', 'الإقرار', 'خبرة', 'خبير', 'سند عادي', 'سند رسمي', 'إنكار التوقيع', 'الادعاء بالتزوير', 'قرينة'], laws: ['bayyinat'], q: 'عبء الاثبات البينة الشخصية' },
   { id: 'tort', label: 'التعويض عن الضرر', w: ['تعويض', 'ضرر', 'الضرر', 'إهمال', 'الإهمال', 'مسؤولية تقصيرية', 'مخالفة مدنية', 'عطل وضرر'], laws: ['tort'], q: 'التعويض عن الضرر الاهمال' },
   { id: 'accident', label: 'حوادث الطرق والتأمين', w: ['حادث سير', 'حادث طرق', 'مركبة', 'سيارة', 'شركة التأمين', 'تأمين إلزامي', 'صندوق تعويض مصابي', 'مصاب', 'إصابة جسدية', 'عجز', 'دهس', 'الدهس', 'سائق', 'السائق'], laws: ['insurance', 'traffic'], q: 'تعويض مصابي حوادث الطرق شركة التامين' },
-  { id: 'trafficcrime', label: 'جرائم السير', w: ['دهس', 'الدهس', 'دون رخصة', 'بدون رخصة', 'بلا رخصة', 'رخصة قيادة', 'رخصة سياقة', 'لا يحمل رخصة', 'لا يملك رخصة', 'تحت تأثير', 'السرعة الزائدة', 'سرعة زائدة', 'هرب من مكان الحادث', 'عدم مراعاة القوانين والأنظمة'], laws: ['traffic', 'penal'], q: 'حادث سير التسبب بالوفاة قلة احتراز رخصة' },
+  { id: 'trafficcrime', label: 'جرائم السير', w: ['دهس', 'الدهس', 'دون رخصة', 'بدون رخصة', 'بلا رخصة', 'رخصة قيادة', 'رخصة سياقة', 'لا يحمل رخصة', 'لا يملك رخصة', 'تحت تأثير', 'السرعة الزائدة', 'سرعة زائدة', 'هرب من مكان الحادث', 'عدم مراعاة القوانين والأنظمة'], laws: ['traffic', 'penal'], q: 'حادث سير التسبب بالوفاة قلة احتراز رخصة', aw: ['سبب موت', 'قلة احتراز', 'إهمال', 'عدم مراعاة القوانين', 'رخصة قيادة', 'سياقة'] },
   { id: 'labour', label: 'العمل والعمال', w: ['عامل', 'العامل', 'العمال', 'فصل تعسفي', 'فصلاً تعسفياً', 'فصله تعسفياً', 'تعسفياً', 'تعسفي', 'فُصل', 'فصله', 'استقالة', 'راتب', 'رواتب', 'صاحب العمل', 'مكافأة نهاية الخدمة', 'نهاية الخدمة', 'فصل تعسفي', 'الفصل التعسفي', 'أجور', 'الأجر', 'بدل إشعار', 'إجازة سنوية', 'ساعات العمل', 'إصابة عمل'], laws: ['labour'], q: 'مكافاة نهاية الخدمة الفصل التعسفي' },
   { id: 'rent', label: 'الإيجار والإخلاء', w: ['مستأجر', 'المستأجر', 'المأجور', 'مأجور', 'بدل الإيجار', 'الأجرة', 'إخلاء', 'الإخلاء', 'عقد إيجار', 'إيجار', 'المؤجر'], laws: ['rent'], q: 'اخلاء الماجور عدم دفع الاجرة' },
   { id: 'exec', label: 'التنفيذ', w: ['تنفيذ', 'دائرة التنفيذ', 'قاضي التنفيذ', 'حجز', 'الحجز', 'حبس المدين', 'سند تنفيذي', 'إخطار تنفيذي', 'ملف تنفيذي'], laws: ['exec'], q: 'دائرة التنفيذ حبس المدين' },
@@ -421,7 +421,10 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
     for (const k of lawKeys) {
       const L = await resolveLaw(k); if (!L || related.some(r => r.lawId === L.id)) continue;
       /* قانون العقوبات لسنة 1960 يكتب «شك» لا «شيك» */
-      const rk = rankArticles(await articlesOf(L.id), k === 'penal' && terms.includes('شيك') ? [...terms, 'شك'] : terms, penQ ? 6 : 3);
+      /* كلمات مواد إضافية يحددها الموضوع لقانون بعينه («دهس» ← «سبب موت، قلة احتراز» في العقوبات) */
+      const aw = [...new Set(tp.filter(t => t.laws.includes(k)).flatMap(t => (t.aw || []).flatMap(x => norm(x).split(' '))).filter(w => w.length >= 3))];
+      const rt = [...terms, ...aw.filter(w => !terms.includes(w))];
+      const rk = rankArticles(await articlesOf(L.id), k === 'penal' && rt.includes('شيك') ? [...rt, 'شك'] : rt, penQ ? 6 : 3);
       /* سؤال العقوبة: أعلى ثلاث مواد، ثم ما بعدها إن كان فيه نص عقوبة */
       const arts = (penQ ? rk.filter((a, i) => i < 3 || penaltyOf(a.text)) : rk).slice(0, penQ ? 5 : 3).filter(a => !law.some(c => c.lawId === L.id && c.article === a.n));
       related.push({ lawId: L.id, title: L.title, status: L.status, topic: (tp.find(t => t.laws.includes(k)) || {}).label || '', articles: arts });
@@ -556,7 +559,7 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
     const total = am.reduce((a, x) => { a[x.currency] = (a[x.currency] || 0) + x.value; return a }, {});
     return { status: 200, body: {
       title: clip(title, 160), at: now().toISOString(), ms: Date.now() - t0, offline: true,
-      topics: tp.map(({ q, laws, ...t }) => t), keyterms: { terms, phrases: kt.phrases },
+      topics: tp.map(({ q, laws, aw, ...t }) => t), keyterms: { terms, phrases: kt.phrases },
       citations: law, laws: related, penQ, penShow, penalties, rulings: ps, requisites: REQ.slice(0, 8), defenses: DEF.slice(0, 8), outcomes: (() => { const c = {}; for (const x of ps) for (const o of x.outcome || []) c[o] = (c[o] || 0) + 1; return Object.entries(c).sort((a, b) => b[1] - a[1]).map(([label, n]) => ({ label, n })) })(), comparative: cmp2, learned, qterms: qw, ctx, timeRule, deadlines, countRule, jurisdiction,
       timeline: timeline(ds), amounts: am.slice(0, 40), amountTotals: total, caseNos: cn.slice(0, 30),
       notice: 'نتائج بحث آلي من القاعدة المحلية دون إنترنت: النصوص منقولة حرفياً، والمدد والمبالغ محسوبة من النص المُدخل. لا يتضمن رأياً قانونياً؛ راجع كل نتيجة قبل الاعتماد عليها.',
