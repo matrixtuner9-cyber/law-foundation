@@ -151,3 +151,16 @@ test('أداة القياس: Recall@10 وMRR على أسئلة معروفة ال
   assert.strictEqual(r.rows[1].recall, 1, JSON.stringify(r.rows[1].hits)); assert.deepStrictEqual(r.rows[2].missingLaw, ['penal'], 'القانون غير موجود في القاعدة يُذكر');
   assert.ok(r.recall > 0.6 && r.recall < 0.7);
 });
+
+test('النفي لا يقلب المعنى: «القتل غير العمد» يُبحث بألفاظ م343 لا بالقتل العمد', () => {
+  const L = require('../lib/misbar-local');
+  for (const q of ['القتل غير العمد تشريعات وقرارات', 'قتل خطأ في حادث سير', 'القتل غير المقصود']) {
+    const r = L.rewriteNeg(q), kt = L.keyterms(r).terms;
+    assert.ok(kt.includes('اهمال') && kt.includes('احتراز'), q + ' → ' + kt);
+    assert.ok(!kt.includes('عمد') && !kt.includes('قتل'), q + ' → ' + kt);
+    assert.ok(!kt.includes('تشريعات') && !kt.includes('وقرارات'), 'كلمات الطلب ليست كلمات بحث');
+    assert.equal(L.topics(r)[0].id, 'penal');
+  }
+  /* القتل العمد يبقى كما هو */
+  assert.ok(L.keyterms(L.rewriteNeg('القتل العمد مع سبق الاصرار')).terms.includes('عمد'));
+});
