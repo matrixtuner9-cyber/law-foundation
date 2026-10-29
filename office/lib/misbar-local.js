@@ -829,7 +829,7 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
     const evidence = [];
     for (const iss of issues.filter(i => i.found)) for (const item of EVID[iss.id] || []) {
       const kws = (EVK[item] || []).map(norm);
-      if (evidence.some(x => x.label === item || (x.kws.length && x.kws.join('|') === kws.join('|')) || (kws.length === 1 && x.kws.includes(kws[0])))) continue;
+      if (evidence.some(x => x.label === item || x.kws.some(k => kws.includes(k)))) continue;
       const inTitle = titles.find(t => kws.some(k => t.includes(k))), inText = !inTitle && kws.some(k => body.includes(' ' + k)) ;
       evidence.push({ label: item, issue: iss.label, kws, status: inTitle ? 'doc' : inText ? 'text' : 'missing', doc: inTitle ? (ci.titles || [])[titles.indexOf(inTitle)] : '' });
     }
