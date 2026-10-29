@@ -83,14 +83,16 @@ const gz = x => ({ gazette_name: 'الوقائع الفلسطينية', gazette_
 
 if (!DRY) db.exec('BEGIN');
 for (const x of files) {
-  if (x.body.length < 30) { st.empty++; continue }
+  /* ملف بعنوانه فقط (تعيين أو إعلان نُشر دون نص في المصدر): يُربط بعدده أو يُضاف بعنوانه فقط حتى يكتمل فهرس العدد */
+  const bare = x.body.length < 30; if (bare) { st.empty++; x.body = '' }
   if (byExt.has('mq' + x.id)) { st.skippedSame++; continue }
   const m = match(x);
   if (m.unsure) { st.unsure++; unsure.push({ file: x.p, title: x.title, gazette: x.gazette, date: x.date, candidates: m.unsure }); continue }
   if (m.r) {
     const r = m.r; if (touched.has(r.id)) { st.skippedSame++; continue } touched.add(r.id);
     /* حارس قبل ربط مستند قائم أو الكتابة فوقه: موضوع عنوانه في القاعدة يجب أن يرد في أول النص الجديد، وإلا فهو تشريع آخر بالرقم نفسه */
-    { const A = subj(r.title), B = subj(x.title + ' ' + x.body.slice(0, 600)); let h = 0; for (const w of A) if (B.has(w)) h++; if (A.size && h / A.size < 0.5) { touched.delete(r.id);
+    if (bare && m.how !== 'title') { touched.delete(r.id); m.r = null; m.distinct = true }
+    else { const A = subj(r.title), B = subj(x.title + ' ' + x.body.slice(0, 600)); let h = 0; for (const w of A) if (B.has(w)) h++; if (A.size && h / A.size < 0.5) { touched.delete(r.id);
       /* طوبق بالرقم والسنة فقط ولم يرد موضوعه في النص: تشريع آخر يحمل الرقم نفسه، فيُضاف مستقلاً؛ أما تطابق العنوان الحرفي فيبقى للمراجعة */
       if (m.how !== 'title') { m.r = null; m.distinct = true; m.guarded = true }
       else { st.unsure++; unsure.push({ file: x.p, title: x.title, gazette: x.gazette, date: x.date, guard: true, candidates: [{ id: r.id, title: r.title, s: +(h / A.size).toFixed(2) }] }); continue } } }
@@ -99,7 +101,7 @@ for (const x of files) {
     Object.assign(meta, gz(x));
     const len = String(r.body || '').length, fromPdf = meta.text_src === 'pdf';
     for (const d of m.dupes || []) { if (touched.has(d.id)) continue; touched.add(d.id); let dm = {}; try { dm = JSON.parse(d.meta || '{}') } catch {} Object.assign(dm, gz(x)); st.dupes++; if (!DRY) updMeta.run(JSON.stringify(dm), x.date, d.id) }
-    if (len >= 200 && !fromPdf) { st.gazetteOnly++; if (!DRY) updMeta.run(JSON.stringify(meta), x.date, r.id); continue }
+    if (bare || (len >= 200 && !fromPdf)) { st.gazetteOnly++; if (!DRY) updMeta.run(JSON.stringify(meta), x.date, r.id); continue }
     meta.text_src = 'waqaeh'; meta.text_url = x.url; meta.text_at = new Date().toISOString().slice(0, 10); delete meta.text_src_prev;
     if (fromPdf) st.replacedPdf++; else st.filled++;
     if (!DRY) { const t = ftsTitle(r); del.run(r.id, t, norm(r.body || '')); upd.run(x.body, x.body.length > 200 ? 1 : 0, JSON.stringify(meta), x.date, r.id); ins.run(r.id, t, norm(x.body)) }
@@ -108,7 +110,7 @@ for (const x of files) {
   }
   if (m.distinct) st.distinct++;
   const n = nz(x.title), k = KIND(n), ny = numYear(n);
-  const meta = { ...gz(x), type: LTYPE[k], text_src: 'waqaeh', text_url: x.url, text_at: new Date().toISOString().slice(0, 10) };
+  const meta = { ...gz(x), type: LTYPE[k], ...(bare ? { title_only: true } : { text_src: 'waqaeh', text_url: x.url, text_at: new Date().toISOString().slice(0, 10) }) };
   const row = [next, 'PS_LEGISLATION', 'PS', 'law', 'mq' + x.id, x.title, ny ? ny.year : x.year, ny ? ny.no : '', '', '', x.date, LTYPE[k], '', '', '', x.url, x.body, '[]', x.body.length > 200 ? 1 : 0, '', JSON.stringify(meta)];
   if (!DRY) { add.run(...row); ins.run(next, ftsTitle({ title: x.title }), norm(x.body)) }
   byExt.add('mq' + x.id); next++; st.added++;

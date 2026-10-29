@@ -20,7 +20,7 @@ function mkdb(dir) {
   for (const [t, y, n, b, m] of rows) { const x = ins.run('PS_LEGISLATION', 'PS', 'law', 'x' + n + y, t, y, n, '', 'قانون', '', '', b, '[]', b.length > 200 ? 1 : 0, '', '', m); d.prepare('INSERT INTO fts(rowid,title,body) VALUES(?,?,?)').run(Number(x.lastInsertRowid), M.norm(t), M.norm(b)) }
   d.close(); return f;
 }
-const file = (root, y, iss, id, title, body, issue = 'العدد مئة وخمسة وستون ( 19-03-2020)') => { const d = path.join(root, String(y), iss); fs.mkdirSync(d, { recursive: true }); fs.writeFileSync(path.join(d, 'id_' + id + '.txt'), `﻿Source: Al-Muqtafi, Institute of Law, Birzeit University\nSource URL: http://muqtafi.birzeit.edu/pg/getleg.asp?id=${id}\nYear: ${y}\nIssue/index: ${issue}\nTitle: ${title}\nFor authoritative legal verification, consult the printed Official Gazette.\n${title}\n${body}`) };
+const file = (root, y, iss, id, title, body, issue = 'العدد مئة وخمسة وستون ( 19-03-2020)') => { const d = path.join(root, String(y), iss); fs.mkdirSync(d, { recursive: true }); fs.writeFileSync(path.join(d, 'id_' + id + '.txt'), `﻿Source: Al-Muqtafi, Institute of Law, Birzeit University\nSource URL: http://muqtafi.birzeit.edu/pg/getleg.asp?id=${id}\nYear: ${y}\nIssue/index: ${issue}\nTitle: ${title}\nFor authoritative legal verification, consult the printed Official Gazette.\n${body ? title + '\n' + body : ''}`) };
 
 test('misbar-waqaeh: يملأ ويحسّن ويضيف دون تغيير الأرقام، ولا يدمج غير المؤكد، ويُتصفّح العدد', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'waq-')), db = mkdb(dir), T = path.join(dir, 'texts');
@@ -30,9 +30,10 @@ test('misbar-waqaeh: يملأ ويحسّن ويضيف دون تغيير الأر
   file(T, 2009, 'issue_80', 2, 'قانون الكهرباء رقم (13) لسنة 2009م', B(3), 'العدد ( 01-01-2009)');
   file(T, 1994, 'special_42mm', 3, 'قرار رقم (4) لسنة 1994 بشأن تشكيل لجنة', B(4), '( 05-05-1994)');
   file(T, 2012, 'issue_95', 9, 'تعليمات رقم (2) لسنة 2012م بشأن الفوائد والعمولات المعلقة', B(6), '( 01-02-2012)');
+  file(T, 2026, 'issue_241', 20091, 'قرار رقم (9) لسنة 2026م بشأن تعيين مدير عام', '', '( 30-8-2026)');
   file(T, 2020, 'issue_165', 17273, 'قرار بقانون رقم (4) لسنة 2020م بشأن مكافآت', B(5));
   const out = JSON.parse(execFileSync(process.execPath, [path.join(__dirname, '../tools/misbar-waqaeh.js'), '--db', db, '--dir', T, '--report', path.join(dir, 'r.json')]).toString().trim().split('\n').pop());
-  assert.deepStrictEqual([out.filled, out.gazetteOnly, out.replacedPdf, out.unsure, out.added], [1, 1, 1, 1, 2]);
+  assert.deepStrictEqual([out.filled, out.gazetteOnly, out.replacedPdf, out.unsure, out.added, out.empty], [1, 1, 1, 1, 3, 1]);
   const m = M.createMisbar(M.openFile(db));
   const d2 = await m.doc(2); assert.match(d2.body, /نص الوقائع رقم 1/); assert.strictEqual(d2.meta.gazette_number, '165'); assert.strictEqual(d2.meta.gazette_date, '2020-03-19'); assert.strictEqual(d2.meta.text_src, 'waqaeh');
   const d1 = await m.doc(1); assert.match(d1.body, /مصدر آخر/, 'النص الكامل من مصدر آخر لا يُمس'); assert.strictEqual(d1.meta.gazette_number, '33');
@@ -41,7 +42,7 @@ test('misbar-waqaeh: يملأ ويحسّن ويضيف دون تغيير الأر
   const nw = (await m.search({ number: '4', src: 'PS_LEGISLATION', year: 2020 })).results.map(r => r.id); assert.ok(nw.length >= 1);
   assert.strictEqual((await m.search({ q: 'الوقائع', src: 'PS_LEGISLATION' })).total >= 3, true, 'النصوص الجديدة مفهرسة');
   const g = await m.search({ gazette: '165', src: 'PS_LEGISLATION' }); assert.strictEqual(g.results.length, 2); assert.ok(g.results.some(r => r.id === 2));
-  const gl = await m.gazettes(); assert.ok(gl.some(x => x.g === '165' && x.n === 2 && x.year === 2020)); assert.ok(gl.some(x => x.special && /ممتاز 42/.test(x.g)) || true);
+  const gl = await m.gazettes(); assert.ok(gl.some(x => x.g === '241' && x.n === 1 && x.date === '2026-08-30'), 'عدد بعناوين فقط يظهر في الفهرس'); assert.ok(gl.some(x => x.g === '165' && x.n === 2 && x.year === 2020)); assert.ok(gl.some(x => x.special && /ممتاز 42/.test(x.g)) || true);
   assert.strictEqual((await m.handle('gazettes', {}, {})).status, 200);
   const r = JSON.parse(fs.readFileSync(path.join(dir, 'r.json'), 'utf8')); assert.strictEqual(r.unsure[0].candidates.length, 2);
   const again = JSON.parse(execFileSync(process.execPath, [path.join(__dirname, '../tools/misbar-waqaeh.js'), '--db', db, '--dir', T]).toString().trim().split('\n').pop());
