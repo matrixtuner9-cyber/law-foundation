@@ -549,7 +549,7 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
         ...related.flatMap(L => L.articles.map(a => ({ lawId: L.lawId, lawTitle: L.title, n: a.n, label: a.label, text: a.text, from: 'law' })))];
       for (const c of cand) {
         if (penalties.length >= 8 || penalties.some(p => p.lawId === c.lawId && p.n === c.n)) continue;
-        const P = penaltyOf(c.text); if (!P) continue;
+        const P = penaltyOf(c.text); if (!P || !P.kinds.length) continue;
         const refs = [];
         for (const n of P.refs) { const a = (await articlesOf(c.lawId)).find(x => x.n === n); const RP = a && penaltyOf(a.text); if (RP) refs.push({ n, label: a.label, clauses: RP.clauses, kinds: RP.kinds, measures: RP.measures }) }
         penalties.push({ lawId: c.lawId, lawTitle: c.lawTitle, n: c.n, label: c.label, from: c.from, clauses: P.clauses, kinds: P.kinds, measures: P.measures, refs });
