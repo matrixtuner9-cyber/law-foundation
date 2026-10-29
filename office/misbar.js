@@ -571,22 +571,185 @@ function locLinks(r){
  const back={};E.forEach(x=>{(back[x.to]=back[x.to]||[]).push(x.from)});
  return {R,E,back};
 }
-function locMap(r,L){
- const laws=r.laws||[],R=L.R;if(!laws.length&&!R.length)return'';
- const rows=[];laws.forEach((l,li)=>{rows.push({k:'law',id:'mbgL'+li,t:l.title,s:l.status,bad:/ملغ/.test(l.status||'')});(l.articles||[]).forEach((a,ai)=>rows.push({k:'art',id:'mbgA'+li+'_'+ai,t:a.label,pin:a.pinned}))});
- const RH=30,top=46,H=Math.max(rows.length,R.length,3)*RH+top+16,W=1000,lx=600,rw=380,rx=20;
- const ry=i=>top+i*RH,rpos={};rows.forEach((n,i)=>rpos[n.id]=ry(i)+RH/2);
- const step=R.length?Math.max(RH,(H-top-16)/R.length):RH,qpos={};R.forEach((q,i)=>qpos[q.id]=top+i*step+Math.min(step,RH)/2);
- const short=(t,n)=>{t=String(t||'');return t.length>n?t.slice(0,n-1)+'…':t};
- const edges=L.E.filter(x=>rpos[x.to]!=null&&qpos[x.from]!=null).map(x=>{const y1=qpos[x.from],y2=rpos[x.to],x1=rx+rw,x2=lx;return `<path class="mbm-e ${x.cmp?'cmp':''}" data-lk="${x.from} ${x.to}" d="M${x1},${y1} C${x1+110},${y1} ${x2-110},${y2} ${x2},${y2}"/>`}).join('');
- const nodes=rows.map((n,i)=>{const y=ry(i);return n.k==='law'?`<g class="mbm-n law ${n.bad?'bad':''}" data-mbgo="${n.id}" data-lk="${n.id}"><title>${e(n.t)} — ${e(n.s||'')}</title><rect x="${lx}" y="${y+3}" width="${W-lx-20}" height="${RH-6}" rx="7"/><text x="${W-30}" y="${y+RH/2+5}">§ ${e(short(n.t,46))}</text></g>`:`<g class="mbm-n art ${n.pin?'pin':''}" data-mbgo="${n.id}" data-lk="${n.id}"><title>${e(n.t)}</title><circle cx="${W-44}" cy="${y+RH/2}" r="5"/><line x1="${W-44}" y1="${y}" x2="${W-44}" y2="${y+RH}"/><rect x="${lx+30}" y="${y+5}" width="${W-lx-90}" height="${RH-10}" rx="5"/><text x="${W-64}" y="${y+RH/2+5}">${e(short(n.t,38))}${L.back[n.id]?` · ${L.back[n.id].length} ⚖`:''}</text></g>`}).join('');
- const rnodes=R.map(q=>{const y=qpos[q.id],[tc,tl]=BTIER(q.x.court),yr=BYEAR(q.x);return `<g class="mbm-n rul ${tc} ${q.cmp?'cmp':''}" data-mbgo="${q.id}" data-lk="${q.id}"><title>${e(q.x.title)}</title><rect x="${rx}" y="${y-RH/2+3}" width="${rw}" height="${RH-6}" rx="${q.cmp?3:7}"/><rect class="tier" x="${rx+rw-8}" y="${y-RH/2+3}" width="8" height="${RH-6}" rx="3"/><text x="${rx+rw-16}" y="${y+5}">⚖ ${e(short([q.cmp?'مقارنة':tl,q.x.case_no||'',yr||''].filter(Boolean).join(' · ')+' — '+(q.x.court||''),44))}</text></g>`}).join('');
- return `<div class="mbm"><div class="mbm-h"><b>مخطط الترابط</b><span class="m">كل خط يصل حكماً بمادة استند إليها كما هي مسجّلة في القاعدة · مرّر المؤشر لتتبّع الصلة · انقر عقدة للانتقال إليها</span></div>
- <svg class="mbm-s" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMin meet" role="img" aria-label="مخطط الترابط بين التشريعات والأحكام">
- <text class="mbm-lane" x="${W-20}" y="26">التشريعات وموادها ${laws.length?`(${laws.length})`:''}</text><text class="mbm-lane r" x="${rx+rw}" y="26">الأحكام ${R.length?`(${R.length})`:''}</text>
- <line class="mbm-ax" x1="${lx}" y1="36" x2="${W-20}" y2="36"/><line class="mbm-ax r" x1="${rx}" y1="36" x2="${rx+rw}" y2="36"/>
- ${edges}${nodes}${rnodes}${L.E.length?'':`<text class="mbm-none" x="${W/2}" y="${H-8}">لا صلة مسجّلة في القاعدة بين هذه الأحكام وهذه المواد</text>`}</svg></div>`;
+/* ══ خريطة الاستدلال القانوني (Misbar Legal Knowledge Graph) ══
+   طبقات تُقرأ من اليمين: المسألة ← التشريعات وموادها ← الأحكام ← الاستنباط (مؤيد / مخالف / يتطلب تحققاً).
+   لون الخط لغة قانونية مبنية على بيانات فعلية فقط:
+     ذهبي متصل  = استناد مسجّل في القاعدة (الحكم ذكر المادة مع اسم قانونها)
+     أخضر مزرق  = تحقّق منه المكتب (قيّمه مهماً أو ربطه بقضية)
+     أحمر متقطع = اتجاه مخالف: وسمه المكتب مخالفاً، أو طبّق المادة نفسها بنتيجة معاكسة لأحكام أخرى
+     رمادي منقّط = صلة مقترحة بالكلمات أو بالمعنى لم يتحقق منها شيء
+   «مخطط فكر المحامي»: الرحلة كاملة من الوقائع إلى المسائل والنصوص والأحكام والحجج وما يلزم التحقق منه.
+   تخطيط محسوب بالكامل (لا قياس للصفحة): بطاقات ثابتة الارتفاع، ترتيب الأحكام بمركز ثقل موادها لتقليل التقاطع، وتجميع الخطوط الواردة إلى المادة نفسها في حزمة. */
+const RG={info:{},view:'map',z:1,x:0,y:0,hide:{}};
+const RGT={cite:['يستند إلى','استناد مسجّل في القاعدة','#B8892E'],ok:['تحقّق منه المكتب','قيّمه مكتبك مهماً أو ربطه بقضية','#2A8C8A'],opp:['اتجاه مخالف','وسمه المكتب مخالفاً، أو نتيجة معاكسة لأحكام طبّقت المادة نفسها','#B0503A'],sug:['صلة مقترحة','بالكلمات أو بالمعنى — لم يُتحقق منها','#8E98A3']};
+const rgOc=x=>Array.isArray(x.outcome)?x.outcome.join('، '):String(x.outcome||'');
+function rgShort(t,n){t=String(t||'').replace(/\s+/g,' ').trim();return t.length>n?t.slice(0,n-1)+'…':t}
+/* المحرّك: أعمدة من اليمين، عقد ثابتة الارتفاع، خطوط منحنية مع حزم */
+function rgEngine(spec){
+ const CW=246,GAP=136,PAD=34,TOP=74,cols=spec.cols,W=PAD*2+cols.length*CW+(cols.length-1)*GAP;
+ const colX=ci=>W-PAD-(ci+1)*CW-ci*GAP,P={};
+ const hs=cols.map((c,ci)=>spec.nodes.filter(n=>n.col===ci).reduce((s,n)=>s+(n.h||56)+(n.gap||10),0));
+ const H=Math.max(...hs,220)+TOP+40;
+ cols.forEach((c,ci)=>{let y=TOP+(H-TOP-40-hs[ci])/2;for(const n of spec.nodes.filter(n=>n.col===ci)){const h=n.h||56;P[n.id]={x:colX(ci)+(n.ind||0),y,w:CW-(n.ind||0),h,n};y+=h+(n.gap||10)}});
+ /* حزم: خطوط من النوع نفسه إلى العقدة نفسها من ثلاثة مصادر فأكثر تلتقي في نقطة قبلها ثم جذع واحد بعددها */
+ const groups={};spec.edges.forEach((ed,i)=>{if(!P[ed.from]||!P[ed.to])return;const k=ed.to+'|'+ed.type;(groups[k]=groups[k]||[]).push(i)});
+ const side=(a,b)=>{const A=P[a],B=P[b];return A.x>B.x?[A.x,A.y+A.h/2,B.x+B.w,B.y+B.h/2]:[A.x+A.w,A.y+A.h/2,B.x,B.y+B.h/2]};
+ const curve=(x1,y1,x2,y2)=>{const dx=Math.max(40,Math.abs(x2-x1)*.5)*(x2<x1?-1:1);return `M${x1.toFixed(1)},${y1.toFixed(1)} C${(x1+dx).toFixed(1)},${y1.toFixed(1)} ${(x2-dx).toFixed(1)},${y2.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`};
+ let paths='',badges='',k=0;const done=new Set();
+ const ep=(ed,d,cls,lab)=>{const id='rgE'+(k++);RG.info[id]=ed.info||{};RG.info[id].type=ed.type;return `<g class="rg-e ${ed.type} ${cls||''}" data-rge="${id}" data-rg="${ed.from} ${ed.to}"><path class="hit" d="${d}"/><path class="ln" id="${id}" d="${d}"${ed.type==="cite"||ed.type==="ok"?' pathLength="1"':''} marker-end="url(#rgM-${ed.type})"/><path class="fl" d="${d}"/>${lab?`<text dy="-5"><textPath href="#${id}" startOffset="50%" text-anchor="middle">${e(lab)}</textPath></text>`:''}</g>`};
+ for(const [key,idx] of Object.entries(groups)){
+  const es=idx.map(i=>spec.edges[i]);
+  if(es.length>=3){const [to,type]=key.split('|'),B=P[to],from0=P[es[0].from],dir=from0.x>B.x?1:-1,bx=dir>0?B.x+B.w+58:B.x-58,by=B.y+B.h/2,tx=dir>0?B.x+B.w:B.x;
+   for(const ed of es){const A=P[ed.from],sx=dir>0?A.x:A.x+A.w;paths+=ep(ed,curve(sx,A.y+A.h/2,bx,by),'bun',null)}
+   paths+=ep({from:es.map(x=>x.from).join(' '),to,type,info:{bundle:es.map(x=>x.info||{}),label:RGT[type][0],toTitle:B.n.title}},`M${bx},${by} L${tx},${by}`,'trunk',null);
+   badges+=`<g class="rg-bdg ${type}" transform="translate(${bx},${by})" data-rg="${es.map(x=>x.from).join(' ')} ${to}"><circle r="13"/><text dy="4">${es.length}</text></g>`;idx.forEach(i=>done.add(i))}}
+ spec.edges.forEach((ed,i)=>{if(done.has(i)||!P[ed.from]||!P[ed.to])return;const [x1,y1,x2,y2]=side(ed.from,ed.to);paths+=ep(ed,curve(x1,y1,x2,y2),'',ed.label||RGT[ed.type][0])});
+ const heads=cols.map((c,ci)=>`<div class="rg-ch" style="left:${colX(ci)}px;width:${CW}px"><i>${ci+1}</i><b>${e(c.t)}</b>${c.s?`<small>${e(c.s)}</small>`:''}</div>`).join('');
+ const nodes=spec.nodes.map(n=>{const p=P[n.id];return `<div class="rg-n ${n.kind} ${n.cls||''}" data-rgn="${n.id}" style="left:${p.x}px;top:${p.y}px;width:${p.w}px;height:${p.h}px" title="${e(n.tip||n.title)}">${n.ic?`<i class="ic">${n.ic}</i>`:''}<div class="tx"><b>${e(n.title)}</b>${n.sub?`<span>${e(n.sub)}</span>`:''}</div>${n.badge?`<em>${e(n.badge)}</em>`:''}${n.go?`<button type="button" class="go" data-mbgo="${n.go}" title="اذهب إلى تفصيله في اللوحة">↗</button>`:''}${n.open?`<button type="button" class="go" data-act="mbRefOpen" data-v="${n.open}" title="افتح النص كاملاً">⌕</button>`:''}</div>`}).join('');
+ const mk=Object.entries(RGT).map(([t,[, ,c]])=>`<marker id="rgM-${t}" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" fill="${c}"/></marker>`).join('');
+ return {W,H,html:`<div class="rg-cv" style="width:${W}px;height:${H}px">${heads}<svg class="rg-s" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><defs>${mk}<filter id="rgGlow" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>${paths}${badges}</svg>${nodes}</div>`};
 }
+/* بيانات الخريطة من نتيجة التحليل نفسها */
+function rgMapSpec(r,L){
+ const laws=r.laws||[],R=L.R,nodes=[],edges=[],topics=(r.topics||[]).map(t=>t.label);
+ nodes.push({id:'rgQ',col:0,kind:'q',ic:'◉',title:topics.slice(0,2).join(' · ')||'المسألة',sub:rgShort(r.title||((r.keyterms||{}).terms||r.qterms||[]).join('، '),90),h:96,tip:r.title});
+ const artId={};
+ laws.forEach((l,li)=>{nodes.push({id:'rgL'+li,col:1,kind:'law',ic:'§',title:rgShort(l.title.replace(/\s*رقم\s*\(?\d+\)?\s*لسن[ةه]\s*\d+م?\.?$/,''),40),sub:(l.articles||[]).length+' مادة'+(l.topic?' · '+l.topic:''),go:'mbgL'+li,h:52,gap:6,tip:l.title});
+  edges.push({from:'rgQ',to:'rgL'+li,type:/استندت إليه/.test(l.topic||'')?'cite':'sug',label:/استندت إليه/.test(l.topic||'')?'استندت إليه الأحكام':'موضوع المسألة',info:{a:'المسألة',b:l.title,why:/استندت إليه/.test(l.topic||'')?'أضيف لأن أحكاماً معروضة استندت إلى مواده كما سجّلتها القاعدة.':'اختير لأن كلمات السؤال تطابق موضوع «'+(l.topic||'')+'».'}});
+  (l.articles||[]).forEach((a,ai)=>{const id='rgA'+li+'_'+ai;artId['mbgA'+li+'_'+ai]=id;
+   const ok=a.pinned||a.liked,sem=a.sem,rel=a.relied;
+   nodes.push({id,col:1,kind:'art',ind:18,cls:(ok?'ok ':'')+(sem?'sem':''),title:a.label,sub:rgShort(a.text,58),badge:rel?rel+' ⚖':(a.pinned?'📌':''),go:'mbgA'+li+'_'+ai,h:50,gap:(ai===l.articles.length-1?16:6),tip:a.label+' — '+rgShort(a.text,300)});
+   if(ok)edges.push({from:'rgA'+li+'_'+ai,to:'rgQ',type:'ok',label:a.pinned?'مثبّتة في قاموس المكتب':'قيّمها المكتب مهمة',info:{a:a.label,b:'المسألة',why:a.pinned?'ثبّتها مكتبك لهذا الموضوع في قاموس المسبار.':'قيّمها مكتبك «مهمة» في أسئلة مشابهة ('+a.liked+').',art:a.text}});
+   else if(sem)edges.push({from:'rgA'+li+'_'+ai,to:'rgQ',type:'sug',label:'قريبة في المعنى',info:{a:a.label,b:'المسألة',why:'وجدها البحث الدلالي على الجهاز؛ لم تتطابق كلماتها مع السؤال. تحقّق من انطباقها.',art:a.text}})})});
+ /* ترتيب الأحكام بمركز ثقل المواد التي تستند إليها: يقلّل تقاطع الخطوط */
+ const order={};nodes.filter(n=>n.col===1).forEach((n,i)=>order[n.id]=i);
+ const tgt=q=>(q.links||[]).map(x=>artId[x.to]||(x.to.startsWith('mbgL')?'rgL'+x.to.slice(4):null)).filter(Boolean);
+ const bc=q=>{const t=tgt(q);return t.length?t.reduce((s,x)=>s+(order[x]||0),0)/t.length:1e6+(q.cmp?1e3:0)};
+ const RS=[...R].sort((a,b)=>bc(a)-bc(b));
+ const split={};((r.opposing||{}).split||[]).forEach(s=>{(s.for||[]).forEach(x=>split[x.id]={cite:s.cite,side:'لصالح الطاعن أو المتهم',other:(s.against||[]).length});(s.against||[]).forEach(x=>split[x.id]={cite:s.cite,side:'بالرد أو الإدانة',other:(s.for||[]).length})});
+ const bk={ok:[],opp:[],sug:[]};
+ RS.forEach(q=>{const x=q.x,[tc,tl]=BTIER(x.court),yr=BYEAR(x),id='rgR_'+q.id;
+  nodes.push({id,col:2,kind:'rul',cls:(q.cmp?'cmp':tc)+(x.contra?' opp':'')+(x.liked||x.linked?' ok':''),ic:'⚖',title:(q.cmp?(/أردن|تمييز/.test(x.court+(x.source||''))?'الأردن':'مصر'):tl)+(x.case_no?' · '+x.case_no:'')+(yr?' · '+yr:''),sub:rgShort(rgOc(x)||x.court||'',44),go:q.id,open:x.id,h:52,gap:8,tip:x.title});
+  const t=tgt(q);
+  q.links.forEach(lk=>{const to=artId[lk.to]||(lk.to.startsWith('mbgL')?'rgL'+lk.to.slice(4):null);if(!to)return;
+   edges.push({from:id,to,type:q.cmp?'sug':'cite',info:{a:x.title,b:(nodes.find(n=>n.id===to)||{}).tip,why:(q.cmp?'حكم مقارن (غير ملزم) ذكر المادة. ':'')+'سجّلت القاعدة أن الحكم استند إلى: «'+lk.c+'»'+((x.why||[]).some(w=>/^المادة|ماده/.test(w))?'، وتحقّق المسبار من ورود رقم المادة مع اسم قانونها في نص الحكم.':'.'),ex:x.excerpt,id:x.id,art:((laws[+lk.to.slice(4).split('_')[0]]||{}).articles||[])[+lk.to.split('_')[1]]?.text}})});
+  if(x.liked||x.linked)bk.ok.push([id,{a:x.title,b:'يدعم الحجة',why:[x.liked?'قيّمه مكتبك «مهماً» ×'+x.liked:'',x.linked?'ربطه مكتبك بقضية ×'+x.linked:''].filter(Boolean).join(' · '),ex:x.excerpt,id:x.id}]);
+  if(x.contra||split[x.id])bk.opp.push([id,{a:x.title,b:'اتجاه مخالف',why:[x.contra?'وسمه مكتبك «مخالفاً يستحق الدراسة» ×'+x.contra:'',split[x.id]?'طبّق '+split[x.id].cite+' وانتهى '+split[x.id].side+'، بينما انتهت '+split[x.id].other+' أحكام أخرى طبّقت المادة نفسها إلى النتيجة المعاكسة (تصنيف المنطوق آلي).':''].filter(Boolean).join(' · '),ex:x.excerpt,id:x.id}]);
+  if(!q.cmp&&!t.length&&!(x.liked||x.linked))bk.sug.push([id,{a:x.title,b:'يتطلب تحققاً',why:'وُجد بمطابقة كلمات السؤال ('+(x.why||[]).join('، ')+')، ولم تسجّل القاعدة استناده إلى مادة من المواد المعروضة، ولم يقيّمه المكتب. اقرأه قبل الاعتماد عليه.',ex:x.excerpt,id:x.id}])});
+ const B=[['ok','✓','يدعم الحجة','ما تحقّق منه مكتبك'],['opp','⚔','اتجاه مخالف','ما قد يُحتجّ به ضدك'],['sug','?','يتطلب تحققاً','صلة لم يتحقق منها شيء']];
+ B.forEach(([t,ic,ti,su])=>{nodes.push({id:'rgB_'+t,col:3,kind:'bk '+t,ic,title:ti,sub:su,badge:String(bk[t].length),go:t==='opp'?'mbgOpp':'',h:76,gap:26});bk[t].forEach(([from,info])=>edges.push({from,to:'rgB_'+t,type:t,label:'',info}))});
+ return {cols:[{t:'المسألة',s:'من كلمات سؤالك'},{t:'التشريعات والمواد',s:'نصوص مطابقة'},{t:'الأحكام والاجتهادات',s:'مرتبة بموادها'},{t:'الاستنباط',s:'مؤيد · مخالف · يتطلب تحققاً'}],nodes,edges};
+}
+/* مخطط فكر المحامي: من الوقائع إلى ما يلزم فعله */
+function rgJourneySpec(r,L){
+ const nodes=[],edges=[],I=r.inspect,laws=r.laws||[];
+ const facts=[...(r.topics||[]).map(t=>({t:t.label,s:(t.hits||[]).slice(0,3).join('، ')})),...(r.dates||[]).slice(0,2).map(d=>({t:'تاريخ '+d.date,s:rgShort(d.ctx,40)}))].slice(0,5);
+ nodes.push({id:'jF',col:0,kind:'q',ic:'✎',title:'الوقائع',sub:rgShort(r.title||((r.keyterms||{}).terms||r.qterms||[]).join('، '),80),h:80,gap:14});
+ facts.forEach((f,i)=>nodes.push({id:'jF'+i,col:0,kind:'fact',ind:16,title:f.t,sub:f.s,h:46,gap:6}));
+ const iss=I?I.issues:(r.topics||[]).map(t=>({label:t.label,laws:[],found:true}));
+ iss.slice(0,6).forEach((x,i)=>{nodes.push({id:'jI'+i,col:1,kind:'iss',cls:x.found===false?'nf':'',ic:'◈',title:x.label,sub:x.found===false?'لم يجد المسبار مراجع':(x.rulings!=null?x.rulings+' حكم':''),h:52,gap:10});edges.push({from:'jF'+Math.min(i,Math.max(0,facts.length-1)),to:'jI'+i,type:facts.length?'cite':'sug',label:'',info:{a:'الوقائع',b:x.label,why:'مسألة استُخرجت من كلمات الوقائع'+((x.facts||[]).length?': «'+x.facts.slice(0,2).join('»، «')+'»':'')+'.'}})});
+ laws.forEach((l,li)=>{nodes.push({id:'jL'+li,col:2,kind:'law',ic:'§',title:rgShort(l.title.replace(/\s*رقم\s*\(?\d+\)?\s*لسن[ةه]\s*\d+م?\.?$/,''),40),sub:'م '+(l.articles||[]).map(a=>a.n).slice(0,6).join('، '),go:'mbgL'+li,h:52,gap:8,tip:l.title});
+  const i=iss.findIndex(x=>(x.laws||[]).some(z=>z.title===l.title)||(l.topic&&x.label===l.topic));edges.push({from:'jI'+Math.max(0,i),to:'jL'+li,type:i>=0?'cite':'sug',label:'',info:{a:(iss[Math.max(0,i)]||{}).label,b:l.title,why:i>=0?'المسألة تحكمها مواد هذا التشريع كما وُجدت في القاعدة.':'صلة بالموضوع العام.'}})});
+ const P=(r.rulings||[]),grp={};P.forEach(x=>{const k=(Array.isArray(x.outcome)?x.outcome[0]:x.outcome)||'منطوق غير مصنّف';(grp[k]=grp[k]||[]).push(x)});
+ Object.entries(grp).forEach(([k,xs],gi)=>{nodes.push({id:'jR'+gi,col:3,kind:'rul',ic:'⚖',title:k,sub:xs.slice(0,3).map(x=>x.case_no).filter(Boolean).join(' · '),badge:String(xs.length),go:'mbgRul',h:52,gap:8});
+  laws.forEach((l,li)=>{const n=xs.filter(x=>(x.cites||[]).some(c=>BN(c).includes(BN(l.title)))).length;if(n)edges.push({from:'jL'+li,to:'jR'+gi,type:'cite',label:n+' حكم',info:{a:l.title,b:k,why:n+' من هذه الأحكام استند إلى مواد هذا التشريع كما سجّلتها القاعدة.'}})})});
+ const A=[['jQ','◈','ما اشترطته المحاكم',(r.requisites||[]).length,'mbgReq','cite'],['jD','⛨','الدفوع المحتملة',(r.defenses||[]).length,'mbgDef','opp'],['jP','⚑','العقوبات في النصوص',(r.penalties||[]).length,'mbgPen','cite'],['jT','⏱','المواعيد',(r.deadlines||[]).length,'mbgTools','cite']].filter(a=>a[3]);
+ A.forEach(([id,ic,t,n,go,ty])=>{nodes.push({id,col:4,kind:'arg '+ty,ic,title:t,badge:String(n),go,h:56,gap:12});
+  if(id==='jQ'||id==='jD'){const src=(id==='jQ'?r.requisites:r.defenses)||[];Object.entries(grp).forEach(([k,xs],gi)=>{const c=src.filter(q=>xs.some(x=>x.id===q.id)).length;if(c)edges.push({from:'jR'+gi,to:id,type:ty,label:'',info:{a:k,b:t,why:c+' جملة من هذه الأحكام نفسها، تُعرض حرفياً في قسمها.'}})})}
+  else laws.forEach((l,li)=>{const ok=id==='jP'?(r.penalties||[]).some(p=>p.lawId===l.lawId):(r.deadlines||[]).some(d=>d.lawId===l.lawId);if(ok)edges.push({from:'jL'+li,to:id,type:'cite',label:'',info:{a:l.title,b:t,why:'وردت في مواد هذا التشريع كما هي.'}})})});
+ const todo=[...((I&&I.evidence)||[]).filter(x=>x.status==='missing').slice(0,3).map(x=>'دليل ناقص: '+x.label),...(r.opposing&&r.opposing.split.length?['ادرس الاتجاه المخالف ('+r.opposing.split.length+')']:[]),...(iss.filter(x=>x.found===false).map(x=>'لا مرجع لمسألة: '+x.label))].slice(0,5);
+ nodes.push({id:'jN',col:5,kind:'next',ic:'➜',title:'ما يلزم التحقق منه',sub:todo.length?todo.length+' بند':'لا بنود مفتوحة',h:70,gap:10});
+ todo.forEach((t,i)=>nodes.push({id:'jN'+i,col:5,kind:'todo',title:t,h:42,gap:6}));
+ A.forEach(a=>edges.push({from:a[0],to:'jN',type:a[5]==='opp'?'opp':'sug',label:'',info:{a:a[2],b:'ما يلزم التحقق منه',why:'اقرأ النصوص في قسمها ثم قرّر؛ لا استنتاج آلياً هنا.'}}));
+ return {cols:[{t:'الوقائع',s:'من نصك'},{t:'المسائل',s:'مستخرجة'},{t:'النصوص',s:'تشريعات ومواد'},{t:'الأحكام',s:'بحسب منطوقها'},{t:'الحجج',s:'شروط · دفوع · عقوبات · مواعيد'},{t:'الخطوة التالية',s:'للمحامي'}],nodes,edges};
+}
+function locGraph(r,L){
+ if(!(r.laws||[]).length&&!L.R.length)return'';RG.info={};
+ const map=RG.view!=='journey',S=map?rgMapSpec(r,L):rgJourneySpec(r,L),G=rgEngine(S);RG.last=r;RG.lastL=L;
+ const cnt={};S.edges.forEach(x=>cnt[x.type]=(cnt[x.type]||0)+1);
+ return `<div class="rg ${map?'map':'jr'}" id="rgWrap" data-w="${G.W}" data-h="${G.H}">
+ <div class="rg-top"><div class="rg-tabs"><button type="button" class="${map?'on':''}" data-rgv="map">⌁ خريطة الاستدلال القانوني</button><button type="button" class="${map?'':'on'}" data-rgv="journey">✎ مخطط فكر المحامي</button></div>
+  <div class="rg-leg">${Object.entries(RGT).map(([t,[a,b]])=>`<button type="button" class="rg-lg ${t} ${RG.hide[t]?'off':''}" data-rgt="${t}" title="${e(b)} — انقر لإخفائها أو إظهارها"><svg width="34" height="10"><line x1="1" y1="5" x2="33" y2="5"/></svg>${e(a)} <b>${cnt[t]||0}</b></button>`).join('')}</div>
+  <div class="rg-tools"><button type="button" data-rgz="1" title="تكبير">＋</button><button type="button" data-rgz="-1" title="تصغير">－</button><button type="button" data-rgz="0" title="ملاءمة">⟲</button><button type="button" data-rgz="fs" title="ملء الشاشة">⤢</button></div></div>
+ <div class="rg-vp" tabindex="0" aria-label="${map?'خريطة الاستدلال القانوني':'مخطط فكر المحامي'}">${G.html}<div class="rg-pop" hidden></div></div>
+ <p class="rg-note m">${map?'كل خط يحمل معناه: الذهبي استناد مسجّل في القاعدة، والأخضر ما تحقّق منه مكتبك، والأحمر اتجاه مخالف، والرمادي صلة مقترحة لم يُتحقق منها. انقر عقدة لعزل علاقاتها، وانقر خطاً لتعرف لماذا يرتبط.':'الرحلة من وقائعك إلى ما يلزم فعله، من نتائج القاعدة نفسها وبلا استنتاج آلي؛ كل عقدة تنقلك إلى نصوصها الحرفية.'} السحب للتحريك، و Ctrl + العجلة للتكبير.</p></div>`}
+/* التفاعل: ملاءمة الحجم، التحريك والتكبير، التركيز، بطاقة «لماذا يرتبط؟» */
+function rgApply(w){const cv=w.querySelector('.rg-cv');if(cv)cv.style.transform=`translate(${RG.x}px,${RG.y}px) scale(${RG.z})`}
+function rgFit(w){const vp=w.querySelector('.rg-vp');if(!vp)return;const W=+w.dataset.w,H=+w.dataset.h,z=Math.min(1,(vp.clientWidth-8)/W);RG.z=Math.max(.72,z);RG.x=W*RG.z<=vp.clientWidth?(vp.clientWidth-W*RG.z)/2:vp.clientWidth-W*RG.z-4;RG.y=0;vp.style.height=Math.min(Math.max(H*RG.z+10,320),window.innerHeight*.82)+'px';rgApply(w)}
+function rgFocus(w,id){const sv=w.querySelector('.rg-s');w.querySelectorAll('.on-f').forEach(n=>n.classList.remove('on-f'));if(!id){w.classList.remove('focus');RG.f=null;return}
+ RG.f=id;w.classList.add('focus');const near=new Set([id]);w.querySelectorAll('[data-rg]').forEach(g=>{const k=g.dataset.rg.split(' ');if(k.includes(id)){g.classList.add('on-f');k.forEach(x=>near.add(x))}});
+ w.querySelectorAll('[data-rg]').forEach(g=>{const k=g.dataset.rg.split(' ');if(k.includes(id))return;if(g.classList.contains('trunk')&&k.some(x=>near.has(x)))g.classList.add('on-f')});
+ w.querySelectorAll('.rg-n').forEach(n=>{if(near.has(n.dataset.rgn))n.classList.add('on-f')});void sv}
+function rgPop(w,id,ev){const I=RG.info[id],p=w.querySelector('.rg-pop');if(!I||!p)return;const T=RGT[I.type]||RGT.sug;
+ const one=x=>`<div class="rg-pr"><div class="rg-pab"><span>${e(rgShort(x.a,90))}</span><i>⟵ ${e(T[0])} ⟵</i><span>${e(rgShort(x.b,90))}</span></div><p class="rg-why">${e(x.why||'')}</p>${x.ex?`<blockquote class="rg-ex">${e(x.ex)}</blockquote>`:''}${x.art?`<details class="rg-art"><summary>نص المادة كما هو</summary><div>${e(x.art)}</div></details>`:''}${x.id?`<button type="button" class="mb-ref" data-act="mbRefOpen" data-v="${x.id}">افتح الحكم كاملاً</button>`:''}</div>`;
+ p.innerHTML=`<header class="${I.type}"><b>لماذا يرتبط؟</b><span>${e(T[0])} — ${e(T[1])}</span><button type="button" class="x" data-rgx>✕</button></header><div class="rg-pb">${I.bundle?`<p class="rg-why">${I.bundle.length} صلات من النوع نفسه إلى «${e(rgShort(I.toTitle,70))}»:</p>`+I.bundle.map(one).join(''):one(I)}</div>`;
+ p.hidden=false;const vp=w.querySelector('.rg-vp').getBoundingClientRect();let x=ev.clientX-vp.left+12,y=ev.clientY-vp.top+12;x=Math.min(x,vp.width-p.offsetWidth-8);y=Math.min(y,vp.height-p.offsetHeight-8);p.style.left=Math.max(8,x)+'px';p.style.top=Math.max(8,y)+'px'}
+(()=>{let drag=null;
+ const W=()=>document.getElementById('rgWrap');
+ new MutationObserver(()=>{const w=W();if(w&&!w.dataset.fit){w.dataset.fit='1';requestAnimationFrame(()=>{rgFit(w);w.classList.add('in')})}}).observe(document.body,{childList:true,subtree:true});
+ window.addEventListener('resize',()=>{const w=W();if(w)rgFit(w)});
+ document.addEventListener('click',ev=>{const w=W();if(!w||!w.contains(ev.target))return;const t=ev.target;
+  const v=t.closest('[data-rgv]');if(v){RG.view=v.dataset.rgv;const h=document.getElementById('mbgMap');if(h&&RG.last){h.innerHTML=locGraph(RG.last,RG.lastL)}return}
+  const lg=t.closest('[data-rgt]');if(lg){const k=lg.dataset.rgt;RG.hide[k]=!RG.hide[k];lg.classList.toggle('off',RG.hide[k]);w.classList.toggle('h-'+k,RG.hide[k]);return}
+  const z=t.closest('[data-rgz]');if(z){const k=z.dataset.rgz;if(k==='fs'){const el=w;(document.fullscreenElement?document.exitFullscreen():el.requestFullscreen&&el.requestFullscreen()).then?.(()=>setTimeout(()=>rgFit(w),120))}else if(k==='0')rgFit(w);else{RG.z=Math.min(2.4,Math.max(.3,RG.z*(k==='1'?1.2:1/1.2)));rgApply(w)}return}
+  if(t.closest('[data-rgx]')){w.querySelector('.rg-pop').hidden=true;return}
+  if(t.closest('.rg-pop')||t.closest('.go'))return;
+  const ed=t.closest('[data-rge]');if(ed){rgPop(w,ed.dataset.rge,ev);rgFocus(w,null);ed.classList.add('on-f');w.classList.add('focus');return}
+  const n=t.closest('[data-rgn]');w.querySelector('.rg-pop').hidden=true;if(n){rgFocus(w,RG.f===n.dataset.rgn?null:n.dataset.rgn);return}
+  rgFocus(w,null)});
+ document.addEventListener('pointerdown',ev=>{const w=W();if(!w)return;const vp=ev.target.closest&&ev.target.closest('.rg-vp');if(!vp||ev.target.closest('.rg-n,.rg-pop,[data-rge],button'))return;drag={x:ev.clientX-RG.x,y:ev.clientY-RG.y,m:0};vp.setPointerCapture(ev.pointerId);vp.classList.add('drag')});
+ document.addEventListener('pointermove',ev=>{if(!drag)return;const w=W();if(!w)return;RG.x=ev.clientX-drag.x;RG.y=ev.clientY-drag.y;rgApply(w)});
+ document.addEventListener('pointerup',()=>{if(!drag)return;drag=null;const v=document.querySelector('.rg-vp.drag');if(v)v.classList.remove('drag')});
+ document.addEventListener('wheel',ev=>{const vp=ev.target.closest&&ev.target.closest('.rg-vp');if(!vp||!ev.ctrlKey)return;ev.preventDefault();const w=W(),b=vp.getBoundingClientRect(),mx=ev.clientX-b.left,my=ev.clientY-b.top,z0=RG.z,z1=Math.min(2.4,Math.max(.3,z0*(ev.deltaY<0?1.12:1/1.12)));RG.x=mx-(mx-RG.x)*z1/z0;RG.y=my-(my-RG.y)*z1/z0;RG.z=z1;rgApply(w)},{passive:false});
+ document.addEventListener('keydown',ev=>{if(ev.key==='Escape'){const w=W();if(w){rgFocus(w,null);const p=w.querySelector('.rg-pop');if(p)p.hidden=true}}});
+ const css=document.createElement('style');css.textContent=`
+.rg{--ink:#0E2236;--gold:#C9A24A;--gold2:#F3D58A;--ivory:#FBF7EC;margin:14px 0;border:1px solid #E7D6A8;border-radius:18px;background:#fff;box-shadow:0 10px 30px rgb(14 34 54/.08);overflow:hidden}
+.rg-top{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;padding:10px 14px;background:linear-gradient(135deg,#0E2236,#16324d 70%,#1d3f5f);border-bottom:3px solid var(--gold)}
+.rg-tabs{display:flex;gap:6px}.rg-tabs button{font:inherit;font-size:13.5px;font-weight:700;border:1px solid rgb(243 213 138/.4);background:transparent;color:#E9DDBB;border-radius:999px;padding:6px 14px;cursor:pointer}.rg-tabs button.on{background:linear-gradient(135deg,#F3D58A,#C9A24A);color:#0E2236;border-color:#F3D58A;box-shadow:0 0 14px rgb(243 213 138/.45)}
+.rg-leg{display:flex;flex-wrap:wrap;gap:6px}.rg-lg{display:flex;align-items:center;gap:6px;font:inherit;font-size:12px;color:#F2E6C4;background:rgb(255 255 255/.06);border:1px solid rgb(255 255 255/.12);border-radius:999px;padding:3px 10px;cursor:pointer}.rg-lg b{color:#F3D58A}.rg-lg.off{opacity:.35;text-decoration:line-through}
+.rg-lg svg line{stroke-width:3;stroke-linecap:round}.rg-lg.cite line{stroke:#D8B25A}.rg-lg.ok line{stroke:#3FB3AF}.rg-lg.opp line{stroke:#E0705A;stroke-dasharray:6 4}.rg-lg.sug line{stroke:#A9B2BC;stroke-dasharray:1 4}
+.rg-tools{display:flex;gap:4px}.rg-tools button{width:30px;height:30px;border-radius:8px;border:1px solid rgb(243 213 138/.35);background:rgb(255 255 255/.06);color:#F3D58A;font-size:15px;cursor:pointer}.rg-tools button:hover{background:rgb(243 213 138/.18)}
+.rg-vp{position:relative;overflow:hidden;cursor:grab;touch-action:none;background-color:var(--ivory);background-image:radial-gradient(rgb(201 162 74/.22) 1px,transparent 1.2px),radial-gradient(1200px 400px at 85% 0,rgb(243 213 138/.18),transparent 70%);background-size:22px 22px,auto;min-height:320px}
+.rg-vp.drag{cursor:grabbing}.rg-cv{position:absolute;top:0;left:0;transform-origin:0 0}
+.rg-ch{position:absolute;top:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 10px;border-radius:12px;background:rgb(255 255 255/.75);border:1px solid #EADBB4;backdrop-filter:blur(2px)}.rg-ch i{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-weight:800;font-size:12px;color:#0E2236;background:radial-gradient(circle at 35% 30%,#F3D58A,#C9A24A 70%);box-shadow:0 0 8px rgb(243 213 138/.6)}.rg-ch b{color:#0E2236;font-size:13.5px}.rg-ch small{color:#8a7a5c;font-size:11px;width:100%}
+.rg-s{position:absolute;top:0;left:0;overflow:visible;pointer-events:none}.rg-s .rg-e,.rg-s .rg-bdg{pointer-events:auto;cursor:pointer}
+.rg-e .hit{fill:none;stroke:transparent;stroke-width:14}.rg-e .ln{fill:none;stroke-width:2.2;stroke-linecap:round;transition:opacity .25s,stroke-width .25s}.rg-e .fl{fill:none;stroke-width:2.2;stroke-linecap:round;opacity:0;stroke-dasharray:3 16}
+.rg-e.cite .ln{stroke:#C9A24A}.rg-e.cite .fl{stroke:#FFF1C2}.rg-e.ok .ln{stroke:#2A8C8A}.rg-e.ok .fl{stroke:#C9F1EE}.rg-e.opp .ln{stroke:#B0503A;stroke-dasharray:7 5}.rg-e.sug .ln{stroke:#8E98A3;stroke-dasharray:2 5;stroke-width:2}
+.rg-e.trunk .ln{stroke-width:5.5}.rg-e.bun .ln{stroke-width:1.6;opacity:.75}
+.rg-e text{font-size:11px;font-weight:700;fill:#5b4a22;opacity:0;transition:opacity .2s;paint-order:stroke;stroke:#FBF7EC;stroke-width:4px}.rg-e.ok text{fill:#1f6b69}.rg-e.opp text{fill:#8a3a2a}.rg-e.sug text{fill:#5d6670}
+.rg-e:hover .ln{stroke-width:3.4;filter:url(#rgGlow)}.rg-e:hover text{opacity:1}
+.rg-bdg circle{fill:#0E2236;stroke:#F3D58A;stroke-width:2;filter:url(#rgGlow)}.rg-bdg text{fill:#F3D58A;font-size:11.5px;font-weight:800;text-anchor:middle}.rg-bdg.ok circle{stroke:#3FB3AF}.rg-bdg.opp circle{stroke:#E0705A}.rg-bdg.sug circle{stroke:#A9B2BC}
+.rg.in .rg-e .ln{animation:rgDraw 1.1s ease-out both}.rg.in .rg-e.opp .ln,.rg.in .rg-e.sug .ln{animation:rgFade .9s ease-out both}
+@keyframes rgDraw{from{stroke-dasharray:1 1;stroke-dashoffset:1}to{stroke-dasharray:1 0;stroke-dashoffset:0}}@keyframes rgFade{from{opacity:0}}@keyframes rgFlow{to{stroke-dashoffset:-38}}
+.rg.focus .rg-e{opacity:.08}.rg.focus .rg-n{opacity:.28;filter:saturate(.4)}.rg.focus .rg-bdg{opacity:.15}
+.rg.focus .rg-e.on-f,.rg.focus .rg-bdg.on-f{opacity:1}.rg.focus .rg-e.on-f .ln{stroke-width:3.6;filter:url(#rgGlow)}.rg.focus .rg-e.on-f .fl{opacity:.95;animation:rgFlow 1.2s linear infinite}.rg.focus .rg-e.on-f text{opacity:1}.rg.focus .rg-n.on-f{opacity:1;filter:none}
+.rg.h-cite .rg-e.cite,.rg.h-cite .rg-bdg.cite,.rg.h-ok .rg-e.ok,.rg.h-ok .rg-bdg.ok,.rg.h-opp .rg-e.opp,.rg.h-opp .rg-bdg.opp,.rg.h-sug .rg-e.sug,.rg.h-sug .rg-bdg.sug{display:none}
+.rg-n{position:absolute;display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:12px;background:#fff;border:1px solid #E4D3A6;box-shadow:0 3px 10px rgb(14 34 54/.08);cursor:pointer;transition:transform .18s,box-shadow .18s,opacity .25s;overflow:hidden}
+.rg-n:hover{transform:translateY(-2px);box-shadow:0 0 0 2px rgb(201 162 74/.45),0 8px 20px rgb(14 34 54/.14)}
+.rg.in .rg-n{animation:rgPop .5s cubic-bezier(.2,.8,.3,1.2) both}@keyframes rgPop{from{opacity:0;transform:scale(.92)}}
+.rg-n .ic{flex:0 0 26px;height:26px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-weight:800;font-size:13px;color:#0E2236;background:radial-gradient(circle at 35% 30%,#F3D58A,#C9A24A 70%)}
+.rg-n .tx{min-width:0;flex:1;display:flex;flex-direction:column;gap:1px}.rg-n .tx b{font-size:12.8px;color:#0E2236;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.rg-n .tx span{font-size:11px;color:#7a6a4c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rg-n em{font-style:normal;font-size:11.5px;font-weight:800;color:#8A6A25;background:#FBF1D6;border-radius:999px;padding:1px 8px;white-space:nowrap}
+.rg-n .go{border:0;background:transparent;color:#B8892E;font-size:14px;cursor:pointer;padding:0 2px;opacity:.55}.rg-n:hover .go{opacity:1}
+.rg-n.q{background:linear-gradient(135deg,#0E2236,#1d3f5f);border:2px solid #C9A24A;box-shadow:0 0 0 4px rgb(243 213 138/.25),0 0 28px rgb(243 213 138/.45);border-radius:18px;align-items:flex-start}.rg-n.q .tx b{color:#F3D58A;font-size:14.5px;white-space:normal}.rg-n.q .tx span{color:#D9C79A;white-space:normal;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
+.rg-n.law{background:linear-gradient(135deg,#0E2236,#16324d 70%,#1d3f5f);border:0;border-right:5px solid #C9A24A}.rg-n.law .tx b{color:#F7E7BC}.rg-n.law .tx span{color:#d9c79a}.rg-n.law em{background:rgb(243 213 138/.15);color:#F3D58A}
+.rg-n.art{border-right:4px solid #C9A24A;background:linear-gradient(90deg,#fff,#FFFCF4)}.rg-n.art.ok{border-right-color:#2A8C8A;box-shadow:0 0 0 1px rgb(42 140 138/.35),0 3px 10px rgb(14 34 54/.08)}.rg-n.art.sem{border-right-style:dashed}
+.rg-n.rul{border-right:4px solid #1D3A57}.rg-n.rul.app{border-right-color:#2D7A78}.rg-n.rul.first{border-right-color:#6B7A8C}.rg-n.rul.cmp{border:1px dashed #BDB6A8;background:#FAF8F3}.rg-n.rul .ic{background:radial-gradient(circle at 35% 30%,#dfe8f2,#9DB2C8 70%)}
+.rg-n.rul.ok{box-shadow:0 0 0 2px rgb(42 140 138/.45),0 3px 10px rgb(14 34 54/.08)}.rg-n.rul.opp{box-shadow:0 0 0 2px rgb(176 80 58/.45),0 3px 10px rgb(14 34 54/.08)}
+.rg-n.bk{border-radius:16px;border:0;color:#fff;align-items:center}.rg-n.bk .tx b{color:#fff;font-size:14px}.rg-n.bk .tx span{color:rgb(255 255 255/.8)}.rg-n.bk em{background:rgb(255 255 255/.18);color:#fff;font-size:14px}
+.rg-n.bk.ok{background:linear-gradient(135deg,#1f6b69,#2A8C8A);box-shadow:0 0 22px rgb(42 140 138/.35)}.rg-n.bk.opp{background:linear-gradient(135deg,#7A2E1C,#B0503A);box-shadow:0 0 22px rgb(176 80 58/.35)}.rg-n.bk.sug{background:linear-gradient(135deg,#55606b,#8E98A3)}.rg-n.bk .ic{background:rgb(255 255 255/.92)}
+.rg-n.fact{border-right:4px solid #C9A24A}.rg-n.iss{border-right:4px solid #2D7A78}.rg-n.iss.nf{border-right-color:#B0503A;opacity:.85}.rg-n.arg{border-right:4px solid #C9A24A}.rg-n.arg.opp{border-right-color:#B0503A}.rg-n.next{background:linear-gradient(135deg,#C9A24A,#F3D58A);border:0}.rg-n.next .tx b,.rg-n.next .tx span{color:#0E2236}.rg-n.todo{background:#FFF8E6;border-style:dashed}.rg-n.todo .tx b{white-space:normal;font-size:12px}
+.rg-pop{position:absolute;z-index:5;width:min(440px,92%);max-height:70%;overflow:auto;background:#fff;border-radius:14px;box-shadow:0 18px 50px rgb(14 34 54/.28);border:1px solid #E4D3A6;animation:rgPop .25s ease-out}
+.rg-pop header{position:sticky;top:0;display:flex;flex-wrap:wrap;gap:4px 10px;align-items:baseline;padding:10px 14px;color:#fff;background:linear-gradient(135deg,#0E2236,#1d3f5f);border-bottom:3px solid #C9A24A}.rg-pop header.ok{border-bottom-color:#2A8C8A}.rg-pop header.opp{border-bottom-color:#B0503A}.rg-pop header.sug{border-bottom-color:#8E98A3}
+.rg-pop header b{color:#F3D58A;font-size:14.5px}.rg-pop header span{font-size:12px;color:#D9C79A;flex:1}.rg-pop .x{border:0;background:transparent;color:#F3D58A;font-size:15px;cursor:pointer}
+.rg-pb{padding:10px 14px}.rg-pr{padding:8px 0;border-bottom:1px dashed #E4D3A6}.rg-pr:last-child{border:0}.rg-pab{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:12.5px;font-weight:700;color:#0E2236}.rg-pab i{font-style:normal;color:#B8892E;font-size:11.5px}
+.rg-why{font-size:12.8px;color:#3a2f1a;margin:6px 0;line-height:1.7}.rg-ex{margin:6px 0;padding:8px 12px;border-right:3px solid #C9A24A;background:#FBF6EA;font-size:12.5px;line-height:1.8;border-radius:8px}
+.rg-art summary{cursor:pointer;font-size:12px;color:#8A6A25;font-weight:700}.rg-art div{white-space:pre-wrap;font-size:12.5px;line-height:1.8;background:#FFFCF4;border:1px solid #EADBB4;border-radius:8px;padding:8px 10px;margin-top:4px;max-height:220px;overflow:auto}
+.rg-note{padding:8px 14px;margin:0;background:#FFFCF4;border-top:1px solid #EADBB4;font-size:12px}
+.rg:fullscreen{border-radius:0;display:flex;flex-direction:column}.rg:fullscreen .rg-vp{flex:1;height:auto!important}
+@media (prefers-reduced-motion:reduce){.rg.in .rg-e .ln,.rg.in .rg-n,.rg.focus .rg-e.on-f .fl{animation:none}}
+@media print{.rg-top .rg-tools,.rg-tabs{display:none}}`;document.head.appendChild(css)})();
+
 function locYears(L){
  const ys=L.R.map(q=>({q,y:BYEAR(q.x)})).filter(o=>o.y);if(ys.length<2)return'';
  let a=Math.min(...ys.map(o=>o.y)),b=Math.max(...ys.map(o=>o.y));if(a===b){a--;b++}
@@ -691,7 +854,7 @@ function locBoard(r){
  ${locPen(r,true)}
  ${locQuotes(r,true)}
  ${locOpposing(r,true)}
- <div id="mbgMap">${locMap(r,L)}</div>
+ <div id="mbgMap">${locGraph(r,L)}</div>
  <div class="mbg-lanes">
   <div class="mbg-lane leg" id="mbgLaws"><div class="mbg-lnh"><i>§</i><b>التشريعات</b><small>النصوص كاملة كما هي في القاعدة</small></div>${cits?`<div class="mbg-grp"><h5>المواد المذكورة في نصك <small>(${(r.citations||[]).length})</small></h5><div class="mbg-rail">${cits}</div></div>`:''}${laws||(!cits?'<p class="m mbg-empty">لم يُطابَق تشريع.</p>':'')}</div>
   <div class="mbg-lane jud" id="mbgRul"><div class="mbg-lnh"><i>⚖</i><b>الأحكام القضائية</b><small>${PR.length} فلسطيني${CR.length?' · '+CR.length+' للمقارنة':''}</small></div>${locYears(L)}<div class="mbg-legend"><span class="top">نقض / عليا</span><span class="app">استئناف</span><span class="first">أول درجة</span>${CR.length?'<span class="cmp">مقارنة</span>':''}</div>
