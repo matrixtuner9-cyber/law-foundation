@@ -170,6 +170,26 @@ const NEGQ = [
   [/(?:ال)?غير\s+(?:ال)?(?:عمد[يى]?|مقصود|قصد[يى])/g, ' عن إهمال أو قلة احتراز '],
 ];
 function rewriteNeg(text) { let t = String(text || ''); for (const [rx, to] of NEGQ) t = t.replace(rx, to); return t }
+
+/* ── العقوبة: إن سأل المستخدم عن العقوبة تُستخرج جمل العقوبة من نص المادة حرفياً، مع أنواعها ومقاديرها كما وردت ── */
+const PEN_Q = /عقوب|عقاب|يعاقب|يعاقَب|الجزاء|جزاء|حبس|سجن|غرام|[اأ]شغال|[اإ]عدام|كم سن[ةه]|كم سنوات|ما حكم|العقوبه/;
+const PEN_W = new Set(['عقوبه', 'العقوبه', 'عقوبات', 'العقوبات', 'يعاقب', 'عقاب', 'العقاب', 'جزاء', 'الجزاء', 'حبس', 'الحبس', 'سجن', 'السجن', 'غرامه', 'الغرامه', 'اشغال', 'الاشغال', 'اعدام', 'الاعدام', 'حكم', 'سنه', 'سنوات']);
+const PEN_RX = /يعاق[َب]|يُعاقب|عوقب|يعاقبون|العقوب[ةه]|عقوبت|بالحبس|بالسجن|بالغرام|بالأشغال|بالاشغال|بالإعدام|بالاعدام|بالاعتقال|الأشغال الشاقة|الاشغال الشاقه|بغرامة|الحبس|الغرامة/;
+const PEN_KINDS = [['الإعدام', /[اإ]عدام/], ['الأشغال الشاقة المؤبدة', /[اأ]شغال الشاق[ةه] المؤبد[ةه]|[اأ]شغال الشاق[ةه] مؤبد/], ['الأشغال الشاقة المؤقتة', /[اأ]شغال الشاق[ةه](?! المؤبد)(?! مؤبد)/], ['الاعتقال', /اعتقال/], ['الحبس', /حبس/], ['السجن', /سجن/], ['الغرامة', /غرام[ةه]|بغرامة/]];
+function penaltyOf(text) {
+  const t = String(text || ''); if (!PEN_RX.test(flat(t))) return null;
+  /* جمل كاملة كما وردت: تُقسم عند السطر الجديد والنقطة والفاصلة المنقوطة فقط */
+  const clauses = t.split(/\n|(?<=[.؛])\s+/).map(x => x.trim()).filter(x => x && PEN_RX.test(flat(x)));
+  if (!clauses.length) return null;
+  const all = flat(clauses.join(' '));
+  const kinds = PEN_KINDS.filter(([, rx]) => rx.test(all)).map(([k]) => k);
+  const U = '(?:أيام|ايام|يوماً|يوما|يوم|أسابيع|اسابيع|أسبوع|اسبوع|أشهر|اشهر|شهرين|شهراً|شهرا|شهر|سنوات|سنتين|سنةً|سنة|سنه|دنانير|ديناراً|دينارا|دينار|جنيهاً|جنيها|جنيه|شواقل|شيكل)';
+  const N = '(?:\\d|واحد|اثن|ثلاث|اربع|أربع|خمس|ست|سبع|ثمان|تسع|عشر|مائ|مئ|الف|ألف|آلاف|الاف|يوم|أسبوع|اسبوع|شهر|سنة|سنتين)';
+  const mrx = new RegExp('(?<![\\u0621-\\u064A])(?:(?:من|لا تقل عن|لا تزيد على|لا تتجاوز|لا تنقص عن|مدة|حتى)\\s)?' + N + '[^،.؛\\n]{0,22}?' + U + '(?:\\s(?:إلى|الى|حتى)\\s[^،.؛\\n]{0,25}?' + U + ')?', 'g');
+  const measures = [...new Set(clauses.flatMap(c => [...c.matchAll(mrx)].map(m => m[0].trim())))].slice(0, 6);
+  const refs = [...new Set(clauses.flatMap(c => [...flat(c).matchAll(/(?:المنصوص عليها|المذكورة|المقررة)\s+في\s+(?:ال)?ماد[ةه]\s*\(?\s*(\d+)/g)].map(m => m[1])))].slice(0, 3);
+  return { clauses, kinds, measures, refs };
+}
 /* الكلمات الأثقل في النص: التكرار مع طول الكلمة، بعد حذف العام */
 function keyterms(text, k = 8) {
   const ws = norm(text).split(' ').filter(w => w.length >= 3 && !/^\d+$/.test(w) && !GENERIC.has(w));
@@ -377,13 +397,17 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
     /* كلمات البحث: كلمات الموضوعات الدالّة أولاً ثم الأثقل في النص، دون كلمات أسماء التشريعات المذكورة (تملأ النتائج بكل حكم ذكر القانون) */
     const titleW = new Set(law.filter(c => c.lawTitle).flatMap(c => norm(c.lawTitle).split(' ')).concat(['قانون', 'فلسطيني']));
     const topicW = tp.flatMap(t => t.hits.flatMap(h => norm(h).split(' '))).filter(w => w.length >= 3 && !GENERIC.has(w));
-    const terms = [...new Set([...topicW, ...kt.terms])].filter(w => !titleW.has(w)).slice(0, 14);
+    const penQ = PEN_Q.test(flat(src));
+    /* سؤال العقوبة: كلمات العقوبة هي غرض السؤال لا موضوعه، فلا تُرتَّب بها المواد (وإلا تقدّمت مواد العقوبات العامة) */
+    const terms = [...new Set([...topicW, ...kt.terms])].filter(w => !titleW.has(w) && !(penQ && PEN_W.has(w))).slice(0, 14);
     /* التشريعات المعنية بالموضوعات، وأقرب موادها لنص المستخدم */
     const lawKeys = [...new Set(tp.flatMap(t => t.laws))].slice(0, 5), related = [];
     for (const k of lawKeys) {
       const L = await resolveLaw(k); if (!L || related.some(r => r.lawId === L.id)) continue;
       /* قانون العقوبات لسنة 1960 يكتب «شك» لا «شيك» */
-      const arts = rankArticles(await articlesOf(L.id), k === 'penal' && terms.includes('شيك') ? [...terms, 'شك'] : terms, 3).filter(a => !law.some(c => c.lawId === L.id && c.article === a.n));
+      const rk = rankArticles(await articlesOf(L.id), k === 'penal' && terms.includes('شيك') ? [...terms, 'شك'] : terms, penQ ? 6 : 3);
+      /* سؤال العقوبة: أعلى ثلاث مواد، ثم ما بعدها إن كان فيه نص عقوبة */
+      const arts = (penQ ? rk.filter((a, i) => i < 3 || penaltyOf(a.text)) : rk).slice(0, penQ ? 5 : 3).filter(a => !law.some(c => c.lawId === L.id && c.article === a.n));
       related.push({ lawId: L.id, title: L.title, status: L.status, topic: (tp.find(t => t.laws.includes(k)) || {}).label || '', articles: arts });
     }
     /* استعلامات الأحكام: الكلمات الدالّة، ثم كل موضوع، ثم كل مادة مذكورة (الأحكام التي ورد فيها رقمها مع اسم قانونها) */
@@ -497,12 +521,25 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
           note: other.length && !jod.length ? 'المبالغ في النص بغير الدينار؛ قدّر ما يعادلها بالدينار للمقارنة بحد المادة 39.' : '', valid: await validity(usul.id, a39.text, ctx) };
       }
     }
+    /* خانات العقوبة: من المواد المذكورة في النص ثم مواد التشريعات المعنية؛ والمادة التي تحيل عقوبتها إلى مادة أخرى من القانون نفسه تُعرض معها */
+    const penalties = [];
+    if (penQ) {
+      const cand = [...law.filter(c => c.found).map(c => ({ lawId: c.lawId, lawTitle: c.lawTitle, n: c.article, label: c.label, text: c.text, from: 'cite' })),
+        ...related.flatMap(L => L.articles.map(a => ({ lawId: L.lawId, lawTitle: L.title, n: a.n, label: a.label, text: a.text, from: 'law' })))];
+      for (const c of cand) {
+        if (penalties.length >= 8 || penalties.some(p => p.lawId === c.lawId && p.n === c.n)) continue;
+        const P = penaltyOf(c.text); if (!P) continue;
+        const refs = [];
+        for (const n of P.refs) { const a = (await articlesOf(c.lawId)).find(x => x.n === n); const RP = a && penaltyOf(a.text); if (RP) refs.push({ n, label: a.label, clauses: RP.clauses, kinds: RP.kinds, measures: RP.measures }) }
+        penalties.push({ lawId: c.lawId, lawTitle: c.lawTitle, n: c.n, label: c.label, from: c.from, clauses: P.clauses, kinds: P.kinds, measures: P.measures, refs });
+      }
+    }
     const am = amounts(src), cn = caseNos(src);
     const total = am.reduce((a, x) => { a[x.currency] = (a[x.currency] || 0) + x.value; return a }, {});
     return { status: 200, body: {
       title: clip(title, 160), at: now().toISOString(), ms: Date.now() - t0, offline: true,
       topics: tp.map(({ q, laws, ...t }) => t), keyterms: { terms, phrases: kt.phrases },
-      citations: law, laws: related, rulings: ps, comparative: cmp2, learned, qterms: qw, ctx, timeRule, deadlines, countRule, jurisdiction,
+      citations: law, laws: related, penQ, penalties, rulings: ps, comparative: cmp2, learned, qterms: qw, ctx, timeRule, deadlines, countRule, jurisdiction,
       timeline: timeline(ds), amounts: am.slice(0, 40), amountTotals: total, caseNos: cn.slice(0, 30),
       notice: 'نتائج بحث آلي من القاعدة المحلية دون إنترنت: النصوص منقولة حرفياً، والمدد والمبالغ محسوبة من النص المُدخل. لا يتضمن رأياً قانونياً؛ راجع كل نتيجة قبل الاعتماد عليها.',
     } };
@@ -665,4 +702,4 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
   return { analyze, dissect, gaps, handle, resolveLaw };
 }
 
-module.exports = { rewriteNeg, createLocal, amendNotes, RULES, citations, dates, amounts, caseNos, topics, keyterms, splitArticles, matchLaw, LAWS, TOPICS };
+module.exports = { penaltyOf, PEN_Q, rewriteNeg, createLocal, amendNotes, RULES, citations, dates, amounts, caseNos, topics, keyterms, splitArticles, matchLaw, LAWS, TOPICS };
