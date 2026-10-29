@@ -59,6 +59,11 @@ function match(x) {
   /* أكثر من مرشح، أو مرشح بالرقم فقط: يرجح من يشابه العنوان وتطابق سنته */
   const sc = cands.map(r => ({ r, s: sim(x.title, r.title) + (Number(r.year) === x.year ? 0.2 : 0) + (r.date && r.date === x.date ? 0.5 : 0) })).sort((a, b) => b.s - a.s);
   if (sc[0].s >= 0.75 && (sc.length === 1 || sc[0].s - sc[1].s >= 0.25)) return { r: sc[0].r, how: ex.length > 1 ? 'title+date' : 'number', s: +sc[0].s.toFixed(2) };
+  /* المرشحون الأعلى نسخ مكررة في القاعدة للتشريع نفسه (العنوان المطبّع واحد): يُربط العدد بها كلها، ويُملأ نص أقدمها رقماً */
+  const top = sc.filter(c => c.s >= 0.75 && sc[0].s - c.s < 0.25);
+  if (top.length > 1 && new Set(top.map(c => nz(c.r.title))).size === 1 && sim(x.title, top[0].r.title) >= 0.75) { const all = top.map(c => c.r).sort((a, b) => a.id - b.id); return { r: all[0], dupes: all.slice(1), how: 'dupes' } }
+  /* لا مرشح يشبه العنوان (نوع آخر يحمل الرقم والسنة نفسيهما، مثل قرار وزير مقابل قرار مجلس الوزراء): تشريع مختلف يُضاف */
+  if (sc[0].s < 0.75 && !ex.length) return { r: null, distinct: true };
   return { r: null, unsure: sc.slice(0, 3).map(c => ({ id: c.r.id, title: c.r.title, s: +c.s.toFixed(2) })) };
 }
 
@@ -68,7 +73,7 @@ const updMeta = db.prepare('UPDATE docs SET meta=?, date=CASE WHEN date IS NULL 
 const del = db.prepare("INSERT INTO fts(fts,rowid,title,body) VALUES('delete',?,?,?)"), ins = db.prepare('INSERT INTO fts(rowid,title,body) VALUES(?,?,?)');
 const add = db.prepare('INSERT INTO docs(id,src,country,kind,ext_id,title,year,number,court,case_no,date,ltype,subject,status,status_code,url,body,cites,has_text,file_url,meta) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
 let next = Number(db.prepare('SELECT MAX(id) m FROM docs').get().m) + 1;
-const st = { files: files.length, gazetteOnly: 0, filled: 0, replacedPdf: 0, added: 0, unsure: 0, skippedSame: 0, empty: 0 }, unsure = [], touched = new Set();
+const st = { files: files.length, gazetteOnly: 0, filled: 0, replacedPdf: 0, added: 0, unsure: 0, skippedSame: 0, empty: 0, dupes: 0, distinct: 0 }, unsure = [], touched = new Set();
 const gz = x => ({ gazette_name: 'الوقائع الفلسطينية', gazette_number: x.gazette, gazette_date: x.date, gazette_issue: x.issueText, gazette_src: 'المقتفي — معهد الحقوق، جامعة بيرزيت', gazette_url: x.url });
 
 if (!DRY) db.exec('BEGIN');
@@ -82,12 +87,14 @@ for (const x of files) {
     let meta = {}; try { meta = JSON.parse(r.meta || '{}') } catch {}
     Object.assign(meta, gz(x));
     const len = String(r.body || '').length, fromPdf = meta.text_src === 'pdf';
+    for (const d of m.dupes || []) { if (touched.has(d.id)) continue; touched.add(d.id); let dm = {}; try { dm = JSON.parse(d.meta || '{}') } catch {} Object.assign(dm, gz(x)); st.dupes++; if (!DRY) updMeta.run(JSON.stringify(dm), x.date, d.id) }
     if (len >= 200 && !fromPdf) { st.gazetteOnly++; if (!DRY) updMeta.run(JSON.stringify(meta), x.date, r.id); continue }
     meta.text_src = 'waqaeh'; meta.text_url = x.url; meta.text_at = new Date().toISOString().slice(0, 10); delete meta.text_src_prev;
     if (fromPdf) st.replacedPdf++; else st.filled++;
     if (!DRY) { const t = ftsTitle(r); del.run(r.id, t, norm(r.body || '')); upd.run(x.body, x.body.length > 200 ? 1 : 0, JSON.stringify(meta), x.date, r.id); ins.run(r.id, t, norm(x.body)) }
     continue;
   }
+  if (m.distinct) st.distinct++;
   const n = nz(x.title), k = KIND(n), ny = numYear(n);
   const meta = { ...gz(x), type: LTYPE[k], text_src: 'waqaeh', text_url: x.url, text_at: new Date().toISOString().slice(0, 10) };
   const row = [next, 'PS_LEGISLATION', 'PS', 'law', 'mq' + x.id, x.title, ny ? ny.year : x.year, ny ? ny.no : '', '', '', x.date, LTYPE[k], '', '', '', x.url, x.body, '[]', x.body.length > 200 ? 1 : 0, '', JSON.stringify(meta)];
