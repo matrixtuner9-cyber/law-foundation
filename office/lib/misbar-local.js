@@ -707,7 +707,7 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
     if (R.title) return typeof misbar.byTitle === 'function' ? (await misbar.byTitle(R.title, 'PS_LEGISLATION', 10))[0] || null : null;
     if (typeof misbar.byNumber !== 'function') return null;
     const xs = await misbar.byNumber(R.kind === 'cabinet' ? '' : R.kind, R.no, R.year);
-    return xs.find(x => { const t = norm(x.title); return (R.kind !== 'cabinet' || (/مجلس الوزراء/.test(t) && !/رئيس مجلس الوزراء/.test(t))) && (!R.kw || t.includes(norm(R.kw))) }) || null;
+    return xs.find(x => { const t = flat(x.title); return (R.kind !== 'cabinet' || (/مجلس\s*الوزراء/.test(t) && !/رئيس\s*مجلس\s*الوزراء/.test(t))) && (!R.kw || norm(x.title).includes(norm(R.kw))) }) || null;
   }
   async function refValues() {
     const out = [];
