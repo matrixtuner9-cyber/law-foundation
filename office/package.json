@@ -14,8 +14,7 @@
   "dependencies": {
     "cheerio": "^1.0.0",
     "playwright-core": "^1.48.2",
-    "web-push": "^3.6.7",
-    "@huggingface/transformers": "3.7.1"
+    "web-push": "^3.6.7"
   },
   "productName": "Misbar",
   "author": "Misbar Law Systems",
@@ -53,18 +52,6 @@
       "!node_modules/builder-util-runtime/**",
       "!node_modules/electron-publish/**",
       "!node_modules/.cache/**",
-      "!node_modules/onnxruntime-node/bin/napi-v3/darwin/**",
-      "!node_modules/onnxruntime-node/bin/napi-v3/linux/**",
-      "!node_modules/onnxruntime-node/bin/napi-v3/win32/arm64/**",
-      "!node_modules/onnxruntime-web/dist/*.wasm",
-      "!node_modules/onnxruntime-web/dist/*.map",
-      "!node_modules/@img/sharp-darwin*/**",
-      "!node_modules/@img/sharp-linux*/**",
-      "!node_modules/@img/sharp-libvips-darwin*/**",
-      "!node_modules/@img/sharp-libvips-linux*/**",
-      "!node_modules/@img/sharp-win32-arm64/**",
-      "!node_modules/@img/sharp-win32-ia32/**",
-      "!node_modules/@img/sharp-wasm32/**",
       "!data/**",
       "!backups/**",
       "!MithaqBackups/**",
@@ -117,10 +104,6 @@
       {
         "from": "data/bar/lawyers.json",
         "to": "bar/lawyers.json"
-      },
-      {
-        "from": "data/misbar-sem",
-        "to": "lawsem"
       }
     ]
   },
