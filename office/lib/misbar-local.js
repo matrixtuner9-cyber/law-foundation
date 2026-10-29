@@ -184,9 +184,10 @@ function penaltyOf(text) {
   const all = flat(clauses.join(' '));
   const kinds = PEN_KINDS.filter(([, rx]) => rx.test(all)).map(([k]) => k);
   const U = '(?:أيام|ايام|يوماً|يوما|يوم|أسابيع|اسابيع|أسبوع|اسبوع|أشهر|اشهر|شهرين|شهراً|شهرا|شهر|سنوات|سنتين|سنةً|سنة|سنه|دنانير|ديناراً|دينارا|دينار|جنيهاً|جنيها|جنيه|شواقل|شيكل)';
-  const N = '(?:\\d|واحد|اثن|ثلاث|اربع|أربع|خمس|ست|سبع|ثمان|تسع|عشر|مائ|مئ|الف|ألف|آلاف|الاف|يوم|أسبوع|اسبوع|شهر|سنة|سنتين)';
-  const mrx = new RegExp('(?<![\\u0621-\\u064A])(?:(?:من|لا تقل عن|لا تزيد على|لا تتجاوز|لا تنقص عن|مدة|حتى)\\s)?' + N + '[^،.؛\\n]{0,22}?' + U + '(?:\\s(?:إلى|الى|حتى)\\s[^،.؛\\n]{0,25}?' + U + ')?', 'g');
-  const measures = [...new Set(clauses.flatMap(c => [...c.matchAll(mrx)].map(m => m[0].trim())))].slice(0, 6);
+  const N = '(?:\\d{1,3}(?![\\d)])(?!\\s*\\))|واحد|اثن|ثلاث|اربع|أربع|خمس|ست|سبع|ثمان|تسع|عشر|مائ|مئ|الف|ألف|آلاف|الاف)', PRE = '(?:من|لا تقل عن|لا تزيد على|لا تتجاوز|لا تنقص عن|مدة|حتى)', RNG = '(?:\\s(?:إلى|الى|حتى)\\s[^،.؛\\n]{0,25}?' + U + ')?';
+  /* مقدار يبدأ بعدد (أو بحرف مثل «حتى» يليه اسم المدة مباشرة: «حتى سنة»)، ولا يُعدّ رقم قانون أو سنة إصداره مقداراً */
+  const mrx = new RegExp('(?<![\\u0621-\\u064A\\d])(?:' + PRE + '\\s' + U + '(?![\\u0621-\\u064A])' + RNG + '|(?:' + PRE + '\\s)?' + N + '[^،.؛\\n]{0,22}?' + U + RNG + ')', 'g');
+  const measures = [...new Set(clauses.flatMap(c => [...c.matchAll(mrx)].map(m => m[0].trim())))].filter(m => !/لسن[ةه]|\)/.test(m)).slice(0, 6);
   const refs = [...new Set(clauses.flatMap(c => [...flat(c).matchAll(/(?:المنصوص عليها|المذكورة|المقررة)\s+في\s+(?:ال)?ماد[ةه]\s*\(?\s*(\d+)/g)].map(m => m[1])))].slice(0, 3);
   return { clauses, kinds, measures, refs };
 }
@@ -389,7 +390,7 @@ function createLocal({ misbar, now = () => new Date(), kv = null } = {}) {
 
   async function analyze({ text = '', title = '', region = '', eventDate = '' } = {}) {
     const src = String(text || '').slice(0, 200000);
-    if (src.replace(/\s/g, '').length < 15) return { status: 400, body: { error: 'اكتب السؤال أو الوقائع (15 حرفاً على الأقل).' } };
+    if (src.replace(/\s/g, '').length < 10) return { status: 400, body: { error: 'اكتب السؤال أو الوقائع (10 أحرف على الأقل).' } };
     const t0 = Date.now();
     const srcN = rewriteNeg(src), synAdd = expand(srcN), srch = synAdd.length ? srcN + '\n' + synAdd.join('\n') : srcN;
     const cs = citations(src), tp = topics(srch), kt = keyterms(srch), ds = dates(src);
