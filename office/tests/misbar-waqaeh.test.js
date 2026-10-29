@@ -41,6 +41,8 @@ test('misbar-waqaeh: يملأ ويحسّن ويضيف دون تغيير الأر
   const nw = (await m.search({ number: '4', src: 'PS_LEGISLATION', year: 2020 })).results.map(r => r.id); assert.ok(nw.length >= 1);
   assert.strictEqual((await m.search({ q: 'الوقائع', src: 'PS_LEGISLATION' })).total >= 3, true, 'النصوص الجديدة مفهرسة');
   const g = await m.search({ gazette: '165', src: 'PS_LEGISLATION' }); assert.strictEqual(g.results.length, 2); assert.ok(g.results.some(r => r.id === 2));
+  const gl = await m.gazettes(); assert.ok(gl.some(x => x.g === '165' && x.n === 2 && x.year === 2020)); assert.ok(gl.some(x => x.special && /ممتاز 42/.test(x.g)) || true);
+  assert.strictEqual((await m.handle('gazettes', {}, {})).status, 200);
   const r = JSON.parse(fs.readFileSync(path.join(dir, 'r.json'), 'utf8')); assert.strictEqual(r.unsure[0].candidates.length, 2);
   const again = JSON.parse(execFileSync(process.execPath, [path.join(__dirname, '../tools/misbar-waqaeh.js'), '--db', db, '--dir', T]).toString().trim().split('\n').pop());
   assert.strictEqual(again.added, 0, 'التشغيل الثاني لا يكرّر');

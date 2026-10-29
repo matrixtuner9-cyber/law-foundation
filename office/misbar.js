@@ -78,7 +78,7 @@ function head(){
 function side(){
  const it=(v,ic,t,act='mbView')=>`<button class="${MB.view===v?'on':''}" data-act="${act}" data-v="${v}"><i>${ic}</i>${t}</button>`;
  return `<aside class="mb-side" aria-label="أقسام المسبار"><div class="mb-brand"><img src="misbar-emblem.webp" alt="" width="96" height="91"><b>مِسْبار</b><small>Misbar AI · عقل التحليل والاستنباط القانوني</small></div>
-  <div class="g">الاستقصاء القضائي</div>${it('search','⌕','البحث في التشريعات والقرارات')}${it('tools','✦','التحليل واستخلاص النتائج')}${it('local','⛁','المسبار المحلي · دون إنترنت')}
+  <div class="g">الاستقصاء القضائي</div>${it('search','⌕','البحث في التشريعات والقرارات')}${it('tools','✦','التحليل واستخلاص النتائج')}${it('local','⛁','المسبار المحلي · دون إنترنت')}${it('gazette','📰','الوقائع الفلسطينية')}
   <div class="g">مختبر التحليل</div>${LABT.map(([m,ic,t])=>`<button class="${MB.view==='tools'&&LAB.task===m?'on':''}" data-act="mbLab" data-v="${m}"><i>${ic}</i>${t}</button>`).join('')}
   <div class="g">أدوات القضية</div>${TOOLS.filter(([m])=>['draft','defences','similar','opponent','brief'].includes(m)).map(([m,ic,t])=>`<button data-act="mbTool" data-v="${m}"><i>${ic}</i>${t}</button>`).join('')}
   <div class="g">مراجع المكتب</div><button data-act="nav" data-v="rulings"><i>§</i>الاجتهادات القضائية</button><button data-act="nav" data-v="laws"><i>✎</i>تشريعات المكتب</button><button data-act="nav" data-v="legalShelf"><i>❏</i>مكتبتي القانونية</button>
@@ -119,7 +119,7 @@ function results(){
  const d=MB.data;if(!d)return `<div class="mb-empty"><b>أدخل عبارة بحث أو رقماً وسنة.</b><span>تظهر هنا الأحكام والتشريعات مع بياناتها، ويُعرض المستند الذي تختاره في القارئ بجانبها.</span></div>`;
  if(!d.total)return `<div class="mb-empty"><b>لا نتائج.</b><span>جرّب كلمات أقل أو أعم، أو أزل بعض الفلاتر.</span></div>`;
  const f=d.facets&&d.facets.src?`<div class="mb-fc">${Object.entries(d.facets.src).map(([k,n])=>`<button class="mb-chip sm ${MB.src===k?'on':''}" data-act="mbSrc" data-v="${k}">${e((SRC.find(s=>s[0]===k)||[,k])[1])} <b>${fmtN(n)}</b></button>`).join('')}</div>`:'';
- return `<div class="mb-rh"><b>${MB.gazette?'الوقائع الفلسطينية — العدد '+e(MB.gazette):'نتائج البحث'}</b><span class="m">النتائج: ${fmtN(d.total)} — صفحة ${d.page} من ${fmtN(d.pages)}</span>${MB.gazette?'<button class="mb-chip sm on" data-act="mbGzOff" title="إلغاء تصفية العدد">العدد '+e(MB.gazette)+' ✕</button>':''}</div>${f}
+ return `<div class="mb-rh"><b>${MB.gazette?'الوقائع الفلسطينية — العدد '+e(MB.gazette):'نتائج البحث'}</b><span class="m">النتائج: ${fmtN(d.total)} — صفحة ${d.page} من ${fmtN(d.pages)}</span>${MB.gazette?'<button class="mb-chip sm on" data-act="mbGzOff" title="إلغاء تصفية العدد">العدد '+e(MB.gazette)+' ✕</button> <button class="btn sm ghost" data-act="mbView" data-v="gazette">📰 كل الأعداد</button>':''}</div>${f}
   <ol class="mb-list">${d.results.map(r=>`<li class="${MB.open===r.id?'on':''}"><button class="mb-it" data-act="mbOpen" data-v="${r.id}">
    <div class="mb-tags">${badge(r)}${statusPill(r)}${r.has_text?'':'<span class="mb-st">النص غير متوفر</span>'}</div>
    <b class="mb-t">${hl(cleanT(r.title),MB.q)}</b>
@@ -189,10 +189,25 @@ function labResult(){const r=LAB.res;
   ${r.refs&&r.refs.length?`<div class="mb-cites"><b>المراجع المسترجعة (${r.refs.length})${r.refs.some(x=>x.cited)?' — المستشهد بها معلّمة':''}</b><ul>${r.refs.map(x=>`<li class="${x.cited?'cited':''}"><button type="button" class="mb-ref" data-act="mbRefOpen" data-v="${x.id}">[${x.ref}]</button> ${e(x.title)} <small>${e(x.source)}${x.primary?'':' — للمقارنة والاستئناس'}${x.case_no?' · رقم '+e(x.case_no):''}${x.year?' · '+e(x.year):''}${x.status?' · '+e(x.status):''}</small></li>`).join('')}</ul></div>`:''}
   <div class="mb-cmp">تحليل آلي من المراجع المرفقة فقط؛ راجع كل مرجع بنصه الكامل قبل الاستشهاد به. لا يُعتمد قبل مراجعة المحامي.</div>
   <div class="mb-tools"><button class="btn sm" data-act="mbLabCopy">نسخ التحليل</button><button class="btn sm" data-act="mbLabPrint">طباعة تقرير A4</button>${(S.view==='case'||S.bagCase)&&typeof A.asSave==='function'?'':''}</div></section>`}
+/* ── الوقائع الفلسطينية: الأعداد بالسنة، وكل عدد يُفتح بما نُشر فيه ── */
+function gazetteView(){
+ if(!MB.gzList&&!MB.gzBusy){MB.gzBusy=true;call('gazettes',{}).then(r=>{MB.gzList=r.items||[]}).catch(x=>{MB.gzErr=x.message;MB.gzList=[]}).finally(()=>{MB.gzBusy=false;if(MB.view==='gazette')mbRender()})}
+ const L=MB.gzList,head=`<div class="mb-h"><div><h1>الوقائع الفلسطينية</h1><p class="m">الجريدة الرسمية لدولة فلسطين — كل عدد بما نُشر فيه من قوانين وقرارات بقانون وأنظمة ومراسيم وقرارات</p></div></div>`;
+ if(!L)return `<section class="mb-card">${head}<div class="mb-empty">جارٍ تحميل أعداد الوقائع…</div></section>`;
+ if(!L.length)return `<section class="mb-card">${head}<div class="mb-empty"><b>لا أعداد في قاعدة هذا الجهاز بعد.</b><span>${e(MB.gzErr||'تظهر الأعداد بعد تحديث قاعدة التشريعات.')}</span></div></section>`;
+ const by=new Map();for(const x of L){const y=x.year||'غير مؤرخ';if(!by.has(y))by.set(y,[]);by.get(y).push(x)}
+ const tot=L.reduce((a,x)=>a+x.n,0),yrs=[...by.keys()].filter(y=>typeof y==='number');
+ return `<section class="mb-card">${head}
+  <div class="mb-gzbar"><span class="m">${fmtN(L.length)} عدداً · ${fmtN(tot)} تشريعاً وقراراً${yrs.length?' · من '+Math.min(...yrs)+' إلى '+Math.max(...yrs):''}</span>
+   <label class="mb-gzgo">افتح العدد رقم <input class="field" id="mbGzQ" inputmode="numeric" placeholder="مثال: 168" style="width:110px"></label><button class="btn sm" data-act="mbGzGo">افتح</button></div>
+  ${[...by].map(([y,xs],i)=>`<details class="mb-gzy" ${i<2?'open':''}><summary><b>${e(y)}</b><span>${xs.length} ${xs.length>10?'عدداً':'أعداد'} · ${fmtN(xs.reduce((a,x)=>a+x.n,0))} تشريعاً وقراراً</span></summary>
+   <div class="mb-gzg">${xs.map(x=>`<button class="mb-gzi ${x.special?'sp':''}" data-act="mbGz" data-v="${e(x.g)}" title="عرض كل ما نُشر في ${x.special?'':'العدد '}${e(x.g)}"><b>${x.special?e(x.g):'العدد '+e(x.g)}</b><small>${e(x.date||'')}</small><i>${x.n}</i></button>`).join('')}</div></details>`).join('')}
+ </section>`}
+A.mbGzGo=()=>{const el=document.getElementById('mbGzQ'),v=String(el&&el.value||'').trim().replace(/[٠-٩]/g,d=>String(d.charCodeAt(0)-0x660));if(!v)return;const hit=(MB.gzList||[]).find(x=>x.g===v||x.g===String(Number(v)));if(hit)A.mbGz(hit.g);else toast('لا يوجد في القاعدة عدد بهذا الرقم')};
 function toolsView(){setTimeout(loadAi,0);return `<section class="mb-card" id="mbLab">${labView()}</section>`}
 V.misbar=()=>{setTimeout(loadStats,0);
  const enter=!!MB._enter;MB._enter=false;
- return `<div class="mb-wrap${enter?' mb-enter':''}">${head()}<div class="mb-grid">${side()}<main class="mb-main">${MB.view==='local'?localView():MB.view==='tools'?toolsView():`
+ return `<div class="mb-wrap${enter?' mb-enter':''}">${head()}<div class="mb-grid">${side()}<main class="mb-main">${MB.view==='local'?localView():MB.view==='tools'?toolsView():MB.view==='gazette'?gazetteView():`
   <section class="mb-card"><div class="mb-h"><div><h1>البحث القانوني المتقدم</h1><p class="m">استقصاء التشريعات والقرارات المحلية والمقارنة</p></div></div>${form()}</section>
   <section class="mb-card mb-resw" id="mbRes">${results()}</section>`}</main></div></div>`};
 
@@ -215,7 +230,7 @@ document.addEventListener('submit',ev=>{if(ev.target.id!=='mbForm')return;ev.pre
 document.addEventListener('change',ev=>{if(S.view!=='misbar')return;
  if(ev.target.id==='mbSrcSel'){const was=kindOf();readForm();MB.kind='';MB.country=MB.src?MB.src.slice(0,2):'';document.querySelectorAll('.mb-flag').forEach(b=>b.classList.toggle('on',b.dataset.v===MB.country));if(!MB.src){mbRender();if(hasQuery())run(1);return}if(kindOf()!==was){mbRender();if(hasQuery())run(1);return}}
  if(['mbSrcSel','mbCourt','mbStatus','mbText','mbSort','mbLtype','mbD1','mbD2'].includes(ev.target.id)&&MB.data){run(1)}});
-A.mbView=v=>{readForm();MB.view=v==='tools'?'tools':v==='local'?'local':'search';mbRender()};
+A.mbView=v=>{readForm();MB.view=v==='tools'?'tools':v==='local'?'local':v==='gazette'?'gazette':'search';if(v==='gazette'){MB.doc=null;MB.open=null;paintReader()}mbRender()};
 A.mbSrc=v=>{readForm();MB.src=MB.src===v?'':v;if(MB.view!=='search'){MB.view='search';mbRender()}const s=document.getElementById('mbSrcSel');if(s)s.value=MB.src;if(hasQuery())run(1);else{MB.data=null;paint()}document.querySelectorAll('.mb-chip').forEach(b=>b.classList.toggle('on',b.dataset.v===MB.src))};
 A.mbPage=v=>run(Number(v)||1);
 /* تبديل نوع المرجع: تتغير الفلاتر، وتُفرَّغ الخاصة بالنوع الآخر */
@@ -388,7 +403,7 @@ mark{background:#F3D58A;color:#0B1B2B!important;font-weight:700;padding:0 2px;bo
 .mb-tdesc{margin:8px 0 0;color:#7a6a4c;font-size:13px}
 .mb-labf{margin-top:10px}.mb-labf label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:#7a6a4c;margin-top:10px}.mb-labf textarea{line-height:1.8;resize:vertical}.mb-two2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .mb-labrow{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:12px}.mb-consent{flex-direction:row!important;align-items:flex-start;gap:8px!important;font-size:12.5px;color:#5a4a26!important;max-width:720px}.mb-consent input{margin-top:4px}
-.mb-prov{display:flex;gap:6px;align-items:center;font-size:12.5px;color:#7a6a4c}.mb-chip.off{opacity:.45;cursor:not-allowed}
+.mb-gzbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;margin:6px 0 12px}.mb-gzgo{display:flex;gap:6px;align-items:center;font-size:13px}.mb-gzy{border:1px solid #e9dcb8;border-radius:12px;margin:8px 0;background:#fffdf7}.mb-gzy summary{cursor:pointer;padding:10px 14px;display:flex;gap:12px;align-items:baseline;list-style:none}.mb-gzy summary b{font-size:17px;color:#0E2236}.mb-gzy summary span{font-size:12.5px;color:#7a6a4c}.mb-gzg{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;padding:0 12px 12px}.mb-gzi{display:grid;grid-template-columns:1fr auto;gap:2px 8px;text-align:right;border:1px solid #e4d3a6;background:#FBF6EA;border-radius:10px;padding:8px 10px;cursor:pointer;font:inherit}.mb-gzi:hover{background:#0E2236;color:#F3D58A}.mb-gzi b{font-size:13.5px}.mb-gzi small{grid-column:1;font-size:11.5px;opacity:.75}.mb-gzi i{grid-row:1/3;grid-column:2;align-self:center;font-style:normal;font-weight:700;color:#8A6A25;background:#fff;border-radius:999px;padding:2px 8px;font-size:12px}.mb-gzi.sp{border-color:#b98b2c;background:#f7ecd2}.mb-gz{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.mb-prov{display:flex;gap:6px;align-items:center;font-size:12.5px;color:#7a6a4c}.mb-chip.off{opacity:.45;cursor:not-allowed}
 .mb-key{margin-top:12px;border:1px dashed #e4d3a6;border-radius:12px;padding:8px 12px}.mb-key summary{cursor:pointer;color:#8A6A25;font-weight:700}.mb-keyrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:8px}.mb-keyrow input{flex:1;min-width:220px}
 .mb-labres{margin-top:16px;border-top:2px solid var(--mbG);padding-top:10px}.mb-ana h4{color:#0E2236;margin:14px 0 4px}.mb-ana ul{margin:4px 0 8px;padding-inline-start:20px}.mb-ana li{margin-bottom:4px}
 .mb-ref{font:inherit;font-size:12px;border:1px solid #d9b45c;background:#FFF8E1;color:#8A6A25;border-radius:6px;padding:0 5px;cursor:pointer;vertical-align:baseline}.mb-ref:hover{background:#F3D58A}

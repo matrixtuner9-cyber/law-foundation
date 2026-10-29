@@ -66,7 +66,7 @@ function match(x) {
   if (sc[0].s >= 0.6 && (sc.length === 1 || sc[0].s - sc[1].s >= 0.25)) return { r: sc[0].r, how: ex.length > 1 ? 'title+date' : 'number', s: +sc[0].s.toFixed(2) };
   /* المرشحون الأعلى نسخ مكررة في القاعدة للتشريع نفسه (العنوان المطبّع واحد): يُربط العدد بها كلها، ويُملأ نص أقدمها رقماً */
   const top = sc.filter(c => c.s >= 0.6 && sc[0].s - c.s < 0.25);
-  if (top.length > 1 && new Set(top.map(c => nz(c.r.title))).size === 1 && sim(xt, top[0].r.title) >= 0.6) { const all = top.map(c => c.r).sort((a, b) => a.id - b.id); return { r: all[0], dupes: all.slice(1), how: 'dupes' } }
+  if (top.length > 1 && new Set(top.map(c => nz(c.r.title).replace(/ /g, ''))).size === 1 && sim(xt, top[0].r.title) >= 0.6) { const all = top.map(c => c.r).sort((a, b) => a.id - b.id); return { r: all[0], dupes: all.slice(1), how: 'dupes' } }
   /* لا مرشح يشبه العنوان (نوع آخر يحمل الرقم والسنة نفسيهما، مثل قرار وزير مقابل قرار مجلس الوزراء): تشريع مختلف يُضاف */
   if (sc[0].s < 0.6 && !ex.length) return { r: null, distinct: true };
   return { r: null, unsure: sc.slice(0, 3).map(c => ({ id: c.r.id, title: c.r.title, s: +c.s.toFixed(2) })) };
@@ -90,7 +90,11 @@ for (const x of files) {
   if (m.r) {
     const r = m.r; if (touched.has(r.id)) { st.skippedSame++; continue } touched.add(r.id);
     /* حارس قبل ربط مستند قائم أو الكتابة فوقه: موضوع عنوانه في القاعدة يجب أن يرد في أول النص الجديد، وإلا فهو تشريع آخر بالرقم نفسه */
-    { const A = subj(r.title), B = subj(x.body.slice(0, 600)); let h = 0; for (const w of A) if (B.has(w)) h++; if (A.size && h / A.size < 0.5) { touched.delete(r.id); st.unsure++; unsure.push({ file: x.p, title: x.title, gazette: x.gazette, date: x.date, guard: true, candidates: [{ id: r.id, title: r.title, s: +(h / A.size).toFixed(2) }] }); continue } }
+    { const A = subj(r.title), B = subj(x.title + ' ' + x.body.slice(0, 600)); let h = 0; for (const w of A) if (B.has(w)) h++; if (A.size && h / A.size < 0.5) { touched.delete(r.id);
+      /* طوبق بالرقم والسنة فقط ولم يرد موضوعه في النص: تشريع آخر يحمل الرقم نفسه، فيُضاف مستقلاً؛ أما تطابق العنوان الحرفي فيبقى للمراجعة */
+      if (m.how !== 'title') { m.r = null; m.distinct = true; m.guarded = true }
+      else { st.unsure++; unsure.push({ file: x.p, title: x.title, gazette: x.gazette, date: x.date, guard: true, candidates: [{ id: r.id, title: r.title, s: +(h / A.size).toFixed(2) }] }); continue } } }
+    if (m.r) {
     let meta = {}; try { meta = JSON.parse(r.meta || '{}') } catch {}
     Object.assign(meta, gz(x));
     const len = String(r.body || '').length, fromPdf = meta.text_src === 'pdf';
@@ -100,6 +104,7 @@ for (const x of files) {
     if (fromPdf) st.replacedPdf++; else st.filled++;
     if (!DRY) { const t = ftsTitle(r); del.run(r.id, t, norm(r.body || '')); upd.run(x.body, x.body.length > 200 ? 1 : 0, JSON.stringify(meta), x.date, r.id); ins.run(r.id, t, norm(x.body)) }
     continue;
+    }
   }
   if (m.distinct) st.distinct++;
   const n = nz(x.title), k = KIND(n), ny = numYear(n);

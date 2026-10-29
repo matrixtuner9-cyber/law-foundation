@@ -183,13 +183,20 @@ function createMisbar(db, { audit } = {}) {
     const q = norm(quote); if (q.length < 8) return { ok: false, error: 'الاقتباس قصير جداً' };
     return { ok: norm(d.body).includes(q), title: d.title, src: d.src, comparative: !d.primary };
   }
-  /* واجهة HTTP موحّدة: action = search | doc | stats | verify */
+  /* أعداد الوقائع الفلسطينية (الجريدة الرسمية) كما رُبطت بها التشريعات: العدد، تاريخه، وعدد ما نُشر فيه */
+  async function gazettes() {
+    const rows = await all("SELECT json_extract(meta,'$.gazette_number') g, MIN(json_extract(meta,'$.gazette_date')) d, COUNT(*) n FROM docs WHERE src='PS_LEGISLATION' AND json_extract(meta,'$.gazette_number') IS NOT NULL GROUP BY g");
+    const num = g => { const m = /(\d+)/.exec(g); return m ? Number(m[1]) : 0 };
+    return rows.map(r => ({ g: String(r.g), date: r.d || '', year: Number(String(r.d || '').slice(0, 4)) || null, n: Number(r.n), special: /ممتاز/.test(String(r.g)) })).sort((a, b) => (b.date || '').localeCompare(a.date || '') || num(b.g) - num(a.g));
+  }
+  /* واجهة HTTP موحّدة: action = search | doc | stats | verify | gazettes */
   async function handle(action, params, me) {
     const who = { user_id: me?.id, user_name: me?.name };
     try {
       if (action === 'search') { const r = await search(params); audit && audit({ ...who, action: 'misbar.search', entity: 'misbar', detail: { q: clip(params.q, 120), n: r.total } }); return { status: 200, body: r } }
       if (action === 'doc') { const d = await doc(params.id); if (!d) return { status: 404, body: { error: 'المستند غير موجود' } }; audit && audit({ ...who, action: 'misbar.doc', entity: 'misbar', entity_id: String(d.id) }); return { status: 200, body: d } }
       if (action === 'stats') return { status: 200, body: await stats() };
+      if (action === 'gazettes') return { status: 200, body: { items: await gazettes() } };
       if (action === 'verify') return { status: 200, body: await verifyQuote(params.id, params.quote) };
       return { status: 404, body: { error: 'غير موجود' } };
     } catch (e) {
@@ -199,7 +206,7 @@ function createMisbar(db, { audit } = {}) {
       throw e;
     }
   }
-  return { search, doc, stats, excerpts, verifyQuote, byTitle, byNumber, handle };
+  return { gazettes, search, doc, stats, excerpts, verifyQuote, byTitle, byNumber, handle };
 }
 
 /* بدائل بنفس واجهة البحث القديم للصياغة والمساعد: lawSearch(action, params) و rulingSearch(q, user, max) */
