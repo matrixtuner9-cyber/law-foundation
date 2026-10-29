@@ -20,7 +20,7 @@ function mkdb(dir) {
   for (const [t, y, n, b, m] of rows) { const x = ins.run('PS_LEGISLATION', 'PS', 'law', 'x' + n + y, t, y, n, '', 'قانون', '', '', b, '[]', b.length > 200 ? 1 : 0, '', '', m); d.prepare('INSERT INTO fts(rowid,title,body) VALUES(?,?,?)').run(Number(x.lastInsertRowid), M.norm(t), M.norm(b)) }
   d.close(); return f;
 }
-const file = (root, y, iss, id, title, body, issue = 'العدد مئة وخمسة وستون ( 19-03-2020)') => { const d = path.join(root, String(y), iss); fs.mkdirSync(d, { recursive: true }); fs.writeFileSync(path.join(d, 'id_' + id + '.txt'), `﻿Source: Al-Muqtafi, Institute of Law, Birzeit University\nSource URL: http://muqtafi.birzeit.edu/pg/getleg.asp?id=${id}\nYear: ${y}\nIssue/index: ${issue}\nTitle: ${title}\nFor authoritative legal verification, consult the printed Official Gazette.\n${body}`) };
+const file = (root, y, iss, id, title, body, issue = 'العدد مئة وخمسة وستون ( 19-03-2020)') => { const d = path.join(root, String(y), iss); fs.mkdirSync(d, { recursive: true }); fs.writeFileSync(path.join(d, 'id_' + id + '.txt'), `﻿Source: Al-Muqtafi, Institute of Law, Birzeit University\nSource URL: http://muqtafi.birzeit.edu/pg/getleg.asp?id=${id}\nYear: ${y}\nIssue/index: ${issue}\nTitle: ${title}\nFor authoritative legal verification, consult the printed Official Gazette.\n${title}\n${body}`) };
 
 test('misbar-waqaeh: يملأ ويحسّن ويضيف دون تغيير الأرقام، ولا يدمج غير المؤكد، ويُتصفّح العدد', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'waq-')), db = mkdb(dir), T = path.join(dir, 'texts');

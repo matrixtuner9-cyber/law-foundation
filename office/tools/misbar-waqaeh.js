@@ -62,7 +62,7 @@ function match(x) {
   /* أكثر من مرشح، أو مرشح بالرقم فقط: يرجح من يشابه العنوان وتطابق سنته */
   /* عنوان الملف بلا موضوع («قرار رقم (163) لسنة 1994»): يُقارن موضوع المرشح بأول النص */
   const xt = subj(x.title).size ? x.title : x.body.slice(0, 400);
-  const sc = cands.map(r => ({ r, s: sim(xt, r.title) + (r.date && r.date === x.date ? 0.5 : 0) })).sort((a, b) => b.s - a.s);
+  const sc = cands.map(r => ({ r, s: sim(xt, r.title) + (r.date && r.date === x.date ? 0.1 : 0) })).sort((a, b) => b.s - a.s);
   if (sc[0].s >= 0.6 && (sc.length === 1 || sc[0].s - sc[1].s >= 0.25)) return { r: sc[0].r, how: ex.length > 1 ? 'title+date' : 'number', s: +sc[0].s.toFixed(2) };
   /* المرشحون الأعلى نسخ مكررة في القاعدة للتشريع نفسه (العنوان المطبّع واحد): يُربط العدد بها كلها، ويُملأ نص أقدمها رقماً */
   const top = sc.filter(c => c.s >= 0.6 && sc[0].s - c.s < 0.25);
@@ -89,6 +89,8 @@ for (const x of files) {
   if (m.unsure) { st.unsure++; unsure.push({ file: x.p, title: x.title, gazette: x.gazette, date: x.date, candidates: m.unsure }); continue }
   if (m.r) {
     const r = m.r; if (touched.has(r.id)) { st.skippedSame++; continue } touched.add(r.id);
+    /* حارس قبل ربط مستند قائم أو الكتابة فوقه: موضوع عنوانه في القاعدة يجب أن يرد في أول النص الجديد، وإلا فهو تشريع آخر بالرقم نفسه */
+    { const A = subj(r.title), B = subj(x.body.slice(0, 600)); let h = 0; for (const w of A) if (B.has(w)) h++; if (A.size && h / A.size < 0.5) { touched.delete(r.id); st.unsure++; unsure.push({ file: x.p, title: x.title, gazette: x.gazette, date: x.date, guard: true, candidates: [{ id: r.id, title: r.title, s: +(h / A.size).toFixed(2) }] }); continue } }
     let meta = {}; try { meta = JSON.parse(r.meta || '{}') } catch {}
     Object.assign(meta, gz(x));
     const len = String(r.body || '').length, fromPdf = meta.text_src === 'pdf';
