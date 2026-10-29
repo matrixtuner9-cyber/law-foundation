@@ -108,12 +108,18 @@ function createMisbar(db, { audit } = {}) {
     const order = sort === 'relevance' && fq ? 'f.rk + (CASE d.country WHEN \'PS\' THEN -2.0 ELSE 0 END)' : sort === 'year_asc' ? 'd.year ASC, d.id' : sort === 'date_desc' ? "COALESCE(NULLIF(d.date,''), d.year || '-00-00') DESC, d.id DESC" : 'd.year DESC, d.id DESC';
     const [cnt] = await all(`SELECT COUNT(DISTINCT d.id) n FROM ${from}${W}`, ...args);
     let total = Number(cnt?.n || 0);
-    const rows = total ? await all(`SELECT ${COLS}, substr(d.body,1,20000) body FROM ${sort === 'relevance' && fq ? fromRank : from}${W} ORDER BY ${order} LIMIT ? OFFSET ?`, ...args, per, (page - 1) * per) : [];
+    const rows = total ? await all(`SELECT ${COLS}, json_extract(d.meta,'$.articles_n') arts_n, json_extract(d.meta,'$.subject_auto.conf') subj_auto, substr(d.body,1,20000) body FROM ${sort === 'relevance' && fq ? fromRank : from}${W} ORDER BY ${order} LIMIT ? OFFSET ?`, ...args, per, (page - 1) * per) : [];
+    /* كل كلمات البحث في العنوان نفسه (لا في النص فقط): أقصر هذه العناوين أولاً — «قانون العمل» يأتي بقانون العمل لا بما ذكره */
+    if (fq && page === 1 && sort === 'relevance') {
+      let th = []; try { th = await all(`SELECT ${COLS}, json_extract(d.meta,'$.articles_n') arts_n, json_extract(d.meta,'$.subject_auto.conf') subj_auto, substr(d.body,1,20000) body FROM (SELECT DISTINCT (rowid % ${CHUNK_BASE}) fid FROM fts WHERE fts MATCH ?) f CROSS JOIN docs d ON d.id=f.fid${W} ORDER BY (CASE d.country WHEN 'PS' THEN 0 ELSE 1 END), length(d.title) LIMIT 4`, '{title} : (' + fq + ')', ...a) } catch { th = [] }
+      for (const r of th.reverse()) { const i = rows.findIndex(x => Number(x.id) === Number(r.id)); if (i >= 0) rows.splice(i, 1); rows.unshift(r) }
+      if (rows.length > per) rows.length = per;
+    }
     /* عنوان التشريع بنوعه ورقمه وسنته («قانون السلطة القضائية رقم 1 لسنة 2002»): التشريع نفسه أولاً، وإن لم تطابقه كل كلمات البحث في الفهرس */
     const tm = fq && page === 1 && sort === 'relevance' ? /^(.*?)\s*رقم\s*[(\[]?\s*(\d+)\s*[)\]]?\s*لسن[ةه]\s*(\d{4})/.exec(String(q).replace(/[ًٌٍَُِّْـ]/g, '')) : null;
     if (tm) {
       const head = norm(tm[1]).split(' ').filter(x => x.length > 2), rx = new RegExp('رقم\\s*[(\\[]?\\s*' + tm[2] + '\\s*[)\\]]?\\s*لسن[ةه]\\s*' + tm[3]);
-      let ex = []; try { ex = await all(`SELECT ${COLS}, substr(d.body,1,20000) body FROM docs d WHERE ${(w.length ? w.join(' AND ') + ' AND ' : '')}d.title LIKE ? AND d.title LIKE ? LIMIT 80`, ...a, '%' + tm[2] + '%', '%' + tm[3] + '%') } catch { ex = [] }
+      let ex = []; try { ex = await all(`SELECT ${COLS}, json_extract(d.meta,'$.articles_n') arts_n, json_extract(d.meta,'$.subject_auto.conf') subj_auto, substr(d.body,1,20000) body FROM docs d WHERE ${(w.length ? w.join(' AND ') + ' AND ' : '')}d.title LIKE ? AND d.title LIKE ? LIMIT 80`, ...a, '%' + tm[2] + '%', '%' + tm[3] + '%') } catch { ex = [] }
       ex = ex.filter(r => { const t = scrub(r.title).replace(/[ًٌٍَُِّْـ]/g, ''), m = rx.exec(t); if (!m) return false; const before = ' ' + norm(t.slice(0, m.index)) + ' '; return head.length && head.every(x => before.includes(' ' + x + ' ') || before.includes(' ' + x)) }).slice(0, 3);
       for (const r of ex.reverse()) { const i = rows.findIndex(x => Number(x.id) === Number(r.id)); if (i >= 0) rows.splice(i, 1); else total++; rows.unshift(r) }
       if (rows.length > per) rows.length = per;
@@ -157,8 +163,10 @@ function createMisbar(db, { audit } = {}) {
     /* قيم الفلاتر الفعلية: أنواع التشريعات وأنواع الدعاوى والمحاكم بحسب الدولة */
     const lt = await all("SELECT country, kind, ltype v, COUNT(*) n FROM docs WHERE ltype<>'' GROUP BY country, kind, ltype HAVING n>=3 ORDER BY n DESC");
     const ct = await all("SELECT country, court v, COUNT(*) n FROM docs WHERE kind='ruling' AND court<>'' GROUP BY country, court ORDER BY n DESC");
+    /* التصنيف الموضوعي للتشريعات الفلسطينية: الباب (قبل «›») وعدده */
+    let sj = []; try { sj = await all("SELECT CASE WHEN instr(subject,' › ')>0 THEN substr(subject,1,instr(subject,' › ')-1) ELSE subject END v, COUNT(*) n FROM docs WHERE src='PS_LEGISLATION' AND subject<>'' GROUP BY v HAVING n>=2 ORDER BY v") } catch { sj = [] }
     const pick = (arr, c, k) => arr.filter(r => (!c || r.country === c) && (!k || r.kind === k)).map(r => ({ v: r.v, n: Number(r.n), country: r.country }));
-    return { sources: rows.map(r => ({ src: r.src, label: SOURCES[r.src]?.label || r.src, n: Number(r.n), texts: Number(r.t), from: r.y1, to: r.y2 })), lawTypes: pick(lt, '', 'law'), caseTypes: pick(lt, '', 'ruling'), courts: pick(ct, '', ''), version: meta.version || '', built: meta.built || '' };
+    return { sources: rows.map(r => ({ src: r.src, label: SOURCES[r.src]?.label || r.src, n: Number(r.n), texts: Number(r.t), from: r.y1, to: r.y2 })), lawTypes: pick(lt, '', 'law'), lawSubjects: sj.map(r => ({ v: r.v, n: Number(r.n) })), caseTypes: pick(lt, '', 'ruling'), courts: pick(ct, '', ''), version: meta.version || '', built: meta.built || '' };
   }
   /* مقتطفات موثّقة للتحليل: أفضل النتائج ذات النص، مع نص كافٍ للاستشهاد */
   /* titleHas: كلمات يجب أن ترد في عنوان المرجع (لاختيار قانون بعينه)، snip: عبارة اختيار المقطع من النص (المسألة لا اسم القانون) */
