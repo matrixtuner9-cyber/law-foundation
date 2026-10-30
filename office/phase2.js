@@ -79,7 +79,7 @@ function decPreview(){const el=document.getElementById('decPrev');if(!el)return;
  if(!r){el.innerHTML='<span class="m">لا توجد قاعدة مدة مطابقة. راجع جدول مدد الطعن في الإعدادات.</span>';return}
  if(start==='notice'&&!nt.value){el.innerHTML='<span class="m">أدخل تاريخ التبليغ لحساب المهلة.</span>';return}
  const c=computeDue(r,date,start,nt.value),n=diff(c.due);
- el.innerHTML=`<div class="prev-box ${n<0?'gone':sevOf(n)}"><small>${esc(r.name)} · ${r.days} يوماً</small><b>آخر موعد: ${fmt(c.due)}</b><span>${n<0?'انقضت المدة':'متبقٍ '+daysW(n)}</span>${c.fri?'<em>يصادف يوم جمعة: تحقّق من قاعدة امتداد المدة إن صادف آخرها عطلة رسمية.</em>':''}${!r.verified?'<em>هذه المدة غير مؤكدة بعد، راجعها في الإعدادات.</em>':''}</div>`}
+ el.innerHTML=`<div class="prev-box ${n<0?'gone':sevOf(n)}"><small>${esc(r.name)} · ${r.days} يوماً</small><b>آخر موعد: ${fmt(c.due)}</b><span>${n<0?'انقضت المدة':'متبقٍ '+daysW(n)}</span>${window.MQ_CAL?MQ_CAL.note(c.due):c.fri?'<em>يصادف يوم جمعة: تحقّق من قاعدة امتداد المدة إن صادف آخرها عطلة رسمية.</em>':''}${!r.verified?'<em>هذه المدة غير مؤكدة بعد، راجعها في الإعدادات.</em>':''}</div>`}
 
 /* ── الحفظ ── */
 document.addEventListener('submit',e=>{const f=e.target;if(!['fDec','fMove','fRefs'].includes(f.id))return;e.preventDefault();e.stopImmediatePropagation();

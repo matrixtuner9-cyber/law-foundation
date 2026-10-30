@@ -210,12 +210,20 @@ window.tplCtx=function(){
 
 /* ═══ الميعاد ═══ */
 const addD=(isoS,n)=>{const d=new Date(isoS+'T00:00:00');if(isNaN(d))return null;d.setDate(d.getDate()+n);return d};
-function dlInfo(){const t=TPL[S.tpl];if(!t||!t.dl)return null;const v=S.tplVals[t.dl.from]||'';if(!/^\d{4}-\d\d-\d\d$/.test(v))return {t,need:true};
+
+/* الطعون: نوع الحكم وتاريخ تبليغه — الميعاد يبدأ من الصدور في الحكم الوجاهي ومن التبليغ في غيره */
+for(const id of ['t7','t9','t24','t36'])if(TPL[id]&&TPL[id].dl){const t=TPL[id];
+ if(!t.fields.some(f=>f[0]==='jkind'))t.fields.push(['jkind','نوع الحكم: وجاهي، أو غيابي، أو بمثابة الوجاهي','وجاهي']);
+ if(!t.fields.some(f=>f[0]==='ndate'))t.fields.push(['ndate','تاريخ تبليغ الحكم (إن لم يكن وجاهياً)','','date']);
+ t.dl.alt='ndate'}
+/* بدء الميعاد: من اليوم التالي لصدور الحكم الوجاهي، أو من تبليغه إن لم يكن وجاهياً (المادة 193 من قانون الأصول وما يقابلها) */
+const dlFrom=t=>t.dl.alt&&!/^\s*وجاهي\s*$/.test(S.tplVals.jkind??'وجاهي')?t.dl.alt:t.dl.from;
+function dlInfo(){const t=TPL[S.tpl];if(!t||!t.dl)return null;const fk=dlFrom(t),v=S.tplVals[fk]||'';if(!/^\d{4}-\d\d-\d\d$/.test(v))return {t,need:true,fk};
  const end=addD(v,t.dl.days);const left=Math.round((end-TODAY)/864e5);return {t,end:iso(end),left}}
-function dlHtml(){const x=dlInfo();if(!x)return '';const d=x.t.dl,f=x.t.fields.find(z=>z[0]===d.from)||[,'التاريخ'];
+function dlHtml(){const x=dlInfo();if(!x)return '';const d=x.t.dl,fk=x.fk||dlFrom(x.t),f=x.t.fields.find(z=>z[0]===fk)||[,'التاريخ'];
  if(x.need)return `<div class="lf-dl"><b>⏱ ${h(d.label)}</b><span>أدخل «${h(f[1])}» ليُحسب الميعاد (${d.days} يوماً — المادة ${h(d.art)}).</span></div>`;
  const cls=x.left<0?'bad':x.left<=5?'warn':'ok';
- return `<div class="lf-dl ${cls}"><b>⏱ ${h(d.label)}: <span class="mono">${h(dmy(x.end))}</span></b><span>${x.left<0?'انقضى الميعاد منذ '+(-x.left)+' يوماً':x.left===0?'اليوم آخر يوم':'باقٍ '+x.left+' يوماً'} · ${d.days} يوماً تبدأ من اليوم التالي للتاريخ المدخل (المادة ${h(d.art)}). راجع نص المادة وأثر العطل الرسمية.</span>${x.left>=0?`<button type="button" class="btn sm" data-act="lfAddDl">أضف إلى مواعيد القضية</button>`:''}</div>`}
+ return `<div class="lf-dl ${cls}"><b>⏱ ${h(d.label)}: <span class="mono">${h(dmy(x.end))}</span></b><span>${x.left<0?'انقضى الميعاد منذ '+(-x.left)+' يوماً':x.left===0?'اليوم آخر يوم':'باقٍ '+x.left+' يوماً'} · ${d.days} يوماً تبدأ من اليوم التالي ${fk===d.alt?'لتاريخ التبليغ':'لتاريخ الحكم'} (المادة ${h(d.art)}${d.alt?' والمادة 193':''}).</span>${window.MQ_CAL?MQ_CAL.note(x.end):''}${x.left>=0?`<button type="button" class="btn sm" data-act="lfAddDl">أضف إلى مواعيد القضية</button>`:''}</div>`}
 A.lfAddDl=()=>{const x=dlInfo(),k=K(S.tplCase);if(!x||x.need||!k)return;if(typeof deadlines==='undefined')return toast('سجل المواعيد غير متاح');
  const title=x.t.dl.label+' — '+x.t.name;if(deadlines.some(d=>d.k===k.id&&d.title===title&&d.due===x.end))return toast('الميعاد مسجّل سلفاً');
  deadlines.push({k:k.id,title,due:x.end,kind:'إجرائية',src:'نموذج'});if(window.MQ&&MQ.saveState)MQ.saveState();toast('أُضيف الميعاد '+dmy(x.end)+' إلى مواعيد القضية '+k.no);if(typeof drawNav==='function')drawNav()};

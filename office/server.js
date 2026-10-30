@@ -463,6 +463,17 @@ async function api(req, res, u) {
   }
 
   /* الإعدادات */
+  /* التقويم القضائي للمكتب: الراحة الأسبوعية والعطل المعتمدة والعطلة القضائية (legal-calendar.js) */
+  if (p === '/api/admin/calendar' && M === 'GET') return json(res, 200, store.kv.get('calendar', { rest: [5], holidays: [], recess: [] }));
+  if (p === '/api/admin/calendar' && M === 'POST') {
+    if (!need('manage')) return;
+    const b = await jbody(req), okD = v => /^\d{4}-\d\d-\d\d$/.test(String(v || '')), tx = (v, n) => String(v || '').trim().slice(0, n);
+    const cal = { rest: [...new Set((Array.isArray(b.rest) ? b.rest : [5]).map(Number).filter(n => n >= 0 && n <= 6))],
+      holidays: (Array.isArray(b.holidays) ? b.holidays : []).filter(x => x && okD(x.date) && tx(x.name, 80)).slice(0, 400).map(x => ({ date: x.date, name: tx(x.name, 80) })),
+      recess: (Array.isArray(b.recess) ? b.recess : []).filter(x => x && okD(x.from) && okD(x.to) && x.to >= x.from).slice(0, 10).map(x => ({ from: x.from, to: x.to, note: tx(x.note, 120) })) };
+    store.kv.set('calendar', cal); audit({ ...who, action: 'calendar.update', detail: { holidays: cal.holidays.length, recess: cal.recess.length } });
+    return json(res, 200, cal);
+  }
   if (p === '/api/settings' && M === 'GET') return json(res, 200, settings());
   /* النسخ الاحتياطي: حالة آخر نسخة، وتشغيل يدوي */
   if (p === '/api/backup/status') { if (!need('manage')) return; return json(res, 200, backup.status()) }
@@ -889,7 +900,7 @@ async function rulingFile(req, res, u, who, kind = 'ruling') {
 }
 
 /* ملفات شاشة المكتب: قائمة محددة فقط، وكلها تتطلب تسجيل الدخول عدا صفحة الدخول */
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-forms.js', 'client-delete.js', 'legal-shelf.js', 'print.js', 'intake.js', 'id-card.js', 'lawyer-contact.js', 'genie.js', 'office-tools.js', 'case-refs.js', 'client-workspace.js', 'genie-face.webp', 'rulings.js', 'guide.js', 'workflow.js', 'casework.js', 'stations.js', 'hearing-report.js', 'case-layout.js', 'case-steps.js', 'case-misbar.js', 'misbar-mizan.js', 'expenses.js', 'glass-scroll.js', 'announce.js', 'reader.js', 'case-hub.js', 'case-wizard.js', 'consistency.js', 'searchsel.js', 'wa-chat.js', 'fulltext.js', 'ai-mark.js', 'night.css', 'qrcode.js', 'app-invite.js', 'avatar.js', 'wa-skin.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'misbar.js', 'misbar-emblem.webp', 'misbar-hero.webp', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'settlements.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-forms.js', 'client-delete.js', 'legal-calendar.js', 'legal-shelf.js', 'print.js', 'intake.js', 'id-card.js', 'lawyer-contact.js', 'genie.js', 'office-tools.js', 'case-refs.js', 'client-workspace.js', 'genie-face.webp', 'rulings.js', 'guide.js', 'workflow.js', 'casework.js', 'stations.js', 'hearing-report.js', 'case-layout.js', 'case-steps.js', 'case-misbar.js', 'misbar-mizan.js', 'expenses.js', 'glass-scroll.js', 'announce.js', 'reader.js', 'case-hub.js', 'case-wizard.js', 'consistency.js', 'searchsel.js', 'wa-chat.js', 'fulltext.js', 'ai-mark.js', 'night.css', 'qrcode.js', 'app-invite.js', 'avatar.js', 'wa-skin.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'misbar.js', 'misbar-emblem.webp', 'misbar-hero.webp', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'settlements.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 /* التفعيل: النسخة الموزّعة لا تعمل إطلاقاً قبل إدخال كود صادر لبصمة هذا الجهاز (فحص في الخادم لكل طلب) */
 const license = License.createLicense({ dataDir: DATA, enforce: !!ED.license });
 /* التفعيل باسم المكتب وكلمة المرور، والتجديد التلقائي كل 12 ساعة (يصل التمديد، ويُطبَّق الإبطال) */
