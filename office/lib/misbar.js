@@ -218,7 +218,8 @@ function createMisbar(db, { audit } = {}) {
     if (law.length < 4 || !want.length) return null;
     const [r] = await all("SELECT d.id, d.title, d.status, d.body FROM docs d WHERE d.src='PS_LEGISLATION' AND d.title LIKE ? ORDER BY length(d.body) DESC LIMIT 1", '%' + law + '%');
     if (!r) return null;
-    const { splitArticles } = require('./misbar-local');
+    /* فاصل المواد في المسبار المحلي (المكتب فقط؛ نسخة السحابة تُبنى دونه فلا تُعرض فيها نصوص المواد) */
+    let splitArticles; try { splitArticles = require('./misbar-' + 'local').splitArticles } catch { return null }
     const body = scrub(await fullBody(r.id, r.body)), arts = splitArticles(body), first = new Map();
     for (const a of arts) if (!first.has(a.n)) first.set(a.n, a);
     return { id: r.id, title: scrub(r.title), status: STATUS[r.status] || r.status || '', arts: want.map(n => { const a = first.get(n); return a ? { n, label: a.label, text: a.text } : { n, missing: true } }) };
