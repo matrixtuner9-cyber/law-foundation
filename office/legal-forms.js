@@ -246,6 +246,7 @@ V.tpls=function(){
 document.addEventListener('input',ev=>{const t=ev.target;if(!t)return;if(t.dataset&&t.dataset.tf){S.tplVals[t.dataset.tf]=t.value;paint()}else if(t.id==='lfQ'){q=t.value;const pos=t.selectionStart;render();const n=document.getElementById('lfQ');if(n){n.focus();try{n.setSelectionRange(pos,pos)}catch(e){}}}});
 document.addEventListener('change',ev=>{const t=ev.target;if(t&&t.id==='tplCase'){S.tplCase=t.value;paint()}else if(t&&t.dataset&&t.dataset.tf){S.tplVals[t.dataset.tf]=t.value;paint()}});
 const css=document.createElement('style');css.textContent=`
+.tplgrid .tpllist{max-height:calc(100vh - 160px);overflow:auto;position:sticky;top:10px;align-self:start}
 .lf-q{max-width:240px;margin-inline-start:auto}.tpl-categories .chip small{opacity:.6;margin-inline-start:3px}
 .lf-miss{margin:10px 0;padding:10px 12px;border:1px solid #E8C9A0;background:#FFF8EC;border-radius:10px;font-size:13px;display:grid;gap:8px}.lf-miss small{display:block;margin-top:4px}
 .lf-chip{display:inline-block;margin:2px 3px;padding:2px 9px;border-radius:999px;border:1px solid #D9C79A;background:#fff;font-size:12px}.lf-chip.bad{border-color:#D9A08F;background:#FCEEEA;color:#8a3a2a}
