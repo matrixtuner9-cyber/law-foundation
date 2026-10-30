@@ -46,6 +46,8 @@ V.clients=function(){const arch=clients.filter(c=>c.archived);if(!arch.length)re
  const all=clients.slice();if(!showArch){clients.splice(0,clients.length,...all.filter(c=>!c.archived))}
  let html;try{html=vcl.apply(this,arguments)}finally{clients.splice(0,clients.length,...all)}
  return `<div class="cd-arch"><button class="btn sm" data-act="cdShowArch">${showArch?'إخفاء المؤرشفين':'عرض الموكلين المؤرشفين ('+arch.length+')'}</button></div>`+html};
+/* شريط تبويبات «الاستعلامات والتقارير» يضاف مرة واحدة: تحمل الدالة الجديدة علامة الدالة التي غلّفتها (case-layout.js) */
+if(vcl&&vcl._grp)V.clients._grp=1;
 
 /* الإعدادات: البدء من مكتب فارغ */
 const vs=V.settings;
