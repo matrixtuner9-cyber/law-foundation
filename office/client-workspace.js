@@ -91,7 +91,12 @@ V.client=function(){
    const court=nd[2]?tx(nd[2].querySelector('.nm')):'',opp=nd[3]?[...nd[3].querySelectorAll('.nm')].map(n=>{const l=n.nextElementSibling&&n.nextElementSibling.classList.contains('lb')?tx(n.nextElementSibling):'';return E(tx(n))+(l?' <small>(وكيله '+E(l)+')</small>':'')}).join('، '):'',mz=nd[4]?tx(nd[4].querySelector('.nm')):'';
    const m=doc.createElement('div');m.className='cw-meta';m.innerHTML=[court&&`<span><i>المحكمة</i>${E(court)}</span>`,opp&&`<span><i>الخصم</i>${opp}</span>`,mz&&mz!=='—'&&`<span><i>ميزان</i><b class="mono">${E(mz)}</b></span>`].filter(Boolean).join('');chain.replaceWith(m)}
  }
- const pop=doc.createElement('div');if(wa)pop.appendChild(wa);
+ /* شريط الإرسال (#waBar) يُبنى عادة بعد الرسم في dash.js داخل رأس الحقيبة الذي تُزيله هذه الواجهة، فيبقى «المزيد» فارغاً؛
+    نبنيه هنا بالمعرّف نفسه لتضيف إليه الوحدات الأخرى أزرارها (رمز QR، الطباعة، استمارة البيانات) */
+ const pop=doc.createElement('div');
+ if(wa)pop.appendChild(wa);
+ else{const c0=typeof C==='function'?C(S.clientId):null;if(c0){const b=doc.createElement('div');b.className='wa-bar';b.id='waBar';
+  b.innerHTML=`<button class="btn wa-btn sm" data-act="waInvite" data-v="${E(c0.id)}">${(typeof I!=='undefined'&&I.wa)||''} إرسال رابط الدخول عبر واتساب</button><button class="btn sm" data-act="copyLink" data-v="${E(c0.id)}">نسخ الرابط</button>`;pop.appendChild(b)}}
  const cardT=doc.createElement('template');cardT.innerHTML=card;const pp=cardT.content.querySelector('.cw-pop');if(pp)pp.appendChild(pop);
  const w=doc.createElement('div');w.className='cw';
  const side=doc.createElement('aside');side.className='cw-side';if(back){const bk=back.cloneNode(true);side.appendChild(bk)}side.appendChild(cardT.content);
@@ -112,6 +117,9 @@ const css=doc.createElement('style');css.textContent=`
 .cw-cact{display:flex;gap:6px;align-items:flex-start;position:relative}.cw-wa{background:#1F9D55!important;color:#fff!important;border:0!important}
 .cw-more{position:relative}.cw-more>summary{list-style:none;background:transparent!important;color:#F3D58A!important;border:1px solid #C9A24A!important;cursor:pointer}.cw-more>summary::-webkit-details-marker{display:none}
 .cw-pop{position:absolute;top:34px;inset-inline-start:0;z-index:30;background:#fff;color:#1F2A36;border:1px solid #E5DCC8;border-radius:12px;padding:10px;box-shadow:0 14px 34px rgb(0 0 0 / .22);width:270px}
+/* العمود الجانبي يقصّ ما يخرج منه (overflow) وهو أضيق من القائمة: تُفتح القائمة داخل البطاقة بعرضها الكامل */
+.cw-side .cw-cact{flex-wrap:wrap}.cw-side .cw-more[open]{flex-basis:100%}.cw-side .cw-more[open]>summary{margin-inline-start:auto;display:table}
+.cw-side .cw-pop{position:static;width:auto;max-width:100%;box-sizing:border-box;margin-top:8px;box-shadow:0 6px 18px rgb(0 0 0 / .18)}
 .cw-pop .wa-bar{display:flex;flex-direction:column;align-items:stretch;gap:6px}.cw-pop .wa-bar>*{width:100%;justify-content:center}
 .cw-portal{font-size:11.5px;color:#C9D4DB;display:flex;align-items:center;gap:6px}.cw-portal i{width:8px;height:8px;border-radius:50%;background:#9AA2AC}.cw-portal.on i{background:#3DDC84}
 .cw-box{background:var(--surface,#fff);border:1px solid var(--line,#E5DCC8);border-radius:14px;padding:10px 12px}
