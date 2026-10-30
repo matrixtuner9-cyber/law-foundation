@@ -59,7 +59,7 @@ const unreadN=()=>Object.values(messages).flat().filter(m=>m.unread).length;
 function topBar(){
  const top=document.querySelector('.top');if(!top||document.getElementById('topIcons'))return;
  const search=top.querySelector('.search'),who=top.querySelector('.who');
- const inp=search&&search.querySelector('input');if(inp)inp.placeholder='البحث في الملفات أو العملاء أو المستندات ...';
+ const inp=search&&search.querySelector('input');if(inp)inp.placeholder='البحث في الملفات أو الموكلين أو المستندات ...';
  if(search&&!search.querySelector('.kbd'))search.insertAdjacentHTML('beforeend','<kbd class="kbd">Ctrl + K</kbd>');
  if(search&&!search.querySelector('.s-ico'))search.insertAdjacentHTML('afterbegin',`<span class="s-ico">${I.search}</span>`);
  const icons=document.createElement('div');icons.className='top-icons';icons.id='topIcons';
@@ -165,7 +165,7 @@ const hdr=(ic,t,v)=>`<header><h2><span class="hic">${ic}</span>${t}</h2>${v?`<bu
 const sqBtn=`<span class="sqb">${I.dots}</span>`;
 function clientsCard(){
  const cs=[...clients].sort((a,b)=>String(b.last||'').localeCompare(String(a.last||''))).slice(0,5);
- return `<section class="card reveal" style="animation-delay:.1s">${hdr(I.portal,'العملاء','clients')}
+ return `<section class="card reveal" style="animation-delay:.1s">${hdr(I.portal,'الموكلون','clients')}
  <div class="clist">${cs.map(c=>`<button class="cl" data-act="bag" data-v="${c.id}"><span class="av">${esc(initials(c.name))}</span><span class="ct2"><b>${esc(c.name)}</b><small>${esc(CTYPE[c.type]||c.type)}</small></span><span class="wa-mini" data-act="waInvite" data-v="${c.id}" title="إرسال رابط الدخول عبر واتساب">${I.wa}</span>${sqBtn}</button>`).join('')}</div></section>`}
 
 const ampm=t=>{if(!t)return '';const [h,m]=t.split(':').map(Number);return pad(h%12||12)+':'+pad(m)+' '+(h<12?'ص':'م')};
@@ -232,8 +232,8 @@ function kpis(){
  const nTpl=Object.keys(TPL).length+((window.MQ_LAWLIB&&MQ_LAWLIB.items)?MQ_LAWLIB.items.length:0);
  const st=[
   ['brown',KI.files,act.length,'الملفات النشطة','cases',trend(nCa,pCa)],
-  ['orange',I.gavel,soon.length,'الجلسات القادمة','agenda',trend(soon.length,soonP)],
-  ['green',KI.users,nCl,'العملاء الجدد','clients',trend(nCl,pCl)],
+  ['orange',I.gavel,soon.length,'جلسات خلال 14 يوماً','agenda',trend(soon.length,soonP)],
+  ['green',KI.users,nCl,'الموكلون الجدد','clients',trend(nCl,pCl)],
   ['blue',KI.docs,docs.length,'المستندات','docs',trend(nDo,pDo)],
   ['gold',KI.tpl,nTpl,'العقود والنماذج','lawlib','']];
  return `<div class="kpis reveal">${st.map(([c,ic,n,l,v,t])=>`<button class="kpi ${c}" data-act="nav" data-v="${v}"><span class="kico">${ic}</span><span class="kbody"><b data-key="k-${v}" data-count="${n}">${n}</b><span class="kl">${l}</span></span><span class="kfoot"><span class="kd">عرض التفاصيل ${KI.arrL}</span>${t}</span></button>`).join('')}</div>`}

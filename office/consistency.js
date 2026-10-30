@@ -75,7 +75,7 @@ A.qcGo=v=>{const [act,id,k]=String(v).split('|');A.close&&A.close();
 function inject(){const pg=document.getElementById('page');if(!pg||!['agenda','clients','cases'].includes(S.view))return;
  const head=pg.querySelector('.head');if(!head||head.querySelector('[data-act="qcOpen"]'))return;
  const all=root.MQ_checks(),bad=all.filter(x=>x.level==='bad').length,warn=all.filter(x=>x.level==='warn').length;
- head.insertAdjacentHTML('beforeend',`<button type="button" class="btn qc-btn ${bad?'bad':warn?'warn':'ok'}" data-act="qcOpen" title="فحص اتساق البيانات">${bad||warn?`سلامة البيانات · <b class="num">${bad+warn}</b>`:'البيانات متسقة ✓'}</button>`)}
+ head.insertAdjacentHTML('beforeend',`<button type="button" class="btn qc-btn ${bad?'bad':warn?'warn':'ok'}" data-act="qcOpen" title="فحص اتساق البيانات">${bad?`⚠ يحتاج تصحيحاً · <b class="num">${bad}</b>${warn?` <small>+${warn} ملاحظة</small>`:''}`:warn?`ملاحظات البيانات · <b class="num">${warn}</b>`:'البيانات متسقة ✓'}</button>`)}
 const r0=render;render=function(){r0();try{inject()}catch(x){console.warn(x)}};
 
 const css=document.createElement('style');css.textContent=`
@@ -85,5 +85,5 @@ const css=document.createElement('style');css.textContent=`
 .qc-box li,.qc-list li{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.qc-t{flex:1;min-width:200px}
 .qc-dot{width:9px;height:9px;border-radius:50%;flex:none;background:#94A3B8}.qc-bad .qc-dot{background:#DC2626}.qc-warn .qc-dot{background:#F59E0B}
 .qc-list li{border-bottom:1px solid var(--line);padding:8px 0}
-.qc-btn.bad{border-color:#DC2626;color:#B91C1C}.qc-btn.warn{border-color:#F59E0B;color:#B45309}.qc-btn.ok{color:#15803D}`;document.head.appendChild(css);
+.qc-btn.bad{border-color:#DC2626;color:#B91C1C}.qc-btn.warn{border-color:#E9D6A8;color:#8B6F47;background:#FBF6EA}.qc-btn small{font-weight:400;opacity:.8}.qc-btn.ok{color:#15803D}`;document.head.appendChild(css);
 })(typeof window!=='undefined'?window:null);

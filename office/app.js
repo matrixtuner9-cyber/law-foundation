@@ -28,7 +28,7 @@ const statusPill=s=>({'نشطة':'acc','تنفيذ':'mz','محكوم':'warn','م
 
 /* ── الملاحة ── */
 const NAV=[
- ['dash','الرئيسية'],['cases','الملفات والقضايا'],['clients','العملاء'],['agenda','المواعيد والجلسات'],['docs','المستندات'],['tpls','العقود والنماذج'],['finance','المالية والفواتير'],['tasks','المهام'],['reports','التقارير'],
+ ['dash','الرئيسية'],['cases','الملفات والقضايا'],['clients','الموكلون'],['agenda','المواعيد والجلسات'],['docs','المستندات'],['tpls','العقود والنماذج'],['finance','المالية والفواتير'],['tasks','المهام'],['reports','التقارير'],
  ['أدوات'],['portal','بوابة الموكل'],['opps','الخصومة وتعارض المصالح'],['courts','المحاكم'],['mizan','الربط مع ميزان']];
 function navCount(v){
  if(v==='cases')return cases.filter(k=>k.status!=='منتهية').length;
@@ -271,7 +271,7 @@ V.mizan=()=>`<div class="head"><div><h1>الربط مع ميزان</h1><p class=
 /* ── العرض ── */
 function render(){const p=document.getElementById('page');let h;
  try{h=(V[S.view]||V.dash)()}catch(e){console.error('render',S.view,e);h=`<section class="panel"><div class="bd"><b>تعذّر عرض هذه الشاشة.</b><p class="m">${esc(String(e&&e.message||e))}</p><button class="btn sm" data-act="nav" data-v="dash">العودة إلى الرئيسية</button></div></section>`}
- p.innerHTML=h;drawNav();bindLocal()}
+ p.innerHTML=h;document.body.dataset.view=S.view;drawNav();bindLocal()}
 function bindLocal(){
  const cq=document.getElementById('cq');if(cq)cq.oninput=e=>{S.cq=e.target.value;document.getElementById('ctb').innerHTML=caseRows()};
  const cf=document.getElementById('cfq');if(cf)cf.oninput=e=>{document.getElementById('cfr').innerHTML=conflict(e.target.value)};
