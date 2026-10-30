@@ -23,7 +23,7 @@ function due(base,days){const d=parse(base);if(!d||!days)return null;d.setDate(d
 /* ملاحظة جاهزة تُلحق بأي عرض لميعاد */
 function note(end){const c=check(end);if(!c)return '';const parts=[];
  if(c.off){const why=c.holiday?('عطلة «'+c.holiday+'»'):('يوم '+c.weekly+' (راحة أسبوعية)');const ext=nextWork(end);
-  parts.push(`<span class="cal-n off">⚠ آخر يوم يصادف ${h(why)}. إن ثبتت العطلة رسمياً يمتد الميعاد إلى أول يوم عمل: <b>${h(dm(ext))}</b> — والأحوط التقديم قبل ${h(dm(end))}.</span>`)}
+  parts.push(`<span class="cal-n off">⚠ آخر يوم يصادف ${h(why)}. «إذا صادف آخر الميعاد عطلة رسمية امتد إلى أول يوم عمل بعدها» (المادة 21/3 من قانون أصول المحاكمات المدنية والتجارية) — أي إلى <b>${h(dm(ext))}</b> إن ثبتت العطلة رسمياً؛ والأحوط التقديم قبل ${h(dm(end))}. وفي غير المواعيد المدنية يُراجع قانونها.</span>`)}
  if(c.recess)parts.push(`<span class="cal-n rec">◷ يقع داخل ${h(c.recess)}: تحقّق من أثرها على هذا الميعاد قبل الاعتماد عليها؛ الأصل أن المواعيد لا تقف إلا بنص.</span>`);
  if(!loaded)parts.push('<span class="cal-n m">لم يُحمَّل تقويم المكتب بعد.</span>');
  else if(!CAL.holidays.length)parts.push('<span class="cal-n m">لم تُعتمد عطل رسمية في تقويم المكتب بعد (الإعدادات ← التقويم القضائي)؛ فُحصت الراحة الأسبوعية فقط.</span>');

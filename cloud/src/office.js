@@ -77,7 +77,25 @@ export class Office extends DurableObject {
     this.streams = new Map();
     this.enc = new TextEncoder();
     this.ping = null;
+    /* WebSocket بالسبات: الـ ping من المتصفح يُجاب دون إيقاظ المكتب، فلا يُحتسب زمن تشغيل وشاشة المحامي مفتوحة بلا نشاط */
+    try { ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong')) } catch (e) {}
   }
+  /* الإرسال لشاشات المكتب المتصلة بـ WebSocket (تبقى بعد السبات؛ هوية المستخدم في مرفق الاتصال) */
+  wsSend(type, payload, ok) {
+    let list = []; try { list = this.ctx.getWebSockets() } catch (e) { return }
+    const msg = JSON.stringify({ t: type, d: payload });
+    for (const ws of list) { let u = null; try { u = ws.deserializeAttachment() } catch (e) {} if (!u || (ok && !ok(u))) continue; try { ws.send(msg) } catch (e) {} }
+  }
+  openSocket(req, me) {
+    if (String(req.headers.get('Upgrade') || '').toLowerCase() !== 'websocket') return new Response('expected websocket', { status: 426 });
+    const pair = new WebSocketPair(), [client, server] = Object.values(pair);
+    this.ctx.acceptWebSocket(server);
+    try { server.serializeAttachment(JSON.parse(JSON.stringify(me))) } catch (e) { server.serializeAttachment({ id: me.id, role: me.role, username: me.username }) }
+    return new Response(null, { status: 101, webSocket: client });
+  }
+  webSocketMessage(ws, m) { if (m === 'ping') try { ws.send('pong') } catch (e) {} }
+  webSocketClose(ws, code) { try { ws.close(code === 1005 ? 1000 : code, 'bye') } catch (e) {} }
+  webSocketError(ws) { try { ws.close(1011, 'error') } catch (e) {} }
 
   /* ── أدوات ── */
   slug() { return this.store.kv.get('slug') }
@@ -138,6 +156,7 @@ export class Office extends DurableObject {
       if (payload && payload.client && !this.canSeeClient(u, payload.client)) continue;
       w.write(s).catch(() => this.streams.delete(w));
     }
+    this.wsSend(type, payload, u => !(type === 'mizan' && u.role !== 'admin') && !(payload && payload.client && !this.canSeeClient(u, payload.client)));
   }
   openStream(me) {
     const { readable, writable } = new TransformStream(), w = writable.getWriter();
@@ -188,6 +207,7 @@ export class Office extends DurableObject {
     if (!recs.length && !del.length) return;
     const s = this.enc.encode(`event: records\ndata: ${JSON.stringify({ by: byId, recs, del })}\n\n`);
     for (const [w, u] of this.streams) if (this.auth.can(u, 'all')) w.write(s).catch(() => this.streams.delete(w));
+    this.wsSend('records', { by: byId, recs, del }, u => this.auth.can(u, 'all'));
   }
   ensureState() { if (!this.state) { this.state = EMPTY(); this.store.saveState(null, this.state, 'system', stampS()) } }
   touchClient(cl) { if (!this.state) return; const c = this.state.clients.find(x => x.id === cl.id); if (c) { c.last = stamp().slice(0, 10); c._v = (c._v || 0) + 1; this.store.putRecord('clients', c, 'portal:' + cl.code, stampS()); this.broadcastRecords([{ kind: 'clients', rec: c }], null) } }
@@ -364,6 +384,7 @@ export class Office extends DurableObject {
       this.audit({ ...who, action: 'user.password_change', entity: 'users', entity_id: me.id });
       return json(200, { ok: true });
     }
+    if (p === '/api/ws') return this.openSocket(req, me);
     if (p === '/api/stream') return this.openStream(me);
 
     /* التقويم القضائي للمكتب: الراحة الأسبوعية والعطل المعتمدة والعطلة القضائية (legal-calendar.js) */

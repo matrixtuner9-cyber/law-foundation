@@ -16,7 +16,17 @@
   // نسخة احتياطية مشفّرة يومياً الساعة 03:30 بتوقيت فلسطين (00:30 UTC). تتطلب السر BACKUP_KEY
   "triggers": { "crons": ["30 0 * * *", "7 * * * *"] },
   // كل مكتب نطاق مخصص (Custom Domain) يُنشئ سجل DNS وشهادة تلقائياً
-  "routes": [{ "pattern": "test.palgaz.net", "custom_domain": true }, { "pattern": "demo.palgaz.net", "custom_domain": true }, { "pattern": "misbar.palgaz.net", "custom_domain": true }],
+  "routes": [{ "pattern": "test.palgaz.net", "custom_domain": true }, { "pattern": "demo.palgaz.net", "custom_domain": true }, { "pattern": "misbar.palgaz.net", "custom_domain": true },
+    { "pattern": "lawyer1.palgaz.net", "custom_domain": true },
+    { "pattern": "lawyer2.palgaz.net", "custom_domain": true },
+    { "pattern": "lawyer3.palgaz.net", "custom_domain": true },
+    { "pattern": "lawyer4.palgaz.net", "custom_domain": true },
+    { "pattern": "lawyer5.palgaz.net", "custom_domain": true },
+    { "pattern": "lawyer6.palgaz.net", "custom_domain": true },
+    { "pattern": "lawyer7.palgaz.net", "custom_domain": true },
+    { "pattern": "lawyer8.palgaz.net", "custom_domain": true },
+    { "pattern": "lawyer9.palgaz.net", "custom_domain": true },
+    { "pattern": "lawyer10.palgaz.net", "custom_domain": true }],
   "workers_dev": false,
   "observability": { "enabled": true }
   // الأسرار (لا تُكتب هنا): OPS_TOKEN وBACKUP_KEY وACT_PRIV (مفتاح التفعيل الخاص) عبر: wrangler secret put <الاسم>

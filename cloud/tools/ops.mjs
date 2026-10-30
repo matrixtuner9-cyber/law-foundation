@@ -20,4 +20,25 @@ else if (cmd === 'info') out(await call('GET', `/_ops/offices/${slug}/info`));
 else if (cmd === 'suspend' || cmd === 'activate') out(await call('POST', `/_ops/offices/${slug}/status`, { status: cmd === 'suspend' ? 'suspended' : 'active' }));
 // إعادة تعيين كلمة مرور: للعرض التجريبي بكلمة محددة، ولمكتب حقيقي بكلمة مؤقتة (يلزمه إذن الدعم من مدير المكتب)
 else if (cmd === 'reset-password') out(await call('POST', `/_ops/offices/${slug}/reset-password`, { username: name, ...(lawyer ? { password: lawyer } : {}) }));
-else console.log('usage: list | create <slug> "<name>" ["<lawyer>"] | setup <slug> | info <slug> | suspend|activate <slug> | reset-password <slug> <user> [password]');
+/* إعداد مكتب لمحامٍ جديد خطوة واحدة: إنشاء المكتب، وإضافة عنوانه إلى wrangler.jsonc (يُفعَّل مع النشر التالي)، ورابط الإعداد الأول، ورسالة جاهزة للإرسال.
+   node tools/ops.mjs onboard <slug> "<اسم المكتب>" ["<اسم المحامي>"] */
+else if (cmd === 'onboard') {
+  const r = await call('POST', '/_ops/offices', { slug, name, lawyer });
+  if (r.status !== 201 && r.error !== 'exists') { out(r); process.exit(1) }
+  /* يُضاف العنوان في نسخة النشر وفي المصدر (المصدر يُنسخ فوق نسخة النشر عند كل نشر) */
+  const host = slug + '.palgaz.net'; let added = false;
+  for (const wf of [new URL('../wrangler.jsonc', import.meta.url), new URL('../../source/cloud/wrangler.jsonc', import.meta.url)]) {
+    if (!fs.existsSync(wf)) continue; let w = fs.readFileSync(wf, 'utf8');
+    if (!w.includes('"' + host + '"')) { w = w.replace(/("routes":\s*\[[\s\S]*?)(\s*\])/, (m, a, b) => a + ',\n    { "pattern": "' + host + '", "custom_domain": true }' + b); fs.writeFileSync(wf, w); added = true } }
+  const st = await call('POST', `/_ops/offices/${slug}/setup-link`);
+  console.log(added ? `أُضيف ${host} إلى wrangler.jsonc — يعمل العنوان بعد النشر التالي للسحابة.` : `العنوان ${host} موجود في wrangler.jsonc.`);
+  console.log('\n──── رسالة للمحامي ────\n' + [
+    `حضرة ${lawyer || 'الأستاذ/ة'} المحترم/ة،`, '',
+    `أُنشئ مكتبكم «${name || slug}» على نظام المسبار.`,
+    `• عنوان مكتبكم: https://${host}`,
+    `• رابط إنشاء حساب المدير وكلمة المرور (صالح ${st.expires || '72 ساعة'}): ${st.url || '—'}`,
+    `• برنامج سطح المكتب: عند أول تشغيل اختر «الانضمام لمكتب قائم» والصق عنوان مكتبكم.`,
+    `• تطبيق الموكلين «ميثاق»: يكتب الموكل في خانة المكتب «${slug}» ثم رمز دخوله.`, '',
+    'نرجو عدم مشاركة رابط الإنشاء مع أحد.'].join('\n'));
+}
+else console.log('usage: list | onboard <slug> "<name>" ["<lawyer>"] | create <slug> "<name>" ["<lawyer>"] | setup <slug> | info <slug> | suspend|activate <slug> | reset-password <slug> <user> [password]');

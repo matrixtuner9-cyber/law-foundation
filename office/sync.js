@@ -106,8 +106,21 @@ function notify(m){
  /* إشعار النظام حين تكون النافذة في الخلفية (تطبيق سطح المكتب أو متصفح سُمح له) */
  if((document.hidden||!document.hasFocus())&&'Notification' in window&&Notification.permission==='granted'){try{const n=new Notification('المِسْبار · '+(d?d.title:who),{body:d?d.body:label(m),tag:'mq-'+m.id,lang:'ar',dir:'rtl'});n.onclick=()=>{window.focus();A.bag(m.client)}}catch(e){}}
 }
+/* الاتصال الحي: WebSocket أولاً (المكتب السحابي، بالسبات فلا يُحتسب وقت الشاشة المفتوحة بلا نشاط)، وإن لم يتوفر — خادم المكتب المحلي — فـ EventSource كما كان.
+   الطرفان يرسلان الأحداث نفسها بأسمائها، فبقية هذا الملف لا يعرف أيهما يعمل. */
+function liveSource(){
+ let sse=null,ws=null,tries=0,hb=null,openedOnce=false;
+ const H={},bound=new Set(),bind=t=>{if(sse&&!bound.has(t)){bound.add(t);sse.addEventListener(t,ev=>fire(t,ev.data))}},on=(t,f)=>{(H[t]=H[t]||[]).push(f);bind(t)},fire=(t,d)=>(H[t]||[]).forEach(f=>{try{f({data:d})}catch(e){}});
+ const api={addEventListener:on};
+ const useSse=()=>{if(sse)return;sse=new EventSource('/api/stream');Object.keys(H).forEach(bind)};
+ const open=()=>{let ok=false;try{ws=new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/api/ws')}catch(e){return useSse()}
+  ws.onopen=()=>{ok=openedOnce=true;tries=0;clearInterval(hb);hb=setInterval(()=>{try{ws.readyState===1&&ws.send('ping')}catch(e){}},30000)};
+  ws.onmessage=ev=>{if(ev.data==='pong')return;try{const m=JSON.parse(ev.data);fire(m.t,JSON.stringify(m.d))}catch(e){}};
+  ws.onclose=()=>{clearInterval(hb);if(!ok&&!openedOnce)return useSse();setTimeout(open,Math.min(30000,1000*Math.pow(2,tries++)))}};
+ /* WebSocket في المكاتب السحابية فقط؛ خادم المكتب المحلي يكفيه EventSource (ولا يُطبع خطأ اتصال في كل تحميل) */
+ if(/\.palgaz\.net$/i.test(location.hostname))open();else useSse();return api}
 function connect(){
- const es=new EventSource('/api/stream');
+ const es=liveSource();
  es.addEventListener('message',ev=>{const m=JSON.parse(ev.data);if(!putMsg(m))return;if(m.from==='client')notify(m);drawNav();if(window.MQ_onMsg)MQ_onMsg(m)});
  es.addEventListener('read',ev=>{const {client}=JSON.parse(ev.data);(messages[client]||[]).forEach(x=>{if(x.f==='them')x.unread=false});drawNav()});
  es.addEventListener('push',ev=>{MQ.push=JSON.parse(ev.data);const el=document.getElementById('bagPush');if(el&&window.MQ_pushLabel)el.innerHTML=MQ_pushLabel(S.clientId)});
