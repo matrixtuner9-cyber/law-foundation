@@ -52,7 +52,7 @@ V.client=function(){
  const u=unread(c),due=Math.max(0,(+c.fee||0)-(+c.paid||0)),tab=S.bagTab||'home';
  /* 1) بطاقة الموكل */
  const card=`<section class="cw-client"><div class="cw-cid"><div class="cw-av">${E(String(c.name||'').trim()[0]||'م')}</div><div><h1><button type="button" class="cw-home" data-act="bagTab" data-v="home" title="نظرة عامة على الموكل">${E(c.name)}</button></h1><small>${E([c.type,c.city,c.phone].filter(Boolean).join(' · '))}</small></div></div>
-  <div class="cw-cact">${c.whatsapp||c.phone?`<a class="btn sm cw-wa" target="_blank" rel="noopener" href="https://wa.me/${String(c.whatsapp||c.phone).replace(/\D/g,'').replace(/^0/,'970')}">واتساب</a>`:''}<details class="cw-more"><summary class="btn sm">⋯ المزيد</summary><div class="cw-pop"></div></details></div>
+  <div class="cw-cact">${c.whatsapp||c.phone?`<a class="btn sm cw-wa" target="_blank" rel="noopener" href="https://wa.me/${String(c.whatsapp||c.phone).replace(/\D/g,'').replace(/^0/,'970')}">واتساب</a>`:''}</div><div class="cw-pop cw-tools"></div>
   <div class="cw-portal ${c.portal?'on':''}"><i></i><span>${c.portal?'البوابة مفعّلة'+(c.last?' · آخر دخول '+E(dm(c.last)):''):'البوابة غير مفعّلة'}</span><button type="button" class="sw ${c.portal?'on':''}" data-act="togglePortal" data-v="${E(c.id)}" aria-label="تفعيل أو إيقاف بوابة الموكل" aria-pressed="${c.portal?'true':'false'}" title="${c.portal?'إيقاف البوابة':'تفعيل البوابة وإرسال رمز الدخول'}"></button></div></section>`;
  /* 2) قضايا الموكل */
  const list=`<section class="cw-box"><h3>القضايا <small>${ks.length}</small>${bagTabs&&bagTabs.querySelector('[data-v="cases"]')?`<button type="button" class="cw-st ${tab==='cases'?'on':''}" data-act="bagTab" data-v="cases" title="محطات القضايا: أين وصلت كل قضية">🧭 المحطات</button>`:''}</h3>${ks.map(k=>{const h=nextH(k);const on=tab==='case'&&S.caseId===k.id;return `<button type="button" class="cw-k ${on?'on':''} ${k.status==='منتهية'?'done':''}" data-act="openCase" data-v="${E(k.id)}"><b class="mono">${E(k.no||'جديدة')}</b><span>${E(String(k.subject||'').slice(0,60))}</span><small>${E(ctName(k))}${h?' · جلسة '+E(dm(h.date)):''}${k.status==='منتهية'?' · منتهية':''}</small></button>`}).join('')||'<div class="m">لا قضايا بعد.</div>'}
@@ -117,9 +117,11 @@ const css=doc.createElement('style');css.textContent=`
 .cw-cact{display:flex;gap:6px;align-items:flex-start;position:relative}.cw-wa{background:#1F9D55!important;color:#fff!important;border:0!important}
 .cw-more{position:relative}.cw-more>summary{list-style:none;background:transparent!important;color:#F3D58A!important;border:1px solid #C9A24A!important;cursor:pointer}.cw-more>summary::-webkit-details-marker{display:none}
 .cw-pop{position:absolute;top:34px;inset-inline-start:0;z-index:30;background:#fff;color:#1F2A36;border:1px solid #E5DCC8;border-radius:12px;padding:10px;box-shadow:0 14px 34px rgb(0 0 0 / .22);width:270px}
-/* العمود الجانبي يقصّ ما يخرج منه (overflow) وهو أضيق من القائمة: تُفتح القائمة داخل البطاقة بعرضها الكامل */
-.cw-side .cw-cact{flex-wrap:wrap}.cw-side .cw-more[open]{flex-basis:100%}.cw-side .cw-more[open]>summary{margin-inline-start:auto;display:table}
-.cw-side .cw-pop{position:static;width:auto;max-width:100%;box-sizing:border-box;margin-top:8px;box-shadow:0 6px 18px rgb(0 0 0 / .18)}
+/* أدوات الموكل ظاهرة دائماً داخل البطاقة (لا قائمة منسدلة تُقصّ في العمود الجانبي الضيق) */
+.cw-tools{position:static!important;width:auto!important;max-width:100%;box-sizing:border-box;margin-top:10px;padding:0!important;background:none!important;border:0!important;box-shadow:none!important}
+.cw-tools .wa-bar{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:6px}
+.cw-tools .wa-bar>*{width:auto!important;min-width:0;margin:0!important;justify-content:center;white-space:normal;line-height:1.35;font-size:12px!important;padding:7px 8px!important;background:rgb(255 255 255 / .08)!important;color:#F3E6C4!important;border:1px solid rgb(201 162 74 / .45)!important;border-radius:10px!important}
+.cw-tools .wa-bar>*:hover{background:rgb(201 162 74 / .22)!important}.cw-tools .wa-bar>.wa-btn{grid-column:1/-1;background:#1F9D55!important;color:#fff!important;border-color:#1F9D55!important}
 .cw-pop .wa-bar{display:flex;flex-direction:column;align-items:stretch;gap:6px}.cw-pop .wa-bar>*{width:100%;justify-content:center}
 .cw-portal{font-size:11.5px;color:#C9D4DB;display:flex;align-items:center;gap:6px}.cw-portal i{width:8px;height:8px;border-radius:50%;background:#9AA2AC}.cw-portal.on i{background:#3DDC84}
 .cw-box{background:var(--surface,#fff);border:1px solid var(--line,#E5DCC8);border-radius:14px;padding:10px 12px}
