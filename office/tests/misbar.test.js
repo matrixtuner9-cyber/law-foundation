@@ -135,3 +135,12 @@ test('مختبر التحليل: استعلامات من النموذج، مرا
   assert.strictEqual(c.status, 200); assert.strictEqual(c.body.provider, 'claude'); assert.ok(calls[calls.length - 1].url.includes('anthropic'));
   assert.strictEqual((await an.analyze({ task: 'appeal', consent: true, facts: 'قصير' })).status, 400, 'الطعن يحتاج نص الحكم');
 });
+
+test('عبارات الدعاية في ذيل الأحكام تُزال ولا يُمس نص الحكم', () => {
+  const { scrub } = require('../lib/misbar');
+  assert.equal(scrub('لم يجزه القانون كما هو معلوم .\n\nمحامي من الأردن'), 'لم يجزه القانون كما هو معلوم .');
+  assert.equal(scrub('نقض الحكم .\n\nأفضل محامي ، فريق من المحامين المختصين ، إسأل محامي ، إستشر محامي\n\nlawyer jordan'), 'نقض الحكم .');
+  assert.equal(scrub('( الطعن رقم 1892 سنة 19 ق ، جلسة 1950/2/27 ) محاكم عربية\n\nإسأل محامي ، إستشر محامي ، قانون الأردن'), '( الطعن رقم 1892 سنة 19 ق ، جلسة 1950/2/27 )');
+  const legit = 'إن المحامي من الأردن قد حضر الجلسة.\nللمحامي حق الطعن.';
+  assert.equal(scrub(legit), legit);
+});

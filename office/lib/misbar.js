@@ -62,7 +62,13 @@ const snippet = (body, q, len) => snippetAt(body, q, len).text;
 
 /* إزالة روابط مصدر الجمع (maqam.najah.edu) من كل نص يخرج من القاعدة، مع عبارة «شاهد التعديل/الحكم:» التي تسبقها؛ النص القانوني نفسه لا يُمس */
 const SCRUB_RX = /[ \t]*(?:شاهد\s+[\u0621-\u064A]+\s*[:：]\s*)?(?:https?:\/\/)?(?:www\.)?maqam\.najah\.edu[^\s،,)\]]*/gi;
-const scrub = s => s == null ? s : String(s).replace(SCRUB_RX, '');
+/* عبارات دعاية أقحمها موقع الجمع في ذيل بعض الأحكام الأردنية والمصرية («محامي من الأردن»، «إسأل محامي، إستشر محامي»، «lawyer jordan»، «محاكم عربية»):
+   يُحذف السطر إن كان كله من كلماتها، وتُحذف «محاكم عربية» الملحقة بآخر سطر الإحالة؛ نص الحكم نفسه لا يُمس */
+const SPAM_W = new Set('محامي محامين المحامين محاماه افضل في من الاردن اردني اسال استشر قانون فريق المختصين محاكم عربيه مكتب شركه lawyer lawyers jordan jordanian law firm'.split(' '));
+const spamN = w => w.toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي');
+const spamLine = l => { if (!/محام|lawyer|law firm|محاكم عربية/i.test(l)) return false; const ws = l.split(/[\s،,|=\-–•*:.]+/).filter(Boolean); return ws.length > 0 && ws.every(w => SPAM_W.has(spamN(w))) };
+const unspam = t => /محام|lawyer|law firm|محاكم عربية/i.test(t) ? t.split('\n').filter(l => !spamLine(l)).map(l => l.replace(/([)\/\d]\s*)محاكم عربية\s*$/, '$1').replace(/\s+$/, '')).join('\n').replace(/\n{3,}/g, '\n\n').trim() : t;
+const scrub = s => s == null ? s : unspam(String(s).replace(SCRUB_RX, ''));
 const cleanRow = r => r && ({ ...r, url: '', file_url: r.file_url === undefined ? undefined : '' });
 const COLS = 'd.id,d.src,d.country,d.kind,d.ext_id,d.title,d.year,d.number,d.court,d.case_no,d.date,d.ltype,d.subject,d.status,d.status_code,d.url,d.has_text';
 /* يبني شروط البحث من الفلاتر */
