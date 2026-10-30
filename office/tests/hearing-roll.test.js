@@ -14,7 +14,7 @@ test('الرول يجمع جلسات اليوم حسب المحكمة ويرتب
   const html = vm.runInContext('V.roll()', sb);
   assert.equal((html.match(/<section class="rl-ct">/g) || []).length, 2);
   assert.ok(html.indexOf('بداية نابلس') < html.indexOf('صلح رام الله'));
-  assert.ok(html.indexOf('3/2026') < html.indexOf('1/2026'), 'الساعة 09:00 قبل 11:00 في المحكمة نفسها');
+  assert.ok(html.indexOf('"mono">3/2026') < html.indexOf('"mono">1/2026'), 'الساعة 09:00 قبل 11:00 في المحكمة نفسها');
   assert.match(html, /تأجيل لإحضار الشهود/);
   assert.doesNotMatch(html, /غير هذا اليوم/);
   assert.match(vm.runInContext('V.agenda()', sb), /رول الجلسات اليومي/);
