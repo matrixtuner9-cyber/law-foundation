@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <!--
+    If you are serving your web app in a path other than the root, change the
+    href value below to reflect the base path you are serving from.
+
+    The path provided below has to start and end with a slash "/" in order for
+    it to work correctly.
+
+    For more details:
+    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+
+    This is a placeholder for base href that will be replaced by the value of
+    the `--base-href` argument provided to `flutter build`.
+  -->
+  <base href="/">
+
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="بوابة الموكل - مكتب الميثاق للمحاماة">
+
+  <!-- iOS meta tags & icons -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="ميثاق">
+  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/png" href="favicon.png"/>
+
+  <title>بوابة ميثاق</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0B1B2B">
+  <script>
+  // إشعارات بوابة الموكل (Web Push): يتصل به تطبيق Flutter عبر mqPush
+  window.mqPush = (function () {
+    var ok = 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window && window.isSecureContext;
+    var reg = null;
+    function key(s) { s = s.replace(/-/g, '+').replace(/_/g, '/'); var r = atob(s + '='.repeat((4 - s.length % 4) % 4)); return Uint8Array.from(r, function (c) { return c.charCodeAt(0); }); }
+    function code() { try { var v = localStorage.getItem('flutter.code'); return v ? JSON.parse(v) : null; } catch (e) { return null; } }
+    async function subscribe(c) {
+      var k = await (await fetch('/api/portal/push-key')).json();
+      if (!k.enabled) return 'server';
+      reg = reg || await navigator.serviceWorker.ready;
+      var s = await reg.pushManager.getSubscription();
+      if (!s) s = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: key(k.key) });
+      var r = await fetch('/api/portal/push-subscribe', { method: 'POST', headers: { 'content-type': 'application/json', 'x-client': c }, body: JSON.stringify(s) });
+      return r.ok ? 'granted' : 'error';
+    }
+    if (ok) navigator.serviceWorker.register('push-sw.js').then(function (r) {
+      reg = r;
+      var c = code();
+      if (c && Notification.permission === 'granted') subscribe(c).catch(function () {});
+    }).catch(function () {});
+    return {
+      status: function () { return ok ? Notification.permission : 'unsupported'; },
+      enable: async function (c) {
+        if (!ok) return 'unsupported';
+        try { var p = await Notification.requestPermission(); return p === 'granted' ? await subscribe(c) : p; }
+        catch (e) { return 'error'; }
+      }
+    };
+  })();
+  window.addEventListener('flutter-first-frame', function () { var s = document.getElementById('mq-splash'); if (s) s.remove(); });
+  // الآيفون: إشعارات الويب تعمل فقط بعد إضافة البوابة إلى الشاشة الرئيسية (iOS 16.4 فما فوق)، فنرشد الموكل مرة كل أسبوع
+  (function () {
+    var ios = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    var standalone = window.navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+    if (!ios || standalone) return;
+    try { if (Date.now() - Number(localStorage.getItem('mq_ios_hint') || 0) < 7 * 864e5) return; } catch (e) {}
+    function show() {
+      if (document.getElementById('mq-ios-hint')) return;
+      var d = document.createElement('div'); d.id = 'mq-ios-hint'; d.setAttribute('dir', 'rtl'); d.setAttribute('role', 'dialog');
+      d.style.cssText = 'position:fixed;left:12px;right:12px;bottom:calc(14px + env(safe-area-inset-bottom));z-index:99999;background:#F9F6EF;color:#11302A;border:1px solid #E2B866;border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.28);padding:14px 16px 14px 44px;font:500 14.5px/1.6 -apple-system,system-ui,sans-serif';
+      d.innerHTML = '<b style="display:block;font-size:15.5px;margin-bottom:2px">ثبّت «ميثاق» على هاتفك</b>لتصلك رسائل المحامي حتى والبوابة مغلقة: اضغط زر المشاركة <span aria-label="مشاركة" style="display:inline-block;vertical-align:-3px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#11302A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg></span> (أو ⋯ ثم «مشاركة»)، ثم «إضافة إلى الشاشة الرئيسية»، وافتح ميثاق من أيقونته وفعّل التنبيهات.' +
+        '<button type="button" aria-label="إغلاق" style="position:absolute;left:8px;top:8px;width:32px;height:32px;border:0;border-radius:50%;background:transparent;color:#11302A;font-size:22px;line-height:1">×</button>';
+      d.querySelector('button').onclick = function () { try { localStorage.setItem('mq_ios_hint', String(Date.now())); } catch (e) {} d.remove(); };
+      document.body.appendChild(d);
+    }
+    window.addEventListener('flutter-first-frame', function () { setTimeout(show, 2500); });
+  })();
+  </script>
+</head>
+<body>
+  <!--
+    You can customize the "flutter_bootstrap.js" script.
+    This is useful to provide a custom configuration to the Flutter loader
+    or to give the user feedback during the initialization process.
+
+    For more details:
+    * https://docs.flutter.dev/platform-integration/web/initialization
+  -->
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
