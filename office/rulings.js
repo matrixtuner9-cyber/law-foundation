@@ -86,8 +86,8 @@ const navCount0=window.navCount;window.navCount=v=>v==='rulings'?(rulings.length
 /* ── الشاشة ── */
 V.rulings=()=>{
  const rs=list(),q=RS.q.trim();
- return `<div class="head"><div><h1>الاجتهادات القضائية الفلسطينية</h1><p class="sub">مكتبة المكتب من المبادئ القضائية: ابحث بالموضوع أو المبدأ أو رقم الحكم، واربط ما يفيد منها بقضاياك</p></div>
-  <div class="toolbar">${can2('write')?'<button class="btn" data-act="nav" data-v="misbar">بحث في المِسْبار</button><button class="btn pri" data-act="rNew">إضافة حكم</button>':''}${can2('manage')&&collected().length?`<button class="btn" data-act="rPurge" title="الأحكام المجموعة من مقام والمقتفي موجودة في قاعدة المسبار">إزالة الأحكام المجموعة (${collected().length})</button>`:''}</div></div>
+ return `<div class="head"><div><h1>الأحكام المحفوظة</h1><p class="sub">أحكام يحفظها المكتب بنفسه بمبدئها وملفها وملاحظاته، وتُربط بقضاياه — للبحث في آلاف الأحكام الفلسطينية والأردنية والمصرية استخدم «عقل القانون»</p></div>
+  <div class="toolbar">${can2('write')?'<button class="btn" data-act="nav" data-v="misbar">ابحث في عقل القانون</button><button class="btn pri" data-act="rNew">إضافة حكم</button>':''}${can2('manage')&&collected().length?`<button class="btn" data-act="rPurge" title="الأحكام المجموعة من مقام والمقتفي موجودة في قاعدة المسبار">إزالة الأحكام المجموعة (${collected().length})</button>`:''}</div></div>
  <section class="panel"><div class="bd rl-search">
   <input class="field" id="rq" value="${e(RS.q)}" placeholder="مثال: بطلان التبليغ، الدفع بالتقادم، إخلاء المأجور لعدم دفع الأجرة…" autocomplete="off">
   <select class="field" id="rCourt"><option value="">كل المحاكم</option>${COURTS.map(c=>`<option ${RS.court===c?'selected':''}>${c}</option>`).join('')}</select>
@@ -110,7 +110,7 @@ const advT=()=>`<button class="link" data-act="rAdv">${RS.adv?'▾ إخفاء ا
 function advCount(){return [RS.mode!=='all',RS.in!=='all',RS.year,RS.from,RS.to,RS.withText,RS.pending].filter(Boolean).length}
 function results(rs){
  const q=RS.q.trim();
- if(!rulings.length)return `<section class="panel rl-empty"><div class="bd"><b>المكتبة فارغة بعد.</b><p>أضف المبادئ القضائية التي يعتمد عليها المكتب: المبدأ بصياغتك، ورقم الحكم ومحكمته وتاريخه، ونص الحكم إن توفر. كل ما تضيفه يصبح قابلاً للبحث فوراً ويُربط بقضاياك.</p>${can2('write')?'<button class="btn pri" data-act="rNew">إضافة أول حكم</button>':''}</div></section>`;
+ if(!rulings.length)return `<section class="panel rl-empty"><div class="bd"><b>لا أحكام محفوظة بعد.</b><p>ابحث في «عقل القانون» (آلاف الأحكام في قاعدة المسبار) واحفظ ما يفيدك منها، أو أضف حكماً ليس في أي قاعدة — كحكم صدر في قضية للمكتب. لكل حكم: المبدأ بصياغتك، ورقم الحكم ومحكمته وتاريخه، ونص الحكم إن توفر. كل ما تضيفه يصبح قابلاً للبحث فوراً ويُربط بقضاياك.</p><div class="toolbar"><button class="btn" data-act="nav" data-v="misbar">ابحث في عقل القانون</button>${can2('write')?'<button class="btn pri" data-act="rNew">إضافة حكم</button>':''}</div></div></section>`;
  if(!rs.length)return `<section class="panel"><div class="empty">لا نتائج في مكتبة المكتب${q?' لـ «'+e(q)+'»':''}. جرّب كلمات أقل، أو غيّر طريقة المطابقة، أو امسح شروط البحث المتقدم.</div></section>`;
  const pages=Math.max(1,Math.ceil(rs.length/PER));if(RS.page>pages)RS.page=pages;
  const slice=rs.slice((RS.page-1)*PER,RS.page*PER),allOn=slice.every(r=>RS.sel.has(r.id)),n=RS.sel.size;

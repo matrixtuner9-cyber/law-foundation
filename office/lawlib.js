@@ -43,7 +43,7 @@ const navCount0=window.navCount;window.navCount=v=>v==='lawlib'?all().length:nav
 V.lawlib=()=>{
  const A_=all(),n=k=>A_.filter(x=>x.status===k).length,a=A_.filter(x=>x.kind==='A').length;
  return `<div class="head"><div><h1>المكتبة القانونية الفلسطينية</h1><p class="sub">${e(LIB.edition)} · ${A_.length} نموذجاً ومرجعاً، مع فصل النماذج المنشورة لدى الجهات الرسمية عن مسودات العمل التي تحتاج مراجعة واعتماداً</p></div>
-  <div class="toolbar"><button class="btn" data-act="nav" data-v="legalShelf">مكتبتي القانونية</button>${canW()?'<button class="btn" data-act="llNew">نموذج جديد للمكتب</button>':''}</div></div>
+  <div class="toolbar"><button class="btn" data-act="nav" data-v="rulings">مكتبة المكتب</button>${canW()?'<button class="btn" data-act="llNew">نموذج جديد للمكتب</button>':''}</div></div>
  <div class="ll-stats">
   <button class="ll-st" data-act="llKind" data-v=""><b>${A_.length}</b><span>نموذجاً ومرجعاً</span></button>
   <button class="ll-st ${LS.kind==='A'?'on':''}" data-act="llKind" data-v="A"><b>${a}</b><span>مرجعاً لنموذج منشور لدى جهة رسمية</span></button>

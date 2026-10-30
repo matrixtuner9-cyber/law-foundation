@@ -73,7 +73,9 @@ const css=document.createElement('style');css.textContent=`
 if(typeof NAV==='undefined'||typeof V==='undefined')return;
 const GROUPS=[
  {id:'reports',lb:'الاستعلامات والتقارير',tabs:[['clients','الموكلون'],['cases','القضايا'],['agenda','المواعيد والجلسات'],['docs','المستندات'],['chats','المراسلات'],['reports','التقارير']],alsoOn:['client','case']},
- {id:'lawlib',lb:'المكتبة القانونية',tabs:[['lawlib','المكتبة القانونية'],['tpls','العقود والنماذج']]}];
+ {id:'lawlib',lb:'المكتبة القانونية',tabs:[['lawlib','المكتبة القانونية'],['tpls','العقود والنماذج']]},
+ /* مكتبة المكتب: ما يحفظه المكتب بنفسه في باب واحد (كانت ثلاثة أبواب متقاربة) */
+ {id:'library',lb:'مكتبة المكتب',tabs:[['rulings','الأحكام المحفوظة'],['laws','التشريعات المحفوظة'],['legalShelf','المواد والمبادئ والنماذج']]}];
 const groupOf=v=>GROUPS.find(g=>g.tabs.some(t=>t[0]===v)||(g.alsoOn||[]).includes(v));
 const strip=(g,cur)=>`<div class="tabs rq-tabs" role="tablist" aria-label="${g.lb}">${g.tabs.map(([id,lb])=>`<button class="${cur===id?'on':''}" data-act="nav" data-v="${id}">${lb}</button>`).join('')}</div>`;
 /* يُعاد مع كل رسم للقائمة لأن بعض الوحدات تضيف عناصرها لاحقاً. الأقسام القانونية الأخرى تبقى بأسمائها الكاملة ومكانها */

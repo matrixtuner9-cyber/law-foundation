@@ -58,7 +58,7 @@ function studyTab(k){const s=k.study||{};const rec=s.rec||'';
  <div class="stack">
   <section class="panel"><header><h2>أدوات مساعدة</h2></header><div class="bd list">
    <button class="row clk" data-act="nav" data-v="laws"><div><div class="t">التشريعات الفلسطينية</div><div class="m">البحث في نصوص القوانين والمواد</div></div></button>
-   <button class="row clk" data-act="nav" data-v="rulings"><div><div class="t">الاجتهادات القضائية</div><div class="m">أحكام سابقة في مسائل مشابهة</div></div></button>
+   <button class="row clk" data-act="nav" data-v="rulings"><div><div class="t">الأحكام المحفوظة</div><div class="m">ما حفظه المكتب من أحكام في مسائل مشابهة</div></div></button>
    <button class="row clk" data-act="nav" data-v="calc"><div><div class="t">الحاسبات القانونية</div><div class="m">المهل والرسوم والفوائد</div></div></button>
    <button class="row clk" data-act="cwNext" data-v="c360|${k.id}"><div><div class="t">ملف القضية 360°</div><div class="m">مصفوفة البينات والتنبيهات</div></div></button>
   </div></section>
