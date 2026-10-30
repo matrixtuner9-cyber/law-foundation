@@ -183,7 +183,6 @@ class AccountTab extends StatelessWidget {
                   ]),
                 ),
               ),
-              const Padding(padding: EdgeInsets.fromLTRB(Sp.page, Sp.l, Sp.page, 0), child: PushPrompt(compact: true)),
               const SectionLabel('بياناتي'),
               Group(children: [
                 InfoRow(icon: Icons.person_outline, label: 'الاسم', value: '${c['name'] ?? ''}'),

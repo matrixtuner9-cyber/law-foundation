@@ -37,6 +37,12 @@ class HomeTab extends StatelessWidget {
                   _NextHearing(next: store.nextHearing),
                   const SizedBox(height: Sp.m),
                   _Shortcuts(onGo: onGo),
+                  const SizedBox(height: Sp.m),
+                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    Expanded(child: _FeesCard(onTap: () => onGo(4))),
+                    const SizedBox(width: Sp.m),
+                    Expanded(child: _DocsCard(onTap: () => onGo(3))),
+                  ]),
                   const PushPrompt(),
                   if (fromOffice.isNotEmpty) ...[
                     _Title(Icons.history_rounded, 'آخر المستجدات', 'فتح المحادثة', () => onGo(2)),
@@ -52,12 +58,6 @@ class HomeTab extends StatelessWidget {
                         ),
                     ]),
                   ],
-                  const SizedBox(height: Sp.m),
-                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Expanded(child: _FeesCard(onTap: () => onGo(4))),
-                    const SizedBox(width: Sp.m),
-                    Expanded(child: _DocsCard(onTap: () => onGo(3))),
-                  ]),
                 ]),
               ),
             ),
@@ -429,9 +429,10 @@ class _DocsCard extends StatelessWidget {
 
 /// بطاقة قضية مختصرة
 class CaseSummary extends StatelessWidget {
-  const CaseSummary({super.key, required this.kase, this.onTap});
+  const CaseSummary({super.key, required this.kase, this.onTap, this.detailed = false});
   final Map<String, dynamic> kase;
   final VoidCallback? onTap;
+  final bool detailed;
   @override
   Widget build(BuildContext context) {
     final steps = store.steps;
@@ -441,7 +442,10 @@ class CaseSummary extends StatelessWidget {
       onTap: onTap,
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Text('قضية ${kase['no']}', style: MQ.mono(13, color: MQ.muted)),
+          Text.rich(TextSpan(children: [
+            TextSpan(text: 'قضية ', style: MQ.footnote()),
+            TextSpan(text: '${kase['no']}', style: MQ.mono(13, color: MQ.muted)),
+          ])),
           const Spacer(),
           if ('${kase['status'] ?? ''}'.isNotEmpty) Chip2('${kase['status']}', bg: sb, fg: sf),
         ]),
@@ -452,8 +456,43 @@ class CaseSummary extends StatelessWidget {
             style: MQ.footnote(), maxLines: 2, overflow: TextOverflow.ellipsis),
         const SizedBox(height: Sp.m),
         StageBar(steps: steps, step: step),
+        if (detailed) ..._footer(),
       ]),
     );
+  }
+
+  /// تذييل البطاقة في «قضاياي»: الجلسة القادمة لهذه القضية وعدد الجلسات ورابط التفاصيل
+  List<Widget> _footer() {
+    final hs = ((kase['hearings'] as List?) ?? []).map((e) => Map<String, dynamic>.from(e)).toList();
+    final now = DateTime.now();
+    final next = hs.map((h) => (h: h, t: parseDate('${h['date']}', '${h['time'] ?? '00:00'}'))).where((x) => x.t.isAfter(now)).toList()
+      ..sort((a, b) => a.t.compareTo(b.t));
+    final n = next.isEmpty ? null : next.first;
+    return [
+      const SizedBox(height: Sp.m),
+      const Divider(height: 1),
+      const SizedBox(height: Sp.m),
+      Row(children: [
+        Icon(n == null ? Icons.event_busy_outlined : Icons.event_available_rounded, size: 18, color: n == null ? MQ.muted : MQ.forest),
+        const SizedBox(width: Sp.s),
+        Expanded(
+          child: n == null
+              ? Text('لا جلسة قادمة محددة', style: MQ.footnote())
+              : Text.rich(TextSpan(children: [
+                  TextSpan(text: 'الجلسة القادمة: ', style: MQ.footnote()),
+                  TextSpan(text: '${fmtDate(n.t)} · ${relDay(n.t)}', style: MQ.footnote(color: MQ.ink, weight: FontWeight.w600)),
+                ])),
+        ),
+      ]),
+      const SizedBox(height: Sp.s),
+      Row(children: [
+        const Icon(Icons.gavel_rounded, size: 18, color: MQ.muted),
+        const SizedBox(width: Sp.s),
+        Expanded(child: Text(hs.isEmpty ? 'لم تُعقد جلسات بعد' : 'عدد الجلسات: ${hs.length}', style: MQ.footnote())),
+        Text('التفاصيل', style: MQ.footnote(color: MQ.forest, weight: FontWeight.w700)),
+        const Icon(Icons.chevron_left_rounded, size: 20, color: MQ.forest),
+      ]),
+    ];
   }
 }
 

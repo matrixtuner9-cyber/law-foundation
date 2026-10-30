@@ -51,13 +51,13 @@ class _PushPromptState extends State<PushPrompt> {
   @override
   Widget build(BuildContext context) {
     final on = status == 'granted';
-    // في الشاشة الرئيسية تظهر البطاقة فقط إن لم تُفعَّل بعد
-    if (!widget.compact && (on || status == 'unsupported')) return const SizedBox.shrink();
+    // في الرئيسية لا تظهر إلا إن كان التفعيل ممكناً بضغطة؛ حالة «محظورة» تُعرض بهدوء في الإعدادات فقط
+    if (!widget.compact && status != 'default') return const SizedBox.shrink();
     final (icon, title, sub, col) = on
         ? (Icons.notifications_active, 'الإشعارات مفعّلة', 'يصلك تنبيه بصوت ونص عند كل رسالة أو إشعار من المكتب.', MQ.ok)
         : status == 'denied'
             ? (Icons.notifications_off_outlined, 'الإشعارات محظورة',
-                ios ? 'اسمح بها من إعدادات الآيفون ← ميثاق ← الإشعارات.' : 'اسمح بالإشعارات لهذا الموقع من إعدادات المتصفح.', MQ.danger)
+                ios ? 'اسمح بها من إعدادات الآيفون ← ميثاق ← الإشعارات.' : 'اسمح بالإشعارات لهذا الموقع من إعدادات المتصفح.', MQ.warn)
             : status == 'unsupported'
                 ? (Icons.notifications_none, 'الإشعارات', 'تُفعَّل في تطبيق الهاتف بعد ربط خدمة الإشعارات.', MQ.muted)
                 : (Icons.notifications_active_outlined, 'فعّل التنبيهات',
