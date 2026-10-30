@@ -631,8 +631,8 @@ function locLinks(r){
      رمادي منقّط = صلة مقترحة بالكلمات أو بالمعنى لم يتحقق منها شيء
    «مخطط فكر المحامي»: الرحلة كاملة من الوقائع إلى المسائل والنصوص والأحكام والحجج وما يلزم التحقق منه.
    تخطيط محسوب بالكامل (لا قياس للصفحة): بطاقات ثابتة الارتفاع، ترتيب الأحكام بمركز ثقل موادها لتقليل التقاطع، وتجميع الخطوط الواردة إلى المادة نفسها في حزمة. */
-const RG={info:{},view:'map',z:1,x:0,y:0,hide:{}};
-const RGT={cite:['يستند إلى','استناد مسجّل في القاعدة','#B8892E'],ok:['تحقّق منه المكتب','قيّمه مكتبك مهماً أو ربطه بقضية','#2A8C8A'],opp:['اتجاه مخالف','وسمه المكتب مخالفاً، أو نتيجة معاكسة لأحكام طبّقت المادة نفسها','#B0503A'],sug:['صلة مقترحة','بالكلمات أو بالمعنى — لم يُتحقق منها','#8E98A3']};
+const RG={info:{},view:'map',z:1,x:0,y:0,hide:{},depth:2};
+const RGT={cite:['يستند إلى','استناد مسجّل في القاعدة','#B8892E'],ok:['تحقّق منه المكتب','قيّمه مكتبك مهماً أو ربطه بقضية','#2A8C8A'],opp:['اتجاه مخالف','وسمه المكتب مخالفاً، أو نتيجة معاكسة لأحكام طبّقت المادة نفسها','#B0503A'],sug:['صلة مقترحة','بالكلمات أو بالمعنى — لم يُتحقق منها','#8E98A3'],amd:['يعدّل','عُدّلت المادة بتشريع لاحق — من فحص السريان في القاعدة','#7A5AB8']};
 const rgOc=x=>Array.isArray(x.outcome)?x.outcome.join('، '):String(x.outcome||'');
 function rgShort(t,n){t=String(t||'').replace(/\s+/g,' ').trim();return t.length>n?t.slice(0,n-1)+'…':t}
 /* المحرّك: أعمدة من اليمين، عقد ثابتة الارتفاع، خطوط منحنية مع حزم */
@@ -667,14 +667,18 @@ function rgEngine(spec){
 function rgMapSpec(r,L){
  const laws=r.laws||[],R=L.R,nodes=[],edges=[],topics=(r.topics||[]).map(t=>t.label);
  nodes.push({id:'rgQ',col:0,kind:'q',ic:'◉',title:topics.slice(0,2).join(' · ')||'المسألة',sub:rgShort(r.title||((r.keyterms||{}).terms||r.qterms||[]).join('، '),90),h:96,tip:r.title});
- const artId={};
+ const artId={};let amdN=0;
  laws.forEach((l,li)=>{nodes.push({id:'rgL'+li,col:1,kind:'law',ic:'§',title:rgShort(l.title.replace(/\s*رقم\s*\(?\d+\)?\s*لسن[ةه]\s*\d+م?\.?$/,''),40),sub:(l.articles||[]).length+' مادة'+(l.topic?' · '+l.topic:''),go:'mbgL'+li,h:52,gap:6,tip:l.title});
   edges.push({from:'rgQ',to:'rgL'+li,type:/استندت إليه/.test(l.topic||'')?'cite':'sug',label:/استندت إليه/.test(l.topic||'')?'استندت إليه الأحكام':'موضوع المسألة',info:{a:'المسألة',b:l.title,why:/استندت إليه/.test(l.topic||'')?'أضيف لأن أحكاماً معروضة استندت إلى مواده كما سجّلتها القاعدة.':'اختير لأن كلمات السؤال تطابق موضوع «'+(l.topic||'')+'».'}});
   (l.articles||[]).forEach((a,ai)=>{const id='rgA'+li+'_'+ai;artId['mbgA'+li+'_'+ai]=id;
    const ok=a.pinned||a.liked,sem=a.sem,rel=a.relied;
    nodes.push({id,col:1,kind:'art',ind:18,cls:(ok?'ok ':'')+(sem?'sem':''),title:a.label,sub:rgShort(a.text,58),badge:rel?rel+' ⚖':(a.pinned?'📌':''),go:'mbgA'+li+'_'+ai,h:50,gap:(ai===l.articles.length-1?16:6),tip:a.label+' — '+rgShort(a.text,300)});
    if(ok)edges.push({from:'rgA'+li+'_'+ai,to:'rgQ',type:'ok',label:a.pinned?'مثبّتة في قاموس المكتب':'قيّمها المكتب مهمة',info:{a:a.label,b:'المسألة',why:a.pinned?'ثبّتها مكتبك لهذا الموضوع في قاموس المسبار.':'قيّمها مكتبك «مهمة» في أسئلة مشابهة ('+a.liked+').',art:a.text}});
-   else if(sem)edges.push({from:'rgA'+li+'_'+ai,to:'rgQ',type:'sug',label:'قريبة في المعنى',info:{a:a.label,b:'المسألة',why:'وجدها البحث الدلالي على الجهاز؛ لم تتطابق كلماتها مع السؤال. تحقّق من انطباقها.',art:a.text}})})});
+   else if(sem)edges.push({from:'rgA'+li+'_'+ai,to:'rgQ',type:'sug',label:'قريبة في المعنى',info:{a:a.label,b:'المسألة',why:'وجدها البحث الدلالي على الجهاز؛ لم تتطابق كلماتها مع السؤال. تحقّق من انطباقها.',art:a.text}});
+   /* «يعدّل»: التشريع المعدِّل كما سجّله فحص السريان في القاعدة (لا تقدير)، عقدة صغيرة تحت المادة */
+   ((a.valid&&a.valid.notes)||[]).filter(n=>n.type==='amended'&&n.label).slice(0,2).forEach((n,ni)=>{if(amdN>=8)return;amdN++;const aid=id+'_m'+ni;
+    nodes.push({id:aid,col:1,kind:'amd',ind:36,ic:'✎',title:n.label,sub:n.byArticle?'بموجب مادته ('+n.byArticle+')':'تعديل مسجّل',h:40,gap:6,open:n.instId||'',tip:(n.instTitle||n.label)+(n.year?' — '+n.year:'')});
+    edges.push({from:aid,to:id,type:'amd',label:'يعدّل',info:{a:n.instTitle||n.label,b:a.label,why:'سجّلت القاعدة أن '+a.label+' عُدّلت بموجب '+(n.byArticle?'المادة ('+n.byArticle+') من ':'')+n.label+'. تأكد من النص الساري وقت الواقعة قبل الاستشهاد بها.',art:a.text,id:n.instId||''}})})})});
  /* ترتيب الأحكام بمركز ثقل المواد التي تستند إليها: يقلّل تقاطع الخطوط */
  const order={};nodes.filter(n=>n.col===1).forEach((n,i)=>order[n.id]=i);
  const tgt=q=>(q.links||[]).map(x=>artId[x.to]||(x.to.startsWith('mbgL')?'rgL'+x.to.slice(4):null)).filter(Boolean);
@@ -682,7 +686,8 @@ function rgMapSpec(r,L){
  const RS=[...R].sort((a,b)=>bc(a)-bc(b));
  const split={};((r.opposing||{}).split||[]).forEach(s=>{(s.for||[]).forEach(x=>split[x.id]={cite:s.cite,side:'لصالح الطاعن أو المتهم',other:(s.against||[]).length});(s.against||[]).forEach(x=>split[x.id]={cite:s.cite,side:'بالرد أو الإدانة',other:(s.for||[]).length})});
  const bk={ok:[],opp:[],sug:[]};
- RS.forEach(q=>{const x=q.x,[tc,tl]=BTIER(x.court),yr=BYEAR(x),id='rgR_'+q.id;
+ const rid={};
+ RS.forEach(q=>{const x=q.x,[tc,tl]=BTIER(x.court),yr=BYEAR(x),id='rgR_'+q.id;rid[x.id]=id;
   nodes.push({id,col:2,kind:'rul',cls:(q.cmp?'cmp':'rg-t-'+tc)+(x.contra?' opp':'')+(x.liked||x.linked?' ok':''),ic:'⚖',title:(q.cmp?(/أردن|تمييز/.test(x.court+(x.source||''))?'الأردن':'مصر'):tl)+(x.case_no?' · '+x.case_no:'')+(yr?' · '+yr:''),sub:rgShort(rgOc(x)||x.court||'',44),go:q.id,open:x.id,h:52,gap:8,tip:x.title});
   const t=tgt(q);
   q.links.forEach(lk=>{const to=artId[lk.to]||(lk.to.startsWith('mbgL')?'rgL'+lk.to.slice(4):null);if(!to)return;
@@ -692,6 +697,10 @@ function rgMapSpec(r,L){
   if(!q.cmp&&!t.length&&!(x.liked||x.linked))bk.sug.push([id,{a:x.title,b:'يتطلب تحققاً',why:'وُجد بمطابقة كلمات السؤال ('+(x.why||[]).join('، ')+')، ولم تسجّل القاعدة استناده إلى مادة من المواد المعروضة، ولم يقيّمه المكتب. اقرأه قبل الاعتماد عليه.',ex:x.excerpt,id:x.id}])});
  const B=[['ok','✓','يدعم الحجة','ما تحقّق منه مكتبك'],['opp','⚔','اتجاه مخالف','ما قد يُحتجّ به ضدك'],['sug','?','يتطلب تحققاً','صلة لم يتحقق منها شيء']];
  B.forEach(([t,ic,ti,su])=>{nodes.push({id:'rgB_'+t,col:3,kind:'bk '+t,ic,title:ti,sub:su,badge:String(bk[t].length),go:t==='opp'?'mbgOpp':'',h:76,gap:26});bk[t].forEach(([from,info])=>edges.push({from,to:'rgB_'+t,type:t,label:'',info}))});
+ /* الحجج والدفوع: مقاطع حرفية من الأحكام المعروضة نفسها — ما اشترطته المحاكم، وما ورد فيها من دفوع وما ردّت به */
+ [['req','▤','ما اشترطته المحاكم','شروط وإثبات وردت حرفياً',r.requisites,'mbgReq'],['def','⛨','الدفوع وما رُدّ به','دفوع أُثيرت في الأحكام نفسها',r.defenses,'mbgDef']].forEach(([k,ic,ti,su,xs,go])=>{xs=(xs||[]).filter(x=>rid[x.id]);if(!xs.length)return;
+  nodes.push({id:'rgP_'+k,col:3,kind:'arg '+k,ic,title:ti,sub:su,badge:String(xs.length),go,h:70,gap:18});
+  const seen=new Set();xs.forEach(x=>{if(seen.has(x.id))return;seen.add(x.id);edges.push({from:rid[x.id],to:'rgP_'+k,type:'cite',label:'ورد في نصه',info:{a:x.title,b:ti,why:'مقطع منقول حرفياً من نص هذا الحكم. صلته بوقائعك يقدّرها المحامي.',ex:x.text,id:x.id}})})});
  return {cols:[{t:'المسألة',s:'من كلمات سؤالك'},{t:'التشريعات والمواد',s:'نصوص مطابقة'},{t:'الأحكام والاجتهادات',s:'مرتبة بموادها'},{t:'الاستنباط',s:'مؤيد · مخالف · يتطلب تحققاً'}],nodes,edges};
 }
 /* مخطط فكر المحامي: من الوقائع إلى ما يلزم فعله */
@@ -719,11 +728,15 @@ function rgJourneySpec(r,L){
 }
 function locGraph(r,L){
  if(!(r.laws||[]).length&&!L.R.length)return'';RG.info={};
- const map=RG.view!=='journey',S=map?rgMapSpec(r,L):rgJourneySpec(r,L),G=rgEngine(S);RG.last=r;RG.lastL=L;
+ const map=RG.view!=='journey',S0=map?rgMapSpec(r,L):rgJourneySpec(r,L),D=map?Math.min(RG.depth||2,S0.cols.length):S0.cols.length;
+ /* التفرّع التدريجي: تبدأ الخريطة من المسألة وتُفتح طبقة بعد طبقة */
+ const S=map&&D<S0.cols.length?(()=>{const nodes=S0.nodes.filter(n=>n.col<D),ids=new Set(nodes.map(n=>n.id));return {cols:S0.cols.slice(0,D),nodes,edges:S0.edges.filter(x=>ids.has(x.from)&&ids.has(x.to))}})():S0;
+ const G=rgEngine(S);RG.last=r;RG.lastL=L;
  const cnt={};S.edges.forEach(x=>cnt[x.type]=(cnt[x.type]||0)+1);
  return `<div class="rg ${map?'map':'jr'}" id="rgWrap" data-w="${G.W}" data-h="${G.H}">
  <div class="rg-top"><div class="rg-tabs"><button type="button" class="${map?'on':''}" data-rgv="map">⌁ خريطة الاستدلال القانوني</button><button type="button" class="${map?'':'on'}" data-rgv="journey">✎ مخطط فكر المحامي</button></div>
   <div class="rg-leg">${Object.entries(RGT).map(([t,[a,b]])=>`<button type="button" class="rg-lg ${t} ${RG.hide[t]?'off':''}" data-rgt="${t}" title="${e(b)} — انقر لإخفائها أو إظهارها"><svg width="34" height="10"><line x1="1" y1="5" x2="33" y2="5"/></svg>${e(a)} <b>${cnt[t]||0}</b></button>`).join('')}</div>
+  ${map?`<div class="rg-steps">${S0.cols.map((c,i)=>`<button type="button" class="${i<D?'on':''}" data-rgd="${i+1}" title="${i<D?'إخفاء ما بعدها':'افتح حتى هذه الطبقة'}"><i>${i+1}</i>${e(c.t)}</button>`).join('<span>←</span>')}${D<S0.cols.length?`<button type="button" class="nx" data-rgd="${D+1}">افتح «${e(S0.cols[D].t)}» ›</button>`:''}</div>`:''}
   <div class="rg-tools"><button type="button" data-rgz="1" title="تكبير">＋</button><button type="button" data-rgz="-1" title="تصغير">－</button><button type="button" data-rgz="0" title="ملاءمة">⟲</button><button type="button" data-rgz="fs" title="ملء الشاشة">⤢</button></div></div>
  <div class="rg-vp" tabindex="0" aria-label="${map?'خريطة الاستدلال القانوني':'مخطط فكر المحامي'}">${G.html}<div class="rg-pop" hidden></div></div>
  <p class="rg-note m">${map?'كل خط يحمل معناه: الذهبي استناد مسجّل في القاعدة، والأخضر ما تحقّق منه مكتبك، والأحمر اتجاه مخالف، والرمادي صلة مقترحة لم يُتحقق منها. انقر عقدة لعزل علاقاتها، وانقر خطاً لتعرف لماذا يرتبط.':'الرحلة من وقائعك إلى ما يلزم فعله، من نتائج القاعدة نفسها وبلا استنتاج آلي؛ كل عقدة تنقلك إلى نصوصها الحرفية.'} السحب للتحريك، و Ctrl + العجلة للتكبير.</p></div>`}
@@ -743,6 +756,7 @@ function rgPop(w,id,ev){const I=RG.info[id],p=w.querySelector('.rg-pop');if(!I||
  new MutationObserver(()=>{const w=W();if(w&&!w.dataset.fit){w.dataset.fit='1';requestAnimationFrame(()=>{rgFit(w);w.classList.add('in')})}}).observe(document.body,{childList:true,subtree:true});
  window.addEventListener('resize',()=>{const w=W();if(w)rgFit(w)});
  document.addEventListener('click',ev=>{const w=W();if(!w||!w.contains(ev.target))return;const t=ev.target;
+  const dp=t.closest('[data-rgd]');if(dp){RG.depth=+dp.dataset.rgd;const h=document.getElementById('mbgMap');if(h&&RG.last){h.innerHTML=locGraph(RG.last,RG.lastL)}return}
   const v=t.closest('[data-rgv]');if(v){RG.view=v.dataset.rgv;const h=document.getElementById('mbgMap');if(h&&RG.last){h.innerHTML=locGraph(RG.last,RG.lastL)}return}
   const lg=t.closest('[data-rgt]');if(lg){const k=lg.dataset.rgt;RG.hide[k]=!RG.hide[k];lg.classList.toggle('off',RG.hide[k]);w.classList.toggle('h-'+k,RG.hide[k]);return}
   const z=t.closest('[data-rgz]');if(z){const k=z.dataset.rgz;if(k==='fs'){const el=w;(document.fullscreenElement?document.exitFullscreen():el.requestFullscreen&&el.requestFullscreen()).then?.(()=>setTimeout(()=>rgFit(w),120))}else if(k==='0')rgFit(w);else{RG.z=Math.min(2.4,Math.max(.3,RG.z*(k==='1'?1.2:1/1.2)));rgApply(w)}return}
@@ -771,7 +785,7 @@ function rgPop(w,id,ev){const I=RG.info[id],p=w.querySelector('.rg-pop');if(!I||
 .rg-ch{position:absolute;top:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 10px;border-radius:12px;background:rgb(255 255 255/.75);border:1px solid #EADBB4;backdrop-filter:blur(2px)}.rg-ch i{width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-style:normal;font-weight:800;font-size:12px;color:#0E2236;background:radial-gradient(circle at 35% 30%,#F3D58A,#C9A24A 70%);box-shadow:0 0 8px rgb(243 213 138/.6)}.rg-ch b{color:#0E2236;font-size:13.5px}.rg-ch small{color:#8a7a5c;font-size:11px;width:100%}
 .rg svg.rg-s{position:absolute;top:0;left:0;overflow:visible;pointer-events:none;fill:initial;stroke:none;max-width:none!important}.rg svg.rg-s text{stroke-width:4px}.rg .rg-lg svg{width:34px!important;height:10px!important;fill:none}.rg-s .rg-e,.rg-s .rg-bdg{pointer-events:auto;cursor:pointer}
 .rg-e .hit{fill:none;stroke:transparent;stroke-width:14}.rg-e .ln{fill:none;stroke-width:2.2;stroke-linecap:round;transition:opacity .25s,stroke-width .25s}.rg-e .fl{fill:none;stroke-width:2.2;stroke-linecap:round;opacity:0;stroke-dasharray:3 16}
-.rg-e.cite .ln{stroke:#C9A24A}.rg-e.cite .fl{stroke:#FFF1C2}.rg-e.ok .ln{stroke:#2A8C8A}.rg-e.ok .fl{stroke:#C9F1EE}.rg-e.opp .ln{stroke:#B0503A;stroke-dasharray:7 5}.rg-e.sug .ln{stroke:#8E98A3;stroke-dasharray:2 5;stroke-width:2}
+.rg-e.cite .ln{stroke:#C9A24A}.rg-e.cite .fl{stroke:#FFF1C2}.rg-e.ok .ln{stroke:#2A8C8A}.rg-e.ok .fl{stroke:#C9F1EE}.rg-e.opp .ln{stroke:#B0503A;stroke-dasharray:7 5}.rg-e.sug .ln{stroke:#8E98A3;stroke-dasharray:2 5;stroke-width:2}.rg-e.amd .ln{stroke:#7A5AB8;stroke-dasharray:9 3 2 3;stroke-width:2.2}.rg-e.amd text{fill:#4b3480}.rg.h-amd .rg-e.amd,.rg.h-amd .rg-n.amd{display:none}.rg-lg.amd line{stroke:#9B7FE0;stroke-dasharray:6 2 1 2}.rg-n.amd{background:#F3EEFB!important;border-color:#B9A6E3!important}.rg-n.amd .ic{color:#6A4BB0}.rg-n.amd b{font-size:12px}.rg-n.arg{background:#F2FAF7!important;border-color:#9ED3C8!important}.rg-n.arg.def{background:#FBF4E8!important;border-color:#E2C38A!important}.rg-steps{display:flex;flex-wrap:wrap;align-items:center;gap:4px}.rg-steps span{color:#C9A24A;font-size:12px}.rg-steps button{font:inherit;font-size:12px;cursor:pointer;border-radius:99px;padding:3px 10px;border:1px solid rgb(255 255 255/.18);background:rgb(255 255 255/.05);color:#C8D3DE;display:inline-flex;gap:5px;align-items:center}.rg-steps button i{font-style:normal;width:17px;height:17px;border-radius:50%;display:grid;place-items:center;background:rgb(255 255 255/.12);font-size:10.5px}.rg-steps button.on{background:#C9A24A;color:#0B1B2B;border-color:#C9A24A}.rg-steps button.on i{background:#0B1B2B;color:#F3D58A}.rg-steps button.nx{background:#F3D58A;color:#0B1B2B;border-color:#F3D58A;font-weight:700;animation:rgNx 2s ease-in-out infinite}@keyframes rgNx{50%{box-shadow:0 0 0 5px rgb(243 213 138/.25)}}
 .rg-e.trunk .ln{stroke-width:5.5}.rg-e.bun .ln{stroke-width:1.6;opacity:.75}
 .rg-e text{font-size:11px;font-weight:700;fill:#5b4a22;opacity:0;transition:opacity .2s;paint-order:stroke;stroke:#FBF7EC;stroke-width:4px}.rg-e.ok text{fill:#1f6b69}.rg-e.opp text{fill:#8a3a2a}.rg-e.sug text{fill:#5d6670}
 .rg-e:hover .ln{stroke-width:3.4;filter:url(#rgGlow)}.rg-e:hover text{opacity:1}
