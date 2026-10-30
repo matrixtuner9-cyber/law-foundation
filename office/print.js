@@ -33,7 +33,7 @@ P.words=function(v){v=Math.floor(Math.abs(Number(v)||0));if(!v)return 'صفر';
  if(t)p.push(scale(t,'ألف','ألفان','آلاف','ألف'));
  if(r)p.push(w999(r));
  return p.join(' و')};
-P.amount=v=>'فقط '+P.words(v)+' شيكل لا غير';
+P.amount=(v,c)=>window.MQ_CUR&&MQ_CUR.norm(c)!=='ILS'?MQ_CUR.words(v,c):'فقط '+P.words(v)+' شيكل لا غير';
 
 /* ── لبنات المستند ── */
 const B=P.B={
@@ -290,7 +290,7 @@ D.client=cid=>({label:'بطاقة الموكل',build(){const c=C(cid),ks=client
   B.h('القضايا ('+ks.length+')'),
   B.t(['رقم الدعوى','الموضوع','المحكمة','الخصم','المرحلة','الجلسة القادمة'],ks.map(k=>{const h=nextH(k.id);return [`<span class="mono">${e(k.no)}</span>`,e(k.subject),e(CT(k.court).name),e(oppNames(k)),e(k.stage),h?dm(h.date):'—']}),{w:['13%','27%','17%','17%','14%','12%'],num:[5]}),
   B.h('الأتعاب'),
-  B.stats([['الأتعاب المتفق عليها',cur(c.fee)+' ₪'],['المدفوع',cur(c.paid)+' ₪','ok'],['المتبقي',cur(c.fee-c.paid)+' ₪',c.fee>c.paid?'warn':'ok']])
+  B.stats([['الأتعاب المتفق عليها',MQ_CUR.fmt(c.fee,c.cur)],['المدفوع',MQ_CUR.fmt(c.paid,c.cur),'ok'],['المتبقي',MQ_CUR.fmt(c.fee-c.paid,c.cur),c.fee>c.paid?'warn':'ok']])
  ],sign:[]}}});
 
 D.statement=cid=>({label:'كشف حساب الأتعاب',build(){const c=C(cid),ps=pays(c);let bal=c.fee;
@@ -300,18 +300,18 @@ D.statement=cid=>({label:'كشف حساب الأتعاب',build(){const c=C(cid)
  if(legacy>0){bal-=legacy;rows.push(['—','دفعات سابقة مسجلة إجمالاً','—','',cur(legacy),cur(bal)])}
  return {title:'كشف حساب أتعاب',sub:c.name,ref:'ح/'+c.code,file:fname('كشف حساب',c.name),blocks:[
   B.kv([['الموكل','<b>'+e(c.name)+'</b>'],['رقم الهوية / التسجيل',`<span class="mono">${e(c.idNo)}</span>`],['القضايا',clientCases(c).map(k=>`<span class="mono">${e(k.no)}</span>`).join('، ')||'—'],['تاريخ الكشف',dm(isoD(new Date()))]]),
-  B.stats([['الأتعاب',cur(c.fee)+' ₪'],['المدفوع',cur(c.paid)+' ₪','ok'],['الرصيد المستحق',cur(c.fee-c.paid)+' ₪',c.fee>c.paid?'warn':'ok']]),
+  B.stats([['الأتعاب',MQ_CUR.fmt(c.fee,c.cur)],['المدفوع',MQ_CUR.fmt(c.paid,c.cur),'ok'],['الرصيد المستحق',MQ_CUR.fmt(c.fee-c.paid,c.cur),c.fee>c.paid?'warn':'ok']]),
   B.h('الحركات'),
-  B.t(['التاريخ','البيان','رقم السند','مدين ₪','دائن ₪','الرصيد ₪'],rows,{w:['13%','32%','15%','13%','13%','14%'],num:[0,3,4,5],foot:['','الإجمالي','',cur(c.fee),cur(c.paid),cur(c.fee-c.paid)]}),
-  B.box('الرصيد المستحق: <b>'+cur(c.fee-c.paid)+' ₪</b> — '+e(P.amount(c.fee-c.paid)),'amt')
+  B.t(['التاريخ','البيان','رقم السند','مدين '+MQ_CUR.sym(c.cur),'دائن '+MQ_CUR.sym(c.cur),'الرصيد '+MQ_CUR.sym(c.cur)],rows,{w:['13%','32%','15%','13%','13%','14%'],num:[0,3,4,5],foot:['','الإجمالي','',cur(c.fee),cur(c.paid),cur(c.fee-c.paid)]}),
+  B.box('الرصيد المستحق: <b>'+MQ_CUR.fmt(c.fee-c.paid,c.cur)+'</b> — '+e(P.amount(c.fee-c.paid,c.cur)),'amt')
  ],sign:['المحاسب','المحامي']}}});
 
 D.receipt=(cid,pid)=>({label:'سند قبض',build(){const c=C(cid),ps=pays(c),p=(pid?ps.find(x=>x.id===pid):ps[ps.length-1])||{amount:0,date:isoD(new Date()),no:'—'};
  return {title:'سند قبض',ref:p.no,file:fname('سند قبض',p.no),orient:'port',stamp:true,blocks:[
   B.kv([['رقم السند',`<b class="mono">${e(p.no)}</b>`],['التاريخ',dm(p.date)],['استلمنا من','<b>'+e(c.name)+'</b>'],['رقم الهوية',`<span class="mono">${e(c.idNo)}</span>`],['طريقة الدفع',e(p.method||'نقداً')+(payInfo(p)?'<br><small>'+e(payInfo(p))+'</small>':'')],['القضية',p.k&&K(p.k)?`<span class="mono">${e(K(p.k).no)}</span>`:(clientCases(c).map(k=>k.no).join('، ')||'—')]]),
-  B.box(`<div style="font-size:1.6em;color:#0B1B2B">${cur(p.amount)} ₪</div>${e(P.amount(p.amount))}`,'amt'),
+  B.box(`<div style="font-size:1.6em;color:#0B1B2B">${MQ_CUR.fmt(p.amount,p.cur||c.cur)}</div>${e(P.amount(p.amount,p.cur||c.cur))}`,'amt'),
   B.p('وذلك عن: '+e(p.note||'دفعة من أتعاب المحاماة المتفق عليها')+'.'),
-  B.kv([['إجمالي الأتعاب',cur(c.fee)+' ₪'],['مجموع المدفوع',cur(c.paid)+' ₪'],['المتبقي',cur(c.fee-c.paid)+' ₪']],3)
+  B.kv([['إجمالي الأتعاب',MQ_CUR.fmt(c.fee,c.cur)],['مجموع المدفوع',MQ_CUR.fmt(c.paid,c.cur)],['المتبقي',MQ_CUR.fmt(c.fee-c.paid,c.cur)]],3)
  ],sign:['المستلم','الدافع']}}});
 
 D.intake=cid=>({label:'نموذج استقبال موكل',build(){const c=C(cid),cf=c.conflict||{};
@@ -322,7 +322,7 @@ D.intake=cid=>({label:'نموذج استقبال موكل',build(){const c=C(cid
   B.h('فحص تضارب المصالح'),
   B.box((cf.result==='clear'?'<b>لا تضارب:</b> لم يُعثر على تطابق مع أي خصم أو موكل مسجل.':cf.result?'<b>تطابق تمت مراجعته:</b> '+e((cf.matches||[]).join('؛ '))+(cf.note?'<br>قرار المراجعة: '+e(cf.note):''):'لم يُسجّل فحص.')+(cf.other?'<br>الطرف الآخر المتوقع: <b>'+e(cf.other)+'</b>':'')+(cf.at?'<br><small>أُجري الفحص في '+e(cf.at)+(cf.by?' بواسطة '+e(cf.by):'')+'</small>':''),cf.result==='clear'?'ok':cf.result?'warn':''),
   B.h('الأتعاب والبوابة'),
-  B.kv([['الأتعاب المتفق عليها',cur(c.fee)+' ₪'],['الدفعة المقدمة',cur(c.paid)+' ₪'],['بوابة الموكل',c.portal?'مفعّلة · رمز الدخول <span class="mono">'+e(c.code)+'</span>':'غير مفعّلة'],['رابط الدخول',c.portal&&window.MQ_loginLink?'<span class="mono" style="font-size:.75em">'+e(MQ_loginLink(c))+'</span>':'—']]),
+  B.kv([['الأتعاب المتفق عليها',MQ_CUR.fmt(c.fee,c.cur)],['الدفعة المقدمة',MQ_CUR.fmt(c.paid,c.cur)],['بوابة الموكل',c.portal?'مفعّلة · رمز الدخول <span class="mono">'+e(c.code)+'</span>':'غير مفعّلة'],['رابط الدخول',c.portal&&window.MQ_loginLink?'<span class="mono" style="font-size:.75em">'+e(MQ_loginLink(c))+'</span>':'—']]),
   B.h('إقرار الموكل'),
   B.p('أُقرّ أنا الموقّع أدناه بصحة البيانات المذكورة أعلاه، وأوافق على أن يتواصل معي المكتب عبر القناة المختارة، وعلى حفظ بياناتي ومستنداتي إلكترونياً لغايات متابعة قضاياي فقط، وأتعهد بإبلاغ المكتب بأي تغيير يطرأ عليها، وبعدم مشاركة رمز دخول البوابة مع أي شخص.')
  ],sign:['الموكل','المحامي']}}});
@@ -351,12 +351,12 @@ D.cases=()=>({label:'سجل القضايا',build(){const st=this.state||{},f=st
  opts:()=>`<label>الحالة<select data-po="f">${['الكل','نشطة','تنفيذ','محكوم','منتهية'].map(x=>`<option ${(S.cf||'الكل')===x?'selected':''}>${x}</option>`).join('')}</select></label>`});
 
 D.clients=()=>({label:'سجل الموكلين',build(){return {title:'سجل الموكلين',ref:'م/'+isoD(TODAY),file:fname('سجل الموكلين',isoD(TODAY)),orient:'land',blocks:[
- B.t(['#','الموكل','الصفة','الهوية / التسجيل','الهاتف','المدينة','القضايا','الأتعاب ₪','المدفوع ₪','المتبقي ₪'],clients.map((c,i)=>[i+1,'<b>'+e(c.name)+'</b>',e(c.type),`<span class="mono">${e(c.idNo)}</span>`,`<span class="mono">${e(c.phone)}</span>`,e(c.city),clientCases(c).length,cur(c.fee),cur(c.paid),cur(c.fee-c.paid)]),{w:['4%','20%','7%','12%','12%','9%','6%','10%','10%','10%'],num:[0,6,7,8,9],foot:['','الإجمالي','','','','',cases.length,cur(clients.reduce((s,c)=>s+c.fee,0)),cur(clients.reduce((s,c)=>s+c.paid,0)),cur(clients.reduce((s,c)=>s+c.fee-c.paid,0))]})],sign:[]}}});
+ B.t(['#','الموكل','الصفة','الهوية / التسجيل','الهاتف','المدينة','القضايا','الأتعاب','المدفوع','المتبقي'],clients.map((c,i)=>[i+1,'<b>'+e(c.name)+'</b>',e(c.type),`<span class="mono">${e(c.idNo)}</span>`,`<span class="mono">${e(c.phone)}</span>`,e(c.city),clientCases(c).length,MQ_CUR.fmt(c.fee,c.cur),MQ_CUR.fmt(c.paid,c.cur),MQ_CUR.fmt(c.fee-c.paid,c.cur)]),{w:['4%','20%','7%','12%','12%','9%','6%','10%','10%','10%'],num:[0,6,7,8,9],foot:['','الإجمالي','','','','',cases.length,MQ_CUR.join(MQ_CUR.totals(clients),'fee'),MQ_CUR.join(MQ_CUR.totals(clients),'paid'),MQ_CUR.join(MQ_CUR.totals(clients),'due')]})],sign:[]}}});
 
 D.fees=()=>({label:'تقرير الأتعاب والذمم',build(){const rs=clients.map(c=>({c,o:c.fee-c.paid})).sort((a,b)=>b.o-a.o),T=k=>clients.reduce((s,c)=>s+(k==='o'?c.fee-c.paid:c[k]),0);
  return {title:'تقرير الأتعاب والذمم',ref:'ت/'+isoD(TODAY),file:fname('تقرير الأتعاب',isoD(TODAY)),blocks:[
-  B.stats([['إجمالي الأتعاب',cur(T('fee'))+' ₪'],['المحصّل',cur(T('paid'))+' ₪','ok'],['الذمم المستحقة',cur(T('o'))+' ₪','warn'],['نسبة التحصيل',Math.round(T('paid')/Math.max(1,T('fee'))*100)+'%']]),
-  B.t(['الموكل','الأتعاب ₪','المدفوع ₪','المتبقي ₪','التحصيل'],rs.map(({c,o})=>['<b>'+e(c.name)+'</b>',cur(c.fee),cur(c.paid),cur(o),Math.round(c.paid/Math.max(1,c.fee)*100)+'%']),{w:['40%','15%','15%','15%','15%'],num:[1,2,3,4],foot:['الإجمالي',cur(T('fee')),cur(T('paid')),cur(T('o')),'']})],sign:['المحاسب']}}});
+  B.stats([['إجمالي الأتعاب',MQ_CUR.join(MQ_CUR.totals(clients),'fee')],['المحصّل',MQ_CUR.join(MQ_CUR.totals(clients),'paid'),'ok'],['الذمم المستحقة',MQ_CUR.join(MQ_CUR.totals(clients),'due'),'warn'],['نسبة التحصيل',Math.round(T('paid')/Math.max(1,T('fee'))*100)+'%']]),
+  B.t(['الموكل','الأتعاب','المدفوع','المتبقي','التحصيل'],rs.map(({c,o})=>['<b>'+e(c.name)+'</b>',MQ_CUR.fmt(c.fee,c.cur),MQ_CUR.fmt(c.paid,c.cur),MQ_CUR.fmt(o,c.cur),Math.round(c.paid/Math.max(1,c.fee)*100)+'%']),{w:['40%','15%','15%','15%','15%'],num:[1,2,3,4],foot:['الإجمالي',MQ_CUR.join(MQ_CUR.totals(clients),'fee'),MQ_CUR.join(MQ_CUR.totals(clients),'paid'),MQ_CUR.join(MQ_CUR.totals(clients),'due'),'']})],sign:['المحاسب']}}});
 
 D.docs=()=>({label:'سجل المستندات',build(){const ds=window.MQ_docList?MQ_docList():docs.filter(d=>S.docK==='all'||d.k===S.docK).sort((a,b)=>b.date.localeCompare(a.date));
  return {title:'سجل المستندات',ref:'د/'+isoD(TODAY),file:fname('سجل المستندات',isoD(TODAY)),orient:'land',blocks:[B.t(['#','المستند','القضية','الموكل','النوع','المصدر','التاريخ','صفحات'],ds.map((d,i)=>[i+1,'<b>'+e(d.title)+'</b>',K(d.k)?`<span class="mono">${e(K(d.k).no)}</span>`:'',K(d.k)?e(C(K(d.k).client).name):'',e(d.kind),e(d.src),dm(d.date),d.pages||'']),{w:['4%','30%','11%','17%','12%','11%','9%','6%'],num:[0,6,7]})],sign:[]}}});
@@ -420,7 +420,7 @@ function payBox(c){const ps=pays(c||{}).slice().reverse(),ks=casesOfC(c),dk=payK
  return `<div class="pay-x"><label class="pvck"><input type="checkbox" id="payRc" checked><span>إصدار سند قبض</span></label><select class="field" id="payM" aria-label="طريقة الدفع">${METHODS.map(x=>`<option ${PAYF.m===x?'selected':''}>${x}</option>`).join('')}</select>${ks.length?`<select class="field" id="payK" aria-label="القضية"><option value="">أتعاب عامة (غير مرتبطة بقضية)</option>${ks.map(k=>`<option value="${e(k.id)}" ${dk===k.id?'selected':''}>القضية ${e(k.no)}</option>`).join('')}</select>`:''}</div>
  <div class="pay-det" id="payDet">${payDet()}</div><datalist id="pdBanks">${BANKS.map(b=>`<option value="${b}">`).join('')}</datalist>
  ${ps.length?`<div class="pay-all"><div class="pay-h"><b>الدفعات (${ps.length})</b><button type="button" class="btn sm" data-act="printPays" data-v="${c.id}">${PI} طباعة كشف الدفعات والمتبقي</button></div>
-  <table class="pay-t"><thead><tr><th>السند</th><th>التاريخ</th><th>المبلغ</th><th>الطريقة</th></tr></thead><tbody>${ps.map(p=>`<tr><td><button class="link mono" data-act="printReceipt" data-v="${c.id}|${p.id}" title="طباعة السند">${e(p.no)}</button></td><td class="num">${dm(p.date)}</td><td class="num">${cur(p.amount)} ₪</td><td>${e(p.method||'نقداً')}${payInfo(p)?`<div class="m">${e(payInfo(p))}</div>`:''}${p.k&&kno(p.k)?`<div class="m">القضية <button class="link mono" data-act="openCase" data-v="${e(p.k)}">${e(kno(p.k))}</button></div>`:''}</td></tr>`).join('')}</tbody></table></div>`:''}`}
+  <table class="pay-t"><thead><tr><th>السند</th><th>التاريخ</th><th>المبلغ</th><th>الطريقة</th></tr></thead><tbody>${ps.map(p=>`<tr><td><button class="link mono" data-act="printReceipt" data-v="${c.id}|${p.id}" title="طباعة السند">${e(p.no)}</button></td><td class="num">${dm(p.date)}</td><td class="num">${MQ_CUR.fmt(p.amount,p.cur||c.cur)}</td><td>${e(p.method||'نقداً')}${payInfo(p)?`<div class="m">${e(payInfo(p))}</div>`:''}${p.k&&kno(p.k)?`<div class="m">القضية <button class="link mono" data-act="openCase" data-v="${e(p.k)}">${e(kno(p.k))}</button></div>`:''}</td></tr>`).join('')}</tbody></table></div>`:''}`}
 document.addEventListener('change',ev=>{const t=ev.target;if(t.id==='payK'){PAYF.k=t.value;return}if(t.id==='payM'){PAYF.m=t.value;const d=document.getElementById('payDet');if(d)d.innerHTML=payDet();const f=d&&d.querySelector('input,select');if(f)f.focus()}
  else if(t.id&&t.id.startsWith('pd'))PAYF.v[t.id]=t.value});
 document.addEventListener('input',ev=>{const t=ev.target;if(t.id&&t.id.startsWith('pd'))PAYF.v[t.id]=t.value});
@@ -440,7 +440,7 @@ document.addEventListener('submit',ev=>{const f=ev.target;if(f.id!=='fPay')retur
 /* سندات القبض: كل دفعة تُسجَّل برقم متسلسل */
 const nextNo=()=>{const y=TODAY.getFullYear();let m=0;clients.forEach(c=>(c.payments||[]).forEach(p=>{const r=String(p.no||'').match(/^R-(\d{4})-(\d+)$/);if(r&&+r[1]===y)m=Math.max(m,+r[2])}));return 'R-'+y+'-'+String(m+1).padStart(4,'0')};
 P.nextNo=nextNo;
-P.addPayment=(c,amount,o={})=>{const p={id:'p'+Date.now(),no:nextNo(),amount:Number(amount),date:o.date||isoD(new Date()),method:o.method||'نقداً',note:o.note||'',k:o.k||'',by:window.MQ&&MQ.user?MQ.user.username:'',...(o.det||{})};(c.payments=c.payments||[]).push(p);return p};
+P.addPayment=(c,amount,o={})=>{const p={id:'p'+Date.now(),no:nextNo(),amount:Number(amount),cur:window.MQ_CUR?MQ_CUR.of(c):'ILS',date:o.date||isoD(new Date()),method:o.method||'نقداً',note:o.note||'',k:o.k||'',by:window.MQ&&MQ.user?MQ.user.username:'',...(o.det||{})};(c.payments=c.payments||[]).push(p);return p};
 document.addEventListener('submit',ev=>{const f=ev.target;if(f.id!=='fPay')return;
  const n=Number(f.payAmt&&f.payAmt.value);if(!(n>0))return;
  const pp=pendingPay||{method:'نقداً',det:{},want:true};pendingPay=null;

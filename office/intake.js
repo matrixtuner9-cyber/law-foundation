@@ -70,7 +70,7 @@ function clientForm(c){
   <label class="wide">العنوان<input class="field" id="cAd" value="${v('address')}"></label>
   <label>قناة التواصل المفضلة${sel('cCh',['واتساب','البوابة','هاتف','البريد الإلكتروني'],c?c.ch:'واتساب')}</label>
   <label>مصدر الإحالة<input class="field" id="cSrc" value="${v('source')}" placeholder="موكل سابق، معرفة، إعلان…"></label>
-  ${c?'':`<label>الأتعاب المتفق عليها ₪<input class="field" id="cFee" type="number" min="0" step="1" value=""></label><label>الدفعة المقدمة ₪<input class="field" id="cPaid" type="number" min="0" step="1" value=""></label>`}
+  ${c?'':`<label>الأتعاب المتفق عليها<input class="field" id="cFee" type="number" min="0" step="1" value=""></label>${window.MQ_CUR?MQ_CUR.select('cCur','ILS','عملة الأتعاب'):''}<label>الدفعة المقدمة<input class="field" id="cPaid" type="number" min="0" step="1" value=""></label>`}
   <label class="wide">موضوع الاستشارة أو النزاع<textarea class="field" id="cM" rows="2">${v('matter')}</textarea></label>
   <label class="wide">الطرف الآخر المتوقع (لفحص التضارب)<input class="field" id="cO" value="${c&&c.conflict?e(c.conflict.other||''):''}" placeholder="اسم الخصم المحتمل إن وُجد"></label>
   <div class="wide"><div id="cfBox" class="ck-box">يبدأ فحص تضارب المصالح تلقائياً عند كتابة الاسم.</div>
@@ -106,7 +106,7 @@ document.addEventListener('submit',ev=>{const f=ev.target;if(f.id!=='fClient')re
  if(old){Object.assign(old,data);if(chk.other||chk.result!=='clear'||!old.conflict)old.conflict=conflict;A.close();render();toast('حُفظت بيانات '+name);return}
  const cid='c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
  const fee=Math.max(0,Math.round(+(f.cFee&&f.cFee.value)||0)),paid=Math.min(fee||Infinity,Math.max(0,Math.round(+(f.cPaid&&f.cPaid.value)||0)));
- const c={id:cid,...data,portal:!!(f.cPortal&&f.cPortal.checked),last:null,fee,paid:0,since:iso(TODAY),code:MQ_code(),by:conflict.by,conflict};
+ const c={id:cid,...data,portal:!!(f.cPortal&&f.cPortal.checked),last:null,fee,paid:0,cur:window.MQ_CUR?MQ_CUR.norm((document.getElementById('cCur')||{}).value):'ILS',since:iso(TODAY),code:MQ_code(),by:conflict.by,conflict};
  clients.push(c);
  if(paid>0&&window.MQP&&MQP.addPayment){c.paid=paid;MQP.addPayment(c,paid,{note:'دفعة مقدمة عند الاستقبال'})}
  A.close();render();

@@ -8,6 +8,7 @@
    العرض فقط يقرأ من السجلات الأصلية، فلا تُنسخ بيانات ولا يحدث تضارب؛ الملاحظات وحدها تُحفظ في سجل القضية. */
 (function(root){
 'use strict';
+const fmtC=(n,c)=>{const M=typeof MQ_CUR!=='undefined'?MQ_CUR:(typeof window!=='undefined'&&window.MQ_CUR);return M?M.fmt(n,c):Number(n||0).toLocaleString('en-US')+' ₪'};
 const e=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const dOk=s=>/^\d{4}-\d{2}-\d{2}/.test(String(s||''));
 const TYPES=[['all','الكل'],['msg','رسائل ومرفقات'],['hearing','جلسات'],['deadline','مهل'],['doc','مستندات'],['pay','دفعات'],['mz','ميزان'],['draft','مسودات'],['note','ملاحظات']];
@@ -25,7 +26,7 @@ function events(k,data,today){
   const mine=m.f==='me',kind={voice:'رسالة صوتية',image:'صورة',file:'مستند',notice:'إشعار'}[m.type]||'رسالة';
   out.push({type:'msg',ic:m.type==='file'?'attach':m.type==='image'?'image':m.type==='voice'?'voice':m.type==='notice'?'notice':'msg',at:m.at,title:(mine?kind+' إلى الموكل':kind+' من الموكل')+(m.ch?' · '+m.ch:''),text:m.type==='file'||m.type==='image'?(m.name||''):String(m.t||'').slice(0,220),unread:!!m.unread,shared:!m.k&&!onlyCase,go:m.type==='file'||m.type==='image'?['read',m.id]:['bag',k.client]})}
  for(const p of client.payments||[]){if(p.k&&p.k!==k.id)continue;if(!p.k&&!onlyCase)continue;
-  out.push({type:'pay',at:(dOk(p.date)?p.date:'0000-00-00')+' 12:00',title:'دفعة أتعاب: '+Number(p.amount||0).toLocaleString('en-US')+' ₪',text:[p.method,p.no,p.note].filter(Boolean).join(' · '),go:['pay',k.client]})}
+  out.push({type:'pay',at:(dOk(p.date)?p.date:'0000-00-00')+' 12:00',title:'دفعة أتعاب: '+fmtC(p.amount,p.cur||client.cur),text:[p.method,p.no,p.note].filter(Boolean).join(' · '),go:['pay',k.client]})}
  for(const l of (data.mzLog||[]).filter(l=>l.k===k.id))out.push({type:'mz',at:l.at||'',title:'تحديث من ميزان',text:l.t||'',go:['tab','mz']});
  for(const n of k.notes||[])out.push({type:'note',at:n.at||'',title:'ملاحظة'+(n.by?' · '+n.by:''),text:n.text||'',id:n.id});
  return out.sort((a,b)=>String(b.at).localeCompare(String(a.at)));
@@ -73,7 +74,7 @@ function strip(k){const f=facts(k,DATA(),today());
  return `<div class="hub-strip">
   ${cell('الجلسة القادمة',f.next?fmtAt(f.next.date+' '+(f.next.time||'')):'غير محددة',f.next?e(f.next.purpose||''):(f.pending?f.pending+' جلسة سابقة بلا قرار':''),f.next?'':'warn',['hubTab','hearings'])}
   ${cell('أقرب مهلة',f.deadline?fmtAt(f.deadline.due):'لا مهل قادمة',f.deadline?e(f.deadline.title||''):'',f.deadline&&f.deadline.due<=addDays(today(),7)?'urgent':'',['hubTab','deadlines'])}
-  ${cell('الأتعاب المتبقية',f.due?Number(f.due).toLocaleString('en-US')+' ₪':'مسددة',f.feeShared?'على مستوى الموكل (له أكثر من قضية)':'من '+Number(f.fee).toLocaleString('en-US')+' ₪'+(f.caseFee?' لهذه القضية':''),f.due?'':'ok',['hubPay',k.client])}
+  ${cell('الأتعاب المتبقية',f.due?fmtC(f.due,(C(k.client)||{}).cur):'مسددة',f.feeShared?'على مستوى الموكل (له أكثر من قضية)':'من '+fmtC(f.fee,(C(k.client)||{}).cur)+(f.caseFee?' لهذه القضية':''),f.due?'':'ok',['hubPay',k.client])}
   ${cell('رسائل الموكل',f.unread?f.unread+' غير مقروءة':'لا جديد',f.portal?(f.last?'آخر دخول للبوابة '+fmtAt(f.last):'لم يدخل البوابة بعد'):'البوابة غير مفعّلة',f.unread?'urgent':'',['bag',k.client])}
   ${cell('ميزان',f.mz?fmtAt(f.mz.at):'لا تحديثات',f.mz?e(String(f.mz.t||'').slice(0,60)):(k.mz?e(k.mz):''),'',['hubTab','mz'])}
  </div>`}

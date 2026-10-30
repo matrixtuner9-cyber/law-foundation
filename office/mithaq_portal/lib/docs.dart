@@ -175,9 +175,9 @@ class AccountTab extends StatelessWidget {
                     Expanded(
                       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                         Text('المتبقي من الأتعاب', style: MQ.footnote(color: MQ.soft)),
-                        FittedBox(fit: BoxFit.scaleDown, alignment: AlignmentDirectional.centerStart, child: Text(money(fee - paid), style: MQ.title1(color: Colors.white))),
+                        FittedBox(fit: BoxFit.scaleDown, alignment: AlignmentDirectional.centerStart, child: Text(money(fee - paid, c['cur']), style: MQ.title1(color: Colors.white))),
                         const SizedBox(height: Sp.xs),
-                        Text('دفعت ${money(paid)} من ${money(fee)}', style: MQ.footnote(color: MQ.brassHi)),
+                        Text('دفعت ${money(paid, c['cur'])} من ${money(fee, c['cur'])}', style: MQ.footnote(color: MQ.brassHi)),
                       ]),
                     ),
                   ]),

@@ -385,11 +385,11 @@ class _FeesCard extends StatelessWidget {
         ]),
         const SizedBox(height: Sp.m),
         Text('المتبقي', style: MQ.caption()),
-        FittedBox(fit: BoxFit.scaleDown, alignment: AlignmentDirectional.centerStart, child: Text(money(fee - paid), style: MQ.title2())),
+        FittedBox(fit: BoxFit.scaleDown, alignment: AlignmentDirectional.centerStart, child: Text(money(fee - paid, c['cur']), style: MQ.title2())),
         const SizedBox(height: Sp.s),
         ClipRRect(borderRadius: BorderRadius.circular(R.pill), child: LinearProgressIndicator(value: frac, minHeight: 6, color: MQ.ok, backgroundColor: MQ.sunk)),
         const SizedBox(height: Sp.s),
-        Text('دفعت ${money(paid)} من ${money(fee)}', style: MQ.caption()),
+        Text('دفعت ${money(paid, c['cur'])} من ${money(fee, c['cur'])}', style: MQ.caption()),
       ]),
     );
   }

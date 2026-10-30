@@ -44,7 +44,8 @@ String group(num n) {
   return (n < 0 ? '-' : '') + b.toString();
 }
 
-String money(num n) => '${group(n)} ₪';
+/// المبلغ بعملة أتعاب الموكل (ILS/JOD/USD) كما يرسلها المكتب
+String money(num n, [Object? cur]) => '${group(n)} ${switch ('$cur') { 'JOD' => 'د.أ', 'USD' => r'$', _ => '₪' }}';
 
 String fileSize(num? n) {
   if (n == null || n == 0) return '';

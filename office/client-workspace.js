@@ -26,7 +26,7 @@ function homeView(c,ks,secs,u,due){
  const cntOf=b=>{const n=b.querySelector('.tcount');return n?n.textContent.trim():''};
  const lbOf=b=>b.childNodes[0]?b.childNodes[0].textContent.trim():b.textContent.trim();
  const detail=(v,b)=>v==='msgs'?(last?`<p class="cw-q">${last.f==='me'?'أنت: ':''}${E(String(last.t||'').slice(0,110))}</p><small>${E(last.ch||'')} · ${E(fmtDate(last.at))}</small>`:'<small>لا مراسلات بعد</small>')
-  :v==='acct'?`<p><b>${due.toLocaleString('en-US')} ₪</b> متبقٍ${fee?' من '+fee.toLocaleString('en-US'):''}</p><div class="cw-bar"><span style="width:${pct}%"></span></div>`
+  :v==='acct'?`<p><b>${MQ_CUR.fmt(due,c.cur)}</b> متبقٍ${fee?' من '+MQ_CUR.fmt(fee,c.cur):''}</p><div class="cw-bar"><span style="width:${pct}%"></span></div>`
   :`<small>${cntOf(b)?E(cntOf(b))+' عنصر':'افتح القسم'}</small>`;
  const order=['msgs','acct','media','settle','mizan','cases'];
  const tiles=[...secs].sort((a,b)=>order.indexOf(a.dataset.v)-order.indexOf(b.dataset.v)).map(b=>{const v=b.dataset.v,hot=v==='msgs'&&u;
