@@ -28,6 +28,7 @@ class CasesTab extends StatelessWidget {
                 separatorBuilder: (_, __) => const SizedBox(height: Sp.m),
                 itemBuilder: (_, i) => CaseSummary(
                   kase: store.cases[i],
+                  detailed: true,
                   onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => CaseDetailPage(kase: store.cases[i], onGo: onGo))),
                 ),
               ),
