@@ -179,7 +179,7 @@ body:has(#nav){
   --p-page:#F8F6F0; --p-card:#F7F3EA; --p-hi:#F1E3C6; --p-line:#E6D5B8; --p-gold:#D4AF37; --p-gold2:#C9A87A; --p-gold3:#B8863D;
   --p-brown:#8B6F47; --p-deep:#3E2F21; --p-navy:#0B182B; --p-navy2:#0E2A47; --p-blue:#2563EB; --p-green:#10B981; --p-orange:#F59E0B;
   --p-red:#EF4444; --p-purple:#8B5CF6; --p-ink:#13264A; --p-sub:#5B7391;
-  --side-w:clamp(255px,22vw,384px); /* لوحة تمثال العدالة: مكبّرة 70% */
+  --side-w:clamp(90px,7.8vw,136px); /* لوحة تمثال العدالة: 60% من حجمها الأصلي */
   --bg:var(--p-page); --surface:var(--p-card); --line:var(--p-line); --beige:var(--p-line); --ivory:var(--p-page);
   --ink:var(--p-ink); --muted:var(--p-sub); --rail:var(--p-navy); --danger:var(--p-red);
   background:var(--p-page);
@@ -435,7 +435,7 @@ html.night .lawalert{background:#2B1E1A;border-color:#5a3328;color:#F7C9B8}html.
 .cr-alert{list-style:none;margin:6px 0;padding:0;display:flex;flex-direction:column;gap:4px}.cr-alert li{font-size:12.5px;border-radius:8px;padding:4px 9px;background:#FBF0D6;color:#6b4c0e}.cr-alert li.bad{background:#F6E3DE;color:#7a2f22}
 
 /* لوحة التمثال كاملة في الرئيسية فقط؛ في بقية الشاشات شريط زخرفي نحيل يترك العرض للجداول والنصوص */
-body:has(#nav):not([data-view="dash"]){--side-w:clamp(68px,5.4vw,99px)}
+body:has(#nav):not([data-view="dash"]){--side-w:clamp(24px,1.9vw,35px)}
 body:has(#nav):not([data-view="dash"]) .side-art .sa-lights,body:has(#nav):not([data-view="dash"]) .side-art .sa-dust,body:has(#nav):not([data-view="dash"]) .side-art .sa-glow{display:none}
 body:has(#nav) .main,body:has(#nav) .side-art{transition:padding .35s ease,width .35s ease}
 /* الشريط العلوي يتّسع للوحة التمثال المكبّرة: البحث ينكمش، والعناصر تلتف لسطر ثانٍ بدل أن تخرج من الإطار */
