@@ -34,9 +34,9 @@ function load() {
 }
 
 test('كل عنصر في نص النموذج له مصدر، ولكل نموذج تصنيف وأساس', () => {
-  const sb = load(), CTX = ['client', 'clientId', 'clientAddr', 'clientJob', 'opp', 'oppAddr', 'oppJob', 'court', 'no', 'subject', 'amount', 'role', 'lawyer', 'barNo', 'office', 'officeAddr', 'city', 'date', 'hearing', 'expText2', 'expText3'];
+  const sb = load(), CTX = ['client', 'clientId', 'clientAddr', 'clientJob', 'opp', 'oppAddr', 'oppJob', 'court', 'no', 'subject', 'amount', 'role', 'lawyer', 'barNo', 'office', 'officeAddr', 'city', 'date', 'hearing', 'expText2', 'expText3', 'clientJob'];
   const ids = Object.keys(sb.TPL);
-  assert.ok(ids.length >= 38, 'عدد النماذج ' + ids.length);
+  assert.ok(ids.length >= 46, 'عدد النماذج ' + ids.length);
   for (const id of ids) {
     const t = sb.TPL[id], keys = new Set(t.fields.map(f => f[0]));
     for (const m of t.body.join('\n').matchAll(/\{(\w+)\}/g)) assert.ok(keys.has(m[1]) || CTX.includes(m[1]), id + ': {' + m[1] + '} بلا مصدر');
