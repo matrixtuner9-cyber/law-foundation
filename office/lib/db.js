@@ -48,6 +48,8 @@ function open(DATA) {
     recPut: db.prepare('INSERT INTO records(kind, id, data, updated_at, updated_by) VALUES(?, ?, ?, ?, ?) ON CONFLICT(kind, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at, updated_by = excluded.updated_by'),
     recDel: db.prepare('DELETE FROM records WHERE kind = ? AND id = ?'),
     recWipe: db.prepare('DELETE FROM records'),
+    msgWipe: db.prepare('DELETE FROM messages'),
+    msgDelClient: db.prepare('DELETE FROM messages WHERE client = ?'),
     msgAll: db.prepare('SELECT data FROM messages ORDER BY at, rowid'),
     msgPut: db.prepare('INSERT INTO messages(id, client, at, data) VALUES(?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data'),
     auditLast: db.prepare('SELECT hash FROM audit ORDER BY seq DESC LIMIT 1'),
@@ -113,6 +115,9 @@ function open(DATA) {
       });
     },
     putRecord(kind, rec, by, at) { q.recPut.run(kind, String(rec.id), JSON.stringify(rec), at, by); api.kv.set('state_saved', true) },
+    /* بدء مكتب فارغ: كل السجلات والرسائل، ويُحفظ أن الحالة الفارغة مقصودة (فلا تعود البيانات التجريبية) */
+    wipeAll() { tx(() => { q.recWipe.run(); q.msgWipe.run(); api.kv.set('state_saved', true); api.kv.set('mzLog', []) }) },
+    deleteClientMessages(client) { q.msgDelClient.run(String(client)) },
     resetState() { tx(() => { q.recWipe.run(); api.kv.set('state_saved', false); api.kv.set('mzLog', []) }) },
 
     /* الرسائل */

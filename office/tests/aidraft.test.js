@@ -166,7 +166,7 @@ const PORT = 22000 + Math.floor(Math.random() * 1000), BASE = `http://127.0.0.1:
 let srv, admin = '', lawyer = '';
 const req = async (p, cookie, { method = 'GET', body } = {}) => { const r = await fetch(BASE + p, { method, headers: { ...(body !== undefined ? { 'content-type': 'application/json' } : {}), cookie }, body: body === undefined ? undefined : JSON.stringify(body) }); return { status: r.status, j: await r.json().catch(() => ({})), r } };
 before(async () => {
-  srv = spawn(process.execPath, ['server.js'], { cwd: ROOT, env: { ...process.env, ANTHROPIC_API_KEY: '', PORT: String(PORT), MQ_DATA: path.join(TMP, 'data'), MQ_BACKUP: 'off' }, stdio: ['ignore', 'pipe', 'pipe'] });
+  srv = spawn(process.execPath, ['server.js'], { cwd: ROOT, env: { ...process.env, ANTHROPIC_API_KEY: '', PORT: String(PORT), MQ_DATA: path.join(TMP, 'data'), MQ_BACKUP: 'off', MQ_DEMO: '1' }, stdio: ['ignore', 'pipe', 'pipe'] });
   for (let i = 0; i < 60; i++) { try { if ((await fetch(BASE + '/api/health')).ok) break } catch (e) {} await new Promise(r => setTimeout(r, 200)) }
   const s = await req('/api/auth/setup', '', { method: 'POST', body: { username: 'admin', name: 'المدير', password: 'Test12345' } }); admin = (s.r.headers.get('set-cookie') || '').split(';')[0];
   await req('/api/users', admin, { method: 'POST', body: { name: 'محامٍ', username: 'lawyer1', role: 'lawyer', password: 'Lawyer123' } });

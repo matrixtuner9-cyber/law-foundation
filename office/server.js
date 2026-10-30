@@ -11,6 +11,9 @@ const DATA = process.env.MQ_DATA || path.join(ROOT, 'data'), MEDIA = path.join(D
 fs.mkdirSync(MEDIA, { recursive: true });
 
 const SEED = require('./data.js');
+/* البيانات التجريبية (data.js) للعرض فقط: تُفعَّل بـ MQ_DEMO=1. التنصيب الحقيقي يبدأ مكتباً فارغاً بلا موكلين ولا قضايا ولا رسائل */
+const DEMO = () => process.env.MQ_DEMO === '1';
+const EMPTY = () => ({ clients: [], opponents: [], cases: [], hearings: [], deadlines: [], docs: [], mzLog: [] });
 const Store = require('./lib/db'), Auth = require('./lib/auth'), Merge = require('./lib/merge'), Perms = require('./lib/perms'), Laws = require('./lib/laws'), AiDraft = require('./lib/ai-draft'), Apns = require('./lib/apns'), WebPush = require('./lib/webpush'), Tts = require('./lib/tts'), Legal = require('./lib/legal-pages'), Misbar = require('./lib/misbar'), MisbarAi = require('./lib/misbar-ai'), MisbarCase = require('./lib/misbar-case'), License = require('./lib/license'), Av = require('./lib/avatar'), http2 = require('http2');
 const OFFICE = { name: 'مكتب الميثاق للمحاماة والاستشارات القانونية', lawyer: 'المحامي سامر عبد الله', city: 'نابلس', phone: '09-233-0000', hours: 'الأحد – الخميس · 8:30 – 16:00' };
 const STATE_F = path.join(DATA, 'state.json'), MSG_F = path.join(DATA, 'messages.json');
@@ -66,7 +69,7 @@ const assistant = AiDraft.createAssistant({ audit, getKey: aiKey, laws, lawSearc
 (function migrate() {
   if (store.kv.get('migrated_v1')) return;
   const st = readJSON(STATE_F, null); let ms = readJSON(MSG_F, null);
-  if (!ms) { ms = []; for (const [c, list] of Object.entries(SEED.messages)) list.forEach(m => ms.push({ id: rid(), client: c, from: m.f === 'them' ? 'client' : 'lawyer', type: 'text', text: m.t, ch: m.ch, at: m.at, read: !m.unread, seen: true })) }
+  if (!ms) { ms = []; if (DEMO()) for (const [c, list] of Object.entries(SEED.messages)) list.forEach(m => ms.push({ id: rid(), client: c, from: m.f === 'them' ? 'client' : 'lawyer', type: 'text', text: m.t, ch: m.ch, at: m.at, read: !m.unread, seen: true })) }
   store.tx(() => { if (st) store.saveState(null, st, 'migration', stampS()); ms.forEach(store.putMessage); store.kv.set('migrated_v1', true) });
   for (const f of [STATE_F, MSG_F]) if (fs.existsSync(f)) fs.renameSync(f, f + '.migrated-backup');
   audit({ action: 'system.migrate', detail: { state: !!st, records: st ? Store.COLL.reduce((n, c) => n + ((st[c] || []).length), 0) : 0, messages: ms.length } });
@@ -188,7 +191,7 @@ const sockIp = req => String(req.socket.remoteAddress || '').replace('::ffff:', 
 /* عنوان الزائر: نثق بترويسة Cloudflare فقط إن جاء الطلب من النفق على الجهاز نفسه، وإلا يمكن لأي جهاز في الشبكة تزويرها */
 const ipOf = req => (['127.0.0.1', '::1'].includes(sockIp(req)) && req.headers['cf-connecting-ip']) || sockIp(req);
 
-const cur = () => state || { clients: SEED.clients, opponents: SEED.opponents, cases: SEED.cases, hearings: SEED.hearings, deadlines: SEED.deadlines, docs: SEED.docs, mzLog: SEED.mzLog };
+const cur = () => state || (!DEMO() ? EMPTY() : { clients: SEED.clients, opponents: SEED.opponents, cases: SEED.cases, hearings: SEED.hearings, deadlines: SEED.deadlines, docs: SEED.docs, mzLog: SEED.mzLog });
 /* روابط الملفات موقّعة ومؤقتة: تفتحها تطبيقات الهاتف دون وضع رمز الموكل في الرابط،
    وتبطل عند تجديد رمز الموكل لأن الرمز داخل في التوقيع */
 const MEDIA_TTL = 24 * 3600;
@@ -633,7 +636,7 @@ async function api(req, res, u) {
 
   /* ── شاشة المكتب ── */
   if (p === '/api/admin/bootstrap') {
-    const st = Perms.viewState(me, auth.can(me, 'all') ? state : scope(me, cur()));
+    const st = Perms.viewState(me, auth.can(me, 'all') ? (state || (DEMO() ? null : EMPTY())) : scope(me, cur()));
     return json(res, 200, { state: st, messages: msgs.filter(m => canSeeClient(me, m.client)).map(pubAdmin), push: pushCount(), pushReady: !!webpush || !!(apnsCfg() || {}).p8, user: { ...me, token: undefined }, settings: settings(), edition: ED.pub() });
   }
   /* الحفظ الآمن: المتصفح يرسل السجلات المتغيرة فقط مع رقم إصدار كل سجل (lib/merge.js) */
@@ -814,6 +817,25 @@ async function api(req, res, u) {
     if (changed.length) { store.putMessages(changed); broadcast('read', { client }) }
     return json(res, 200, { ok: true, n: changed.length });
   }
+  /* «البدء من مكتب فارغ»: نسخة احتياطية أولاً، ثم حذف كل السجلات والرسائل (للمدير، بتأكيد مكتوب) */
+  if (p === '/api/admin/fresh-start' && M === 'POST') {
+    if (!need('manage')) return;
+    const b = await jbody(req); if (String(b.confirm || '').trim() !== 'حذف') return json(res, 400, { error: 'اكتب كلمة «حذف» للتأكيد' });
+    const bk = backup.run('fresh-start:' + me.username); if (!bk.ok) return json(res, 500, { error: 'تعذّرت النسخة الاحتياطية قبل الحذف؛ لم يُحذف شيء' });
+    const n = state ? Store.COLL.reduce((a, c) => a + ((state[c] || []).length), 0) : 0, nm = msgs.length;
+    store.wipeAll(); state = EMPTY(); msgs.splice(0, msgs.length);
+    audit({ ...who, action: 'state.fresh_start', detail: { records: n, messages: nm, backup: bk.dir } });
+    return json(res, 200, { ok: true, records: n, messages: nm, backup: bk.dir });
+  }
+  /* حذف رسائل موكل حُذف نهائياً (السجلات نفسها تُحذف بالحفظ الآمن) */
+  if (p === '/api/admin/client-purge' && M === 'POST') {
+    if (!need('delete')) return;
+    const { client } = await jbody(req); const id = String(client || ''); if (!id) return json(res, 400, { error: 'موكل غير محدد' });
+    if (state && (state.clients || []).some(c => c.id === id)) return json(res, 409, { error: 'احذف سجل الموكل أولاً' });
+    let n = 0; for (let i = msgs.length - 1; i >= 0; i--) if (msgs[i].client === id) { msgs.splice(i, 1); n++ }
+    store.deleteClientMessages(id); audit({ ...who, action: 'client.purge', entity: 'clients', entity_id: id, detail: { messages: n } });
+    return json(res, 200, { ok: true, messages: n });
+  }
   if (p === '/api/admin/reset' && M === 'POST') {
     if (!need('manage')) return;
     state = null; store.resetState(); audit({ ...who, action: 'state.reset' });
@@ -867,7 +889,7 @@ async function rulingFile(req, res, u, who, kind = 'ruling') {
 }
 
 /* ملفات شاشة المكتب: قائمة محددة فقط، وكلها تتطلب تسجيل الدخول عدا صفحة الدخول */
-const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-forms.js', 'legal-shelf.js', 'print.js', 'intake.js', 'id-card.js', 'lawyer-contact.js', 'genie.js', 'office-tools.js', 'case-refs.js', 'client-workspace.js', 'genie-face.webp', 'rulings.js', 'guide.js', 'workflow.js', 'casework.js', 'stations.js', 'hearing-report.js', 'case-layout.js', 'case-steps.js', 'case-misbar.js', 'misbar-mizan.js', 'expenses.js', 'glass-scroll.js', 'announce.js', 'reader.js', 'case-hub.js', 'case-wizard.js', 'consistency.js', 'searchsel.js', 'wa-chat.js', 'fulltext.js', 'ai-mark.js', 'night.css', 'qrcode.js', 'app-invite.js', 'avatar.js', 'wa-skin.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'misbar.js', 'misbar-emblem.webp', 'misbar-hero.webp', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'settlements.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
+const ADMIN_FILES = new Set(['index.html', 'app.js', 'ready-templates-palestine.js', 'legal-forms.js', 'client-delete.js', 'legal-shelf.js', 'print.js', 'intake.js', 'id-card.js', 'lawyer-contact.js', 'genie.js', 'office-tools.js', 'case-refs.js', 'client-workspace.js', 'genie-face.webp', 'rulings.js', 'guide.js', 'workflow.js', 'casework.js', 'stations.js', 'hearing-report.js', 'case-layout.js', 'case-steps.js', 'case-misbar.js', 'misbar-mizan.js', 'expenses.js', 'glass-scroll.js', 'announce.js', 'reader.js', 'case-hub.js', 'case-wizard.js', 'consistency.js', 'searchsel.js', 'wa-chat.js', 'fulltext.js', 'ai-mark.js', 'night.css', 'qrcode.js', 'app-invite.js', 'avatar.js', 'wa-skin.js', 'case360.js', 'hearing-prep.js', 'draft-versions.js', 'reference-check.js', 'legal-qa.js', 'reference-ui.js', 'lawlib-data.js', 'lawlib.js', 'legislation.js', 'misbar.js', 'misbar-emblem.webp', 'misbar-hero.webp', 'aidraft.js', 'calc-engine.js', 'calc.js', 'dash.js', 'briefcase.js', 'settlements.js', 'sync.js', 'mizan-ui.js', 'data.js', 'admin.js', 'phase2.js', 'phase2.css', 'bar.js', 'bar.css', 'responsive.js', 'responsive.css', 'style.css', 'dash.css', 'briefcase.css', 'mizan.css', 'admin.css', 'prestige.css', 'hdr-banner.jpg', 'hdr-side.jpg', 'hdr-side.webp', 'hdr-emblem.jpg', 'hdr-logo.jpg']);
 /* التفعيل: النسخة الموزّعة لا تعمل إطلاقاً قبل إدخال كود صادر لبصمة هذا الجهاز (فحص في الخادم لكل طلب) */
 const license = License.createLicense({ dataDir: DATA, enforce: !!ED.license });
 /* التفعيل باسم المكتب وكلمة المرور، والتجديد التلقائي كل 12 ساعة (يصل التمديد، ويُطبَّق الإبطال) */
