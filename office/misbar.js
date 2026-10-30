@@ -1070,7 +1070,7 @@ function locText(){const r=LOC.res;if(!r)return'';const L=[];
  if((r.comparative||[]).length){L.push('للمقارنة والاستئناس:');for(const x of r.comparative)L.push('- '+x.source+': '+x.title);L.push('')}
  if((r.timeline||[]).length){L.push('التسلسل الزمني:');for(const t of r.timeline)L.push(`- ${t.date} (عن السابق: ${dd(t.sincePrev)}): ${t.ctx}`);L.push('')}
  L.push(r.notice||'');return L.join('\n')}
-A.mbLocMode=v=>{locKeep();LOC.mode=LOCM.some(m=>m[0]===v)?v:'research';LOC.err='';mbRender()};
+A.mbLocMode=v=>{locKeep();const m=LOCM.some(x=>x[0]===v)?v:'research';if(m!==LOC.mode){LOC.res=null;LOC.kind=''}LOC.mode=m;LOC.err='';mbRender()};
 A.mbLocClearR=()=>{LOC.rid=null;LOC.rtitle='';mbRender()};
 window.MQ_mbLocal=()=>{MB.view='local';LOC.mode=LOC.mode==='dict'?'research':LOC.mode;A.nav('misbar');setTimeout(()=>{const t=document.getElementById('mbLoT');if(t)t.focus()},120)};
 A.mbLocToResearch=()=>{locKeep();LOC.text=LOC.rtext;LOC.mode='research';LOC.res=null;mbRender();setTimeout(locRun,30)};
