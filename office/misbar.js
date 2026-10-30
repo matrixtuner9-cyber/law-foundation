@@ -578,7 +578,7 @@ function localView(){const M=LOCM.find(x=>x[0]===LOC.mode)||LOCM[0];
   </form>
   ${split?`<aside class="mbg mb-lside aqx-card aqx-out">${step(2,'حصيلة التحليل','تنقلك كل بطاقة إلى تفصيلها')}${H.hd||`<div class="mbg-hd mb-lwait"><div class="mbg-hl"><b>${LOC.busy?'جارٍ التحليل على الجهاز…':'حصيلة التحليل المحلي'}</b><span class="m">دون إنترنت</span></div><p class="mbg-note">${LOC.busy?'تُقرأ النصوص من القاعدة المحلية الآن.':'اكتب السؤال أو الوقائع ثم «ابحث واستقصِ»؛ تظهر هنا الحصيلة: التشريعات والمواد والأحكام والمواعيد، وكلٌّ منها ينقلك إلى تفصيله.'}</p><div class="mb-lgh">${['§','¶','⚖','⇄','⌁','⏱'].map((i,n)=>`<span style="--i:${n}">${i}</span>`).join('')}</div></div>`}</aside>`:''}</div>
   ${LOC.err?`<div class="mb-empty bad">${e(LOC.err)}</div>`:''}
-  ${body?`<div class="aqx-res">${step(split?3:2,'التفاصيل','الخريطة · التشريعات بنصوصها · الأحكام · المواعيد')}${body}</div>`:''}</section>`}
+  ${body?`<div class="aqx-res">${mmView(LOC.res,LOC.kind)}${step(split?3:2,'التفاصيل الكاملة','كل خلية في الخريطة تنقلك إلى تفصيلها هنا: النصوص بحروفها · الأحكام · المواعيد')}${body}</div>`:''}</section>`}
 const locOpen=(id,t)=>`<button type="button" class="mb-ref" data-act="mbRefOpen" data-v="${id}">${e(t||'فتح النص')}</button>`;
 const locQ=t=>`<blockquote class="mb-loq">${e(t).replace(/\n/g,'<br>')}</blockquote>`;
 const dd=n=>n==null?'—':n===0?'اليوم نفسه':n<0?`بعد ${-n} يوماً`:`${n} يوماً`;
@@ -839,9 +839,9 @@ function locPen(r,ui,L){if(!(r.penQ||r.penShow))return'';const P=r.penalties||[]
   ${(p.refs||[]).map(x=>`<details class="mbp-ref"><summary>تحيل المادة إلى ${e(x.label)} من القانون نفسه</summary><div>${(x.kinds||[]).length||(x.measures||[]).length?`<div class="mbp-k">${(x.kinds||[]).map(k=>`<span class="mbp-kind ${KC[k]||''}">${e(k)}</span>`).join('')}${(x.measures||[]).map(m=>`<span class="mbp-m">${e(m)}</span>`).join('')}</div>`:''}${x.clauses.map(c=>`<blockquote>${e(c)}</blockquote>`).join('')}</div></details>`).join('')}</article>`};
  return `<section class="mbp" id="mbgPen"><h4><i>⚖</i>العقوبة في النصوص <small>${P.length?P.length+' مادة':''}</small></h4>${P.length?`<div class="mbp-g">${P.map(card).join('')}</div><p class="m mbp-n">الأنواع والمقادير مقروءة آلياً من النص للتتبّع فقط؛ المعتمد هو نص المادة كاملاً، وتُراجع ظروف التشديد والتخفيف والتكرار في القانون نفسه.</p>`:'<p class="m">لم يُعثر في المواد المطابقة على نص عقوبة؛ افتح التشريع كاملاً أو اذكر الجريمة بدقة أكبر.</p>'}</section>`}
 /* خريطة القضية: مخطط شعاعي يربط موضوع المسألة بما وُجد في القاعدة؛ كل عقدة تنقل إلى قسمها، والأعداد من النتائج نفسها */
-function locInspect(r){const I=r.inspect;if(!I)return'';
+function locInspect(r){const I=r.inspect;if(!I)return'';/* هدف خلية «الإثبات» في الخريطة */
  const ST={doc:['✓','مرفق في القضية','ok'],text:['◌','مذكور في النص بلا مرفق','warn'],missing:['✗','غير موجود','bad']};
- return `<section class="mbi"><div class="mbi-log"><h4><i>⟳</i>دورة الفحص <small>${(r.ms/1000).toFixed(1)} ث على الجهاز · دون إنترنت ودون نموذج لغوي</small></h4><ol>${I.log.map((x,i)=>`<li><b>${i+1}. ${e(x.step)}</b><span>${e(x.text)}</span></li>`).join('')}</ol></div>
+ return `<section class="mbi" id="mbgInsp"><div class="mbi-log"><h4><i>⟳</i>دورة الفحص <small>${(r.ms/1000).toFixed(1)} ث على الجهاز · دون إنترنت ودون نموذج لغوي</small></h4><ol>${I.log.map((x,i)=>`<li><b>${i+1}. ${e(x.step)}</b><span>${e(x.text)}</span></li>`).join('')}</ol></div>
  <div class="mbi-g">
   <div class="mbg-pnl mbi-iss"><h4><i>◉</i>المسائل المستخرجة <small>من كلمات الوقائع نفسها</small></h4>${I.issues.map(x=>`<article class="mbi-i ${x.found?'':'nf'}"><header><b>${e(x.label)}</b><span class="mbg-tag ${x.found?'':'bad'}">${x.found?`${x.laws.reduce((s,l)=>s+l.n.length,0)} مادة · ${x.rulings} حكم`:'لم يجد المسبار مراجع'}</span>${x.attempts>1?`<span class="mbg-tag">أُعيد البحث ×${x.attempts-1}</span>`:''}</header>${x.facts.length?`<ul class="mbi-f">${x.facts.slice(0,4).map(f=>`<li>«${e(f)}»</li>`).join('')}</ul>`:''}${x.laws.length?`<div class="mbi-l">${x.laws.map(l=>`<span>${e(l.title.replace(/\s*رقم\s*\(?\d+\)?\s*لسن[ةه]\s*\d+م?\.?$/,''))}${l.n.length?' م'+l.n.join('،'):''}</span>`).join('')}</div>`:''}</article>`).join('')}${I.questions.length?`<div class="mbi-q"><b>أسئلة وردت في النص:</b><ul>${I.questions.map(q=>`<li>${e(q)}</li>`).join('')}</ul></div>`:''}${I.notFound.length?`<div class="mbr-warn">لم يجد المسبار مراجع لـ: ${I.notFound.map(e).join('، ')} — بعد إعادة البحث بكلمات الموضوع. لم يكتب بديلاً.</div>`:''}</div>
   <div class="mbg-pnl mbi-ev"><h4><i>▤</i>الأدلة المعتادة للموضوع مقابل مستندات القضية <small>قائمة تحقق عامة، لا نص قانوني</small></h4>${I.evidence.length?`<ul class="mbi-e">${I.evidence.map(x=>`<li class="${ST[x.status][2]}"><i>${ST[x.status][0]}</i><b>${e(x.label)}</b><span>${e(ST[x.status][1])}${x.doc?': '+e(x.doc):''}</span><small>${e(x.issue)}</small></li>`).join('')}</ul>`:'<p class="m">لا قائمة أدلة مهندَسة لهذا الموضوع بعد.</p>'}</div>
@@ -939,6 +939,208 @@ function locBoard(r,H){
  <div class="mbg-tools" id="mbgTools">${tools}${panel('◷','التسلسل الزمني والمدد',tl,(r.timeline||[]).length)}${panel('¤','المبالغ',am)}${panel('#','أرقام دعاوى وطلبات وردت',cn)}</div>
  <div class="mb-tools"><button class="btn sm" data-act="mbLocCopy">نسخ التقرير</button><button class="btn sm" data-act="mbLocPrint">طباعة A4</button></div></section>`;
 }
+/* ═══ «خريطة العقل القانوني»: خلاصة بصرية مترابطة فوق التفاصيل ═══
+   تحليل القضية يُرسم بمنطق القياس القضائي الذي يفكر به المحامي: الوقائع ← المسألة ← القاعدة ← القضاء ← الإثبات ← الإجراء،
+   خلايا متصلة بمسار واحد، كل خلية تلخّص ما وُجد وتنقل إلى تفصيله. وتحتها «أسئلة المستشار»: ما يُسأل عادة في هذا النوع من المسائل،
+   ودفوع الخصم وأسئلتك كما وردت في نصك مقرونة بما وُجد لها أو بأنه لم يوجد. تشريح الحكم يُرسم عموداً فقرياً من الهيئة إلى المنطوق
+   مع «رحلة الدعوى» زمنياً وفحص حسابي لمواعيد الطعن من تواريخ النص، و«اكتشف ما فاتك» دائرتين متقاطعتين: ما ذكرته وما استندت إليه الأحكام.
+   كل ما فيها مستخرج من النتائج نفسها أو قائمة تحقق عامة معلنة؛ لا رأي ولا تقدير. */
+const MM_ACC=/قُبل الطعن|نُقض|أُلغي|البراءة/,MM_REJ=/رُدّ الطعن|رُدّ الطلب|عدم القبول|الإدانة/;
+/* قائمة تحقق المستشار بحسب الموضوع: أسئلة يطرحها محامٍ متمرّس قبل أن يبني موقفه، مع النموذج الذي يخدمها إن وُجد */
+const MM_ASK={
+ cheque:[['هل يُطلب تنفيذ الشيك مباشرة لدى دائرة التنفيذ بوصفه ورقة تجارية بدل إقامة دعوى؟','t27'],['هل قُدّم الشيك للوفاء خلال ميعاد تقديمه، وهل وُثّق الرجوع بإشعار البنك؟'],['هل يُسلك الطريق الجزائي (شيك بلا رصيد) إلى جانب المطالبة الحقوقية، وما أثر ذلك على التفاوض؟','t22'],['هل يُخشى تهريب أموال المدين فيُطلب حجز تحفظي؟','t17']],
+ contract:[['هل أُنذر المدين عدلياً قبل المطالبة، وتاريخ تبليغ الإنذار ثابت؟','t2'],['هل في العقد شرط تحكيم أو اختصاص مكاني أو شرط جزائي؟'],['هل الالتزام مقابل بالتزام لم يُنفّذ من جهتك (الدفع بعدم التنفيذ)؟'],['هل يُخشى تهريب أموال المدين فيُطلب حجز تحفظي؟','t17']],
+ labour:[['هل حُسبت مدة الخدمة والأجر الأخير بدقة، وهل الأجر ثابت بقسائم أو كشوف؟'],['هل وُجّه إشعار أو إنذار قبل الإنهاء، ومتى؟','t31'],['هل تُطالب بكل البنود: المكافأة، بدل الإشعار، الإجازات، الفصل التعسفي؟','t30']],
+ rent:[['هل الحالة من حالات الإخلاء المحصورة في المادة 4 من قانون المالكين والمستأجرين؟','t33'],['هل أُنذر المستأجر بواسطة الكاتب العدل ومضت خمسة عشر يوماً؟','t32'],['هل عقد الإيجار مكتوب وما مدته وأجرته وتاريخه؟']],
+ accident:[['هل وثيقة التأمين سارية، ومن الجهة الملزمة: شركة التأمين أم الصندوق؟'],['هل التقرير الطبي النهائي ونسبة العجز صادرة؟'],['هل المخطط المروري وضبط الشرطة مرفقان؟']],
+ tort:[['هل عناصر المسؤولية الثلاثة ثابتة: الخطأ والضرر والعلاقة السببية؟'],['هل الضرر مقدّر بخبرة أو مستندات مالية؟'],['هل طُلبت المعاينة أو إثبات الحالة قبل زوال المعالم؟','t19']],
+ penal:[['ما الوصف الجرمي الأدق، وهل الواقعة جناية أم جنحة؟'],['هل اتُّخذت صفة المدعي بالحق المدني؟','t26'],['هل في الإجراءات (القبض، التفتيش، الاستجواب) ما يُدفع ببطلانه؟']],
+ crimproc:[['هل في الإجراءات (القبض، التفتيش، الاستجواب، التبليغ) ما يُدفع ببطلانه؟'],['هل يُطلب الإفراج بالكفالة؟','t23']],
+ exec:[['هل السند تنفيذي فعلاً ومبلّغ للمدين؟','t27'],['هل يُطلب حجز ما للمدين لدى الغير أو حبسه؟','t29']],
+ land:[['هل الأرض مسجّلة (طابو) أم خاضعة للتسوية أو غير مسجّلة؟'],['هل سند التسجيل وكشف الحدود والمخطط مرفقة؟'],['هل يُخشى التصرف بالعقار فيُطلب وضع إشارة حجز أو منع تصرف؟','t17']],
+ personal:[['هل عقد الزواج وشهادات الميلاد مرفقة؟'],['ما القانون المطبّق بحسب المنطقة (الضفة أو غزة)؟']],
+ companies:[['هل عقد التأسيس والنظام وشهادة التسجيل محدّثة لدى السجل؟','t43'],['من المفوض بالتوقيع وهل تصرّف ضمن صلاحياته؟']],
+ appeal:[['متى بدأ ميعاد الطعن: من صدور الحكم أم من تبليغه؟'],['هل تتوافر بيانات لائحة الطعن كاملة؟','t7']],
+ limitation:[['ما تاريخ نشوء الحق بالضبط، وهل انقطع التقادم بمطالبة أو إقرار؟']],
+ urgent:[['ما وجه الاستعجال، وهل يُخشى فوات الوقت فعلاً؟','t16']],
+ notary:[['هل الوكالة سارية، وهل عُزل الوكيل أو توفي الموكل؟'],['هل الوكالة تشمل التصرف المطلوب صراحة؟','t45']]
+};
+const MM_GEN=[['هل الخصومة صحيحة: صفة المدعي والمدعى عليه ومصلحتهما؟'],['هل المحكمة مختصة قيمياً ونوعياً ومكانياً؟'],['ما البينة على كل واقعة جوهرية، وعلى من عبء إثباتها؟']];
+const mmSent=t=>String(t||'').replace(/\r/g,'').split(/(?<=[.؛؟!?])\s+|\n+/).map(x=>x.replace(/\s+/g,' ').trim()).filter(x=>x.length>8);
+/* دفوع الخصم وأسئلة المحامي كما وردت في النص */
+function mmVoice(src){const S=mmSent(src);
+ return {opp:S.filter(s=>/(?:يدفع|تدفع|دفع|يدّعي|تدّعي|يدعي|تدعي|ينكر|تنكر|يتمسك|تتمسك|يزعم|تزعم)\s+(?:ال)?(?:خصم|مدعى عليه|مدعى عليها|مدعي|مدعية|مشتكى عليه|مستأنف|طاعن|المدعى|المدعي)?/.test(s)&&!/[؟?]$/.test(s)).slice(0,4),
+  ask:S.filter(s=>/[؟?]$/.test(s)).slice(0,5)}}
+/* ربط دفع أو سؤال بما وُجد في النتائج: كلمات مفتاحية → خلية */
+function mmLink(s,r){const n=String(s);
+ if(/اختصاص|مختص/.test(n))return r.jurisdiction?['⚑','الاختصاص القيمي: '+(r.jurisdiction.verdict||'انظر الخلية'),'mbgTools']:['⚑','لم يُحسم الاختصاص القيمي آلياً: لا مبلغ بالدينار في النص','mbgTools'];
+ if(/ميعاد|مدة|تقادم|مرور الزمن/.test(n))return (r.deadlines||[]).length?['⏱',(r.deadlines||[]).length+' ميعاد بنصه في خلية الإجراء','mbgTools']:['⏱','لم تُطابق مواعيد','mbgTools'];
+ if(/بين[ةه]|بينات|إثبات|اثبات|دليل/.test(n))return (r.requisites||[]).length?['▤',(r.requisites||[]).length+' مقطعاً مما اشترطته المحاكم في الإثبات','mbgReq']:['▤','لم تُستخرج شروط إثبات من الأحكام','mmEvid'];
+ if(/فائد|فوائد/.test(n)){const hit=(r.laws||[]).some(L=>(L.articles||[]).some(a=>/فائد|فوائد/.test(a.text||'')));return hit?['§','وُجدت مادة تذكر الفائدة ضمن التشريعات','mbgLaws']:['∅','لم تُطابق مادة عن الفائدة؛ ابحث عنها مستقلة: «الفائدة القانونية على الدين التجاري»','']}
+ if(/مواصفات|مطابق|عيب|معيب/.test(n))return ['§','مسألة مطابقة المبيع وعيوبه: ابحثها مستقلة ليُطابَق نصها («خيار العيب» في المجلة)',''];
+ if(/تبليغ|تبلغ/.test(n))return ['§','راجع صحة التبليغ في قانون الأصول','mbgLaws'];
+ return null}
+function mmCell(o){return `<button type="button" class="mm-cell ${o.cls||''} ${o.n?'':'empty'}" ${o.go?`data-mbgo="${o.go}"`:''} style="--d:${o.i}"><span class="mm-ix">${o.i+1}</span><header><i>${o.ic}</i><b>${o.t}</b><em>${o.n==null?'':o.n}</em></header><div class="mm-cb">${o.body||`<p class="mm-none">${o.none||'لم يُعثر على شيء هنا'}</p>`}</div><small class="mm-q">${o.q}</small></button>`}
+function mmCase(r){
+ const src=LOC.mode==='case'?'':(LOC.text||''),V=mmVoice(src+'\n'+(r.inspect?(r.inspect.issues||[]).flatMap(i=>i.facts||[]).join('\n'):''));
+ const tl=r.timeline||[],am=r.amounts||[],tops=r.topics||[],laws=r.laws||[],ruls=r.rulings||[],cits=r.citations||[];
+ const span=tl.length>1?Math.round((new Date(tl[tl.length-1].date)-new Date(tl[0].date))/864e5):null;
+ const tot=Object.entries(r.amountTotals||{});
+ const acc=ruls.filter(x=>(x.outcome||[]).some(o=>MM_ACC.test(o))).length,rej=ruls.filter(x=>(x.outcome||[]).some(o=>MM_REJ.test(o))).length,oth=ruls.length-acc-rej;
+ const tiers={top:0,app:0,first:0,oth:0};ruls.forEach(x=>tiers[BTIER(x.court)[0]]++);
+ const ev=r.inspect&&r.inspect.evidence||[],evOk=ev.filter(x=>x.status==='doc').length,evTx=ev.filter(x=>x.status==='text').length,evMiss=ev.filter(x=>x.status==='missing').length;
+ const nArt=laws.reduce((s,l)=>s+(l.articles||[]).length,0)+cits.filter(c=>c.found).length;
+ const spark=tl.length?`<div class="mm-spark">${tl.map((t,i)=>{const x=span?Math.round((new Date(t.date)-new Date(tl[0].date))/864e5/span*100):50;return `<i style="inset-inline-start:${x}%" title="${e(t.date)}"></i>`}).join('')}<span></span></div>`:'';
+ const cells=[
+  {ic:'◷',t:'الوقائع',n:tl.length+am.length||null,go:'mbgTools',q:'ماذا حدث، ومتى، وبكم؟',none:'لا تواريخ ولا مبالغ في النص',
+   body:tl.length||am.length?`${spark}<ul class="mm-ul">${tl.length?`<li><b class="mono">${e(tl[0].date)}</b>${tl.length>1?` ← <b class="mono">${e(tl[tl.length-1].date)}</b> <small>(${span} يوماً)</small>`:''}</li>`:''}${tot.map(([c,v])=>`<li><b class="mono">${Number(v).toLocaleString('en')}</b> ${e(c)} <small>مجموع ما ورد</small></li>`).join('')}${tl.length?`<li><small>أقدم واقعة منذ ${tl[0].fromToday} يوماً</small></li>`:''}</ul>`:''},
+  {ic:'◉',t:'المسألة',n:tops.length||null,go:'mbgMap',q:'ما الذي يتنازع عليه الطرفان قانوناً؟',none:'لم يُتعرّف على موضوع؛ أضف كلمات الوقائع',
+   body:tops.length?`<div class="mm-chips">${tops.map(t=>`<span class="mm-topic">${e(t.label)}</span>`).join('')}</div>${(r.inspect&&(r.inspect.issues||[]).length)?`<ul class="mm-ul">${r.inspect.issues.slice(0,4).map(i=>`<li>${i.found?'✓':'∅'} ${e(i.label)}</li>`).join('')}</ul>`:''}`:''},
+  {ic:'§',t:'القاعدة',n:nArt||null,go:'mbgLaws',q:'ما النص الذي يحكم المسألة؟',none:'لم يُطابَق تشريع',cls:'law',
+   body:laws.length||cits.length?`<ul class="mm-ul">${cits.filter(c=>c.found).slice(0,2).map(c=>`<li class="you">✎ ${e(c.label)} <small>${e(c.lawTitle||'')}</small></li>`).join('')}${laws.slice(0,3).map(l=>`<li class="${/ملغ/.test(l.status||'')?'bad':''}"><b>${e(String(l.title).replace(/\s*(?:رقم|لسنة).*$/,''))}</b> ${(l.articles||[]).slice(0,4).map(a=>`<span class="mm-n">${e(a.n)}</span>`).join('')}</li>`).join('')}</ul>`:''},
+  {ic:'⚖',t:'القضاء',n:ruls.length||null,go:'mbgRul',q:'كيف فصلت المحاكم في مثلها؟',none:'لا أحكام فلسطينية مطابقة',cls:'jud',
+   body:ruls.length?`<div class="mm-tiers">${[['top','نقض/عليا'],['app','استئناف'],['first','أول درجة']].filter(([k])=>tiers[k]).map(([k,t])=>`<span class="${k}"><b>${tiers[k]}</b>${t}</span>`).join('')}</div>${acc+rej?`<div class="mm-bal" title="في الأحكام المطابقة: الطعون المقبولة مقابل المردودة"><span class="acc" style="flex:${acc||.001}">${acc} قُبل</span><span class="rej" style="flex:${rej||.001}">${rej} رُدّ</span>${oth?`<span class="oth" style="flex:${oth}">${oth}</span>`:''}</div><small class="mm-bl">نتيجة الطعن في الأحكام الأقرب (تصنيف آلي للمنطوق)</small>`:''}`:''},
+  {ic:'▤',t:'الإثبات',n:ev.length||(r.requisites||[]).length||null,go:ev.length?'mbgInsp':'mbgReq',q:'بماذا تُثبت كل واقعة؟',cls:'evd',
+   none:'شغّل «افحص ملف القضية» لمقارنة مستنداتك بقائمة الأدلة',
+   body:ev.length?`<div class="mm-ev"><span class="ok"><b>${evOk}</b>مرفق</span><span class="tx"><b>${evTx}</b>مذكور فقط</span><span class="miss"><b>${evMiss}</b>ناقص</span></div><ul class="mm-ul">${ev.filter(x=>x.status!=='doc').slice(0,3).map(x=>`<li class="${x.status}">${x.status==='missing'?'✗':'◐'} ${e(x.label)}</li>`).join('')}</ul>`:(r.requisites||[]).length?`<p class="mm-p">${(r.requisites||[]).length} مقطعاً من أحكام تبيّن ما اشترطته المحاكم في الإثبات</p>`:''},
+  {ic:'⚑',t:'الإجراء',n:((r.deadlines||[]).length+(r.jurisdiction?1:0))||null,go:'mbgTools',q:'أين تُرفع، ومتى، وبأي ميعاد؟',none:'لا اختصاص ولا مواعيد مطابقة',cls:'proc',
+   body:r.jurisdiction||(r.deadlines||[]).length?`${r.jurisdiction&&r.jurisdiction.claim!=null?`<div class="mm-jur"><span>${Number(r.jurisdiction.claim).toLocaleString('en')}</span><i class="${r.jurisdiction.claim>r.jurisdiction.limit?'over':''}" style="--p:${Math.min(100,Math.round(r.jurisdiction.limit/Math.max(r.jurisdiction.claim,r.jurisdiction.limit)*100))}%"></i><b>${r.jurisdiction.claim>r.jurisdiction.limit?'البداية':'الصلح'}</b></div><small class="mm-bl">حد الصلح ${Number(r.jurisdiction.limit||0).toLocaleString('en')} دينار (المادة 39)</small>`:''}<div class="mm-chips">${(r.deadlines||[]).slice(0,4).map(d=>`<span class="mm-dl">⏱ ${d.days?d.days+' يوماً':''} <small>${e(d.label.replace(/^ميعاد\s*/,''))}</small></span>`).join('')}</div>`:''}
+ ];
+ /* أسئلة المستشار */
+ const ids=[...new Set([...tops.map(t=>t.id),...((r.inspect&&r.inspect.issues)||[]).map(i=>i.id)])];
+ const asks=[...ids.flatMap(id=>(MM_ASK[id]||[]).map(a=>[...a,id])),...MM_GEN.map(a=>[...a,''])].filter((a,i,A)=>A.findIndex(b=>b[0]===a[0])===i).slice(0,8);
+ const opp=V.opp.map(s=>({s,l:mmLink(s,r)})),ask=V.ask.map(s=>({s,l:mmLink(s,r)}));
+ const voice=(arr,ic,t,cls)=>arr.length?`<div class="mm-voice ${cls}"><h5><i>${ic}</i>${t}</h5>${arr.map(x=>`<div class="mm-vi"><q>${e(x.s)}</q>${x.l?`<span class="mm-ans ${x.l[2]?'':'none'}" ${x.l[2]?`data-mbgo="${x.l[2]}"`:''}><i>${x.l[0]}</i>${e(x.l[1])}</span>`:`<span class="mm-ans none"><i>∅</i>لم يُربط بنتيجة؛ ابحث فيه مستقلاً</span>`}</div>`).join('')}</div>`:'';
+ const done=LOC.mmDone||(LOC.mmDone={});
+ const sum=[tops.length?`المسألة: <b>${e(tops.map(t=>t.label).join('، '))}</b>`:'',laws.length?`تحكمها نصوص من <b>${laws.length}</b> تشريع`:'لم يُطابَق تشريع',ruls.length?`وفي مثلها <b>${ruls.length}</b> حكماً فلسطينياً${acc+rej?` (قُبل الطعن في ${acc} ورُدّ في ${rej})`:''}`:'',r.jurisdiction&&r.jurisdiction.verdict?`والاختصاص القيمي: <b>${r.jurisdiction.claim>r.jurisdiction.limit?'محكمة البداية':'محكمة الصلح'}</b>`:''].filter(Boolean).join('، ');
+ return `<section class="mm" id="mmMap">
+  <header class="mm-hd"><div><h3><i>✦</i> خريطة العقل القانوني</h3><p>من الواقعة إلى الإجراء كما يفكر المحامي: كل خلية تلخّص ما وُجد وتنقلك إلى تفصيله</p></div><span class="mm-ms">${r.ms!=null?(r.ms/1000).toFixed(1)+' ث على الجهاز':''}</span></header>
+  <p class="mm-sum">${sum}.</p>
+  <div class="mm-flow"><svg class="mm-wire" viewBox="0 0 300 200" preserveAspectRatio="none" aria-hidden="true"><path d="M250 50 H150 H50 V150 H150 H250"/></svg>${cells.map((c,i)=>mmCell({...c,i})).join('')}</div>
+  <div class="mm-low">
+   <section class="mm-coun"><h4><i>❖</i> أسئلة المستشار <small>ما يسأله محامٍ متمرّس قبل بناء موقفه في هذا النوع من المسائل — علّم ما تحققت منه</small></h4>
+    <ol>${asks.map((a,i)=>{const k=a[0].slice(0,40);return `<li class="${done[k]?'ok':''}"><label><input type="checkbox" data-mmk="${e(k)}" ${done[k]?'checked':''}><span>${e(a[0])}</span></label>${a[1]&&typeof TPL!=='undefined'&&TPL[a[1]]?`<button type="button" class="mm-tpl" data-act="mmTpl" data-v="${a[1]}">✎ ${e(TPL[a[1]].name)}</button>`:''}</li>`}).join('')}</ol>
+    <small class="mm-bl">قائمة تحقق عامة بحسب موضوع المسألة، لا تحليل لوقائعك.</small></section>
+   <div class="mm-side">${voice(opp,'⚔','دفوع الخصم كما وردت في نصك','opp')}${voice(ask,'؟','أسئلتك وما وُجد لها','ask')}
+    ${!opp.length&&!ask.length?`<div class="mm-voice tip"><h5><i>💡</i>اجعل المسبار يجيبك</h5><p>اكتب في الوقائع دفوع الخصم بصيغة «يدفع المدعى عليه بأن…»، وأسئلتك منتهية بعلامة «؟»؛ فتظهر هنا مربوطة بما وُجد لها.</p></div>`:''}
+    ${(r.defenses||[]).length?`<div class="mm-voice def" id="mmEvid"><h5><i>⛨</i>ما ردّت به المحاكم في دفوع مشابهة</h5><p>${(r.defenses||[]).length} مقطعاً من أحكام الأقرب — في التفاصيل تحت «الأحكام»</p></div>`:''}</div>
+  </div></section>`}
+/* ── تشريح الحكم: عمود فقري من الهيئة إلى المنطوق، ورحلة الدعوى زمنياً ── */
+function mmDissect(r){
+ const res=r.result||[],acc=res.some(o=>MM_ACC.test(o)),rej=res.some(o=>MM_REJ.test(o));
+ const apl=(r.parties||[]).filter(p=>/طاعن|مستأنف|مستدع|معترض|مدع(?!ى)/.test(p.role)&&!/ضد|عليه|عليها/.test(p.role)),res2=(r.parties||[]).filter(p=>!apl.includes(p));
+ const vert=[['⚖','المحكمة والهيئة',r.court?`${e(r.court)}${r.panel?`<small>${e(r.panel)}</small>`:''}`:'',r.court],['⚐','الحكم المطعون فيه',e(r.appealed||''),r.appealed],['✎','أسباب الطعن',e(String(r.grounds||'').slice(0,280))+(String(r.grounds||'').length>280?'…':''),r.found&&r.found.grounds],['☷','تعليل المحكمة',e(String(r.reasoning||'').replace(/^المحكم[ةه]\s*/,'').slice(0,320))+(String(r.reasoning||'').length>320?'…':''),r.found&&r.found.reasoning],['◆','المنطوق',e(r.operative||r.opGuess||''),r.operative||r.opGuess]];
+ /* رحلة الدعوى: التواريخ بترتيبها مع وصف مختصر من سياقها، وفحص حسابي لميعاد الطعن بين «صدور حكم» و«تقديم طعن» */
+ const ds=(r.dates||[]).slice().sort((a,b)=>a.date.localeCompare(b.date)),lab=c=>/تقدم|قدم|طعن|استئناف/.test(c)&&/بهذا|الطعن|الاستئناف|لائحة/.test(c)&&!/أصدرت|حكمها/.test(c)?['up','تقديم طعن']:/أصدرت|حكمها|القاضي|قضت|قرارها/.test(c)?['jd','صدور حكم']:/تبل[غّ]/.test(c)?['nt','تبليغ']:/أقام|أقيمت|سجل|الدعوى رقم/.test(c)?['fl','إقامة دعوى']:/توريد|عقد|اتفق|تسليم/.test(c)?['fc','واقعة']:['oth','تاريخ'];
+ const J=ds.map(d=>({...d,k:lab(d.ctx)})),chk=[];
+ const lim=/النقض|العليا/.test(r.court||'')?[40,'227','النقض']:/استئناف/.test(r.court||'')?[30,'205','الاستئناف']:null;
+ for(let i=0;i<J.length;i++)if(J[i].k[0]==='up'){const j=[...J.slice(0,i)].reverse().find(x=>x.k[0]==='jd');if(j&&lim){const g=Math.round((new Date(J[i].date)-new Date(j.date))/864e5);chk.push({g,ok:g<=lim[0],from:j.date,to:J[i].date})}}
+ const cites=r.citations||[];
+ const total=ds.length>1?Math.round((new Date(ds[ds.length-1].date)-new Date(ds[0].date))/864e5):null;
+ return `<section class="mm mm-dis" id="mmMap">
+  <header class="mm-hd"><div><h3><i>✦</i> تشريح الحكم</h3><p>${e(r.title||'')}</p></div><span class="mm-res ${acc?'acc':rej?'rej':''}">${res.length?res.map(e).join(' · '):'لم تُصنّف النتيجة'}</span></header>
+  <div class="mm-dgrid">
+   <div class="mm-spine">
+    ${(r.parties||[]).length?`<div class="mm-vs"><div class="a"><small>${e((apl[0]||{}).role||'الطرف الأول')}</small>${apl.map(p=>`<b>${e(p.name)}</b>`).join('')||'—'}</div><span>⟷</span><div class="b"><small>${e((res2[0]||{}).role||'الطرف الثاني')}</small>${res2.map(p=>`<b>${e(p.name)}</b>`).join('')||'—'}</div></div>${(r.counsel||[]).length?`<small class="mm-bl">الوكلاء: ${r.counsel.map(e).join('، ')}</small>`:''}`:''}
+    ${vert.map(([ic,t,b,ok],i)=>`<div class="mm-vert ${ok?'':'miss'} ${i===4?'op':''}" style="--d:${i}"><i>${ic}</i><div><b>${t}</b>${ok?`<p>${b}</p>`:'<p class="mm-none">لم يُعثر على هذا القسم في النص</p>'}</div></div>`).join('')}
+   </div>
+   <aside class="mm-jr"><h4><i>◷</i> رحلة الدعوى ${total!=null?`<small>${total} يوماً من أول تاريخ إلى آخره</small>`:''}</h4>
+    ${J.length?`<ol class="mm-trip">${J.map((d,i)=>`<li class="${d.k[0]}"><span class="mono">${e(d.date)}</span><b>${d.k[1]}</b><small>${e(d.ctx.slice(0,90))}…</small>${i&&d.sincePrev!=null?`<em>+${Math.round((new Date(d.date)-new Date(J[i-1].date))/864e5)} يوماً</em>`:''}</li>`).join('')}</ol>`:'<p class="mm-none">لا تواريخ في النص</p>'}
+    ${chk.length?chk.map(c=>`<div class="mm-chk ${c.ok?'ok':'bad'}"><b>${c.ok?'✓':'⚠'} ${c.g} يوماً</b> بين صدور الحكم (${e(c.from)}) وتقديم الطعن (${e(c.to)}) — ميعاد ${lim[2]} ${lim[0]} يوماً (المادة ${lim[1]} من قانون الأصول)<small>حساب من تواريخ النص لا يستبعد يوم الصدور ولا يعرف تاريخ التبليغ؛ للتحقق فقط.</small></div>`).join(''):''}
+    ${cites.length?`<h4><i>§</i> النصوص التي استند إليها <small>${cites.length}</small></h4><div class="mm-chips">${cites.map(c=>`<span class="mm-cite ${c.found?'':'miss'}">${e(c.label||('المادة '+c.article))} <small>${e(String(c.lawTitle||c.phrase||'').replace(/\s*(?:رقم|لسنة).*$/,''))}</small></span>`).join('')}</div>`:''}
+    <div class="mm-voice tip"><h5><i>❖</i>كيف تقرأه كمحامٍ</h5><p>${acc?'الطعن قُبل: ابحث في التعليل عن الخطأ الذي عابته المحكمة على الحكم المطعون فيه؛ هو ما تستشهد به.':rej?'الطعن رُدّ: التعليل يبيّن لماذا لم تُنتج أسباب الطعن أثرها؛ تجنّب الصياغة نفسها أو استند إليه إن كنت في موقع المطعون ضده.':'حدّد المبدأ الذي قرره التعليل وما إذا كان قاطعاً في المسألة أم مرتبطاً بوقائعها.'}</p></div>
+   </aside>
+  </div></section>`}
+/* ── اكتشف ما فاتك: دائرتان متقاطعتان، ثم ما ذكرته وما فاتك وما لم تتطرق إليه ── */
+function mmGaps(r){
+ const C=r.cited||[],M=r.missed||[],U=r.unseenRulings||[],D=r.defenses||[],cov=r.coveredCount||0;
+ const bad=C.filter(c=>!c.found||c.repealed||(c.valid&&(c.valid.flags||[]).some(f=>f.level!=='info'))),amd=C.filter(c=>c.valid&&(c.valid.flags||[]).some(f=>f.level==='info'));
+ const opp=U.filter(x=>/يعارض/.test(x.stance||'')),sup=U.filter(x=>/يؤيد|يدعم/.test(x.stance||''));
+ const sc=Math.max(0,Math.min(100,Math.round((C.filter(c=>c.found).length+cov)/Math.max(1,C.length+M.length+D.length)*100)));
+ return `<section class="mm mm-gap" id="mmMap">
+  <header class="mm-hd"><div><h3><i>✦</i> خريطة ما فاتك</h3><p>ما بنيت عليه مذكرتك مقابل ما بنت عليه الأحكام الأقرب لموضوعها</p></div><div class="mm-cov" style="--p:${sc}"><b>${sc}%</b><small>تغطية</small></div></header>
+  <div class="mm-venn"><svg viewBox="0 0 320 170" aria-hidden="true"><circle cx="115" cy="85" r="72" class="you"/><circle cx="205" cy="85" r="72" class="crt"/></svg>
+   <div class="v you"><b>${C.length}</b><span>ذكرتَه</span></div><div class="v both"><b>${cov}</b><span>مشترك</span></div><div class="v crt"><b>${M.length}</b><span>فاتك</span></div></div>
+  <div class="mm-g3">
+   <section class="mm-gc you"><h4><i>✎</i> ما ذكرتَه <small>${C.length}</small></h4>${C.map(c=>{const f=!c.found?['bad','لم يُعثر عليها']:c.repealed?['bad','ملغاة']:(c.valid&&(c.valid.flags||[]).some(x=>x.level!=='info'))?['warn','تنبيه سريان']:(c.valid&&(c.valid.flags||[]).length)?['info','معدّلة']:['ok','سليمة'];return `<div class="mm-gi ${f[0]}"><b>${e(c.label||('المادة '+c.article))}</b><small>${e(c.lawTitle||c.phrase||'')}</small><em>${f[1]}</em></div>`}).join('')||'<p class="mm-none">لم تُستخرج مواد من المذكرة</p>'}</section>
+   <section class="mm-gc crt"><h4><i>✗</i> ما فاتك <small>${M.length}</small></h4>${M.slice(0,8).map(m=>`<div class="mm-gi miss"><b>${e(m.label||m.cite||('المادة '+(m.article||m.n||'')))}</b><small>${e(m.lawTitle||'')}</small>${m.count||m.n?`<em>${e(m.count||'')} حكم</em>`:''}</div>`).join('')||'<p class="mm-none">لم تفُتك مادة استندت إليها الأحكام الأقرب — أو لم تُطابق أحكام كافية</p>'}</section>
+   <section class="mm-gc def"><h4><i>⛨</i> دفوع لم تتطرق إليها <small>${D.length}</small></h4>${D.map(d=>`<div class="mm-gi def"><b>${e(d.label)}</b><small>${(d.articles||[]).map(a=>e(a.label)).join('، ')}</small></div>`).join('')||'<p class="mm-none">لا</p>'}</section>
+  </div>
+  ${U.length?`<div class="mm-unseen"><h4><i>⚖</i> أحكام قريبة لم تذكرها <small>${U.length}${opp.length?` · ${opp.length} قد يعارض`:''}${sup.length?` · ${sup.length} قد يؤيد`:''}</small></h4><div class="mm-chips">${U.map(x=>`<button type="button" class="mm-ur ${/يعارض/.test(x.stance||'')?'opp':/يؤيد|يدعم/.test(x.stance||'')?'sup':''}" data-act="mbRefOpen" data-v="${x.id}"><b class="mono">${e(x.case_no||'')}</b> ${e(x.court||'')}${x.stance?`<small>${e(x.stance)}</small>`:''}</button>`).join('')}</div></div>`:''}
+  ${bad.length||amd.length?`<div class="mm-voice tip warn"><h5><i>⚠</i>قبل تقديم المذكرة</h5><p>${bad.length?`${bad.length} من المواد التي ذكرتها لم يُعثر عليها أو عليها تنبيه سريان — تحقّق من رقمها وقانونها. `:''}${amd.length?`${amd.length} مادة معدّلة: استشهد بنصها بعد التعديل الساري وقت الواقعة.`:''}</p></div>`:''}
+ </section>`}
+function mmView(r,kind){try{return kind==='dissect'?mmDissect(r):kind==='gaps'?mmGaps(r):mmCase(r)}catch(x){console.error(x);return ''}}
+A.mmTpl=v=>{S.tpl=v;S.tplVals={};if(LOC.k)S.tplCase=LOC.k;A.nav('tpls')};
+document.addEventListener('change',ev=>{const t=ev.target;if(!t||!t.dataset||!t.dataset.mmk)return;const d=LOC.mmDone||(LOC.mmDone={});d[t.dataset.mmk]=t.checked;const li=t.closest('li');if(li)li.classList.toggle('ok',t.checked)});
+(function(){const st=document.createElement('style');st.textContent=`
+.mm{--mg:#0F2A44;--mgl:#1E4166;--au:#C9A24A;--aul:#F3D58A;--pa:#FBF6EA;--ln:#E4D3A6;margin:6px 0 18px;padding:18px;border-radius:18px;background:radial-gradient(120% 140% at 100% 0,#14304F 0,#0B1B2B 58%,#0A1724 100%);color:#E8EEF4;box-shadow:0 18px 40px rgb(11 27 43 / .28);position:relative;overflow:hidden}
+.mm::before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgb(201 162 74 / .06) 1px,transparent 1px),linear-gradient(90deg,rgb(201 162 74 / .06) 1px,transparent 1px);background-size:28px 28px;pointer-events:none}
+.mm>*{position:relative}
+.mm-hd{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:6px}.mm-hd h3{margin:0;font-size:21px;color:var(--aul);display:flex;align-items:center;gap:8px}.mm-hd h3 i{font-style:normal;color:var(--au);animation:mmSpin 9s linear infinite}.mm-hd p{margin:2px 0 0;font-size:12.5px;color:#9FB2C6}
+.mm-ms{font-size:11.5px;color:#9FB2C6;border:1px solid #2B4A6B;border-radius:99px;padding:3px 10px;white-space:nowrap}
+.mm-sum{margin:6px 0 14px;padding:10px 14px;border-radius:12px;background:rgb(255 255 255 / .05);border:1px solid rgb(201 162 74 / .25);font-size:14px;line-height:1.9;color:#DCE5EE}.mm-sum b{color:var(--aul)}
+.mm-flow{position:relative;display:grid;grid-template-columns:repeat(3,1fr);grid-auto-rows:minmax(190px,auto);gap:22px 26px}
+.mm-wire{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}.mm-wire path{fill:none;stroke:var(--au);stroke-width:1.4;vector-effect:non-scaling-stroke;stroke-dasharray:6 7;opacity:.75;animation:mmFlow 1.6s linear infinite}
+.mm-flow>.mm-cell:nth-child(5){grid-row:2;grid-column:3}.mm-flow>.mm-cell:nth-child(6){grid-row:2;grid-column:2}.mm-flow>.mm-cell:nth-child(7){grid-row:2;grid-column:1}
+.mm-cell{z-index:1;position:relative;text-align:start;font:inherit;color:inherit;cursor:pointer;display:flex;flex-direction:column;gap:6px;padding:14px 14px 10px;border-radius:16px;background:linear-gradient(160deg,rgb(30 65 102 / .92),rgb(15 42 68 / .95));border:1px solid rgb(201 162 74 / .45);clip-path:polygon(14px 0,calc(100% - 14px) 0,100% 14px,100% calc(100% - 14px),calc(100% - 14px) 100%,14px 100%,0 calc(100% - 14px),0 14px);transition:transform .25s,box-shadow .25s,border-color .25s;animation:mmIn .55s both;animation-delay:calc(var(--d) * 90ms)}
+.mm-cell:hover{transform:translateY(-3px);border-color:var(--aul);box-shadow:0 12px 26px rgb(0 0 0 / .35),0 0 0 1px rgb(243 213 138 / .35) inset}
+.mm-cell.empty{opacity:.62;background:linear-gradient(160deg,rgb(30 65 102 / .55),rgb(15 42 68 / .6));border-style:dashed}
+.mm-ix{position:absolute;top:8px;inset-inline-end:12px;font-size:11px;color:#7F96AE;font-weight:700}
+.mm-cell header{display:flex;align-items:center;gap:8px}.mm-cell header i{font-style:normal;width:30px;height:30px;display:grid;place-items:center;border-radius:9px;background:rgb(201 162 74 / .18);color:var(--aul);font-size:16px}.mm-cell header b{font-size:15.5px;color:#fff}.mm-cell header em{font-style:normal;margin-inline-start:auto;margin-inline-end:18px;font-size:22px;font-weight:800;color:var(--aul);font-variant-numeric:tabular-nums}
+.mm-cell.law header i{background:rgb(120 180 255 / .16);color:#A9CFFF}.mm-cell.jud header i{background:rgb(240 160 120 / .16);color:#F6C3A6}.mm-cell.evd header i{background:rgb(120 220 170 / .15);color:#9FE3C0}.mm-cell.proc header i{background:rgb(255 255 255 / .1);color:#fff}
+.mm-cb{flex:1;font-size:12.8px;line-height:1.7;color:#D4DEE8}.mm-none{margin:0;color:#8EA2B7;font-size:12.5px}.mm-q{font-size:11.5px;color:#8EA2B7;border-top:1px dashed rgb(201 162 74 / .3);padding-top:6px;font-style:italic}
+.mm-ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px}.mm-ul li small{color:#8EA2B7}.mm-ul li.you{color:var(--aul)}.mm-ul li.bad{color:#F19C8C;text-decoration:line-through}.mm-ul li.missing{color:#F4B1A3}.mm-ul li.text{color:#F3D58A}
+.mm-n{display:inline-block;min-width:24px;text-align:center;margin-inline-start:3px;padding:0 5px;border-radius:6px;background:rgb(169 207 255 / .15);color:#CFE4FF;font-size:11.5px;font-weight:700}
+.mm-chips{display:flex;flex-wrap:wrap;gap:5px}.mm-topic{padding:3px 10px;border-radius:99px;background:rgb(201 162 74 / .2);color:var(--aul);font-weight:700;font-size:12.5px}
+.mm-dl{padding:3px 8px;border-radius:8px;background:rgb(255 255 255 / .08);font-size:12px}.mm-dl small{color:#9FB2C6}
+.mm-spark{position:relative;height:16px;margin:2px 0 6px}.mm-spark span{position:absolute;inset:7px 0 auto;height:2px;background:linear-gradient(90deg,transparent,var(--au),transparent)}.mm-spark i{position:absolute;top:3px;width:10px;height:10px;margin-inline-start:-5px;border-radius:50%;background:var(--aul);box-shadow:0 0 0 3px rgb(243 213 138 / .2);z-index:1}
+.mm-tiers{display:flex;gap:6px;margin-bottom:6px}.mm-tiers span{flex:1;text-align:center;padding:4px 2px;border-radius:9px;background:rgb(255 255 255 / .06);font-size:11px;color:#B9C8D7}.mm-tiers b{display:block;font-size:17px;color:#fff}.mm-tiers .top b{color:#F6C3A6}.mm-tiers .app b{color:#A9CFFF}
+.mm-bal{display:flex;height:22px;border-radius:99px;overflow:hidden;font-size:11px;font-weight:700}.mm-bal span{display:grid;place-items:center;white-space:nowrap;overflow:hidden;min-width:0}.mm-bal .acc{background:#2F7D4A}.mm-bal .rej{background:#9E3B2E}.mm-bal .oth{background:#4C5D70}
+.mm-bl{display:block;font-size:11px;color:#8EA2B7;margin-top:4px}
+.mm-ev{display:flex;gap:6px;margin-bottom:6px}.mm-ev span{flex:1;text-align:center;padding:4px;border-radius:9px;font-size:11px}.mm-ev b{display:block;font-size:17px}.mm-ev .ok{background:rgb(47 125 74 / .35)}.mm-ev .tx{background:rgb(201 162 74 / .25)}.mm-ev .miss{background:rgb(158 59 46 / .4)}
+.mm-p{margin:0}
+.mm-jur{display:flex;align-items:center;gap:8px;font-weight:800}.mm-jur span{font-variant-numeric:tabular-nums;color:#fff}.mm-jur b{color:var(--aul)}.mm-jur i{flex:1;height:8px;border-radius:99px;background:linear-gradient(90deg,#2F7D4A 0 var(--p),#9E3B2E var(--p) 100%)}.mm-jur i:not(.over){background:#2F7D4A}
+.mm-low{display:grid;grid-template-columns:1.25fr 1fr;gap:16px;margin-top:18px}
+.mm-coun,.mm-voice{background:var(--pa);color:#1F2A36;border-radius:14px;padding:14px;border:1px solid var(--ln)}
+.mm-coun h4,.mm-voice h5,.mm-jr h4,.mm-gc h4,.mm-unseen h4{margin:0 0 8px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:15px}.mm-coun h4 small,.mm-jr h4 small,.mm-gc h4 small,.mm-unseen h4 small{font-weight:400;color:#7A6A45;font-size:11.5px}.mm-coun h4 i,.mm-voice h5 i{font-style:normal;color:#A07A28}
+.mm-coun ol{margin:0;padding:0;list-style:none;counter-reset:q;display:flex;flex-direction:column;gap:6px}.mm-coun li{counter-increment:q;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:7px 10px;border-radius:10px;background:#fff;border:1px solid #EFE3C6;transition:background .2s}
+.mm-coun li label{display:flex;gap:8px;align-items:flex-start;flex:1;min-width:220px;cursor:pointer;font-size:13.5px;line-height:1.7}.mm-coun li label::before{content:counter(q);flex:none;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:#0F2A44;color:#F3D58A;font-size:11.5px;font-weight:700}.mm-coun li input{margin-top:5px;accent-color:#2F7D4A}
+.mm-coun li.ok{background:#EEF7F0;border-color:#B9DCC4}.mm-coun li.ok span{color:#5C7A63;text-decoration:line-through}
+.mm-tpl{border:1px solid #C9A24A;background:#FFF8E6;color:#7A5A12;border-radius:99px;padding:3px 10px;font:inherit;font-size:11.5px;cursor:pointer}.mm-tpl:hover{background:#F3D58A}
+.mm-side{display:flex;flex-direction:column;gap:10px}.mm-voice h5{font-size:14px}.mm-voice p{margin:0;font-size:13px;line-height:1.8}
+.mm-vi{padding:8px 0;border-top:1px dashed #E6D8B6}.mm-vi:first-of-type{border-top:0;padding-top:0}.mm-vi q{display:block;font-size:13px;line-height:1.75;color:#33404E}.mm-vi q::before,.mm-vi q::after{color:#C9A24A}
+.mm-ans{display:inline-flex;gap:6px;align-items:center;margin-top:5px;padding:4px 10px;border-radius:10px;background:#0F2A44;color:#E8EEF4;font-size:12.3px;cursor:pointer;line-height:1.6}.mm-ans i{font-style:normal;color:#F3D58A}.mm-ans.none{background:#F4E9E6;color:#8A3A2A;cursor:default}.mm-ans.none i{color:#8A3A2A}
+.mm-voice.opp{border-inline-start:4px solid #9E3B2E}.mm-voice.ask{border-inline-start:4px solid #2B5B8A}.mm-voice.def{border-inline-start:4px solid #2F7D4A}.mm-voice.tip{background:rgb(255 255 255 / .07);color:#DCE5EE;border-color:rgb(201 162 74 / .35)}.mm-voice.tip.warn{background:#FFF4E5;color:#6B4A12;border-color:#E9C27A}
+/* تشريح */
+.mm-res{padding:6px 14px;border-radius:99px;font-weight:800;font-size:13px;background:#4C5D70;white-space:nowrap}.mm-res.acc{background:#2F7D4A}.mm-res.rej{background:#9E3B2E}
+.mm-dgrid{display:grid;grid-template-columns:1.35fr 1fr;gap:18px;margin-top:10px}
+.mm-spine{position:relative;padding-inline-start:26px;display:flex;flex-direction:column;gap:10px}.mm-spine::before{content:"";position:absolute;inset-inline-start:10px;top:58px;bottom:16px;width:3px;border-radius:3px;background:linear-gradient(var(--au),#7A5A12)}
+.mm-vs{display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;margin-inline-start:-26px;padding:10px;border-radius:14px;background:rgb(255 255 255 / .06);border:1px solid rgb(201 162 74 / .3)}.mm-vs>span{color:var(--aul);font-size:20px}.mm-vs div{display:flex;flex-direction:column;gap:2px}.mm-vs small{color:#9FB2C6;font-size:11px}.mm-vs b{font-size:13px;color:#fff}.mm-vs .b{text-align:end}
+.mm-vert{position:relative;display:flex;gap:10px;padding:10px 12px;border-radius:12px;background:linear-gradient(160deg,rgb(30 65 102 / .85),rgb(15 42 68 / .9));border:1px solid rgb(201 162 74 / .35);animation:mmIn .5s both;animation-delay:calc(var(--d) * 90ms)}
+.mm-vert::before{content:"";position:absolute;inset-inline-start:-21px;top:16px;width:12px;height:12px;border-radius:50%;background:var(--aul);box-shadow:0 0 0 4px rgb(243 213 138 / .2)}
+.mm-vert>i{font-style:normal;width:28px;height:28px;flex:none;display:grid;place-items:center;border-radius:8px;background:rgb(201 162 74 / .18);color:var(--aul)}.mm-vert b{color:#fff;font-size:14px}.mm-vert p{margin:3px 0 0;font-size:12.8px;line-height:1.85;color:#D4DEE8;white-space:pre-line}.mm-vert small{display:block;color:#9FB2C6}
+.mm-vert.miss{opacity:.55;border-style:dashed}.mm-vert.op{background:linear-gradient(160deg,#3A2E10,#2A210B);border-color:var(--au)}.mm-vert.op p{color:#FCEBC0;font-weight:700}
+.mm-jr{display:flex;flex-direction:column;gap:10px}.mm-jr h4{color:var(--aul)}.mm-jr h4 small{color:#9FB2C6!important}
+.mm-trip{list-style:none;margin:0;padding:0;position:relative}.mm-trip li{position:relative;display:grid;grid-template-columns:auto 1fr;gap:0 10px;padding:6px 0 10px 0;padding-inline-start:18px;border-inline-start:2px solid #2B4A6B}.mm-trip li::before{content:"";position:absolute;inset-inline-start:-7px;top:9px;width:12px;height:12px;border-radius:50%;background:#7F96AE}
+.mm-trip li.jd::before{background:#F3D58A}.mm-trip li.up::before{background:#9FE3C0}.mm-trip li.fl::before{background:#A9CFFF}.mm-trip li.nt::before{background:#F6C3A6}
+.mm-trip .mono{font-size:12px;color:#fff;font-weight:700}.mm-trip b{font-size:12.5px;color:var(--aul)}.mm-trip small{grid-column:1/-1;color:#8EA2B7;font-size:11.3px;line-height:1.6}.mm-trip em{grid-column:1/-1;font-style:normal;font-size:11px;color:#9FE3C0}
+.mm-chk{padding:9px 12px;border-radius:12px;font-size:12.6px;line-height:1.7}.mm-chk.ok{background:rgb(47 125 74 / .3);border:1px solid #2F7D4A}.mm-chk.bad{background:rgb(158 59 46 / .35);border:1px solid #9E3B2E}.mm-chk b{color:#fff}.mm-chk small{display:block;color:#B9C8D7;font-size:11px}
+.mm-cite{padding:4px 9px;border-radius:9px;background:rgb(169 207 255 / .14);color:#CFE4FF;font-size:12px}.mm-cite small{color:#9FB2C6}.mm-cite.miss{background:rgb(158 59 46 / .3)}
+/* ما فاتك */
+.mm-cov{--p:0;width:74px;height:74px;border-radius:50%;display:grid;place-content:center;text-align:center;background:conic-gradient(#C9A24A calc(var(--p) * 1%),rgb(255 255 255 / .1) 0);position:relative}.mm-cov::before{content:"";position:absolute;inset:7px;border-radius:50%;background:#0F2236}.mm-cov b,.mm-cov small{position:relative}.mm-cov b{font-size:18px;color:var(--aul)}.mm-cov small{font-size:10.5px;color:#9FB2C6}
+.mm-venn{position:relative;max-width:420px;margin:4px auto 12px}.mm-venn svg{width:100%;display:block}.mm-venn circle{fill-opacity:.22;stroke-width:2}.mm-venn .you{fill:#A9CFFF;stroke:#A9CFFF}.mm-venn .crt{fill:#F6C3A6;stroke:#F6C3A6}
+.mm-venn .v{position:absolute;top:50%;transform:translate(50%,-50%);text-align:center}.mm-venn .v b{display:block;font-size:30px;font-weight:800;color:#fff;line-height:1}.mm-venn .v span{font-size:12px;color:#DCE5EE}.mm-venn .v.you{right:24%}.mm-venn .v.both{right:50%}.mm-venn .v.crt{right:76%}.mm-venn .v.both b{color:var(--aul)}
+.mm-g3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.mm-gc{background:var(--pa);color:#1F2A36;border-radius:14px;padding:12px;border-top:4px solid #2B5B8A}.mm-gc.crt{border-top-color:#9E3B2E}.mm-gc.def{border-top-color:#2F7D4A}.mm-gc .mm-none{color:#7A6A45}
+.mm-gi{display:grid;grid-template-columns:1fr auto;gap:0 8px;padding:7px 9px;border-radius:9px;background:#fff;border:1px solid #EFE3C6;margin-bottom:5px}.mm-gi b{font-size:13px}.mm-gi small{grid-column:1;color:#7A8592;font-size:11.3px}.mm-gi em{grid-row:1/3;grid-column:2;align-self:center;font-style:normal;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;background:#EEF7F0;color:#2F7D4A}
+.mm-gi.bad em{background:#FCEDEA;color:#9E3B2E}.mm-gi.warn em{background:#FFF4E5;color:#9A5A07}.mm-gi.info em{background:#EAF2FB;color:#2B5B8A}.mm-gi.miss{border-color:#EBC3BA}
+.mm-unseen{margin-top:12px}.mm-unseen h4{color:var(--aul)}.mm-ur{font:inherit;cursor:pointer;padding:6px 10px;border-radius:10px;border:1px solid #2B4A6B;background:rgb(255 255 255 / .06);color:#E8EEF4;font-size:12.3px;display:flex;flex-direction:column;align-items:flex-start}.mm-ur small{font-size:11px;color:#9FB2C6}.mm-ur.opp{border-color:#9E3B2E;background:rgb(158 59 46 / .22)}.mm-ur.sup{border-color:#2F7D4A;background:rgb(47 125 74 / .22)}
+.mm-unseen .mm-chips{gap:6px}.mm-gap .mm-voice.tip{margin-top:12px}
+@keyframes mmIn{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}@keyframes mmFlow{to{stroke-dashoffset:-26}}@keyframes mmSpin{to{transform:rotate(360deg)}}
+@media(max-width:900px){.mm-flow{grid-template-columns:1fr}.mm-flow>.mm-cell:nth-child(n){grid-row:auto;grid-column:auto}.mm-wire{display:none}.mm-flow{padding-inline-start:16px;border-inline-start:2px dashed rgb(201 162 74 / .5)}.mm-low,.mm-dgrid,.mm-g3{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){.mm *{animation:none!important}}
+@media print{.mm{background:#fff!important;color:#000!important;box-shadow:none}.mm::before,.mm-wire{display:none}.mm-cell,.mm-vert{background:#fff!important;color:#000!important;clip-path:none;border:1px solid #999}.mm-cell *,.mm-vert *{color:#000!important}}
+`;document.head.appendChild(st)})();
+
 function locResult(r,ui,H){return ui?locBoard(r,H):locList(r,ui)}
 /* التتبّع: تمرير المؤشر يُبرز المرتبطات، والنقر ينقل إلى البطاقة */
 (()=>{if(window.__mbgBound)return;window.__mbgBound=1;
