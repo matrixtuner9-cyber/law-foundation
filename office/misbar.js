@@ -29,7 +29,7 @@ const LAB={task:'search',provider:'',q:'',facts:'',doc:'',docName:'',lang:'en',c
 /* علامة الميزان المميزة: تُستعمل حيثما ذُكر مِسْبار */
 const MK='<img src="misbar-emblem.webp" alt="" class="mb-mk" width="20" height="19">';
 const LABT=[['search',MK,'عقل مِسْبار','اسأل بلغتك فيبحث بالمصطلحات القانونية ويجيب من القاعدة بالمراجع'],['legal_question','◇','السؤال القانوني','النصوص المنطبقة والمبادئ والثغرات وما يلزم إثباته'],['gaps','⌕','الثغرات والدفوع','استقصاء الثغرات والدفوع وخطة قابلة للتنفيذ'],['document','▤','تحليل المستند','الالتزامات والتناقضات والعيوب والنصوص ذات الصلة'],['appeal','⚖','أسباب الطعن','أسباب الطعن المحتملة في الحكم والمهل الواجب التحقق منها'],['contract','▣','مراجعة عقد','المخاطر والشروط المجحفة والغموض والتوصيات'],['hearing','◷','ملخص قبل الجلسة','الوقائع والطلبات والبينات والأسئلة المتوقعة'],['minutes','◉','محضر اجتماع','القرارات والمسؤوليات والمواعيد من التفريغ النصي'],['translate','⇄','الترجمة القانونية','ترجمة دقيقة تحفظ الترقيم والمصطلحات']];
-const MB={view:'search',gazette:'',kind:'',number:'',ltype:'',date_from:'',date_to:'',country:'',q:'',src:'',year_from:'',year_to:'',court:'',case_no:'',status:'',has_text:'',sort:'relevance',page:1,data:null,busy:false,err:'',open:null,doc:null,docBusy:false,fs:17,stats:null,statsErr:''};
+const MB={view:'search',gazette:'',kind:'',number:'',ltype:'',date_from:'',date_to:'',country:'PS',/* فلسطين افتراضياً؛ الأردن ومصر للمقارنة بضغطة */q:'',src:'',year_from:'',year_to:'',court:'',case_no:'',status:'',has_text:'',sort:'relevance',page:1,data:null,busy:false,err:'',open:null,doc:null,docBusy:false,fs:17,stats:null,statsErr:''};
 try{const f=Number(localStorage.getItem('mq_mb_fs'));if(f>=14&&f<=24)MB.fs=f}catch(x){}
 
 /* ── القائمة: المسبار بدل الشاشات القديمة ── */
@@ -248,7 +248,7 @@ A.mbKind=v=>{readForm();const was=kindOf();MB.kind=v==='law'||v==='ruling'?v:'';
 A.mbCountry=v=>{readForm();MB.country=MB.country===v?'':v;if(MB.country&&MB.src&&!MB.src.startsWith(MB.country+'_'))MB.src='';MB.view='search';mbRender();document.querySelectorAll('.mb-flag').forEach(b=>b.classList.toggle('on',b.dataset.v===MB.country));if(hasQuery())run(1);else{MB.data=null;paint()}};
 A.mbGz=v=>{Object.assign(MB,{gazette:String(v||''),q:'',kind:'',number:'',ltype:'',status:'',court:'',case_no:'',date_from:'',date_to:'',year_from:'',year_to:'',src:'PS_LEGISLATION',has_text:'',sort:'relevance',view:'search',doc:null,open:null,docBusy:false,_gzKeep:true});paintReader();mbRender();run(1).then(()=>{const r=document.getElementById('mbRes');if(r)r.scrollIntoView({block:'start',behavior:'smooth'})})};
 A.mbGzOff=()=>{MB.gazette='';if(hasQuery())run(1);else{MB.data=null;mbRender()}};
-A.mbClear=()=>{Object.assign(MB,{subject:'',gazette:'',q:'',kind:'',number:'',ltype:'',date_from:'',date_to:'',country:'',src:'',year_from:'',year_to:'',court:'',case_no:'',status:'',has_text:'',sort:'relevance',data:null,err:'',open:null,doc:null});mbRender()};
+A.mbClear=()=>{Object.assign(MB,{subject:'',gazette:'',q:'',kind:'',number:'',ltype:'',date_from:'',date_to:'',country:'PS',src:'',year_from:'',year_to:'',court:'',case_no:'',status:'',has_text:'',sort:'relevance',data:null,err:'',open:null,doc:null});mbRender()};
 A.mbOpen=async v=>{const id=Number(v);if(!id)return;MB.open=id;MB.docBusy=true;MB.doc=null;
  document.querySelectorAll('.mb-list li').forEach(li=>li.classList.toggle('on',li.querySelector('[data-v="'+id+'"]')!=null));
  paintReader();
@@ -352,8 +352,8 @@ body.mb-rd{overflow:hidden}
 .mb-find .btn{padding:4px 10px!important;min-width:0}
 mark.mb-hit{background:#FFE58A;color:inherit;border-radius:3px;padding:0 1px;box-shadow:0 0 0 1px #E2C25C}mark.mb-hit.cur{background:#F2A93B;box-shadow:0 0 0 2px #C77A10,0 0 12px rgb(242 169 59 / .7)}
 .mb-top{border-radius:16px;overflow:hidden;background:#0B1B2B;border:1px solid rgb(201 162 74 / .55);box-shadow:0 8px 24px rgb(11 27 43 / .22)}
-.mb-hero{position:relative;overflow:hidden;aspect-ratio:1436/250;width:100%;background:#0B1B2B url(misbar-hero.webp) center/cover no-repeat}
-.mb-sub{position:absolute;z-index:2;left:73.9%;top:85%;transform:translate(-50%,-50%);color:#F3D58A;font-size:clamp(11px,1.45vw,17px);font-weight:700;letter-spacing:.02em;white-space:nowrap;text-shadow:0 0 6px rgb(243 213 138 / .6),0 1px 2px #000}
+.mb-hero{position:relative;overflow:hidden;height:clamp(58px,6.2vw,92px);width:100%;background-position:center 46%!important;background:#0B1B2B url(misbar-hero.webp) center/cover no-repeat}
+.mb-sub{display:none;position:absolute;z-index:2;left:73.9%;top:85%;transform:translate(-50%,-50%);color:#F3D58A;font-size:clamp(11px,1.45vw,17px);font-weight:700;letter-spacing:.02em;white-space:nowrap;text-shadow:0 0 6px rgb(243 213 138 / .6),0 1px 2px #000}
 .mb-fx{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
 .mb-brand{text-align:center;padding:6px 6px 10px;border-bottom:1px solid rgb(201 162 74 / .3);margin-bottom:4px}.mb-brand img{width:96px;height:auto;border-radius:50%;animation:mbNeon 2.4s ease-in-out infinite;box-shadow:0 0 0 2px #F3D58A,0 0 16px 4px rgb(243 213 138 / .85),0 0 36px 10px rgb(201 162 74 / .45)}
 @keyframes mbNeon{0%,100%{box-shadow:0 0 0 2px #E9C46A,0 0 12px 3px rgb(243 213 138 / .7),0 0 28px 8px rgb(201 162 74 / .35)}50%{box-shadow:0 0 0 2px #FFF1C2,0 0 22px 6px rgb(243 213 138 / 1),0 0 52px 16px rgb(201 162 74 / .6)}}
