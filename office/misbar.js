@@ -87,7 +87,7 @@ function side(){
   <div class="mb-note">المراجع الفلسطينية أساسية؛ الأردنية والمصرية للمقارنة والاستئناس. لا يُعتمد أي استنتاج قبل مراجعة المحامي.</div></aside>`}
 /* نوع المرجع يحدد الفلاتر: التشريع (رقمه، نوعه، حالة سريانه، سنته) والحكم (المحكمة، رقم القضية، نوع الدعوى، تاريخ القرار) */
 const kindOf=()=>MB.kind||(MB.src?(/JUDGMENT|CASSATION/.test(MB.src)?'ruling':'law'):'');
-function srcOpts(){return SRC.filter(([v])=>!v||((true)&&(!MB.kind||(MB.kind==='ruling')===/JUDGMENT|CASSATION/.test(v))))}
+function srcOpts(){const CN={PS:'فلسطين',JO:'الأردن',EG:'مصر'};return SRC.filter(([v])=>!v||((!MB.country||v.startsWith(MB.country+'_'))&&(!MB.kind||(MB.kind==='ruling')===/JUDGMENT|CASSATION/.test(v)))).map(([v,l])=>!v&&CN[MB.country]?[v,'كل مصادر '+CN[MB.country]]:[v,l])}
 function form(){
  const opt=(arr,v)=>arr.map(([k,t])=>`<option value="${k}" ${v===k?'selected':''}>${t}</option>`).join('');
  const st=MB.stats||{},k=kindOf(),c=MB.country;
@@ -237,7 +237,7 @@ document.addEventListener('submit',ev=>{if(ev.target.id!=='mbForm')return;ev.pre
  /* رقم التشريع من بحث سابق لا يقيّد بحثاً جديداً بعبارة مختلفة لا تذكره */
  readForm();const q=String(MB.q||'').trim();if(MB.number&&q&&q!==MB._lastQ&&!new RegExp('(^|\\D)'+MB.number+'(\\D|$)').test(q.replace(/[٠-٩]/g,d=>d.charCodeAt(0)-0x660))){MB.number='';const n=document.getElementById('mbNum');if(n)n.value=''}MB._lastQ=q;run(1)},true);
 document.addEventListener('change',ev=>{if(S.view!=='misbar')return;
- if(ev.target.id==='mbSrcSel'){const was=kindOf();readForm();MB.kind='';MB.country=MB.src?MB.src.slice(0,2):'';document.querySelectorAll('.mb-flag').forEach(b=>b.classList.toggle('on',b.dataset.v===MB.country));if(!MB.src){mbRender();if(hasQuery())run(1);return}if(kindOf()!==was){mbRender();if(hasQuery())run(1);return}}
+ if(ev.target.id==='mbSrcSel'){const was=kindOf();readForm();MB.kind='';MB.country=MB.src?MB.src.slice(0,2):MB.country;document.querySelectorAll('.mb-flag').forEach(b=>b.classList.toggle('on',b.dataset.v===MB.country));if(!MB.src){mbRender();if(hasQuery())run(1);return}if(kindOf()!==was){mbRender();if(hasQuery())run(1);return}}
  if(['mbSrcSel','mbCourt','mbStatus','mbText','mbSort','mbLtype','mbD1','mbD2'].includes(ev.target.id)&&MB.data){run(1)}});
 A.mbView=v=>{readForm();MB.view=v==='tools'?'tools':v==='local'?'local':v==='gazette'?'gazette':'search';if(v==='gazette'){MB.doc=null;MB.open=null;paintReader()}mbRender()};
 A.mbSrc=v=>{readForm();MB.src=MB.src===v?'':v;if(MB.view!=='search'){MB.view='search';mbRender()}const s=document.getElementById('mbSrcSel');if(s)s.value=MB.src;if(hasQuery())run(1);else{MB.data=null;paint()}document.querySelectorAll('.mb-chip').forEach(b=>b.classList.toggle('on',b.dataset.v===MB.src))};
