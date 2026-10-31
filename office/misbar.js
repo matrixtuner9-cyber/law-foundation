@@ -80,7 +80,7 @@ function head(){
 function side(){
  const it=(v,ic,t,act='mbView')=>`<button class="${MB.view===v?'on':''}" data-act="${act}" data-v="${v}"><i>${ic}</i>${t}</button>`;
  return `<aside class="mb-side" aria-label="أقسام المسبار"><div class="mb-brand"><img src="misbar-emblem.webp" alt="" width="96" height="91"><b>مِسْبار</b><small>Misbar AI · عقل التحليل والاستنباط القانوني</small></div>
-  <div class="g">الاستقصاء القضائي</div>${it('search','⌕','البحث في التشريعات والقرارات')}${it('tools','✦','التحليل واستخلاص النتائج')}${it('local','⛁','عقل القانون — مسبار')}${it('gazette','📰','الوقائع الفلسطينية')}
+  <div class="g">الاستقصاء القضائي</div><button class="${MB.view==='search'||MB.view==='local'?'on':''}" data-act="mbView" data-v="search"><i>⌕</i>البحث القانوني</button>${it('gazette','📰','الوقائع الفلسطينية')}
   <div class="g">مختبر التحليل</div>${LABT.map(([m,ic,t])=>`<button class="${MB.view==='tools'&&LAB.task===m?'on':''}" data-act="mbLab" data-v="${m}"><i>${ic}</i>${t}</button>`).join('')}
   <div class="g">أدوات القضية</div>${TOOLS.filter(([m])=>['draft','defences','similar','opponent','brief'].includes(m)).map(([m,ic,t])=>`<button data-act="mbTool" data-v="${m}"><i>${ic}</i>${t}</button>`).join('')}
   <div class="g">مراجع المكتب</div><button data-act="nav" data-v="rulings"><i>❏</i>مكتبة المكتب <small style="display:block;opacity:.7;font-size:11px">ما حفظه المكتب: أحكام وتشريعات ومبادئ</small></button>
@@ -108,8 +108,8 @@ function form(){
  const allF=`<label>من سنة<input class="field mono" id="mbY1" value="${e(MB.year_from)}" inputmode="numeric" maxlength="4" placeholder="1950"></label>
    <label>حتى سنة<input class="field mono" id="mbY2" value="${e(MB.year_to)}" inputmode="numeric" maxlength="4" placeholder="${new Date().getFullYear()}"></label>`;
  return `<form class="mb-form" id="mbForm" autocomplete="off">
-  <div class="mb-qrow"><input class="field mb-q" id="mbQ" value="${e(MB.q)}" placeholder="${k==='ruling'?'ابحث في الأحكام: موضوع النزاع، مبدأ، عبارة من التسبيب…':k==='law'?'ابحث في التشريعات: اسم القانون، موضوعه، أو نص مادة…':'ابحث بالكلمات أو بعبارة بين علامتي تنصيص: “عدم كفاية الرصيد”، إخلاء المأجور…'}" maxlength="300" aria-label="عبارة البحث">
-   <button class="btn mb-go" id="mbGo" ${MB.busy?'disabled':''}>⌕ بحث قانوني</button><button type="button" class="btn mb-smart" data-act="mbSmart" title="اسأل بلغتك فيبحث بالمصطلحات القانونية ويجيب من القاعدة">${MK} عقل مِسْبار</button></div>
+  <div class="mb-qrow"><input class="field mb-q" id="mbQ" value="${e(MB.q)}" placeholder="${!k?'اكتب أي شيء: رقم مادة، اسم قانون، رقم قضية، عبارة، أو سؤالك ووقائعه…':k==='ruling'?'ابحث في الأحكام: موضوع النزاع، مبدأ، عبارة من التسبيب…':k==='law'?'ابحث في التشريعات: اسم القانون، موضوعه، أو نص مادة…':'ابحث بالكلمات أو بعبارة بين علامتي تنصيص: “عدم كفاية الرصيد”، إخلاء المأجور…'}" maxlength="3000" aria-label="عبارة البحث">
+   <button class="btn mb-go" id="mbGo" ${MB.busy?'disabled':''}>⌕ بحث قانوني</button></div>
   <div class="mb-kind" role="tablist" aria-label="نوع المرجع">${[['','الكل','⌕'],['law','التشريعات والقوانين','§'],['ruling','الأحكام والقرارات القضائية','⚖']].map(([v,t,i])=>`<button type="button" role="tab" aria-selected="${k===v}" class="${k===v?'on':''}" data-act="mbKind" data-v="${v}"><i>${i}</i>${t}</button>`).join('')}</div>
   <div class="mb-f">${common}${k==='law'?lawF:k==='ruling'?rulF:allF}
    <label>توافر النص<select class="field" id="mbText"><option value="">جميع النتائج</option><option value="1" ${MB.has_text==='1'?'selected':''}>النصوص المتاحة فقط</option></select></label>
@@ -119,7 +119,7 @@ function form(){
 function results(){
  if(MB.busy)return `<div class="mb-empty">جارٍ البحث…</div>`;
  if(MB.err)return `<div class="mb-empty bad">${e(MB.err)}</div>`;
- const d=MB.data;if(!d)return `<div class="mb-empty"><b>أدخل عبارة بحث أو رقماً وسنة.</b><span>تظهر هنا الأحكام والتشريعات مع بياناتها، ويُعرض المستند الذي تختاره في القارئ بجانبها.</span></div>`;
+ const d=MB.data;if(!d)return emptyHome();
  if(!d.total)return `<div class="mb-empty"><b>لا نتائج.</b><span>جرّب كلمات أقل أو أعم، أو أزل بعض الفلاتر.</span></div>`;
  const f=d.facets&&d.facets.src?`<div class="mb-fc">${Object.entries(d.facets.src).map(([k,n])=>`<button class="mb-chip sm ${MB.src===k?'on':''}" data-act="mbSrc" data-v="${k}">${e((SRC.find(s=>s[0]===k)||[,k])[1])} <b>${fmtN(n)}</b></button>`).join('')}</div>`:'';
  const AF=[['number','رقم التشريع'],['subject','التصنيف'],['ltype','النوع'],['status','الحالة'],['court','المحكمة'],['case_no','رقم الدعوى']].filter(([k])=>String(MB[k]||'').trim()).map(([k,t])=>`<button type="button" class="mb-chip sm on" data-act="mbFOff" data-v="${k}" title="إلغاء هذا القيد">${t}: ${e(MB[k])} ✕</button>`).join('');
@@ -212,10 +212,22 @@ function gazetteView(){
 A.mbFOff=k=>{MB[k]='';const ids={subject:'mbSubj',number:'mbNum',ltype:'mbLtype',status:'mbStatus',court:'mbCourt',case_no:'mbCase'};const el=document.getElementById(ids[k]);if(el)el.value='';run(1)};
 A.mbGzGo=()=>{const el=document.getElementById('mbGzQ'),v=String(el&&el.value||'').trim().replace(/[٠-٩]/g,d=>String(d.charCodeAt(0)-0x660));if(!v)return;const hit=(MB.gzList||[]).find(x=>x.g===v||x.g===String(Number(v)));if(hit)A.mbGz(hit.g);else toast('لا يوجد في القاعدة عدد بهذا الرقم')};
 function toolsView(){setTimeout(loadAi,0);return `<section class="mb-card" id="mbLab">${labView()}</section>`}
+/* البحث الموحّد: الأدوات المتقدمة تحت الصندوق، وشاشة البداية باختصارات وآخر عمليات البحث */
+const ADV=[['case','❏','تحليل قضية'],['ruling','§','تشريح حكم'],['gaps','◎','اكتشف ما فاتك'],['ref','⌗','أرقام ومحاكم وتنبيهات'],['dict','✎','قاموس المكتب']];
+function advRow(){return `<div class="mb-adv"><span class="m">أدوات متقدمة:</span>${ADV.map(([m,ic,t])=>`<button type="button" class="mb-advb" data-act="mbAdv" data-v="${m}"><i>${ic}</i>${t}</button>`).join('')}</div>`}
+A.mbAdv=v=>{readForm();LOC.mode=v;LOC.res=null;LOC.err='';MB.view='local';mbRender()};
+const RK='mq.mb.recent';
+function recent(){try{return JSON.parse(localStorage.getItem(RK)||'[]')}catch(x){return []}}
+function remember(q){try{const r=[q,...recent().filter(x=>x!==q)].slice(0,8);localStorage.setItem(RK,JSON.stringify(r))}catch(x){}}
+const QUICK=['مجلة الأحكام العدلية','قانون أصول المحاكمات المدنية والتجارية','قانون البينات','قانون العمل','قانون المالكين والمستأجرين','قانون التنفيذ','قانون الإجراءات الجزائية','قانون العقوبات'];
+function emptyHome(){const r=recent();return `<div class="mb-home"><div><h3>اختصارات</h3><div class="mb-chips">${QUICK.map(x=>`<button type="button" data-act="mbQuick" data-v="${e(x)}">${e(x)}</button>`).join('')}</div></div>
+ ${r.length?`<div><h3>آخر ما بحثت عنه</h3><div class="mb-chips rc">${r.map(x=>`<button type="button" data-act="mbQuick" data-v="${e(x)}">${e(x.length>70?x.slice(0,70)+'…':x)}</button>`).join('')}</div></div>`:''}
+ <p class="m">أمثلة: «م 105 مجلة» · «نقض 123/2020» · «إخلاء المأجور» · أو الصق وقائع القضية وسؤالك كاملاً.</p></div>`}
+A.mbQuick=v=>{const q=document.getElementById('mbQ');if(q)q.value=v;const f=document.getElementById('mbForm');if(f)f.requestSubmit()};
 V.misbar=()=>{setTimeout(loadStats,0);
  const enter=!!MB._enter;MB._enter=false;
  return `<div class="mb-wrap${enter?' mb-enter':''}">${head()}<div class="mb-grid">${side()}<main class="mb-main">${MB.view==='local'?localView():MB.view==='tools'?toolsView():MB.view==='gazette'?gazetteView():`
-  <section class="mb-card"><div class="mb-h"><div><h1>البحث القانوني المتقدم</h1><p class="m">استقصاء التشريعات والقرارات المحلية والمقارنة</p></div></div>${form()}</section>
+  <section class="mb-card"><div class="mb-h"><div><h1>البحث القانوني</h1><p class="m">صندوق واحد لكل شيء: المسبار يفهم ما كتبت — مادة أو قانون أو رقم قضية أو عبارة أو وقائع كاملة</p></div></div>${form()}${advRow()}</section>
   <section class="mb-card mb-resw" id="mbRes">${results()}</section>`}</main></div></div>`};
 
 /* إعادة رسم داخل المسبار دون إعادة بناء الصفحة كلها (يمنع الرمش واختفاء الهيدر) */
@@ -235,7 +247,13 @@ function readForm(){const g=id=>document.getElementById(id);if(!g('mbQ'))return;
 /* ── الأفعال ── */
 document.addEventListener('submit',ev=>{if(ev.target.id!=='mbForm')return;ev.preventDefault();ev.stopImmediatePropagation();MB.gazette='';
  /* رقم التشريع من بحث سابق لا يقيّد بحثاً جديداً بعبارة مختلفة لا تذكره */
- readForm();const q=String(MB.q||'').trim();if(MB.number&&q&&q!==MB._lastQ&&!new RegExp('(^|\\D)'+MB.number+'(\\D|$)').test(q.replace(/[٠-٩]/g,d=>d.charCodeAt(0)-0x660))){MB.number='';const n=document.getElementById('mbNum');if(n)n.value=''}MB._lastQ=q;run(1)},true);
+ readForm();const q=String(MB.q||'').trim();if(MB.number&&q&&q!==MB._lastQ&&!new RegExp('(^|\\D)'+MB.number+'(\\D|$)').test(q.replace(/[٠-٩]/g,d=>d.charCodeAt(0)-0x660))){MB.number='';const n=document.getElementById('mbNum');if(n)n.value=''}MB._lastQ=q;if(q)remember(q);
+ const qn=q.replace(/[٠-٩]/g,d=>String(d.charCodeAt(0)-0x660)),words=qn.split(/\s+/).filter(Boolean).length;
+ /* وقائع أو سؤال أو استشهاد بمادة: يُحال إلى التحليل المحلي (يستخرج المواد بنصها ويجلب الأحكام الأقرب) */
+ if(words>=8||/[؟?]/.test(qn)||/(^|\s)(م|م\.|المادة|مادة)\s*\(?\d+/.test(qn)){LOC.mode='research';LOC.text=q;LOC.res=null;LOC.err='';MB.view='local';mbRender();setTimeout(()=>locRun(),60);return}
+ /* رقم قضية/حكم: 123/2020 */
+ const cn=/^(?:[^\d]{0,25})?(\d{1,6})\s*\/\s*((?:19|20)\d{2})$/.exec(qn);if(cn&&words<=4){MB.kind='ruling';MB.case_no=cn[1]+'/'+cn[2];MB.q='';mbRender();run(1);return}
+ run(1)},true);
 document.addEventListener('change',ev=>{if(S.view!=='misbar')return;
  if(ev.target.id==='mbSrcSel'){const was=kindOf();readForm();MB.kind='';MB.country=MB.src?MB.src.slice(0,2):MB.country;document.querySelectorAll('.mb-flag').forEach(b=>b.classList.toggle('on',b.dataset.v===MB.country));if(!MB.src){mbRender();if(hasQuery())run(1);return}if(kindOf()!==was){mbRender();if(hasQuery())run(1);return}}
  if(['mbSrcSel','mbCourt','mbStatus','mbText','mbSort','mbLtype','mbD1','mbD2'].includes(ev.target.id)&&MB.data){run(1)}});
@@ -353,6 +371,8 @@ body.mb-rd{overflow:hidden}
 mark.mb-hit{background:#FFE58A;color:inherit;border-radius:3px;padding:0 1px;box-shadow:0 0 0 1px #E2C25C}mark.mb-hit.cur{background:#F2A93B;box-shadow:0 0 0 2px #C77A10,0 0 12px rgb(242 169 59 / .7)}
 .mb-top{border-radius:16px;overflow:hidden;background:#0B1B2B;border:1px solid rgb(201 162 74 / .55);box-shadow:0 8px 24px rgb(11 27 43 / .22)}
 .mb-hero{position:relative;overflow:hidden;height:clamp(58px,6.2vw,92px);width:100%;background-position:center 46%!important;background:#0B1B2B url(misbar-hero.webp) center/cover no-repeat}
+.mb-adv{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:10px}.mb-advb{border:1px solid #E4D3A6;background:#FBF6EA;color:#5A4A22;border-radius:99px;padding:5px 12px;font:inherit;font-size:13px;cursor:pointer}.mb-advb i{font-style:normal;margin-inline-end:5px;color:#A07A28}.mb-advb:hover{background:#F3E6C4}
+.mb-home{display:grid;gap:16px;padding:6px 2px}.mb-home h3{margin:0 0 8px;font-size:14px;color:#5A4A22}.mb-chips{display:flex;flex-wrap:wrap;gap:6px}.mb-chips button{border:1px solid #D9C690;background:#fff;border-radius:10px;padding:7px 12px;font:inherit;font-size:13.5px;cursor:pointer;color:#0F2A44}.mb-chips button:hover{border-color:#A07A28;background:#FFFAEE}.mb-chips.rc button{color:#4A5563;font-size:12.5px}
 .mb-sub{display:none;position:absolute;z-index:2;left:73.9%;top:85%;transform:translate(-50%,-50%);color:#F3D58A;font-size:clamp(11px,1.45vw,17px);font-weight:700;letter-spacing:.02em;white-space:nowrap;text-shadow:0 0 6px rgb(243 213 138 / .6),0 1px 2px #000}
 .mb-fx{position:absolute;inset:0;width:100%;height:100%;z-index:1;pointer-events:none}
 .mb-brand{text-align:center;padding:6px 6px 10px;border-bottom:1px solid rgb(201 162 74 / .3);margin-bottom:4px}.mb-brand img{width:96px;height:auto;border-radius:50%;animation:mbNeon 2.4s ease-in-out infinite;box-shadow:0 0 0 2px #F3D58A,0 0 16px 4px rgb(243 213 138 / .85),0 0 36px 10px rgb(201 162 74 / .45)}
