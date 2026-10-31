@@ -43,6 +43,10 @@ test('إصدار ترخيص: كود صالح للبصمة فيه المعرّف 
   const o = (await call('/api/offices/najah-law')).j; assert.equal(o.licenses.length, 1); assert.equal(o.licenses[0].state, 'active');
   const p = (await call('/api/licenses', { slug: 'najah-law', fp: FP, edition: 'private', ai: 999 })).j;
   assert.equal(L.verify(p.code, { fp: FP, pub: fs.readFileSync(path.join(DIR, 'license.pub'), 'utf8') }).payload.ai, 0, 'الخاصة بلا عقل المسبار');
+  const pub = fs.readFileSync(path.join(DIR, 'license.pub'), 'utf8'), yr = new Date(Date.now() + 365 * 864e5).toISOString().slice(0, 10);
+  assert.equal(L.verify(p.code, { fp: FP, pub }).payload.exp, yr, 'بلا تاريخ = سنة من اليوم، لا دائم');
+  const f = (await call('/api/licenses', { slug: 'najah-law', fp: FP, forever: 'yes' })).j;
+  assert.equal(L.verify(f.code, { fp: FP, pub }).payload.exp, '', 'الدائم بطلب صريح فقط');
 });
 
 test('التجديد يصدر كوداً جديداً ويبطل القديم، والإبطال يصل إلى السحابة', async () => {

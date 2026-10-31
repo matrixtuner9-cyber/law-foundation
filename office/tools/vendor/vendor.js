@@ -86,6 +86,9 @@ function create(db) {
   }
   const licState = l => l.status === 'revoked' ? 'revoked' : l.exp && l.exp < today() ? 'expired' : l.exp && l.exp <= addDays(30) ? 'expiring' : 'active';
   const addDays = n => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+  /* تاريخ الانتهاء إلزامي: بلا تاريخ = سنة من اليوم، والترخيص الدائم يُطلب صراحةً (forever) فلا يحدث سهواً */
+  const isForever = b => b && (b.forever === true || b.forever === 'yes' || b.forever === '1');
+  const expOf = (b, cur) => isForever(b) ? '' : /^\d{4}-\d{2}-\d{2}$/.test(String(b.exp || '')) ? b.exp : (cur || addDays(365));
   function balance(o) {
     const paid = db.prepare('SELECT COALESCE(SUM(amount),0) s FROM payments WHERE slug=?').get(o.slug).s;
     // المستحق: سعر الاشتراك × عدد الدورات منذ الإنشاء (سنوي/شهري)، أو مرة واحدة
@@ -115,7 +118,7 @@ function create(db) {
     const fp = L.normFp(b.fp); if (fp.length !== 20) throw new Error('بصمة الجهاز غير صحيحة: 20 حرفاً كما تظهر في «ترخيص المكتب» لدى المكتب');
     const edition = b.edition === 'private' ? 'private' : 'connected';
     const users = Math.max(1, Math.min(500, parseInt(b.users || '5', 10) || 5));
-    const exp = /^\d{4}-\d{2}-\d{2}$/.test(String(b.exp || '')) ? b.exp : '';
+    const exp = expOf(b);
     const ai = edition === 'private' ? 0 : Math.max(0, Math.round(+b.ai || 0));
     const id = crypto.randomBytes(4).toString('hex');
     const payload = { v: 2, fp: fp.match(/.{4}/g).join('-'), office: o.name, slug: o.slug, edition, users, exp, ai, iat: today(), id };
@@ -207,7 +210,9 @@ function create(db) {
   async function actSave(b, fetchImpl) {
     const o = db.prepare('SELECT * FROM offices WHERE slug=?').get(String(b.slug || '')); if (!o) throw new Error('المكتب غير موجود');
     const body = { slug: o.slug, name: o.name };
-    for (const k of ['seats', 'edition', 'users', 'exp', 'ai', 'status']) if (b[k] != null) body[k] = b[k];
+    for (const k of ['seats', 'edition', 'users', 'ai', 'status']) if (b[k] != null) body[k] = b[k];
+    if (b.exp != null || isForever(b)) body.exp = expOf(b);
+    else { const ex = await actGet(o.slug, fetchImpl).catch(() => null); if (!(ex && ex.account)) body.exp = expOf(b) }
     const password = b.newPassword ? genPw() : null; if (password) body.password = password;
     const r = await ops('POST', '/_ops/act/account', body, fetchImpl);
     log(o.slug, password ? 'act.password' : 'act.update', { seats: r.seats, exp: r.exp, users: r.users, ai: r.ai, status: r.status });
