@@ -166,7 +166,7 @@ function createMisbar(db, { audit } = {}) {
     if (!r) return null;
     r.body = scrub(await fullBody(n, r.body)); r.title = scrub(r.title);
     const j = s => { try { return JSON.parse(s || 'null') } catch { return null } };
-    return { ...cleanRow(r), cites: (j(r.cites) || []).map(c => ({ title: scrub(c.title), text: scrub(c.text), ...(c.case ? { case: String(c.case) } : {}) })), meta: j(r.meta) || {}, source: SOURCES[r.src]?.label || r.src, primary: !!SOURCES[r.src]?.primary };
+    return { ...cleanRow(r), cites: (j(r.cites) || []).map(c => ({ title: scrub(c.title), text: scrub(c.text), ...(c.case ? { case: String(c.case), in: !!c.in } : {}) })), meta: j(r.meta) || {}, source: SOURCES[r.src]?.label || r.src, primary: !!SOURCES[r.src]?.primary };
   }
   async function stats() {
     const rows = await all('SELECT src, COUNT(*) n, SUM(has_text) t, MIN(year) y1, MAX(year) y2 FROM docs GROUP BY src');
