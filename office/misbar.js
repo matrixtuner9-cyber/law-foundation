@@ -159,7 +159,7 @@ function reader(){
    ${can2('write')&&d.body?`<button class="btn sm pri" data-act="mbAnalyze">${d.kind==='ruling'?'تحليل الحكم وأسباب الطعن':'تحليل النص'}</button>`:''}
 </div></div>
   <div class="mb-body" style="font-size:${MB.fs}px">${d.body?bodyHtml(d.body,MB.q):`<p class="m">النص الكامل غير متوفر في القاعدة لهذا ${d.kind==='law'?'التشريع':'الحكم'}.</p>`}</div>
-  ${(d.cites||[]).length?`<div class="mb-cites"><b>التشريعات المستشهد بها في الحكم (${d.cites.length})</b><ul>${d.cites.map(c=>`<li><button class="link" data-act="mbFind" data-v="${e(c.title)}">${e(c.title)}</button>${c.text?`<small>${e(c.text.slice(0,240))}${c.text.length>240?'…':''}</small>`:''}</li>`).join('')}</ul></div>`:''}
+  ${(d.cites||[]).length?`<div class="mb-cites"><b>${d.meta&&d.meta.principle?'القرارات التي استُقي منها المبدأ':'التشريعات المستشهد بها في الحكم'} (${d.cites.length})</b><ul>${d.cites.map(c=>`<li>${c.case?`<button class="link" data-act="mbCaseNo" data-v="${e(c.case)}">${e(c.title)}</button>`:`<button class="link" data-act="mbFind" data-v="${e(c.title)}">${e(c.title)}</button>`}${c.text?`<small>${e(c.text.slice(0,240))}${c.text.length>240?'…':''}</small>`:''}</li>`).join('')}</ul></div>`:''}
   ${m.classifications&&m.classifications.length?`<div class="mb-cites"><b>التصنيف</b><ul>${m.classifications.map(c=>`<li>${e(c)}</li>`).join('')}</ul></div>`:''}`}
 async function loadAi(){if(LAB.ai)return;try{LAB.ai=await call('ai',{})}catch(x){LAB.ai={error:x.message}}if(S.view==='misbar'&&MB.view==='tools'){const el=document.getElementById('mbLab');if(el)el.innerHTML=labView()}}
 function labView(){
@@ -306,6 +306,8 @@ document.addEventListener('keydown',ev=>{if(ev.key!=='Escape'||S.view!=='misbar'
 const dn0=window.drawNav;if(typeof dn0==='function')window.drawNav=function(){const r=dn0.apply(this,arguments);document.body.classList.toggle('mb-on',S.view==='misbar');if(S.view!=='misbar'){const ov=document.getElementById('mbReader');if(ov)ov.remove();document.body.classList.remove('mb-rd')}return r};
 
 A.mbFs=v=>{const n=Number(v);MB.fs=n===0?17:Math.max(14,Math.min(24,MB.fs+n*1.5));try{localStorage.setItem('mq_mb_fs',String(MB.fs))}catch(x){}const b=document.querySelector('.mb-body');if(b)b.style.fontSize=MB.fs+'px'};
+/* رقم قرار تمييز من مبدأ المكتب الفني: يفتح أحكام التمييز الأردنية بهذا الرقم */
+A.mbCaseNo=v=>{Object.assign(MB,{q:'',kind:'ruling',country:'JO',src:'JO_CASSATION',case_no:String(v||''),view:'search',doc:null,open:null});paintReader();mbRender();run(1)};
 A.mbFind=v=>{const t=String(v||'').replace(/^المادة رقم\s*\d+\s*من\s*/,'');MB.q='"'+t.replace(/["()]/g,' ').replace(/\s+/g,' ').trim()+'"';MB.src='PS_LEGISLATION';MB.view='search';mbRender();run(1)};
 const docText=d=>[d.title,[d.court,d.case_no&&('رقم '+d.case_no),d.date||d.year].filter(Boolean).join(' · '),'',d.body||''].join('\n');
 A.mbCopy=()=>{const d=MB.doc;if(!d)return;navigator.clipboard.writeText(docText(d)).then(()=>toast('نُسخ النص'),()=>toast('تعذّر النسخ في هذا المتصفح'))};
